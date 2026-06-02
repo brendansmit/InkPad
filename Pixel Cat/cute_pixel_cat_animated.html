@@ -1,0 +1,90 @@
+<h2 class="sr-only">An animated cute pixel-art cat that bobs, blinks, and wags its tail, with idle, happy, and sleepy modes.</h2>
+<div style="padding:1rem 0; display:flex; flex-direction:column; align-items:center; gap:1.25rem;">
+  <div id="stage" data-mode="idle" style="position:relative; background:var(--color-background-secondary); border-radius:var(--border-radius-lg); padding:28px 36px; display:flex; align-items:center; justify-content:center;">
+    <div class="cat" id="cat" style="position:relative; width:288px; height:240px; image-rendering:pixelated;">
+      <div class="tail" id="tail" style="position:absolute; inset:0;"></div>
+      <div id="body" style="position:absolute; inset:0;"></div>
+      <div id="face" style="position:absolute; inset:0;"></div>
+    </div>
+    <div class="zzz" aria-hidden="true">z<span>z</span><span>z</span></div>
+    <i class="ti ti-heart heart" aria-hidden="true"></i>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="modebtn" data-active onclick="setMode('idle',this)">Idle</button>
+    <button class="modebtn" onclick="setMode('happy',this)">Happy</button>
+    <button class="modebtn" onclick="setMode('sleepy',this)">Sleepy</button>
+  </div>
+</div>
+<style>
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+.cat{animation:bob 2.6s ease-in-out infinite;}
+.eye{animation:blink 4.2s infinite;}
+.tail{animation:wag 1.5s ease-in-out infinite;}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes blink{0%,90%,100%{transform:scaleY(1)}95%{transform:scaleY(0.08)}}
+@keyframes wag{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(9deg)}}
+[data-mode="happy"] .cat{animation:hop 0.55s ease-in-out infinite;}
+@keyframes hop{0%,100%{transform:translateY(0) scaleY(1)}30%{transform:translateY(0) scaleY(0.92)}62%{transform:translateY(-16px) scaleY(1.05)}}
+[data-mode="happy"] .tail{animation:wag 0.45s ease-in-out infinite;}
+[data-mode="happy"] .eye{animation:blink 2s infinite;}
+[data-mode="sleepy"] .cat{animation:breathe 4s ease-in-out infinite;}
+@keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+[data-mode="sleepy"] .eye{animation:none;transform:scaleY(0.08);}
+[data-mode="sleepy"] .tail{animation:wag 3.2s ease-in-out infinite;}
+.zzz{position:absolute;top:20px;right:30px;font-size:18px;font-weight:500;color:var(--color-text-tertiary);opacity:0;}
+.zzz span{margin-left:2px;}
+[data-mode="sleepy"] .zzz{animation:floatz 2.4s ease-in-out infinite;}
+@keyframes floatz{0%{transform:translateY(0);opacity:.15}45%{opacity:1}100%{transform:translateY(-12px);opacity:0}}
+.heart{position:absolute;top:32px;right:40px;font-size:20px;color:var(--color-text-danger);opacity:0;}
+[data-mode="happy"] .heart{animation:pop 0.9s ease-out infinite;}
+@keyframes pop{0%{transform:translateY(0) scale(0.4);opacity:0}30%{opacity:1}100%{transform:translateY(-24px) scale(1);opacity:0}}
+.modebtn[data-active]{background:var(--color-background-secondary);border-color:var(--color-border-secondary);}
+</style>
+<script>
+(function(){
+  const PX=16, COLS=18, ROWS=15;
+  const COL={o:'#f5a65b',d:'#e08740',w:'#fdeccb',p:'#f4a3b5',e:'#3a2a20'};
+  const OUTLINE='#4a3526';
+  const mk=()=>Array.from({length:ROWS},()=>Array(COLS).fill(null));
+  const span=(g,y,x0,x1,c)=>{for(let x=x0;x<=x1;x++) if(x>=0&&x<COLS&&y>=0&&y<ROWS) g[y][x]=c;};
+  const pxEl=(x,y,c)=>{const d=document.createElement('div');d.style.cssText='position:absolute;left:'+(x*PX)+'px;top:'+(y*PX)+'px;width:'+PX+'px;height:'+PX+'px;background:'+c+';';return d;};
+  const outline=(g)=>{const o=mk();const nb=[[1,0],[-1,0],[0,1],[0,-1]];
+    for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++){ if(g[y][x]!==null) continue;
+      if(nb.some(([dx,dy])=>{const nx=x+dx,ny=y+dy;return nx>=0&&nx<COLS&&ny>=0&&ny<ROWS&&g[ny][nx]!==null;})) o[y][x]='O'; }
+    return o;};
+  const draw=(host,g)=>{const ol=outline(g);
+    for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++) if(ol[y][x]) host.appendChild(pxEl(x,y,OUTLINE));
+    for(let y=0;y<ROWS;y++)for(let x=0;x<COLS;x++) if(g[y][x]) host.appendChild(pxEl(x,y,COL[g[y][x]]));};
+
+  const g=mk();
+  g[0][4]='o'; span(g,1,3,5,'o'); g[1][4]='p';
+  g[0][12]='o'; span(g,1,11,13,'o'); g[1][12]='p';
+  span(g,2,3,13,'o'); span(g,3,2,14,'o'); span(g,4,2,14,'o'); span(g,5,2,14,'o'); span(g,6,3,13,'o'); span(g,7,4,12,'o');
+  span(g,8,3,13,'o'); span(g,9,2,14,'o'); span(g,10,2,14,'o'); span(g,11,2,14,'o'); span(g,12,3,13,'o'); span(g,13,4,12,'o');
+  span(g,9,7,9,'w'); span(g,10,6,10,'w'); span(g,11,6,10,'w'); span(g,12,7,9,'w');
+  span(g,13,4,5,'w'); span(g,13,11,12,'w');
+  g[2][6]='d'; g[2][8]='d'; g[2][10]='d';
+  g[5][4]='p'; g[5][13]='p';
+  g[6][8]='p'; g[7][8]='e';
+  draw(document.getElementById('body'),g);
+
+  const tg=mk();
+  const tail=[[14,11],[15,11],[16,10],[17,9],[17,8],[16,7],[15,6],[14,5]];
+  tail.forEach((c,i)=>{ tg[c[1]][c[0]] = (i%3===1)?'d':'o'; });
+  const tailEl=document.getElementById('tail');
+  draw(tailEl,tg);
+  tailEl.style.transformOrigin=((14+0.5)*PX)+'px '+((11+0.5)*PX)+'px';
+
+  const face=document.getElementById('face');
+  [[5,4],[11,4]].forEach(([ex,ey])=>{
+    const eye=document.createElement('div'); eye.className='eye';
+    eye.style.cssText='position:absolute;left:'+(ex*PX)+'px;top:'+(ey*PX)+'px;width:'+PX+'px;height:'+(PX*2)+'px;background:'+COL.e+';border-radius:3px;transform-origin:center;';
+    const hi=document.createElement('div');
+    hi.style.cssText='position:absolute;left:3px;top:3px;width:5px;height:5px;background:#fff;border-radius:1px;';
+    eye.appendChild(hi); face.appendChild(eye);
+  });
+
+  window.setMode=(m,btn)=>{ document.getElementById('stage').dataset.mode=m;
+    document.querySelectorAll('.modebtn').forEach(b=>b.removeAttribute('data-active')); btn.setAttribute('data-active',''); };
+})();
+</script>

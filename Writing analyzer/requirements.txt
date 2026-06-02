@@ -1,0 +1,15 @@
+# Core GUI
+flet>=0.24.0
+
+# Document reading
+pypdf>=4.0.0
+python-docx>=1.1.0
+
+# Apple Silicon ML inference (CPU/GPU via MLX; macOS only)
+mlx>=0.16.0
+mlx-lm>=0.19.0
+
+# mlx-lm pulls in these; pin for reproducibility
+huggingface-hub>=0.23.0
+transformers>=4.40.0
+sentencepiece>=0.2.0
