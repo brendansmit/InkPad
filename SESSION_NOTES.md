@@ -278,3 +278,5 @@
 **Verified in preview:** grimoire on a genSemi 5+7 layout, edit mode, Empath card with neighbour names, student screen Imp card, sound playback and loop, remote button. No console errors.
 
 **Commits:** cfd1175 (grimoire), 2bd6677 (night flow, display, sfx, remote), plus FEATURES.md.
+
+**Follow-up:** user reported still seeing squares and the circle. Root cause: the Maestro shell's 🩸 BotC sidebar button opened /botc.html (the v1 monolith) instead of /v2/botc.html, so the rebuilt grimoire was never reachable from the teacher screen. Fixed in v2/index.html (commit f54425e). When the user reports v2 work "not showing", check which page they are actually on before suspecting caching.
