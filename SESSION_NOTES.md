@@ -126,3 +126,119 @@
 **Did:** Wrote AI_HANDOFF_GUIDE.md at repo root. Core ideas: draft AI is explicitly the first-pass worker, greppable uncertainty markers (TODO/UNSURE/STUB/ASSUME with `(handoff)` tag), mandatory HANDOFF.md notes, no invented APIs, loud errors, complete files not fragments, boring flat code, Python and vanilla-JS style rules matching existing projects.
 
 **Decisions:** guide optimised for weak models — over-marking uncertainty encouraged, honesty over completeness as rule #1.
+
+## 2026-06-11 — App Master Prompt template
+
+**Asked:** A reusable master prompt for starting vibe-coded apps with one prompt, ending with clarifying questions, that helps shape ideas since project clarity is hard.
+
+**Did:** Wrote APP_MASTER_PROMPT.md at repo root. User only fills a messy brain dump plus a short context checklist; the AI does the shaping: pitch the idea back, name the core loop, cut features into V1/V2/Someday tiers, make unstated decisions with defaults, flag risks, then ask 5 importance-ordered concrete clarifying questions and stop before any code.
+
+**Decisions:** Clarifying questions must offer options/examples (open-ended "what do you envision" questions are hard for user). Companion to AI_HANDOFF_GUIDE.md — this covers what to build, that covers how to code.
+
+**Follow-up:** Changed fixed 5 questions to adaptive 3-7 (no padding) plus one optional follow-up round of 1-3 questions. Renamed file to APP_MASTER_PROMPT.txt per user request.
+
+---
+
+## 2026-06-11 — BotC port first half: shell, state, grimoire, setup, night
+
+**Asked:** BotC port items 4-9. Mapped v1 botc.html (3408 lines) to module split first, estimated usage, chose first half (state + grimoire + night) then check usage.
+
+**Did:**
+1. **Mapped v1 botc.html** to seven v2 modules with line ranges; setup wizard pulled into this half because the shell cannot create or verify games without it.
+2. **botc-state.js:** roles/setup tables/scripts, game state, 40-deep undo, multi-game stored in the botcGames slice of maestro_v2 so cross-device sync comes free from State.save. Win conditions, Scarlet Woman, export/import. Old botc_games localStorage NOT migrated (v1 student ids differ from v2).
+3. **botc-grimoire.js:** render, seat-assign mode, desk drag/delete writing to Maestro.State layouts. Recurring spacing bug fixed properly: ring split computed from chord geometry, min card distance 92px verified at 18 and 24 players (cards are 90px).
+4. **botc-setup.js:** wizard steps 0-4 + seat assignment + game flow (new/load/resume, begin nights). UI.modal replaces confirm().
+5. **botc-night.js:** full night flow, 13 role step cards, Empath/Chef/FT/Bar Owner calcs, override panel, imp self-kill, end night. Student screen push via Sync events to the existing cg-display BotC relay.
+6. **v2/botc.html:** v1 gothic visuals, delegated events (no inline handlers), shell router Maestro.Botc, day/log tabs placeholder until botc-day.js.
+
+**Verified in preview:** full wizard run with EAP 1 (12 players, correct 7/2/2/1 breakdown), night 1 walk-through of all step cards, poison icon on grimoire, imp kill applied at dawn, undo day→night, reload + resume from saved game, zero console errors. Test game deleted from state afterwards. Screenshot capture glitched again (known preview issue) — DOM checks used instead.
+
+**Commit:** 7019cf6.
+
+**Next:** second half — botc-day.js (day flow + nominations + log tab), botc-remote.js, botc-sfx.js. Then cutover prep. Day/log tab placeholders and Sounds button absence are expected until then.
+
+---
+
+## 2026-06-11 — picker fix list, stopped at usage limit
+
+**Asked:** 16-item picker fix list (typed up), lightest first. Clarified: mini leaderboard = teacher-side toggle panel; soundboard issue = audible loop seam; numbers stays on remote; timer gets end animation + v1 sounds; randomizer animation covers names and numbers.
+
+**Committed:**
+- c89e87a trivial batch: UI.modal resolver bug (broke ALL multi-button modals and prompts — was the reported reset-all bug), alphabetical points, numbers button off sidebar, copy phone URL with clipboard fallback, soundboard PLAYING state, bigger timer input.
+- 8248d57 light-medium: v1 point jingles on audio.js, collapsed timer pill now draggable (_applyPos ignored _pos when collapsed), settings default timer as MM:SS, loop seam fixed via loopStart/loopEnd trim (ambient-drone.mp3 carries 0.5s head + 3.2s tail silence).
+- WIP commit pass 3 (NOT verified): leaderboard auto-fit row sizing, student timer size/warn/pulse + v1 tick and chime sounds in cg-display.
+
+**Remaining (task list):**
+- Pass 3 unverified: the WIP commit needs preview verification. Then: randomizer spin animation for student screen names AND numbers (v1 reference: index.html ~5520-5612 runPicker cycling/landed/burst pattern, pw-name cycling classes ~768; v1 broadcasts 'pick-start' so both screens animate together — v2 currently only sends final picker-result), teacher mini leaderboard toggle panel.
+- Pass 4: full students tab port from v1 (cg-students.js PARKED, may partially reuse), groups options popup → permanent right-side toggle panel.
+- User to test on real hardware: phone URL copy button, loop seam by ear, point/timer sounds, leaderboard with the real 22-student class.
+- BotC second half still parked: botc-day.js, botc-remote.js, botc-sfx.js.
+
+**Notes:** killed user's standalone server.js to run preview on 3456 (restart with maestro.command). Preview screenshots still glitch; DOM checks used.
+
+---
+
+## 2026-06-11 — picker list finished (efficient close-out)
+
+**Asked:** finish remaining picker items as efficiently as possible.
+
+**Did (commits 968539d verified + c0f6c09):**
+- Verified pass 3 WIP: leaderboard auto-fit (34px rows, all fit, no scroll), student timer 56px with amber warn / red pulse + v1 ticks and alarm.
+- Randomizer spin on student screen for names and numbers: picker-result now carries the name pool, number-result carries min/max (teacher picker + remote senders), cg-display runs the v1 interval curve with dim cycling and a landing pop.
+- Students tab: parked cg-students.js wired into shell (tab button, panel, init, class-change notify). Marked DONE in FEATURES.
+- Groups: options popup deleted, permanent right-side panel with toggle switches, auto-save on change.
+- Teacher mini leaderboard: 🏆 sidebar button toggles fixed dark panel reusing Maestro.Leaderboard; falls back to teacher's active class.
+
+**All verified in preview, zero console errors.** User still to test on real hardware: sounds by ear, phone URL copy, real 22-student class, classroom projector look.
+
+**Remaining backlog:** BotC second half (botc-day, botc-remote, botc-sfx) then cutover. Killed standalone server again for preview; relaunch maestro.command.
+
+---
+
+## 2026-06-11 — spin timing fix
+
+**Asked:** student screen spin started only after the teacher spin finished; must be simultaneous.
+
+**Did (784a082):** picker-result/number-result now broadcast at spin START (winner pre-chosen, v1 pick-start pattern) carrying a duration; cg-display scales its interval curve to land at the same moment. Durations: teacher names 1400ms, teacher numbers 600ms, remote names 900ms, remote numbers 600ms. Manual re-push lands instantly. Verified by node --check only — user's own server was running so no preview; user to confirm by eye (both screens should land together).
+
+---
+
+## 2026-06-11 — spin sync rework (exact replica)
+
+**Asked:** previous fix shipped broken (student screen showed name instantly, no animation). Requirement: identical animation, exact same time.
+
+**Root cause:** duration patch half-applied — display gated on ev.duration which _pushToScreen never sent. Lesson: the python-patch asserts passed on the wrong file region; verify event payloads end to end, not just sender or receiver alone.
+
+**Did (commit on main):** frames protocol — sender builds the full frame list and broadcasts frames/frameMs/startAt before starting its own spin; both screens play the same timeline; display re-bases if event is late or clocks differ by >250ms. Verified frame order + landing in preview; timing clamped there (background tab), user to confirm by eye. User's server killed again for verification — relaunch maestro.command.
+
+---
+
+## 2026-06-11 — seating diagnosis + handoff to Sonnet
+
+**Asked:** assess why the seating chart ported badly, then hand off execution to a cheaper model.
+
+**Findings:** (1) canvas fits to width only and its column gets squeezed — measured 112x75px live, desks 7px; (2) relationship vocabulary mismatch — Students tab writes good/bad, seating scorer reads v1's enemy/works-well, so auto-assign silently ignores conflicts; (3) genPerimeter never ported despite FEATURES claiming it; (4) no push-to-student-screen seating view; (5) polish: seat-pref quick edit, wheel zoom.
+
+**Handoff:** full execution plan with file/line refs, verification steps and known traps written to v2/SEATING_REBUILD_PLAN.md. Sonnet to execute items 1-5 in order, commit per item. The plan itself is the go-ahead.
+
+---
+
+## 2026-06-11 — seating rebuild execution (Sonnet, 5 commits)
+
+**Asked:** execute SEATING_REBUILD_PLAN.md items 1-5 in order.
+
+**Did (commits c8294bb → 3de4265):**
+
+1. **Canvas layout** (c8294bb): height chain — `#tab-seating.active` becomes `display:flex;flex-direction:column;height:100%`, `.seating-wrap` and `.seating-main` get flex+min-height:0, `.seat-canvas-outer` gets `flex:1` centering. `_scaleCanvas` now uses `Math.min(availW/CW, availH/CH)`. Removed redundant `seat-canvas-scroll-wrap` nesting.
+
+2. **Relationship vocab** (1218475): conflict highlight changed from `enemy` to `bad`; `_scoreSeating` now scores `bad -500, romantic -300, complicated -200, good +30`; deleted dead v1 branches. state.js line-25 doc comment updated to the four real types.
+
+3. **Perimeter generator** (a542fcc): `genPerimeter(type, desksPerSide, spacing)` added to `shared/seating.js` and exported. Perimeter tab (U-shape / Boardroom, desks-per-side, spacing) added to the preset modal and wired in `_applyPreset`. Verified: 18 desks in U-shape at default settings.
+
+4. **Push to student screen** (bb995f3): `📺 Show on screen` toolbar button sends a `seating-show` Sync event with seat positions + first names. `cg-display.js` new `_showSeating()` renders a scaled read-only chart in `pw-label` using the same 660×440 space. `picker-clear` resets it via existing `_reset()`.
+
+5. **Polish** (3de4265): scroll-wheel zoom (10% steps, updates slider+label), Fit button resets zoom to 1.0, right-click on occupied desk in assign mode cycles seatPref (any→front→back→any) with a toast.
+
+**User to verify on real hardware:** seating chart appears on `/v2/?picker` when button is pressed; wheel zoom and Fit button feel; seat-pref right-click updates visible pref chips on desks; classroom projector look.
+
+**Relaunch maestro.command** — preview tool killed the standalone server again.
