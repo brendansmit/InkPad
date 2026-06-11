@@ -260,3 +260,21 @@
 **Verified:** Preview browser — Day tab renders correctly (dawn death, nominations, Slayer, Begin Night). SFX panel opens over Day content, 14 buttons visible. Log tab shows execution + night log tables. Remote at `?remote` loads with full-page dark UI, main app hidden, 14 large sound buttons. No console errors. Two commits: e6185c1 (code), 350c063 (FEATURES.md).
 
 **Remaining BotC:** sync hardening (real phone WiFi test — user only), then cutover.
+
+## 2026-06-11 (second session)
+
+**Asked:** (1) BotC must use the class's real seating layout (the Lego piece from the seating module) in both the seat editor and the display, names and roles shown, unused desks visible. (2) Improve the student screen visuals and wording; push button with names/numbers between Skip and Next. (3) Semicircle neighbours: end-of-row students neighbour the matching end of the opposite row. (4) Verify the built-in sound panel works and loops like the soundboard module. (5) BotC controls reachable from the phone remote.
+
+**Did:**
+- **botc-grimoire.js rebuilt:** same 660x440 coordinate space and 44px desk geometry as the seating editor via Maestro.Seating. Players render on their assigned desks with first name, role, status icons and death overlay. Unused desks visible as faded chips, blocked desks hatched, teacher desk shown. All arc and horseshoe code deleted — no layout shows a message, never a circle. autoSeat() fills unseated players onto free desks. Wired the previously dead Auto-seat and Seats header buttons. Seat-assign desks shrunk from 70px squares to the editor's 44px circles, which fixes the cramped overlap.
+- **Neighbour order (botc-night.js cwPlayers):** players form one closed loop along the seating arcs. Rows cluster by radius from the centroid, each row breaks at its largest angular gap (the opening) and rows chain end-to-end on the same side. Verified with Chef pair counts: inner-arc end student neighbours both the next student in their row and the matching end of the outer row, not anyone else.
+- **Night flow footer:** push button now sits between Skip and Next (with Undo and Clear screen on the left). Push payloads carry icon/title/content: "Either X or Y is the Empath", "Your number is N", "YES — one of them registers as the Demon", Imp night 1 gets Minions plus safe bluffs on two lines. Bar Owner pushes under the Fortune Teller title. Dawn announcement rewritten ("The town wakes to grim news…").
+- **cg-display.js:** botc events render a themed dark card — gold border, serif small-caps title, large multi-line content. botc-clear shows "Night falls — everyone close your eyes."
+- **botc-sfx.js:** per-sound loop chips matching soundboard behaviour. Verified all 14 sound URLs return 200, playback and loop-while-stopped both work in preview.
+- **Remote links:** main remote class-tab row has a 🧿 BotC button to botc.html?remote; BotC remote has a back link. (The user's "no BotC controls on the remote" was the URL split — botc.html?remote vs /v2/?remote.)
+- **botc-day.js:** executionLog entries now store playerId (Undertaker step reads it).
+- **server.js:** PORT env override + autoPort in launch.json so the preview server runs beside the classroom server on 3456 instead of killing it.
+
+**Verified in preview:** grimoire on a genSemi 5+7 layout, edit mode, Empath card with neighbour names, student screen Imp card, sound playback and loop, remote button. No console errors.
+
+**Commits:** cfd1175 (grimoire), 2bd6677 (night flow, display, sfx, remote), plus FEATURES.md.
