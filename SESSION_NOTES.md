@@ -242,3 +242,21 @@
 **User to verify on real hardware:** seating chart appears on `/v2/?picker` when button is pressed; wheel zoom and Fit button feel; seat-pref right-click updates visible pref chips on desks; classroom projector look.
 
 **Relaunch maestro.command** — preview tool killed the standalone server again.
+
+## 2026-06-11
+
+**Asked:** "go do 1" — build the BotC second half: botc-day.js, botc-sfx.js, botc-remote.js.
+
+**Did:**
+
+- **botc-day.js** (`Maestro.BotcDay`): Day tab renders Dawn card (imp_kill victims from nightLog), Nominations card (add/pass/fail/delete/execute with Saint special-case), Slayer card, Begin Night button, and win/SW-pending states. Log tab shows execution history table and night log grouped by night. All actions delegated from ctrl-content click listener.
+
+- **botc-sfx.js** (`Maestro.BotcSfx`): Floating 🔊 button (fixed bottom-right), slide-up panel with 14-sound 4-column grid, Stop All button. Polls Audio.isPlaying every 600ms to sync button state. Handles incoming `botc-sfx` Sync events (including `__stop_all__`) so remote can trigger sounds on main page.
+
+- **botc-remote.js** (`Maestro.BotcRemote`): Full-page UI at `botc.html?remote`. Tabs: Sounds (14 big tap targets sending `botc-sfx` Sync events), Players (alive/dead cards, tap to toggle via `BotcState.save`), Screen (6 presets + custom text sending `botc-display` Sync events + clear screen).
+
+- **botc.html** updates: added `shared/audio.js` + three new script tags; removed `_placeholder`; `refresh()` now calls `BotcDay.render()`/`BotcDay.renderLog()`; `Sync.init` callback routes `botc-sfx` events to `BotcSfx.handleSyncEvent`; added `State.onChange` handler to re-sync grimoire when remote modifies state cross-device; `?remote` boot path calls `BotcRemote.init()` and returns early; `BotcDay.init()` and `BotcSfx.init()` added to boot.
+
+**Verified:** Preview browser — Day tab renders correctly (dawn death, nominations, Slayer, Begin Night). SFX panel opens over Day content, 14 buttons visible. Log tab shows execution + night log tables. Remote at `?remote` loads with full-page dark UI, main app hidden, 14 large sound buttons. No console errors. Two commits: e6185c1 (code), 350c063 (FEATURES.md).
+
+**Remaining BotC:** sync hardening (real phone WiFi test — user only), then cutover.
