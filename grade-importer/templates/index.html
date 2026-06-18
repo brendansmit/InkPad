@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grade Importer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f0f2f5; color: #1a1a2e; }
+
+  header {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 1.2rem; font-weight: 600; }
+  header span { font-size: 0.8rem; opacity: 0.6; }
+
+  .tabs {
+    display: flex;
+    background: #fff;
+    border-bottom: 2px solid #e2e8f0;
+    padding: 0 24px;
+  }
+  .tab {
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #64748b;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+  }
+  .tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+  .tab:hover:not(.active) { color: #1e293b; }
+
+  .panel { display: none; padding: 24px; max-width: 1100px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: #1e293b; }
+
+  .drop-zone {
+    border: 2px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #64748b;
+    font-size: 0.9rem;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    color: #3b82f6;
+  }
+  .drop-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+  .drop-zone input[type=file] { display: none; }
+
+  .btn {
+    padding: 8px 18px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn-primary { background: #3b82f6; color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-success { background: #10b981; color: #fff; }
+  .btn-success:hover { background: #059669; }
+  .btn-danger { background: #ef4444; color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-ghost { background: transparent; color: #64748b; border: 1px solid #e2e8f0; }
+  .btn-ghost:hover { background: #f8fafc; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  input[type=text], input[type=number], select {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: #3b82f6; }
+
+  .form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 0.78rem; font-weight: 500; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 0.78rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #e2e8f0; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8fafc; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-yellow { background: #fef9c3; color: #854d0e; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+  .badge-gray { background: #f1f5f9; color: #475569; }
+
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 0.875rem; margin-bottom: 16px; }
+  .alert-error { background: #fee2e2; color: #991b1b; }
+  .alert-success { background: #dcfce7; color: #166534; }
+  .alert-warn { background: #fef9c3; color: #854d0e; }
+  .alert-info { background: #dbeafe; color: #1e40af; }
+
+  .assignment-list { display: flex; flex-direction: column; gap: 8px; }
+  .assignment-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .assignment-item:hover { border-color: #3b82f6; background: #f0f7ff; }
+  .assignment-item.selected { border-color: #3b82f6; background: #eff6ff; }
+  .assignment-item .aname { font-weight: 600; font-size: 0.9rem; }
+  .assignment-item .ameta { font-size: 0.78rem; color: #64748b; }
+
+  .score-input { width: 70px; }
+
+  .match-row td:first-child { font-weight: 500; }
+  .confidence-bar {
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .confidence-fill { height: 100%; border-radius: 2px; }
+
+  #history-table-wrap { overflow-x: auto; }
+  #history-table th, #history-table td { white-space: nowrap; }
+  #history-table .name-cell { white-space: nowrap; }
+
+  .split { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+  @media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
+
+  .section-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 0 4px; }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid #e2e8f0;
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 0.9rem; }
+
+  .roster-count { font-size: 0.8rem; color: #64748b; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Grade Importer</h1>
+    <span id="roster-status">No roster loaded</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="assignments">Assignments</div>
+  <div class="tab" data-tab="history">History</div>
+  <div class="tab" data-tab="roster">Roster</div>
+</div>
+
+<!-- ═══════════════════════════════ ASSIGNMENTS ══════════════════════════════ -->
+<div class="panel active" id="tab-assignments">
+  <div class="split">
+
+    <!-- Left: assignment list -->
+    <div>
+      <div class="card">
+        <h2>Create Assignment</h2>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Assignment Name</label>
+          <input type="text" id="new-name" placeholder="e.g. EAP Quiz Jan 12" style="width:100%">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Max Score</label>
+            <input type="number" id="new-max" placeholder="22" min="0" step="0.5" style="width:100px">
+          </div>
+          <button class="btn btn-primary" onclick="createAssignment()">Create</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Assignments</h2>
+        <div class="assignment-list" id="assignment-list">
+          <div class="empty">No assignments yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: selected assignment detail -->
+    <div id="assignment-detail" style="display:none">
+
+      <div class="card" id="detail-header">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px">
+          <div>
+            <h2 id="detail-name" style="font-size:1.1rem">—</h2>
+            <div style="font-size:0.8rem; color:#64748b; margin-top:2px">Max score: <b id="detail-max">—</b> &nbsp;·&nbsp; Created: <span id="detail-date">—</span></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-success" onclick="exportXls()">Download XLS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Template upload -->
+      <div class="card">
+        <h2>XLS Template</h2>
+        <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">Upload the blank XLS export template for this assignment. Only needed once per assignment.</p>
+        <div class="drop-zone" id="template-drop" onclick="document.getElementById('template-file').click()">
+          <div class="icon">📋</div>
+          <div id="template-drop-label">Drop .xls template here or click to browse</div>
+          <input type="file" id="template-file" accept=".xls" onchange="uploadTemplate(this.files[0])">
+        </div>
+      </div>
+
+      <!-- CSV import -->
+      <div class="card">
+        <h2>Import Scores from CSV</h2>
+        <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">Drop a grade export CSV. Scores will be matched to the roster automatically.</p>
+        <div class="drop-zone" id="csv-drop" onclick="document.getElementById('csv-file').click()">
+          <div class="icon">📊</div>
+          <div>Drop CSV here or click to browse</div>
+          <input type="file" id="csv-file" accept=".csv" onchange="importCsv(this.files[0])">
+        </div>
+        <div id="import-result" style="margin-top:14px"></div>
+      </div>
+
+      <!-- Score table -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h2 style="margin:0">Scores</h2>
+          <div style="display:flex;gap:8px">
+            <span id="score-summary" style="font-size:0.8rem;color:#64748b;align-self:center"></span>
+            <button class="btn btn-primary btn-sm" onclick="saveAllScores()" style="padding:6px 14px;font-size:0.8rem">Save All</button>
+          </div>
+        </div>
+        <div id="score-table-wrap"></div>
+      </div>
+
+    </div><!-- /detail -->
+
+    <div id="no-selection" style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:0.9rem">
+      Select an assignment to get started
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ HISTORY ══════════════════════════════ -->
+<div class="panel" id="tab-history">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h2 style="margin:0">All Scores — History</h2>
+      <button class="btn btn-ghost" onclick="loadHistory()">Refresh</button>
+    </div>
+    <div id="history-table-wrap"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ ROSTER ══════════════════════════════ -->
+<div class="panel" id="tab-roster">
+  <div class="card">
+    <h2>Roster</h2>
+    <p style="font-size:0.82rem;color:#64748b;margin-bottom:14px">
+      Drop the XLS class template here to load or update the roster. Both English and Chinese names are stored.
+    </p>
+    <div class="drop-zone" id="roster-drop" onclick="document.getElementById('roster-file').click()">
+      <div class="icon">🏫</div>
+      <div>Drop XLS roster file here or click to browse</div>
+      <input type="file" id="roster-file" accept=".xls" onchange="uploadRoster(this.files[0])">
+    </div>
+    <div id="roster-result" style="margin-top:14px"></div>
+  </div>
+  <div class="card">
+    <h2>Current Roster <span class="roster-count" id="roster-count"></span></h2>
+    <div id="roster-table-wrap"><div class="empty">No roster loaded</div></div>
+  </div>
+</div>
+
+
+<script>
+// ── state ─────────────────────────────────────────────────────────────────────
+let currentAid = null;
+let pendingScores = {}; // student_id -> {score, completion_status}
+let allStudents = [];
+
+// ── tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('tab-' + t.dataset.tab).classList.add('active');
+    if (t.dataset.tab === 'history') loadHistory();
+    if (t.dataset.tab === 'roster') loadRosterTable();
+  });
+});
+
+// ── drag-and-drop helpers ─────────────────────────────────────────────────────
+function setupDrop(zoneId, handler) {
+  const zone = document.getElementById(zoneId);
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handler(file);
+  });
+}
+setupDrop('roster-drop', uploadRoster);
+setupDrop('template-drop', uploadTemplate);
+setupDrop('csv-drop', importCsv);
+
+// ── roster ────────────────────────────────────────────────────────────────────
+async function uploadRoster(file) {
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/roster/upload', { method: 'POST', body: fd });
+  const data = await res.json();
+  const el = document.getElementById('roster-result');
+  if (data.error) {
+    el.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+  } else {
+    el.innerHTML = `<div class="alert alert-success">Loaded ${data.count} students from roster.</div>`;
+    loadRosterTable();
+    updateRosterStatus();
+  }
+}
+
+async function loadRosterTable() {
+  const res = await fetch('/api/roster');
+  allStudents = await res.json();
+  updateRosterStatus();
+  const wrap = document.getElementById('roster-table-wrap');
+  const count = document.getElementById('roster-count');
+  if (!allStudents.length) {
+    wrap.innerHTML = '<div class="empty">No roster loaded</div>';
+    count.textContent = '';
+    return;
+  }
+  count.textContent = `(${allStudents.length} students)`;
+  let sections = {};
+  allStudents.forEach(s => {
+    const k = s.task_class || 'Other';
+    if (!sections[k]) sections[k] = [];
+    sections[k].push(s);
+  });
+  let html = '<table><thead><tr><th>Student ID</th><th>English Name</th><th>Chinese Name</th><th>Admin Class</th><th>Task Class</th></tr></thead><tbody>';
+  for (const [sec, studs] of Object.entries(sections)) {
+    html += `<tr><td colspan="5" style="background:#f8fafc;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px">${sec}</td></tr>`;
+    studs.forEach(s => {
+      html += `<tr><td>${s.student_id}</td><td><b>${s.english_name}</b></td><td>${s.chinese_name}</td><td>${s.admin_class}</td><td>${s.task_class}</td></tr>`;
+    });
+  }
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function updateRosterStatus() {
+  const el = document.getElementById('roster-status');
+  if (allStudents.length) {
+    el.textContent = `${allStudents.length} students loaded`;
+  } else {
+    el.textContent = 'No roster loaded';
+  }
+}
+
+// ── assignments ───────────────────────────────────────────────────────────────
+async function loadAssignments() {
+  const res = await fetch('/api/assignments');
+  const list = await res.json();
+  const el = document.getElementById('assignment-list');
+  if (!list.length) {
+    el.innerHTML = '<div class="empty">No assignments yet</div>';
+    return;
+  }
+  el.innerHTML = list.map(a => `
+    <div class="assignment-item ${a.id === currentAid ? 'selected' : ''}" onclick="selectAssignment(${a.id})" id="alist-${a.id}">
+      <div>
+        <div class="aname">${a.name}</div>
+        <div class="ameta">Max: ${a.max_score} &nbsp;·&nbsp; ${a.created_at.split(' ')[0]}</div>
+      </div>
+      <span class="badge badge-blue">#${a.id}</span>
+    </div>
+  `).join('');
+}
+
+async function createAssignment() {
+  const name = document.getElementById('new-name').value.trim();
+  const max = parseFloat(document.getElementById('new-max').value);
+  if (!name || isNaN(max)) { alert('Enter a name and max score'); return; }
+  const res = await fetch('/api/assignments', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, max_score: max})
+  });
+  const data = await res.json();
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-max').value = '';
+  await loadAssignments();
+  selectAssignment(data.id);
+}
+
+async function selectAssignment(aid) {
+  currentAid = aid;
+  pendingScores = {};
+  document.querySelectorAll('.assignment-item').forEach(el => el.classList.remove('selected'));
+  const item = document.getElementById('alist-' + aid);
+  if (item) item.classList.add('selected');
+
+  document.getElementById('assignment-detail').style.display = 'block';
+  document.getElementById('no-selection').style.display = 'none';
+
+  const res = await fetch(`/api/assignments/${aid}`);
+  const data = await res.json();
+  const a = data.assignment;
+
+  document.getElementById('detail-name').textContent = a.name;
+  document.getElementById('detail-max').textContent = a.max_score;
+  document.getElementById('detail-date').textContent = a.created_at.split(' ')[0];
+
+  // Check if template already uploaded
+  renderScoreTable(data.scores, a.max_score);
+  updateScoreSummary(data.scores);
+}
+
+// ── template upload ────────────────────────────────────────────────────────────
+async function uploadTemplate(file) {
+  if (!currentAid) { alert('Select an assignment first'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(`/api/assignments/${currentAid}/template`, { method: 'POST', body: fd });
+  const data = await res.json();
+  const label = document.getElementById('template-drop-label');
+  if (data.ok) {
+    label.textContent = '✓ Template saved: ' + file.name;
+    document.getElementById('template-drop').style.borderColor = '#10b981';
+  } else {
+    alert('Error: ' + data.error);
+  }
+}
+
+// ── csv import ─────────────────────────────────────────────────────────────────
+async function importCsv(file) {
+  if (!currentAid) { alert('Select an assignment first'); return; }
+  const fd = new FormData();
+  fd.append('file', file);
+  const resultEl = document.getElementById('import-result');
+  resultEl.innerHTML = '<span class="spinner"></span> Matching names…';
+
+  const res = await fetch(`/api/assignments/${currentAid}/import-csv`, { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.error) {
+    resultEl.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+    return;
+  }
+
+  const matched = data.matched || [];
+  const unmatched = data.unmatched || [];
+
+  // Apply matched scores into pending
+  matched.forEach(m => {
+    pendingScores[m.student.student_id] = {
+      score: m.score,
+      completion_status: 'On Time'
+    };
+  });
+
+  // Refresh score table inputs
+  await refreshDetailScores();
+
+  let html = `<div class="alert alert-success">Matched <b>${matched.length}</b> students.`;
+  if (unmatched.length) html += ` <b>${unmatched.length}</b> unmatched (shown below).`;
+  html += '</div>';
+
+  if (matched.some(m => m.confidence < 1.0)) {
+    html += `<div class="alert alert-warn" style="margin-top:8px">Some names were fuzzy-matched. Review the table below.</div>`;
+  }
+
+  if (unmatched.length) {
+    html += `<div style="margin-top:10px;font-size:0.82rem;font-weight:600;color:#991b1b">Unmatched names:</div>
+    <table style="margin-top:6px">
+      <thead><tr><th>CSV Name</th><th>Score</th></tr></thead><tbody>`;
+    unmatched.forEach(u => {
+      html += `<tr><td>${u.csv_name}</td><td>${u.score ?? '—'}</td></tr>`;
+    });
+    html += '</tbody></table>';
+  }
+
+  resultEl.innerHTML = html;
+}
+
+async function refreshDetailScores() {
+  if (!currentAid) return;
+  const res = await fetch(`/api/assignments/${currentAid}`);
+  const data = await res.json();
+  const scores = data.scores.map(s => {
+    if (pendingScores[s.student_id] !== undefined) {
+      return { ...s, score: pendingScores[s.student_id].score, completion_status: pendingScores[s.student_id].completion_status };
+    }
+    return s;
+  });
+  renderScoreTable(scores, data.assignment.max_score);
+  updateScoreSummary(scores);
+}
+
+// ── score table ────────────────────────────────────────────────────────────────
+function renderScoreTable(scores, maxScore) {
+  let sections = {};
+  scores.forEach(s => {
+    const k = s.task_class || 'Other';
+    if (!sections[k]) sections[k] = [];
+    sections[k].push(s);
+  });
+
+  let html = `<table>
+    <thead><tr>
+      <th>English Name</th>
+      <th>Chinese Name</th>
+      <th>Section</th>
+      <th>Score / ${maxScore}</th>
+      <th>Status</th>
+    </tr></thead><tbody>`;
+
+  for (const [sec, studs] of Object.entries(sections)) {
+    html += `<tr><td colspan="5" style="background:#f8fafc;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px">${sec}</td></tr>`;
+    studs.forEach(s => {
+      const pending = pendingScores[s.student_id];
+      const score = pending !== undefined ? pending.score : s.score;
+      const status = pending !== undefined ? pending.completion_status : (s.completion_status || 'On Time');
+      const scoreVal = score !== null && score !== undefined ? score : '';
+      const highlight = pending !== undefined ? 'background:#fffbeb;' : '';
+      html += `<tr style="${highlight}">
+        <td><b>${s.english_name}</b></td>
+        <td>${s.chinese_name}</td>
+        <td><span class="badge badge-gray">${sec}</span></td>
+        <td>
+          <input type="number" class="score-input" data-sid="${s.student_id}"
+            value="${scoreVal}" min="0" max="${maxScore}" step="0.5"
+            onchange="markPending('${s.student_id}', this.value, null)"
+            placeholder="—">
+        </td>
+        <td>
+          <select data-sid-status="${s.student_id}" onchange="markPending('${s.student_id}', null, this.value)">
+            <option value="On Time" ${status==='On Time'?'selected':''}>On Time</option>
+            <option value="Late" ${status==='Late'?'selected':''}>Late</option>
+            <option value="Incomplete" ${status==='Incomplete'?'selected':''}>Incomplete</option>
+            <option value="Exempt" ${status==='Exempt'?'selected':''}>Exempt</option>
+            <option value="Cheating" ${status==='Cheating'?'selected':''}>Cheating</option>
+          </select>
+        </td>
+      </tr>`;
+    });
+  }
+  html += '</tbody></table>';
+  document.getElementById('score-table-wrap').innerHTML = html;
+}
+
+function markPending(sid, scoreVal, statusVal) {
+  if (!pendingScores[sid]) {
+    pendingScores[sid] = { score: null, completion_status: 'On Time' };
+  }
+  if (scoreVal !== null) {
+    pendingScores[sid].score = scoreVal === '' ? null : parseFloat(scoreVal);
+  }
+  if (statusVal !== null) {
+    pendingScores[sid].completion_status = statusVal;
+  }
+}
+
+function updateScoreSummary(scores) {
+  const entered = scores.filter(s => {
+    const p = pendingScores[s.student_id];
+    const sc = p !== undefined ? p.score : s.score;
+    return sc !== null && sc !== undefined;
+  }).length;
+  document.getElementById('score-summary').textContent = `${entered} / ${scores.length} entered`;
+}
+
+async function saveAllScores() {
+  if (!currentAid) return;
+  const entries = Object.entries(pendingScores).map(([student_id, v]) => ({
+    student_id,
+    score: v.score,
+    completion_status: v.completion_status,
+  }));
+
+  // Also collect anything in the input fields not yet in pendingScores
+  document.querySelectorAll('[data-sid]').forEach(input => {
+    const sid = input.dataset.sid;
+    if (!pendingScores[sid] && input.value !== '') {
+      const sel = document.querySelector(`[data-sid-status="${sid}"]`);
+      entries.push({
+        student_id: sid,
+        score: parseFloat(input.value),
+        completion_status: sel ? sel.value : 'On Time',
+      });
+    }
+  });
+
+  const res = await fetch(`/api/assignments/${currentAid}/scores`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ scores: entries })
+  });
+  const data = await res.json();
+  pendingScores = {};
+  await refreshDetailScores();
+  // flash save confirmation
+  const btn = document.querySelector('[onclick="saveAllScores()"]');
+  btn.textContent = '✓ Saved';
+  btn.style.background = '#10b981';
+  setTimeout(() => { btn.textContent = 'Save All'; btn.style.background = ''; }, 2000);
+}
+
+// ── export ────────────────────────────────────────────────────────────────────
+async function exportXls() {
+  if (!currentAid) return;
+  window.location.href = `/api/assignments/${currentAid}/export`;
+}
+
+// ── history ────────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const res = await fetch('/api/history');
+  const data = await res.json();
+  const wrap = document.getElementById('history-table-wrap');
+
+  if (!data.assignments.length || !data.students.length) {
+    wrap.innerHTML = '<div class="empty">No data yet</div>';
+    return;
+  }
+
+  let html = `<table id="history-table">
+    <thead><tr>
+      <th>Student</th>
+      <th>Chinese</th>
+      <th>Section</th>`;
+  data.assignments.forEach(a => {
+    html += `<th title="Max: ${a.max_score}">${a.name}<br><span style="font-weight:400;font-size:0.7rem">${a.created_at.split(' ')[0]}</span></th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  let lastSection = null;
+  data.students.forEach(s => {
+    if (s.task_class !== lastSection) {
+      lastSection = s.task_class;
+      const colspan = 3 + data.assignments.length;
+      html += `<tr><td colspan="${colspan}" style="background:#f8fafc;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px">${s.task_class || 'Other'}</td></tr>`;
+    }
+    html += `<tr><td class="name-cell"><b>${s.english_name}</b></td><td>${s.chinese_name}</td><td>${s.task_class||''}</td>`;
+    data.assignments.forEach(a => {
+      const key = `${a.id}_${s.student_id}`;
+      const score = data.scores[key];
+      if (score !== undefined && score !== null) {
+        const pct = a.max_score > 0 ? score / a.max_score : 0;
+        const cls = pct >= 0.9 ? 'badge-green' : pct >= 0.7 ? 'badge-yellow' : 'badge-red';
+        html += `<td><span class="badge ${cls}">${score}</span></td>`;
+      } else {
+        html += `<td style="color:#cbd5e1">—</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ── init ──────────────────────────────────────────────────────────────────────
+(async function init() {
+  await loadRosterTable();
+  await loadAssignments();
+})();
+</script>
+</body>
+</html>
