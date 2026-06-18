@@ -230,11 +230,24 @@
           <label>Assignment Name</label>
           <input type="text" id="new-name" placeholder="e.g. EAP Quiz Jan 12" style="width:100%">
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>Max Score</label>
-            <input type="number" id="new-max" placeholder="22" min="0" step="0.5" style="width:100px">
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Class</label>
+          <select id="new-class-filter" style="width:160px">
+            <option value="All">All classes</option>
+            <option value="EAP">EAP only</option>
+            <option value="AP Lang">AP Lang only</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label>Score Sections <span style="font-weight:400;opacity:0.6">(optional — leave empty for a single score)</span></label>
+          <div id="sections-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:10px"></div>
+          <div style="display:flex;gap:8px">
+            <input type="text" id="new-section-name" placeholder="e.g. Grammar" style="width:150px"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();addSection();}">
+            <button class="btn btn-ghost" type="button" onclick="addSection()">+ Add</button>
           </div>
+        </div>
+        <div style="margin-top:12px">
           <button class="btn btn-primary" onclick="createAssignment()">Create</button>
         </div>
       </div>
@@ -253,7 +266,8 @@
         <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
           <div>
             <h2 id="detail-name" style="font-size:1.1rem;margin-bottom:2px">—</h2>
-            <div style="font-size:0.8rem;color:#64748b">Max score: <b id="detail-max">—</b> &nbsp;·&nbsp; Created: <span id="detail-date">—</span></div>
+            <div style="font-size:0.8rem;color:#64748b">Class: <b id="detail-class">—</b> &nbsp;·&nbsp; Created: <span id="detail-date">—</span></div>
+            <div id="detail-sections" style="font-size:0.78rem;color:#94a3b8;margin-top:2px"></div>
           </div>
         </div>
       </div>
@@ -292,6 +306,7 @@
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <h2 style="margin:0">Scores</h2>
           <div style="display:flex;gap:8px;align-items:center">
+            <span id="autosave-indicator" style="font-size:0.78rem;color:#94a3b8"></span>
             <span id="score-summary" style="font-size:0.8rem;color:#64748b"></span>
             <button class="btn btn-primary btn-sm" onclick="saveAllScores()">Save All</button>
           </div>
@@ -627,29 +642,76 @@ async function loadAssignments() {
     el.innerHTML = '<div class="empty">No assignments yet</div>';
     return;
   }
-  el.innerHTML = list.map(a => `
-    <div class="assignment-item ${a.id === currentAid ? 'selected' : ''}" onclick="selectAssignment(${a.id})" id="alist-${a.id}">
-      <div>
+  el.innerHTML = list.map(a => {
+    const filterLabel = a.class_filter && a.class_filter !== 'All' ? a.class_filter : 'All';
+    const filterBadge = filterLabel === 'All' ? 'badge-gray' : filterLabel.includes('AP') ? 'badge-purple' : 'badge-blue';
+    return `
+    <div class="assignment-item ${a.id === currentAid ? 'selected' : ''}" id="alist-${a.id}">
+      <div style="flex:1;cursor:pointer" onclick="selectAssignment(${a.id})">
         <div class="aname">${a.name}</div>
-        <div class="ameta">Max: ${a.max_score} &nbsp;·&nbsp; ${a.created_at.split(' ')[0]}</div>
+        <div class="ameta"><span class="badge ${filterBadge}" style="font-size:0.68rem">${filterLabel}</span> &nbsp;·&nbsp; ${a.created_at.split(' ')[0]}</div>
       </div>
-      <span class="badge badge-blue">#${a.id}</span>
-    </div>
-  `).join('');
+      <button class="btn btn-danger btn-sm" onclick="deleteAssignment(${a.id}, event)" style="padding:3px 8px;font-size:0.75rem" title="Delete">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function deleteAssignment(aid, event) {
+  event.stopPropagation();
+  const item = document.getElementById('alist-' + aid);
+  const name = item ? item.querySelector('.aname').textContent : 'this assignment';
+  if (!confirm(`Delete "${name}"? All scores will be lost.`)) return;
+  await fetch(`/api/assignments/${aid}`, { method: 'DELETE' });
+  if (currentAid === aid) {
+    currentAid = null;
+    document.getElementById('assignment-detail').style.display = 'none';
+    document.getElementById('no-selection').style.display = 'flex';
+  }
+  await loadAssignments();
+}
+
+let pendingSections = [];
+
+function addSection() {
+  const input = document.getElementById('new-section-name');
+  const name = input.value.trim();
+  if (!name) return;
+  if (pendingSections.includes(name)) { input.value = ''; return; }
+  pendingSections.push(name);
+  input.value = '';
+  renderSectionPills();
+}
+
+function removeSection(name) {
+  pendingSections = pendingSections.filter(s => s !== name);
+  renderSectionPills();
+}
+
+function renderSectionPills() {
+  const list = document.getElementById('sections-list');
+  if (!list) return;
+  list.innerHTML = pendingSections.map(s =>
+    `<span class="badge badge-blue" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px">
+      ${s}
+      <span onclick="removeSection('${s.replace(/'/g, "\\'")}')" style="cursor:pointer;opacity:0.7;font-size:0.85em">✕</span>
+    </span>`
+  ).join('');
 }
 
 async function createAssignment() {
   const name = document.getElementById('new-name').value.trim();
-  const max = parseFloat(document.getElementById('new-max').value);
-  if (!name || isNaN(max)) { alert('Enter a name and max score'); return; }
+  if (!name) { alert('Enter an assignment name'); return; }
+  const class_filter = document.getElementById('new-class-filter').value;
+  const sections = [...pendingSections];
   const res = await fetch('/api/assignments', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({name, max_score: max})
+    body: JSON.stringify({ name, class_filter, sections })
   });
   const data = await res.json();
   document.getElementById('new-name').value = '';
-  document.getElementById('new-max').value = '';
+  pendingSections = [];
+  renderSectionPills();
   await loadAssignments();
   selectAssignment(data.id);
 }
@@ -669,10 +731,14 @@ async function selectAssignment(aid) {
   const a = data.assignment;
 
   document.getElementById('detail-name').textContent = a.name;
-  document.getElementById('detail-max').textContent = a.max_score;
+  document.getElementById('detail-class').textContent = a.class_filter || 'All';
   document.getElementById('detail-date').textContent = a.created_at.split(' ')[0];
+  const secEl = document.getElementById('detail-sections');
+  secEl.textContent = a.sections && a.sections.length
+    ? 'Sections: ' + a.sections.join(' · ')
+    : '';
 
-  renderScoreTable(data.scores, a.max_score);
+  renderScoreTable(data.scores, a.sections || []);
   updateScoreSummary(data.scores);
 }
 
@@ -715,7 +781,7 @@ async function importCsv(file) {
   const unmatched = data.unmatched || [];
 
   matched.forEach(m => {
-    pendingScores[m.student.student_id] = { score: m.score, completion_status: 'On Time' };
+    pendingScores[m.student.student_id] = { score: m.score, section_scores: {} };
   });
 
   await refreshDetailScores();
@@ -751,64 +817,92 @@ async function refreshDetailScores() {
     }
     return s;
   });
-  renderScoreTable(scores, data.assignment.max_score);
+  renderScoreTable(scores, data.assignment.sections || []);
   updateScoreSummary(scores);
 }
 
 // ── score table ───────────────────────────────────────────────────────────────
-function renderScoreTable(scores, maxScore) {
-  let sections = {};
+function renderScoreTable(scores, assignmentSections) {
+  const hasSections = assignmentSections && assignmentSections.length > 0;
+  let classBuckets = {};
   scores.forEach(s => {
     const k = s.task_class || 'Other';
-    if (!sections[k]) sections[k] = [];
-    sections[k].push(s);
+    if (!classBuckets[k]) classBuckets[k] = [];
+    classBuckets[k].push(s);
   });
 
-  let html = `<table>
-    <thead><tr>
-      <th>English Name</th><th>Chinese Name</th><th>Section</th><th>Score / ${maxScore}</th><th>Status</th>
-    </tr></thead><tbody>`;
+  const colSpan = hasSections ? assignmentSections.length + 3 : 4;
 
-  for (const [sec, studs] of Object.entries(sections)) {
-    if (Object.keys(sections).length > 1) {
-      html += `<tr><td colspan="5" class="section-divider">${sec}</td></tr>`;
+  let html = `<table><thead><tr>
+    <th>English Name</th><th>Chinese Name</th><th>Class</th>`;
+  if (hasSections) {
+    assignmentSections.forEach(sec => { html += `<th>${sec}</th>`; });
+    html += `<th>Total</th>`;
+  } else {
+    html += `<th>Score</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+
+  for (const [cls, studs] of Object.entries(classBuckets)) {
+    if (Object.keys(classBuckets).length > 1) {
+      html += `<tr><td colspan="${colSpan}" class="section-divider">${cls}</td></tr>`;
     }
     studs.forEach(s => {
       const pending = pendingScores[s.student_id];
-      const score = pending !== undefined ? pending.score : s.score;
-      const status = pending !== undefined ? pending.completion_status : (s.completion_status || 'On Time');
-      const scoreVal = score !== null && score !== undefined ? score : '';
+      const classBadge = cls.includes('AP') ? 'badge-purple' : 'badge-gray';
       const highlight = pending !== undefined ? 'background:#fffbeb;' : '';
-      const classBadge = sec.includes('AP') ? 'badge-purple' : 'badge-gray';
       html += `<tr style="${highlight}">
         <td><b>${s.english_name}</b></td>
         <td>${s.chinese_name || '—'}</td>
-        <td><span class="badge ${classBadge}">${sec}</span></td>
-        <td>
-          <input type="number" class="score-input" data-sid="${s.student_id}"
-            value="${scoreVal}" min="0" max="${maxScore}" step="0.5"
-            onchange="markPending('${s.student_id}', this.value, null)" placeholder="—">
-        </td>
-        <td>
-          <select data-sid-status="${s.student_id}" onchange="markPending('${s.student_id}', null, this.value)">
-            <option value="On Time" ${status==='On Time'?'selected':''}>On Time</option>
-            <option value="Late" ${status==='Late'?'selected':''}>Late</option>
-            <option value="Incomplete" ${status==='Incomplete'?'selected':''}>Incomplete</option>
-            <option value="Exempt" ${status==='Exempt'?'selected':''}>Exempt</option>
-            <option value="Cheating" ${status==='Cheating'?'selected':''}>Cheating</option>
-          </select>
-        </td>
-      </tr>`;
+        <td><span class="badge ${classBadge}">${cls}</span></td>`;
+
+      if (hasSections) {
+        const sscores = pending ? (pending.section_scores || {}) : (s.section_scores || {});
+        let total = 0;
+        let hasAny = false;
+        assignmentSections.forEach(sec => {
+          const val = sscores[sec] !== undefined ? sscores[sec] : '';
+          if (val !== '' && val !== null && val !== undefined) { total += parseFloat(val) || 0; hasAny = true; }
+          html += `<td><input type="number" class="score-input" data-sid="${s.student_id}" data-section="${sec}"
+            value="${val !== '' && val !== null && val !== undefined ? val : ''}" min="0" step="0.5"
+            oninput="markSectionScore('${s.student_id}','${sec.replace(/'/g,"\\'")}',this.value);scheduleAutosave()"
+            placeholder="—" style="width:70px"></td>`;
+        });
+        html += `<td id="total-${s.student_id}" style="font-weight:600;color:#334155">${hasAny ? total : '—'}</td>`;
+      } else {
+        const score = pending !== undefined ? pending.score : s.score;
+        const scoreVal = score !== null && score !== undefined ? score : '';
+        html += `<td><input type="number" class="score-input" data-sid="${s.student_id}"
+          value="${scoreVal}" min="0" step="0.5"
+          oninput="markPending('${s.student_id}',this.value);scheduleAutosave()"
+          placeholder="—" style="width:90px"></td>`;
+      }
+      html += `</tr>`;
     });
   }
   html += '</tbody></table>';
   document.getElementById('score-table-wrap').innerHTML = html;
 }
 
-function markPending(sid, scoreVal, statusVal) {
-  if (!pendingScores[sid]) pendingScores[sid] = { score: null, completion_status: 'On Time' };
-  if (scoreVal !== null) pendingScores[sid].score = scoreVal === '' ? null : parseFloat(scoreVal);
-  if (statusVal !== null) pendingScores[sid].completion_status = statusVal;
+function markPending(sid, scoreVal) {
+  if (!pendingScores[sid]) pendingScores[sid] = { score: null, section_scores: {} };
+  pendingScores[sid].score = scoreVal === '' ? null : parseFloat(scoreVal);
+}
+
+function markSectionScore(sid, section, val) {
+  if (!pendingScores[sid]) pendingScores[sid] = { score: null, section_scores: {} };
+  if (!pendingScores[sid].section_scores) pendingScores[sid].section_scores = {};
+  pendingScores[sid].section_scores[section] = val === '' ? null : parseFloat(val);
+  // update total cell
+  const totalEl = document.getElementById('total-' + sid);
+  if (totalEl) {
+    const inputs = document.querySelectorAll(`[data-sid="${sid}"][data-section]`);
+    let sum = 0; let hasAny = false;
+    inputs.forEach(inp => { if (inp.value !== '') { sum += parseFloat(inp.value) || 0; hasAny = true; } });
+    totalEl.textContent = hasAny ? sum : '—';
+    // compute total score as sum
+    pendingScores[sid].score = hasAny ? sum : null;
+  }
 }
 
 function updateScoreSummary(scores) {
@@ -820,16 +914,51 @@ function updateScoreSummary(scores) {
   document.getElementById('score-summary').textContent = `${entered} / ${scores.length} entered`;
 }
 
-async function saveAllScores() {
+let autosaveTimer = null;
+
+function scheduleAutosave() {
+  const ind = document.getElementById('autosave-indicator');
+  if (ind) { ind.textContent = 'Saving…'; ind.style.color = '#94a3b8'; }
+  clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(() => autoSave(), 3000);
+}
+
+async function autoSave() {
+  await saveAllScores(true);
+  const ind = document.getElementById('autosave-indicator');
+  if (ind) {
+    ind.textContent = 'Autosaved ✓';
+    ind.style.color = '#10b981';
+    setTimeout(() => { if (ind) { ind.textContent = ''; } }, 3000);
+  }
+}
+
+async function saveAllScores(silent = false) {
   if (!currentAid) return;
-  const entries = [];
+
+  // Collect all current inputs into entries
+  const sidMap = {};
   document.querySelectorAll('[data-sid]').forEach(input => {
     const sid = input.dataset.sid;
-    const sel = document.querySelector(`[data-sid-status="${sid}"]`);
-    const score = input.value !== '' ? parseFloat(input.value) : null;
-    entries.push({ student_id: sid, score, completion_status: sel ? sel.value : 'On Time' });
+    const section = input.dataset.section;
+    if (!sidMap[sid]) sidMap[sid] = { student_id: sid, score: null, section_scores: {} };
+    if (section) {
+      const v = input.value !== '' ? parseFloat(input.value) : null;
+      sidMap[sid].section_scores[section] = v;
+    } else {
+      sidMap[sid].score = input.value !== '' ? parseFloat(input.value) : null;
+    }
   });
 
+  // For section-based assignments, auto-compute total score from section inputs
+  Object.values(sidMap).forEach(entry => {
+    if (Object.keys(entry.section_scores).length > 0) {
+      const vals = Object.values(entry.section_scores).filter(v => v !== null && v !== undefined);
+      entry.score = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
+    }
+  });
+
+  const entries = Object.values(sidMap);
   const res = await fetch(`/api/assignments/${currentAid}/scores`, {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
@@ -837,12 +966,17 @@ async function saveAllScores() {
   });
   await res.json();
   pendingScores = {};
-  await refreshDetailScores();
-  const btn = document.querySelector('[onclick="saveAllScores()"]');
-  const prev = btn.textContent;
-  btn.textContent = '✓ Saved';
-  btn.style.background = '#10b981';
-  setTimeout(() => { btn.textContent = prev; btn.style.background = ''; }, 2000);
+
+  if (!silent) {
+    await refreshDetailScores();
+    const btn = document.querySelector('[onclick="saveAllScores()"]');
+    if (btn) {
+      const prev = btn.textContent;
+      btn.textContent = '✓ Saved';
+      btn.style.background = '#10b981';
+      setTimeout(() => { btn.textContent = prev; btn.style.background = ''; }, 2000);
+    }
+  }
 }
 
 // ── export ────────────────────────────────────────────────────────────────────
@@ -886,7 +1020,7 @@ async function loadHistory() {
     <thead><tr>
       <th>Student</th><th>Chinese</th><th>Section</th>`;
   data.assignments.forEach(a => {
-    html += `<th title="Max: ${a.max_score}">${a.name}<br><span style="font-weight:400;font-size:0.7rem">${a.created_at.split(' ')[0]}</span></th>`;
+    html += `<th>${a.name}<br><span style="font-weight:400;font-size:0.7rem">${a.created_at.split(' ')[0]}</span></th>`;
   });
   html += '</tr></thead><tbody>';
 
@@ -902,9 +1036,7 @@ async function loadHistory() {
       const key = `${a.id}_${s.student_id}`;
       const score = data.scores[key];
       if (score !== undefined && score !== null) {
-        const pct = a.max_score > 0 ? score / a.max_score : 0;
-        const cls = pct >= 0.9 ? 'badge-green' : pct >= 0.7 ? 'badge-yellow' : 'badge-red';
-        html += `<td><span class="badge ${cls}">${score}</span></td>`;
+        html += `<td><span class="badge badge-blue">${score}</span></td>`;
       } else {
         html += `<td style="color:#cbd5e1">—</td>`;
       }
