@@ -1,213 +1,164 @@
 import tkinter as tk
-from tkinter import PhotoImage
-import subprocess
-import threading
-import os
-import time
-import socket
+import subprocess, threading, os, time, socket
 
-BASE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(BASE)
-LOGO_PATH = "/Users/brendansmit/Documents/InkHeron/Logo.png"
+BASE  = os.path.dirname(os.path.abspath(__file__))
+ROOT  = os.path.dirname(BASE)
+LOGO  = "/Users/brendansmit/Documents/InkHeron/Logo.png"
+
+# Absolute runtime paths
+PY_FLASK  = "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
+PY_VENV   = os.path.join(ROOT, "Writing analyzer", ".venv", "bin", "python")
+NODE      = "/usr/local/bin/node"
 
 
-def port_in_use(port):
+# ── helpers ────────────────────────────────────────────────────────────────────
+
+def _port_open(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("localhost", port)) == 0
 
-
-def launch_grade_importer():
-    if not port_in_use(5050):
-        app_dir = os.path.join(ROOT, "grade-importer")
-        python = _find_python()
-        subprocess.Popen(
-            [python, "app.py"],
-            cwd=app_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        _wait_for_port(5050)
-    subprocess.Popen(["open", "http://localhost:5050"])
-
-
-def launch_writing_analyzer():
-    app_dir = os.path.join(ROOT, "Writing analyzer")
-    venv_python = os.path.join(app_dir, ".venv", "bin", "python")
-    python = venv_python if os.path.exists(venv_python) else _find_python()
-    subprocess.Popen(
-        [python, "app.py"],
-        cwd=app_dir,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-
-
-def launch_class_grouper():
-    if not port_in_use(3456):
-        app_dir = os.path.join(ROOT, "class-grouper")
-        node = _find_node()
-        subprocess.Popen(
-            [node, "server.js"],
-            cwd=app_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        _wait_for_port(3456)
-    subprocess.Popen(["open", "http://localhost:3456/v2/"])
-
-
-def launch_bug_detector():
-    html = os.path.join(ROOT, "bug-detector", "index.html")
-    subprocess.Popen(["open", html])
-
-
-def launch_speed_dating():
-    if not port_in_use(3464):
-        app_dir = os.path.join(ROOT, "speed-dating")
-        node = _find_node()
-        subprocess.Popen(
-            [node, "server.js"],
-            cwd=app_dir,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        _wait_for_port(3464)
-    subprocess.Popen(["open", "http://localhost:3464"])
-
-
-def _wait_for_port(port, timeout=8):
-    start = time.time()
-    while time.time() - start < timeout:
-        if port_in_use(port):
+def _wait(port, timeout=10):
+    for _ in range(timeout * 5):
+        if _port_open(port):
             return
         time.sleep(0.2)
 
+def _open(url):
+    subprocess.Popen(["open", url])
 
-def _find_python():
-    for p in ["/usr/bin/python3", "/usr/local/bin/python3", "/opt/homebrew/bin/python3"]:
-        if os.path.exists(p):
-            return p
-    return "python3"
+def _bg(cmd, cwd):
+    subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def _find_node():
-    for p in ["/opt/homebrew/bin/node", "/usr/local/bin/node"]:
-        if os.path.exists(p):
-            return p
-    # Try nvm
-    nvm_dir = os.path.expanduser("~/.nvm/versions/node")
-    if os.path.isdir(nvm_dir):
-        versions = sorted(os.listdir(nvm_dir))
-        if versions:
-            return os.path.join(nvm_dir, versions[-1], "bin", "node")
-    return "node"
+# ── launchers ──────────────────────────────────────────────────────────────────
 
+def launch_grade_importer():
+    d = os.path.join(ROOT, "grade-importer")
+    if not _port_open(5050):
+        _bg([PY_FLASK, "app.py"], d)
+        _wait(5050)
+    _open("http://localhost:5050")
+
+def launch_writing_analyzer():
+    d = os.path.join(ROOT, "Writing analyzer")
+    py = PY_VENV if os.path.exists(PY_VENV) else PY_FLASK
+    _bg([py, "app.py"], d)
+
+def launch_maestro():
+    d = os.path.join(ROOT, "class-grouper")
+    if not _port_open(3456):
+        _bg([NODE, "server.js"], d)
+        _wait(3456)
+    _open("http://localhost:3456/v2/")
+
+def launch_bugsmash():
+    html = os.path.join(ROOT, "bug-detector", "index.html")
+    subprocess.Popen(["open", html])
+
+def launch_speed_dating():
+    d = os.path.join(ROOT, "speed-dating")
+    if not _port_open(3464):
+        _bg([NODE, "server.js"], d)
+        _wait(3464)
+    _open("http://localhost:3464")
+
+
+# ── app definitions ────────────────────────────────────────────────────────────
 
 APPS = [
-    {
-        "name": "Grade Importer",
-        "emoji": "📊",
-        "desc": "Import & export grades",
-        "color": "#3b82f6",
-        "fn": launch_grade_importer,
-    },
-    {
-        "name": "Writing Analyzer",
-        "emoji": "✍️",
-        "desc": "Essay revision tracker",
-        "color": "#8b5cf6",
-        "fn": launch_writing_analyzer,
-    },
-    {
-        "name": "Class Grouper",
-        "emoji": "🎲",
-        "desc": "Group & seating tool",
-        "color": "#10b981",
-        "fn": launch_class_grouper,
-    },
-    {
-        "name": "Bug Detector",
-        "emoji": "🐛",
-        "desc": "Code debugging helper",
-        "color": "#f59e0b",
-        "fn": launch_bug_detector,
-    },
-    {
-        "name": "Speed Dating",
-        "emoji": "💘",
-        "desc": "Venue layout builder",
-        "color": "#ef4444",
-        "fn": launch_speed_dating,
-    },
+    {"name": "Grade\nImporter",   "short": "GI", "desc": "Import & export grades",     "color": "#3b82f6", "fn": launch_grade_importer},
+    {"name": "Writing\nAnalyzer", "short": "WA", "desc": "Essay revision tracker",     "color": "#8b5cf6", "fn": launch_writing_analyzer},
+    {"name": "Maestro",           "short": "M",  "desc": "Group & seating tool",       "color": "#10b981", "fn": launch_maestro},
+    {"name": "BugSmash",          "short": "BS", "desc": "Code debugging helper",      "color": "#f59e0b", "fn": launch_bugsmash},
+    {"name": "Speed\nDating",     "short": "SD", "desc": "Venue layout builder",       "color": "#ef4444", "fn": launch_speed_dating},
 ]
 
-BG = "#0f1117"
-CARD_BG = "#1e2130"
-CARD_HOVER = "#262b3d"
-TEXT_WHITE = "#f1f5f9"
-TEXT_MUTED = "#64748b"
 
+# ── colours ────────────────────────────────────────────────────────────────────
+
+BG          = "#0f1117"
+CARD_IDLE   = "#1a1d2e"
+CARD_HOVER  = "#22263a"
+CARD_PRESS  = "#2d3250"
+TEXT        = "#f1f5f9"
+MUTED       = "#64748b"
+DIVIDER     = "#1e2235"
+
+
+# ── card widget ────────────────────────────────────────────────────────────────
 
 class AppCard(tk.Canvas):
-    def __init__(self, parent, app, on_launch, **kwargs):
-        super().__init__(parent, bg=BG, highlightthickness=0, cursor="hand2", **kwargs)
+    W, H, R = 138, 172, 14
+
+    def __init__(self, parent, app, on_launch, **kw):
+        super().__init__(parent, width=self.W, height=self.H,
+                         bg=BG, highlightthickness=0, **kw)
         self.app = app
         self.on_launch = on_launch
-        self._draw(CARD_BG)
-        self.bind("<Enter>", self._hover)
-        self.bind("<Leave>", self._leave)
-        self.bind("<Button-1>", self._click)
+        self._state = "idle"
+        self._draw()
+        self.bind("<Enter>",    self._on_enter)
+        self.bind("<Leave>",    self._on_leave)
+        self.bind("<Button-1>", self._on_down)
+        self.bind("<ButtonRelease-1>", self._on_up)
 
-    def _draw(self, bg):
+    # ── drawing ────────────────────────────────────────────────────────────────
+
+    def _draw(self):
         self.delete("all")
-        w = int(self["width"])
-        h = int(self["height"])
-        r = 12
+        W, H, R = self.W, self.H, self.R
+        bg = {"idle": CARD_IDLE, "hover": CARD_HOVER, "press": CARD_PRESS}[self._state]
+        color = self.app["color"]
 
-        # Rounded rect
-        self._round_rect(0, 0, w, h, r, fill=bg, outline="")
+        # Card body
+        self._rrect(0, 0, W, H, R, fill=bg, outline="")
 
-        # Color accent bar top
-        self._round_rect(0, 0, w, 4, 2, fill=self.app["color"], outline="")
+        # Accent bar
+        self._rrect(0, 0, W, 5, 3, fill=color, outline="")
 
-        # Emoji
-        self.create_text(w // 2, 38, text=self.app["emoji"], font=("Apple Color Emoji", 26), anchor="center")
+        # Icon circle
+        cx, cy, cr = W // 2, 62, 30
+        self.create_oval(cx - cr, cy - cr, cx + cr, cy + cr, fill=CARD_IDLE, outline=color, width=2)
+        self.create_text(cx, cy, text=self.app["short"],
+                         font=("SF Pro Display", 15, "bold"), fill=color, anchor="center")
 
-        # Name
-        self.create_text(w // 2, 72, text=self.app["name"], font=("-apple-system", 13, "bold"),
-                         fill=TEXT_WHITE, anchor="center")
+        # App name
+        self.create_text(W // 2, 108, text=self.app["name"],
+                         font=("SF Pro Display", 13, "bold"), fill=TEXT,
+                         anchor="center", justify="center")
 
-        # Desc
-        self.create_text(w // 2, 90, text=self.app["desc"], font=("-apple-system", 10),
-                         fill=TEXT_MUTED, anchor="center")
+        # Description
+        self.create_text(W // 2, 148, text=self.app["desc"],
+                         font=("SF Pro Text", 10), fill=MUTED,
+                         anchor="center", justify="center", width=W - 16)
 
-    def _round_rect(self, x1, y1, x2, y2, r, **kw):
+    def _rrect(self, x1, y1, x2, y2, r, **kw):
         self.create_polygon(
-            x1 + r, y1,
-            x2 - r, y1,
-            x2, y1,
-            x2, y1 + r,
-            x2, y2 - r,
-            x2, y2,
-            x2 - r, y2,
-            x1 + r, y2,
-            x1, y2,
-            x1, y2 - r,
-            x1, y1 + r,
-            x1, y1,
-            smooth=True, **kw
-        )
+            x1+r, y1,  x2-r, y1,
+            x2,   y1,  x2,   y1+r,
+            x2,   y2-r, x2,  y2,
+            x2-r, y2,  x1+r, y2,
+            x1,   y2,  x1,   y2-r,
+            x1,   y1+r, x1,  y1,
+            smooth=True, **kw)
 
-    def _hover(self, _):
-        self._draw(CARD_HOVER)
+    # ── events ─────────────────────────────────────────────────────────────────
 
-    def _leave(self, _):
-        self._draw(CARD_BG)
+    def _on_enter(self, _):
+        self._state = "hover"; self._draw()
 
-    def _click(self, _):
-        self._draw(self.app["color"] + "33")
+    def _on_leave(self, _):
+        self._state = "idle"; self._draw()
+
+    def _on_down(self, _):
+        self._state = "press"; self._draw()
+
+    def _on_up(self, _):
+        self._state = "hover"; self._draw()
         self.on_launch(self.app)
 
+
+# ── main window ────────────────────────────────────────────────────────────────
 
 class Launcher(tk.Tk):
     def __init__(self):
@@ -216,78 +167,72 @@ class Launcher(tk.Tk):
         self.configure(bg=BG)
         self.resizable(False, False)
 
-        # Load logo for dock icon and header
-        self._logo_img = None
-        self._logo_small = None
-        try:
-            from PIL import Image, ImageTk
-            img = Image.open(LOGO_PATH).convert("RGBA")
-            # Dock icon (large)
-            dock = ImageTk.PhotoImage(img.resize((256, 256), Image.LANCZOS))
-            self.wm_iconphoto(True, dock)
-            self._logo_img = dock
-            # Header logo (small)
-            small = ImageTk.PhotoImage(img.resize((36, 36), Image.LANCZOS))
-            self._logo_small = small
-        except ImportError:
-            pass  # PIL not available, skip logo display
+        W = len(APPS) * AppCard.W + (len(APPS) - 1) * 12 + 48
+        H = AppCard.H + 130
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        self.geometry(f"{W}x{H}+{(sw-W)//2}+{(sh-H)//2}")
 
-        # Centre on screen
-        w, h = 520, 300
-        sw = self.winfo_screenwidth()
-        sh = self.winfo_screenheight()
-        self.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
-
+        self._logo = None
+        self._load_logo()
         self._build()
 
+    def _load_logo(self):
+        try:
+            from PIL import Image, ImageTk
+            img = Image.open(LOGO).convert("RGBA")
+            h = 42
+            w = int(img.width * h / img.height)
+            self._logo = ImageTk.PhotoImage(img.resize((w, h), Image.LANCZOS))
+            # Dock icon
+            big = ImageTk.PhotoImage(img.resize((256, 256), Image.LANCZOS))
+            self.wm_iconphoto(True, big)
+            self._logo_big = big
+        except Exception:
+            pass
+
     def _build(self):
-        # Header
+        # ── header ─────────────────────────────────────────────────────────────
         header = tk.Frame(self, bg=BG)
-        header.pack(fill="x", padx=20, pady=(16, 4))
+        header.pack(fill="x", padx=24, pady=(20, 0))
 
-        if self._logo_small:
-            tk.Label(header, image=self._logo_small, bg=BG).pack(side="left", padx=(0, 10))
+        if self._logo:
+            tk.Label(header, image=self._logo, bg=BG).pack(side="left", padx=(0, 14))
 
-        tk.Label(header, text="InkHeron Apps", font=("-apple-system", 16, "bold"),
-                 bg=BG, fg=TEXT_WHITE).pack(side="left")
-        tk.Label(header, text="click to launch", font=("-apple-system", 11),
-                 bg=BG, fg=TEXT_MUTED).pack(side="left", padx=(8, 0))
+        text_col = tk.Frame(header, bg=BG)
+        text_col.pack(side="left")
+        tk.Label(text_col, text="InkHeron Apps",
+                 font=("SF Pro Display", 20, "bold"), bg=BG, fg=TEXT).pack(anchor="w")
+        tk.Label(text_col, text="Select an app to launch",
+                 font=("SF Pro Text", 12), bg=BG, fg=MUTED).pack(anchor="w")
 
-        # Divider
-        div = tk.Frame(self, bg="#2d3348", height=1)
-        div.pack(fill="x", padx=20, pady=(6, 14))
+        # ── divider ────────────────────────────────────────────────────────────
+        tk.Frame(self, bg=DIVIDER, height=1).pack(fill="x", padx=24, pady=(14, 16))
 
-        # Cards grid
+        # ── card grid ──────────────────────────────────────────────────────────
         grid = tk.Frame(self, bg=BG)
-        grid.pack(padx=16, pady=(0, 16))
-
-        card_w, card_h = 88, 106
-        cols = 5
-        gap = 8
+        grid.pack(padx=24)
 
         for i, app in enumerate(APPS):
-            col = i % cols
-            row = i // cols
-            card = AppCard(grid, app, self._launch,
-                           width=card_w, height=card_h)
-            card.grid(row=row, column=col, padx=gap // 2, pady=gap // 2)
+            card = AppCard(grid, app, self._launch)
+            card.grid(row=0, column=i, padx=6)
 
-        # Status bar
-        self.status_var = tk.StringVar(value="")
-        tk.Label(self, textvariable=self.status_var, font=("-apple-system", 10),
-                 bg=BG, fg=TEXT_MUTED).pack(pady=(0, 10))
+        # ── status bar ─────────────────────────────────────────────────────────
+        self._status = tk.StringVar(value="")
+        tk.Label(self, textvariable=self._status,
+                 font=("SF Pro Text", 11), bg=BG, fg=MUTED).pack(pady=(14, 0))
 
     def _launch(self, app):
-        self.status_var.set(f"Launching {app['name']}…")
+        name = app["name"].replace("\n", " ")
+        self._status.set(f"Launching {name}…")
         self.update()
 
         def run():
             try:
                 app["fn"]()
-                self.after(0, lambda: self.status_var.set(f"{app['name']} opened."))
-                self.after(2000, lambda: self.status_var.set(""))
+                self.after(0, lambda: self._status.set(f"{name} is open."))
+                self.after(3000, lambda: self._status.set(""))
             except Exception as e:
-                self.after(0, lambda: self.status_var.set(f"Error: {e}"))
+                self.after(0, lambda: self._status.set(f"Error: {e}"))
 
         threading.Thread(target=run, daemon=True).start()
 
