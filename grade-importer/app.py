@@ -6,6 +6,7 @@ import database as db
 import matcher
 import csv_parser
 import xls_writer
+from pypinyin import lazy_pinyin, Style
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
@@ -56,7 +57,6 @@ def add_student():
     task_class = body.get("task_class", "").strip()
     if not english_name or not task_class:
         return jsonify({"error": "english_name and task_class required"}), 400
-    # Generate a stable ID from class prefix + name
     prefix = "".join(c for c in task_class if c.isalpha())[:4].upper()
     suffix = "".join(c for c in english_name if c.isalpha()).upper()[:8]
     student_id = f"{prefix}-{suffix}"
@@ -81,7 +81,6 @@ def remove_student(student_id):
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
     key = db.get_setting("deepseek_api_key", "")
-    # Mask key for display — show last 4 chars only
     masked = ("*" * (len(key) - 4) + key[-4:]) if len(key) > 4 else ("*" * len(key))
     return jsonify({"deepseek_api_key_set": bool(key), "masked": masked})
 
@@ -106,10 +105,11 @@ def list_assignments():
 def create_assignment():
     body = request.json or {}
     name = body.get("name", "").strip()
-    max_score = body.get("max_score")
-    if not name or max_score is None:
-        return jsonify({"error": "name and max_score required"}), 400
-    aid = db.create_assignment(name, float(max_score))
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    sections = body.get("sections", [])
+    class_filter = body.get("class_filter", "All")
+    aid = db.create_assignment(name, class_filter=class_filter, sections=sections)
     return jsonify({"id": aid})
 
 
@@ -118,8 +118,14 @@ def get_assignment(aid):
     a = db.get_assignment(aid)
     if not a:
         return jsonify({"error": "Not found"}), 404
-    scores = db.get_scores_for_assignment(aid)
+    scores = db.get_scores_for_assignment(aid, a.get("class_filter"))
     return jsonify({"assignment": a, "scores": scores})
+
+
+@app.route("/api/assignments/<int:aid>", methods=["DELETE"])
+def delete_assignment(aid):
+    db.delete_assignment(aid)
+    return jsonify({"ok": True})
 
 
 # ── Template XLS ─────────────────────────────────────────────────────────────
@@ -129,8 +135,7 @@ def upload_template(aid):
     f = request.files.get("file")
     if not f:
         return jsonify({"error": "No file"}), 400
-    data = f.read()
-    db.save_template(aid, f.filename, data)
+    db.save_template(aid, f.filename, f.read())
     return jsonify({"ok": True})
 
 
@@ -142,11 +147,12 @@ def import_csv(aid):
     if not f:
         return jsonify({"error": "No file"}), 400
 
-    # Optional: filter matching to a specific class
     class_filter = request.form.get("class_filter", "").strip()
-
-    if class_filter:
-        students = db.get_students_by_class(class_filter)
+    if class_filter and class_filter != "All":
+        if class_filter == "EAP":
+            students = [s for s in db.get_all_students() if "EAP" in (s.get("task_class") or "")]
+        else:
+            students = [s for s in db.get_all_students() if class_filter in (s.get("task_class") or "")]
     else:
         students = db.get_all_students()
 
@@ -171,23 +177,9 @@ def save_scores(aid):
             aid,
             entry["student_id"],
             entry.get("score"),
-            entry.get("completion_status", "On Time"),
+            entry.get("section_scores", {}),
         )
     return jsonify({"saved": len(entries)})
-
-
-# ── Manual score entry ────────────────────────────────────────────────────────
-
-@app.route("/api/assignments/<int:aid>/score", methods=["PUT"])
-def update_single_score(aid):
-    body = request.json or {}
-    student_id = body.get("student_id")
-    score = body.get("score")
-    status = body.get("completion_status", "On Time")
-    if not student_id:
-        return jsonify({"error": "student_id required"}), 400
-    db.upsert_score(aid, student_id, score, status)
-    return jsonify({"ok": True})
 
 
 # ── History ───────────────────────────────────────────────────────────────────
@@ -202,6 +194,55 @@ def get_history():
     })
 
 
+# ── Template library ─────────────────────────────────────────────────────────
+
+@app.route("/api/templates", methods=["GET"])
+def list_templates():
+    return jsonify(db.get_template_library())
+
+
+@app.route("/api/templates", methods=["POST"])
+def upload_library_template():
+    f = request.files.get("file")
+    name = request.form.get("name", "").strip()
+    if not f:
+        return jsonify({"error": "No file"}), 400
+    if not name:
+        name = f.filename
+    tid = db.save_library_template(name, f.filename, f.read())
+    return jsonify({"id": tid, "name": name})
+
+
+@app.route("/api/templates/<int:tid>", methods=["DELETE"])
+def delete_library_template(tid):
+    db.delete_library_template(tid)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/assignments/<int:aid>/library-template", methods=["POST"])
+def set_library_template(aid):
+    body = request.json or {}
+    tid = body.get("template_id")
+    db.set_assignment_library_template(aid, tid)
+    return jsonify({"ok": True})
+
+
+# ── Pinyin ────────────────────────────────────────────────────────────────────
+
+@app.route("/api/roster/generate-pinyin", methods=["POST"])
+def generate_pinyin():
+    students = db.get_all_students()
+    updated = 0
+    for s in students:
+        chinese = (s.get("chinese_name") or "").strip()
+        if not chinese:
+            continue
+        pinyin = " ".join(lazy_pinyin(chinese, style=Style.TONE))
+        db.update_student_pinyin(s["student_id"], pinyin)
+        updated += 1
+    return jsonify({"updated": updated})
+
+
 # ── Export ────────────────────────────────────────────────────────────────────
 
 @app.route("/api/assignments/<int:aid>/export", methods=["GET"])
@@ -210,11 +251,14 @@ def export_xls(aid):
     if not a:
         return jsonify({"error": "Assignment not found"}), 404
 
+    # Custom per-assignment template takes priority; fall back to library template
     tmpl = db.get_template(aid)
+    if not tmpl and a.get("library_template_id"):
+        tmpl = db.get_library_template(a["library_template_id"])
     if not tmpl:
-        return jsonify({"error": "No XLS template uploaded for this assignment"}), 400
+        return jsonify({"error": "No XLS template set for this assignment. Upload one or select from the library."}), 400
 
-    scores = db.get_scores_for_assignment(aid)
+    scores = db.get_scores_for_assignment(aid, a.get("class_filter"))
     filled = xls_writer.fill_xls(tmpl["data"], scores)
 
     safe_name = a["name"].replace(" ", "_").replace("/", "-")

@@ -54,11 +54,20 @@ def init_db():
                 data BLOB NOT NULL,
                 uploaded_at TEXT DEFAULT (datetime('now','localtime'))
             );
+
+            CREATE TABLE IF NOT EXISTS template_library (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                data BLOB NOT NULL,
+                uploaded_at TEXT DEFAULT (datetime('now','localtime'))
+            );
         """)
         # Migrate existing DB: add new columns if missing
         for col, definition in [
-            ("class_filter", "TEXT"),
-            ("sections",     "TEXT DEFAULT '[]'"),
+            ("class_filter",       "TEXT"),
+            ("sections",           "TEXT DEFAULT '[]'"),
+            ("library_template_id","INTEGER"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE assignments ADD COLUMN {col} {definition}")
@@ -69,6 +78,13 @@ def init_db():
         ]:
             try:
                 conn.execute(f"ALTER TABLE scores ADD COLUMN {col} {definition}")
+            except Exception:
+                pass
+        for col, definition in [
+            ("pinyin", "TEXT"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE students ADD COLUMN {col} {definition}")
             except Exception:
                 pass
 
@@ -261,3 +277,51 @@ def get_students_by_class(task_class):
             "SELECT * FROM students WHERE task_class=? ORDER BY english_name",
             (task_class,)
         ).fetchall()]
+
+
+def update_student_pinyin(student_id, pinyin):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE students SET pinyin=? WHERE student_id=?",
+            (pinyin, student_id)
+        )
+
+
+# ── Template library ──────────────────────────────────────────────────────────
+
+def get_template_library():
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, name, filename, uploaded_at FROM template_library ORDER BY uploaded_at DESC"
+        ).fetchall()]
+
+
+def save_library_template(name, filename, data):
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO template_library (name, filename, data) VALUES (?,?,?)",
+            (name, filename, data)
+        )
+        return cur.lastrowid
+
+
+def get_library_template(template_id):
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT name, filename, data FROM template_library WHERE id=?",
+            (template_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def delete_library_template(template_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM template_library WHERE id=?", (template_id,))
+
+
+def set_assignment_library_template(assignment_id, library_template_id):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE assignments SET library_template_id=? WHERE id=?",
+            (library_template_id, assignment_id)
+        )

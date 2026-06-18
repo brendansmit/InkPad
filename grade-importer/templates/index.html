@@ -216,6 +216,7 @@
   <div class="tab active" data-tab="assignments">Assignments</div>
   <div class="tab" data-tab="history">History</div>
   <div class="tab" data-tab="roster">Roster</div>
+  <div class="tab" data-tab="templates">Templates</div>
   <div class="tab" data-tab="settings">Settings</div>
 </div>
 
@@ -274,10 +275,19 @@
 
       <div class="card">
         <h2>XLS Template</h2>
-        <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">Upload the blank XLS export template for this assignment.</p>
+        <div style="margin-bottom:14px">
+          <label style="font-size:0.82rem;font-weight:600;color:#475569;display:block;margin-bottom:6px">Select from library</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <select id="library-template-select" style="flex:1" onchange="applyLibraryTemplate(this.value)">
+              <option value="">— choose a saved template —</option>
+            </select>
+            <span id="library-template-status" style="font-size:0.78rem;color:#10b981"></span>
+          </div>
+        </div>
+        <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:10px;text-align:center">— or upload a one-off template for this assignment —</div>
         <div class="drop-zone" id="template-drop" onclick="document.getElementById('template-file').click()">
           <div class="icon">📋</div>
-          <div id="template-drop-label">Drop .xls template here or click to browse</div>
+          <div id="template-drop-label">Drop .xls here or click to browse</div>
           <input type="file" id="template-file" accept=".xls" onchange="uploadTemplate(this.files[0])">
         </div>
       </div>
@@ -401,9 +411,44 @@
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <h2 style="margin:0">Current Roster <span id="roster-count" style="font-size:0.8rem;color:#64748b;font-weight:400"></span></h2>
-      <div class="class-tabs" id="roster-class-tabs" style="margin:0"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="class-tabs" id="roster-class-tabs" style="margin:0"></div>
+        <button class="btn btn-ghost" id="pinyin-btn" onclick="generatePinyin()" title="Generate Pinyin for all Chinese names">✦ Generate Pinyin</button>
+      </div>
     </div>
     <div id="roster-table-wrap"><div class="empty">No roster loaded</div></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ TEMPLATES ══════════════════════════════ -->
+<div class="panel" id="tab-templates">
+
+  <div class="card" style="max-width:700px">
+    <h2>Add Template to Library</h2>
+    <p style="font-size:0.82rem;color:#64748b;margin-bottom:14px">
+      Upload a blank XLS export template with a name. Once saved here, you can select it from the dropdown on any assignment without re-uploading.
+    </p>
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="form-group" style="flex:1">
+        <label>Template Name</label>
+        <input type="text" id="lib-template-name" placeholder="e.g. EAP Semester 2" style="width:100%">
+      </div>
+    </div>
+    <div class="drop-zone" id="lib-template-drop" onclick="document.getElementById('lib-template-file').click()">
+      <div class="icon">📋</div>
+      <div id="lib-template-drop-label">Drop .xls template here or click to browse</div>
+      <input type="file" id="lib-template-file" accept=".xls" onchange="uploadLibraryTemplate(this.files[0])">
+    </div>
+    <div id="lib-template-result" style="margin-top:12px"></div>
+  </div>
+
+  <div class="card" style="max-width:700px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="margin:0">Saved Templates</h2>
+      <button class="btn btn-ghost" onclick="loadTemplateLibrary()">Refresh</button>
+    </div>
+    <div id="template-library-list"><div class="empty">No templates saved yet</div></div>
   </div>
 
 </div>
@@ -447,6 +492,7 @@ document.querySelectorAll('.tab').forEach(t => {
     document.getElementById('tab-' + t.dataset.tab).classList.add('active');
     if (t.dataset.tab === 'history') loadHistory();
     if (t.dataset.tab === 'roster') loadRosterTab();
+    if (t.dataset.tab === 'templates') loadTemplateLibrary();
     if (t.dataset.tab === 'settings') loadSettings();
   });
 });
@@ -467,6 +513,7 @@ function setupDrop(zoneId, handler) {
 setupDrop('roster-drop', uploadRoster);
 setupDrop('template-drop', uploadTemplate);
 setupDrop('csv-drop', importCsv);
+setupDrop('lib-template-drop', uploadLibraryTemplate);
 
 // ── classes helpers ───────────────────────────────────────────────────────────
 async function loadClasses() {
@@ -555,18 +602,19 @@ async function loadRosterTable(filterClass) {
 
   let html = `<table>
     <thead><tr>
-      <th>English Name</th><th>Chinese Name</th><th>Class</th><th>Admin Class</th><th>ID</th><th></th>
+      <th>English Name</th><th>Chinese Name</th><th>Pinyin</th><th>Class</th><th>Admin Class</th><th>ID</th><th></th>
     </tr></thead><tbody>`;
 
   for (const [sec, studs] of Object.entries(sections)) {
     if (Object.keys(sections).length > 1) {
-      html += `<tr><td colspan="6" class="section-divider">${sec}</td></tr>`;
+      html += `<tr><td colspan="7" class="section-divider">${sec}</td></tr>`;
     }
     studs.forEach(s => {
       const classBadge = s.task_class && s.task_class.includes('AP') ? 'badge-purple' : 'badge-blue';
       html += `<tr>
         <td><b>${s.english_name}</b></td>
         <td>${s.chinese_name || '—'}</td>
+        <td style="font-size:0.8rem;color:#64748b">${s.pinyin || '<span style="color:#cbd5e1">—</span>'}</td>
         <td><span class="badge ${classBadge}">${s.task_class || '—'}</span></td>
         <td>${s.admin_class || '—'}</td>
         <td style="font-size:0.75rem;color:#94a3b8">${s.student_id}</td>
@@ -737,6 +785,16 @@ async function selectAssignment(aid) {
   secEl.textContent = a.sections && a.sections.length
     ? 'Sections: ' + a.sections.join(' · ')
     : '';
+
+  // Populate library template dropdown and set current value
+  populateLibraryDropdown();
+  const libSel = document.getElementById('library-template-select');
+  const libStatus = document.getElementById('library-template-status');
+  if (libSel) libSel.value = a.library_template_id || '';
+  if (libStatus) {
+    const t = libraryTemplates.find(x => x.id == a.library_template_id);
+    libStatus.textContent = t ? `✓ Using "${t.name}"` : '';
+  }
 
   renderScoreTable(data.scores, a.sections || []);
   updateScoreSummary(data.scores);
@@ -982,25 +1040,45 @@ async function saveAllScores(silent = false) {
 // ── export ────────────────────────────────────────────────────────────────────
 async function exportXls() {
   if (!currentAid) return;
-  // Check first — if no template, show a useful message instead of a JSON page
-  const check = await fetch(`/api/assignments/${currentAid}/export`, { method: 'HEAD' }).catch(() => null);
-  // HEAD not supported by Flask send_file, so do a real GET and handle error
+  const exportEl = document.getElementById('export-status');
+  exportEl.innerHTML = '';
+
   const res = await fetch(`/api/assignments/${currentAid}/export`);
   if (!res.ok) {
     const err = await res.json();
-    const exportEl = document.getElementById('export-status');
-    exportEl.innerHTML = `<div class="alert alert-error">${err.error}. Upload the XLS template above first.</div>`;
+    exportEl.innerHTML = `<div class="alert alert-error">${err.error}</div>`;
     exportEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     return;
   }
-  // Stream the file as a download
+
   const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition') || '';
+  const match = cd.match(/filename="?([^"]+)"?/);
+  const suggestedName = match ? match[1] : 'grades.xls';
+
+  // Use File System Access API for save dialog if available
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: 'Excel Spreadsheet', accept: { 'application/vnd.ms-excel': ['.xls'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      exportEl.innerHTML = `<div class="alert alert-success">Saved to <b>${handle.name}</b></div>`;
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled
+      // fall through to blob download
+    }
+  }
+
+  // Fallback: trigger browser download
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const cd = res.headers.get('Content-Disposition') || '';
-  const match = cd.match(/filename="?([^"]+)"?/);
-  a.download = match ? match[1] : 'grades.xls';
+  a.download = suggestedName;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -1086,6 +1164,99 @@ function toggleShowKey() {
   }
 }
 
+// ── template library ──────────────────────────────────────────────────────────
+let libraryTemplates = [];
+
+async function loadTemplateLibrary() {
+  const res = await fetch('/api/templates');
+  libraryTemplates = await res.json();
+  renderTemplateLibraryList();
+  populateLibraryDropdown();
+}
+
+function populateLibraryDropdown() {
+  const sel = document.getElementById('library-template-select');
+  if (!sel) return;
+  const current = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  libraryTemplates.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.name;
+    sel.appendChild(opt);
+  });
+  if (current) sel.value = current;
+}
+
+function renderTemplateLibraryList() {
+  const wrap = document.getElementById('template-library-list');
+  if (!wrap) return;
+  if (!libraryTemplates.length) {
+    wrap.innerHTML = '<div class="empty">No templates saved yet</div>';
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Name</th><th>File</th><th>Uploaded</th><th></th></tr></thead>
+    <tbody>` +
+    libraryTemplates.map(t => `<tr>
+      <td><b>${t.name}</b></td>
+      <td style="font-size:0.8rem;color:#64748b">${t.filename}</td>
+      <td style="font-size:0.78rem;color:#94a3b8">${t.uploaded_at.split(' ')[0]}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteLibraryTemplate(${t.id})" style="padding:3px 10px;font-size:0.75rem">Delete</button></td>
+    </tr>`).join('') +
+    '</tbody></table>';
+}
+
+async function uploadLibraryTemplate(file) {
+  const nameInput = document.getElementById('lib-template-name');
+  const name = nameInput ? nameInput.value.trim() : '';
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('name', name || file.name.replace(/\.xls$/i, ''));
+  const res = await fetch('/api/templates', { method: 'POST', body: fd });
+  const data = await res.json();
+  const resultEl = document.getElementById('lib-template-result');
+  if (data.error) {
+    resultEl.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+    return;
+  }
+  resultEl.innerHTML = `<div class="alert alert-success">Saved <b>${data.name}</b> to library.</div>`;
+  if (nameInput) nameInput.value = '';
+  document.getElementById('lib-template-drop-label').textContent = 'Drop .xls template here or click to browse';
+  await loadTemplateLibrary();
+}
+
+async function deleteLibraryTemplate(tid) {
+  if (!confirm('Remove this template from the library?')) return;
+  await fetch(`/api/templates/${tid}`, { method: 'DELETE' });
+  await loadTemplateLibrary();
+}
+
+async function applyLibraryTemplate(tid) {
+  if (!currentAid) return;
+  const statusEl = document.getElementById('library-template-status');
+  if (!tid) { statusEl.textContent = ''; return; }
+  await fetch(`/api/assignments/${currentAid}/library-template`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ template_id: parseInt(tid) })
+  });
+  const t = libraryTemplates.find(x => x.id == tid);
+  if (statusEl) statusEl.textContent = t ? `✓ Using "${t.name}"` : '✓ Saved';
+}
+
+// ── pinyin ─────────────────────────────────────────────────────────────────────
+async function generatePinyin() {
+  const btn = document.getElementById('pinyin-btn');
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+  const res = await fetch('/api/roster/generate-pinyin', { method: 'POST' });
+  const data = await res.json();
+  btn.textContent = '✦ Generate Pinyin';
+  btn.disabled = false;
+  await loadRosterTable(rosterViewClass === 'all' ? null : rosterViewClass);
+}
+
 // ── init ──────────────────────────────────────────────────────────────────────
 (async function init() {
   await loadClasses();
@@ -1093,6 +1264,7 @@ function toggleShowKey() {
   allStudents = await res.json();
   updateRosterStatus();
   await loadAssignments();
+  await loadTemplateLibrary();
   await loadSettings();
 })();
 </script>
