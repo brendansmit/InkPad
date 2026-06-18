@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import json
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "grades.db")
 
@@ -31,7 +32,9 @@ def init_db():
             CREATE TABLE IF NOT EXISTS assignments (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
-                max_score REAL NOT NULL,
+                max_score REAL,
+                class_filter TEXT,
+                sections TEXT DEFAULT '[]',
                 created_at TEXT DEFAULT (datetime('now','localtime'))
             );
 
@@ -40,7 +43,7 @@ def init_db():
                 assignment_id INTEGER NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
                 student_id TEXT NOT NULL REFERENCES students(student_id),
                 score REAL,
-                completion_status TEXT DEFAULT 'On Time',
+                section_scores TEXT DEFAULT '{}',
                 UNIQUE(assignment_id, student_id)
             );
 
@@ -52,6 +55,22 @@ def init_db():
                 uploaded_at TEXT DEFAULT (datetime('now','localtime'))
             );
         """)
+        # Migrate existing DB: add new columns if missing
+        for col, definition in [
+            ("class_filter", "TEXT"),
+            ("sections",     "TEXT DEFAULT '[]'"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE assignments ADD COLUMN {col} {definition}")
+            except Exception:
+                pass
+        for col, definition in [
+            ("section_scores", "TEXT DEFAULT '{}'"),
+        ]:
+            try:
+                conn.execute(f"ALTER TABLE scores ADD COLUMN {col} {definition}")
+            except Exception:
+                pass
 
 
 def upsert_students(students):
@@ -74,47 +93,88 @@ def get_all_students():
         ).fetchall()]
 
 
-def create_assignment(name, max_score):
+def create_assignment(name, class_filter=None, sections=None):
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO assignments (name, max_score) VALUES (?, ?)", (name, max_score)
+            "INSERT INTO assignments (name, max_score, class_filter, sections) VALUES (?, ?, ?, ?)",
+            (name, 0, class_filter, json.dumps(sections or []))
         )
         return cur.lastrowid
+
+
+def delete_assignment(assignment_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM assignments WHERE id=?", (assignment_id,))
 
 
 def get_assignment(assignment_id):
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM assignments WHERE id=?", (assignment_id,)).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        d = dict(row)
+        d["sections"] = json.loads(d.get("sections") or "[]")
+        return d
 
 
 def get_all_assignments():
     with get_conn() as conn:
-        return [dict(r) for r in conn.execute(
+        rows = [dict(r) for r in conn.execute(
             "SELECT * FROM assignments ORDER BY created_at DESC"
         ).fetchall()]
+        for r in rows:
+            r["sections"] = json.loads(r.get("sections") or "[]")
+        return rows
 
 
-def upsert_score(assignment_id, student_id, score, completion_status="On Time"):
+def upsert_score(assignment_id, student_id, score, section_scores=None):
     with get_conn() as conn:
         conn.execute("""
-            INSERT INTO scores (assignment_id, student_id, score, completion_status)
+            INSERT INTO scores (assignment_id, student_id, score, section_scores)
             VALUES (?, ?, ?, ?)
             ON CONFLICT(assignment_id, student_id) DO UPDATE SET
                 score=excluded.score,
-                completion_status=excluded.completion_status
-        """, (assignment_id, student_id, score, completion_status))
+                section_scores=excluded.section_scores
+        """, (assignment_id, student_id, score, json.dumps(section_scores or {})))
 
 
-def get_scores_for_assignment(assignment_id):
+def get_scores_for_assignment(assignment_id, class_filter=None):
     with get_conn() as conn:
-        return [dict(r) for r in conn.execute("""
-            SELECT s.student_id, s.english_name, s.chinese_name, s.admin_class, s.task_class,
-                   sc.score, sc.completion_status
-            FROM students s
-            LEFT JOIN scores sc ON sc.student_id = s.student_id AND sc.assignment_id = ?
-            ORDER BY s.task_class, s.english_name
-        """, (assignment_id,)).fetchall()]
+        if class_filter and class_filter != "All":
+            # EAP matches all EAP sections, AP Lang matches AP Lang
+            if class_filter == "EAP":
+                rows = conn.execute("""
+                    SELECT s.student_id, s.english_name, s.chinese_name, s.admin_class, s.task_class,
+                           sc.score, sc.section_scores
+                    FROM students s
+                    LEFT JOIN scores sc ON sc.student_id = s.student_id AND sc.assignment_id = ?
+                    WHERE s.task_class LIKE '%EAP%'
+                    ORDER BY s.task_class, s.english_name
+                """, (assignment_id,)).fetchall()
+            else:
+                rows = conn.execute("""
+                    SELECT s.student_id, s.english_name, s.chinese_name, s.admin_class, s.task_class,
+                           sc.score, sc.section_scores
+                    FROM students s
+                    LEFT JOIN scores sc ON sc.student_id = s.student_id AND sc.assignment_id = ?
+                    WHERE s.task_class LIKE ?
+                    ORDER BY s.task_class, s.english_name
+                """, (assignment_id, f"%{class_filter}%")).fetchall()
+        else:
+            rows = conn.execute("""
+                SELECT s.student_id, s.english_name, s.chinese_name, s.admin_class, s.task_class,
+                       sc.score, sc.section_scores
+                FROM students s
+                LEFT JOIN scores sc ON sc.student_id = s.student_id AND sc.assignment_id = ?
+                ORDER BY s.task_class, s.english_name
+            """, (assignment_id,)).fetchall()
+
+        result = []
+        for r in rows:
+            d = dict(r)
+            d["section_scores"] = json.loads(d.get("section_scores") or "{}")
+            result.append(d)
+        return result
 
 
 def get_history_matrix():
@@ -122,6 +182,8 @@ def get_history_matrix():
         assignments = [dict(r) for r in conn.execute(
             "SELECT * FROM assignments ORDER BY created_at ASC"
         ).fetchall()]
+        for a in assignments:
+            a["sections"] = json.loads(a.get("sections") or "[]")
         students = [dict(r) for r in conn.execute(
             "SELECT * FROM students ORDER BY task_class, english_name"
         ).fetchall()]
@@ -136,9 +198,7 @@ def get_history_matrix():
 
 def save_template(assignment_id, filename, data):
     with get_conn() as conn:
-        conn.execute(
-            "DELETE FROM xls_templates WHERE assignment_id=?", (assignment_id,)
-        )
+        conn.execute("DELETE FROM xls_templates WHERE assignment_id=?", (assignment_id,))
         conn.execute(
             "INSERT INTO xls_templates (assignment_id, filename, data) VALUES (?,?,?)",
             (assignment_id, filename, data)
