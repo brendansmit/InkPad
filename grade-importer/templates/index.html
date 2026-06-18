@@ -255,7 +255,6 @@
             <h2 id="detail-name" style="font-size:1.1rem;margin-bottom:2px">—</h2>
             <div style="font-size:0.8rem;color:#64748b">Max score: <b id="detail-max">—</b> &nbsp;·&nbsp; Created: <span id="detail-date">—</span></div>
           </div>
-          <button class="btn btn-success" onclick="exportXls()">Download XLS</button>
         </div>
       </div>
 
@@ -298,6 +297,20 @@
           </div>
         </div>
         <div id="score-table-wrap"></div>
+      </div>
+
+      <!-- Export card -->
+      <div class="card" style="border:2px solid #10b981;background:#f0fdf4">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <h2 style="margin:0;color:#065f46">Export to XLS</h2>
+            <p style="font-size:0.82rem;color:#059669;margin-top:3px">Downloads the filled template ready for submission</p>
+          </div>
+          <button class="btn btn-success" onclick="exportXls()" style="font-size:0.95rem;padding:10px 24px">
+            ⬇ Download XLS
+          </button>
+        </div>
+        <div id="export-status" style="margin-top:10px"></div>
       </div>
 
     </div>
@@ -835,7 +848,27 @@ async function saveAllScores() {
 // ── export ────────────────────────────────────────────────────────────────────
 async function exportXls() {
   if (!currentAid) return;
-  window.location.href = `/api/assignments/${currentAid}/export`;
+  // Check first — if no template, show a useful message instead of a JSON page
+  const check = await fetch(`/api/assignments/${currentAid}/export`, { method: 'HEAD' }).catch(() => null);
+  // HEAD not supported by Flask send_file, so do a real GET and handle error
+  const res = await fetch(`/api/assignments/${currentAid}/export`);
+  if (!res.ok) {
+    const err = await res.json();
+    const exportEl = document.getElementById('export-status');
+    exportEl.innerHTML = `<div class="alert alert-error">${err.error}. Upload the XLS template above first.</div>`;
+    exportEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    return;
+  }
+  // Stream the file as a download
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const cd = res.headers.get('Content-Disposition') || '';
+  const match = cd.match(/filename="?([^"]+)"?/);
+  a.download = match ? match[1] : 'grades.xls';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── history ───────────────────────────────────────────────────────────────────
