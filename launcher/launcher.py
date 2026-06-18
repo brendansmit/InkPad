@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import PhotoImage
 import subprocess
 import threading
 import os
@@ -7,6 +8,7 @@ import socket
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(BASE)
+LOGO_PATH = "/Users/brendansmit/Documents/InkHeron/Logo.png"
 
 
 def port_in_use(port):
@@ -214,8 +216,24 @@ class Launcher(tk.Tk):
         self.configure(bg=BG)
         self.resizable(False, False)
 
+        # Load logo for dock icon and header
+        self._logo_img = None
+        self._logo_small = None
+        try:
+            from PIL import Image, ImageTk
+            img = Image.open(LOGO_PATH).convert("RGBA")
+            # Dock icon (large)
+            dock = ImageTk.PhotoImage(img.resize((256, 256), Image.LANCZOS))
+            self.wm_iconphoto(True, dock)
+            self._logo_img = dock
+            # Header logo (small)
+            small = ImageTk.PhotoImage(img.resize((36, 36), Image.LANCZOS))
+            self._logo_small = small
+        except ImportError:
+            pass  # PIL not available, skip logo display
+
         # Centre on screen
-        w, h = 520, 280
+        w, h = 520, 300
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
         self.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
@@ -225,7 +243,10 @@ class Launcher(tk.Tk):
     def _build(self):
         # Header
         header = tk.Frame(self, bg=BG)
-        header.pack(fill="x", padx=20, pady=(18, 4))
+        header.pack(fill="x", padx=20, pady=(16, 4))
+
+        if self._logo_small:
+            tk.Label(header, image=self._logo_small, bg=BG).pack(side="left", padx=(0, 10))
 
         tk.Label(header, text="InkHeron Apps", font=("-apple-system", 16, "bold"),
                  bg=BG, fg=TEXT_WHITE).pack(side="left")
