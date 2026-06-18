@@ -304,6 +304,14 @@
           <span style="font-size:0.78rem;color:#94a3b8">Narrows matching to selected class only</span>
         </div>
 
+        <div id="csv-section-row" class="class-select-row" style="display:none;margin-top:8px">
+          <label>Import into section:</label>
+          <select id="csv-section-target" style="min-width:180px">
+            <option value="">— no sections —</option>
+          </select>
+          <span style="font-size:0.78rem;color:#94a3b8">CSV scores fill this section column</span>
+        </div>
+
         <div class="drop-zone" id="csv-drop" onclick="document.getElementById('csv-file').click()">
           <div class="icon">📊</div>
           <div>Drop CSV here or click to browse</div>
@@ -786,6 +794,22 @@ async function selectAssignment(aid) {
     ? 'Sections: ' + a.sections.join(' · ')
     : '';
 
+  // Populate section dropdown for CSV import
+  const csvSecRow = document.getElementById('csv-section-row');
+  const csvSecSel = document.getElementById('csv-section-target');
+  if (a.sections && a.sections.length > 0) {
+    csvSecRow.style.display = 'flex';
+    while (csvSecSel.options.length > 0) csvSecSel.options.length = 0;
+    a.sections.forEach(sec => {
+      const opt = document.createElement('option');
+      opt.value = sec;
+      opt.textContent = sec;
+      csvSecSel.appendChild(opt);
+    });
+  } else {
+    csvSecRow.style.display = 'none';
+  }
+
   // Populate library template dropdown and set current value
   populateLibraryDropdown();
   const libSel = document.getElementById('library-template-select');
@@ -838,8 +862,16 @@ async function importCsv(file) {
   const matched = data.matched || [];
   const unmatched = data.unmatched || [];
 
+  const targetSection = document.getElementById('csv-section-target')?.value || '';
   matched.forEach(m => {
-    pendingScores[m.student.student_id] = { score: m.score, section_scores: {} };
+    const sid = m.student.student_id;
+    if (targetSection) {
+      if (!pendingScores[sid]) pendingScores[sid] = { score: null, section_scores: {} };
+      if (!pendingScores[sid].section_scores) pendingScores[sid].section_scores = {};
+      pendingScores[sid].section_scores[targetSection] = m.score;
+    } else {
+      pendingScores[sid] = { score: m.score, section_scores: {} };
+    }
   });
 
   await refreshDetailScores();
@@ -870,8 +902,13 @@ async function refreshDetailScores() {
   const res = await fetch(`/api/assignments/${currentAid}`);
   const data = await res.json();
   const scores = data.scores.map(s => {
-    if (pendingScores[s.student_id] !== undefined) {
-      return { ...s, ...pendingScores[s.student_id] };
+    const pending = pendingScores[s.student_id];
+    if (pending !== undefined) {
+      const merged = { ...s, ...pending };
+      // Deep-merge section_scores so MC import doesn't wipe existing SRQ entries
+      merged.section_scores = { ...(s.section_scores || {}), ...(pending.section_scores || {}) };
+      if (pending.score !== null && pending.score !== undefined) merged.score = pending.score;
+      return merged;
     }
     return s;
   });
