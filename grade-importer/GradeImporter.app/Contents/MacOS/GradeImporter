@@ -1,0 +1,28 @@
+#!/bin/bash
+
+APP_DIR="/Users/brendansmit/Documents/Claude/grade-importer"
+PORT=5050
+LOG="$APP_DIR/server.log"
+
+# Check if server is already running
+if lsof -ti tcp:$PORT &>/dev/null; then
+    # Already running — just open the browser
+    open "http://localhost:$PORT"
+    exit 0
+fi
+
+# Start the server in the background
+cd "$APP_DIR"
+nohup python3 app.py >> "$LOG" 2>&1 &
+echo $! > "$APP_DIR/server.pid"
+
+# Wait for server to be ready (up to 8 seconds)
+for i in {1..16}; do
+    if curl -s "http://localhost:$PORT" &>/dev/null; then
+        break
+    fi
+    sleep 0.5
+done
+
+# Open in browser
+open "http://localhost:$PORT"
