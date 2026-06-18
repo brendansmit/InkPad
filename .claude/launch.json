@@ -13,6 +13,30 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["serve", "-p", "3457", "."],
       "port": 3457
+    },
+    {
+      "name": "wa-mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "3461", "--directory", "Writing analyzer/mockups"],
+      "port": 3461
+    },
+    {
+      "name": "wa-layouts",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "3462", "--directory", "Writing analyzer/mockups"],
+      "port": 3462
+    },
+    {
+      "name": "bug-detector",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "3463", "--directory", "bug-detector"],
+      "port": 3463
+    },
+    {
+      "name": "launcher",
+      "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+      "runtimeArgs": ["launcher/launcher_server.py"],
+      "port": 5099
     }
   ]
 }
