@@ -14,7 +14,7 @@
     padding: 14px 28px;
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
   }
   header h1 { font-size: 1.2rem; font-weight: 600; }
   header span { font-size: 0.8rem; opacity: 0.6; }
@@ -53,7 +53,7 @@
   .drop-zone {
     border: 2px dashed #94a3b8;
     border-radius: 8px;
-    padding: 32px;
+    padding: 28px;
     text-align: center;
     cursor: pointer;
     transition: all 0.2s;
@@ -65,8 +65,9 @@
     background: #eff6ff;
     color: #3b82f6;
   }
-  .drop-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+  .drop-zone .icon { font-size: 1.8rem; margin-bottom: 6px; }
   .drop-zone input[type=file] { display: none; }
+  .drop-zone.success { border-color: #10b981; background: #f0fdf4; color: #166534; }
 
   .btn {
     padding: 8px 18px;
@@ -85,9 +86,10 @@
   .btn-danger:hover { background: #dc2626; }
   .btn-ghost { background: transparent; color: #64748b; border: 1px solid #e2e8f0; }
   .btn-ghost:hover { background: #f8fafc; }
+  .btn-sm { padding: 5px 12px; font-size: 0.8rem; }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  input[type=text], input[type=number], select {
+  input[type=text], input[type=number], input[type=password], select {
     padding: 8px 12px;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
@@ -119,8 +121,9 @@
   .badge-red { background: #fee2e2; color: #991b1b; }
   .badge-blue { background: #dbeafe; color: #1e40af; }
   .badge-gray { background: #f1f5f9; color: #475569; }
+  .badge-purple { background: #f3e8ff; color: #6b21a8; }
 
-  .alert { padding: 12px 16px; border-radius: 8px; font-size: 0.875rem; margin-bottom: 16px; }
+  .alert { padding: 12px 16px; border-radius: 8px; font-size: 0.875rem; margin-bottom: 12px; }
   .alert-error { background: #fee2e2; color: #991b1b; }
   .alert-success { background: #dcfce7; color: #166534; }
   .alert-warn { background: #fef9c3; color: #854d0e; }
@@ -144,24 +147,11 @@
 
   .score-input { width: 70px; }
 
-  .match-row td:first-child { font-weight: 500; }
-  .confidence-bar {
-    height: 4px;
-    background: #e2e8f0;
-    border-radius: 2px;
-    margin-top: 3px;
-    overflow: hidden;
-  }
-  .confidence-fill { height: 100%; border-radius: 2px; }
-
   #history-table-wrap { overflow-x: auto; }
   #history-table th, #history-table td { white-space: nowrap; }
-  #history-table .name-cell { white-space: nowrap; }
 
   .split { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
   @media (max-width: 700px) { .split { grid-template-columns: 1fr; } }
-
-  .section-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 0 4px; }
 
   .spinner {
     display: inline-block;
@@ -177,7 +167,39 @@
 
   .empty { text-align: center; padding: 40px; color: #94a3b8; font-size: 0.9rem; }
 
-  .roster-count { font-size: 0.8rem; color: #64748b; }
+  .class-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .class-pill {
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: #475569;
+    transition: all 0.15s;
+  }
+  .class-pill:hover { border-color: #3b82f6; color: #3b82f6; }
+  .class-pill.active { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+
+  .section-divider {
+    background: #f8fafc;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 8px 12px;
+  }
+
+  .api-key-row { display: flex; gap: 10px; align-items: center; }
+  .api-key-row input { flex: 1; font-family: monospace; }
+  .api-status { font-size: 0.8rem; padding: 4px 10px; border-radius: 4px; }
+  .api-status.set { background: #dcfce7; color: #166534; }
+  .api-status.unset { background: #fee2e2; color: #991b1b; }
+
+  .csv-import-block { margin-top: 10px; }
+  .class-select-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .class-select-row label { font-size: 0.82rem; font-weight: 600; color: #475569; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -187,19 +209,20 @@
     <h1>Grade Importer</h1>
     <span id="roster-status">No roster loaded</span>
   </div>
+  <div id="api-header-badge"></div>
 </header>
 
 <div class="tabs">
   <div class="tab active" data-tab="assignments">Assignments</div>
   <div class="tab" data-tab="history">History</div>
   <div class="tab" data-tab="roster">Roster</div>
+  <div class="tab" data-tab="settings">Settings</div>
 </div>
 
 <!-- ═══════════════════════════════ ASSIGNMENTS ══════════════════════════════ -->
 <div class="panel active" id="tab-assignments">
   <div class="split">
 
-    <!-- Left: assignment list -->
     <div>
       <div class="card">
         <h2>Create Assignment</h2>
@@ -224,25 +247,21 @@
       </div>
     </div>
 
-    <!-- Right: selected assignment detail -->
     <div id="assignment-detail" style="display:none">
 
-      <div class="card" id="detail-header">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
           <div>
-            <h2 id="detail-name" style="font-size:1.1rem">—</h2>
-            <div style="font-size:0.8rem; color:#64748b; margin-top:2px">Max score: <b id="detail-max">—</b> &nbsp;·&nbsp; Created: <span id="detail-date">—</span></div>
+            <h2 id="detail-name" style="font-size:1.1rem;margin-bottom:2px">—</h2>
+            <div style="font-size:0.8rem;color:#64748b">Max score: <b id="detail-max">—</b> &nbsp;·&nbsp; Created: <span id="detail-date">—</span></div>
           </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-success" onclick="exportXls()">Download XLS</button>
-          </div>
+          <button class="btn btn-success" onclick="exportXls()">Download XLS</button>
         </div>
       </div>
 
-      <!-- Template upload -->
       <div class="card">
         <h2>XLS Template</h2>
-        <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">Upload the blank XLS export template for this assignment. Only needed once per assignment.</p>
+        <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">Upload the blank XLS export template for this assignment.</p>
         <div class="drop-zone" id="template-drop" onclick="document.getElementById('template-file').click()">
           <div class="icon">📋</div>
           <div id="template-drop-label">Drop .xls template here or click to browse</div>
@@ -250,10 +269,18 @@
         </div>
       </div>
 
-      <!-- CSV import -->
       <div class="card">
         <h2>Import Scores from CSV</h2>
-        <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">Drop a grade export CSV. Scores will be matched to the roster automatically.</p>
+        <p style="font-size:0.82rem;color:#64748b;margin-bottom:12px">Select the class first, then drop the CSV export for that class.</p>
+
+        <div class="class-select-row">
+          <label>Class:</label>
+          <select id="csv-class-filter" style="min-width:180px">
+            <option value="">All students</option>
+          </select>
+          <span style="font-size:0.78rem;color:#94a3b8">Narrows matching to selected class only</span>
+        </div>
+
         <div class="drop-zone" id="csv-drop" onclick="document.getElementById('csv-file').click()">
           <div class="icon">📊</div>
           <div>Drop CSV here or click to browse</div>
@@ -262,19 +289,18 @@
         <div id="import-result" style="margin-top:14px"></div>
       </div>
 
-      <!-- Score table -->
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
           <h2 style="margin:0">Scores</h2>
-          <div style="display:flex;gap:8px">
-            <span id="score-summary" style="font-size:0.8rem;color:#64748b;align-self:center"></span>
-            <button class="btn btn-primary btn-sm" onclick="saveAllScores()" style="padding:6px 14px;font-size:0.8rem">Save All</button>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span id="score-summary" style="font-size:0.8rem;color:#64748b"></span>
+            <button class="btn btn-primary btn-sm" onclick="saveAllScores()">Save All</button>
           </div>
         </div>
         <div id="score-table-wrap"></div>
       </div>
 
-    </div><!-- /detail -->
+    </div>
 
     <div id="no-selection" style="display:flex;align-items:center;justify-content:center;height:200px;color:#94a3b8;font-size:0.9rem">
       Select an assignment to get started
@@ -296,11 +322,20 @@
 
 <!-- ═══════════════════════════════ ROSTER ══════════════════════════════ -->
 <div class="panel" id="tab-roster">
+
   <div class="card">
-    <h2>Roster</h2>
+    <h2>Upload Class Roster from XLS</h2>
     <p style="font-size:0.82rem;color:#64748b;margin-bottom:14px">
-      Drop the XLS class template here to load or update the roster. Both English and Chinese names are stored.
+      Select the class this XLS belongs to, then drop it in. Existing students with the same ID will be updated.
     </p>
+    <div class="class-select-row" style="margin-bottom:14px">
+      <label>Assign to class:</label>
+      <select id="upload-class-override" style="min-width:200px">
+        <option value="">Use class from file</option>
+      </select>
+      <span style="font-size:0.78rem;color:#94a3b8">or type a new class name below</span>
+      <input type="text" id="upload-class-custom" placeholder="New class name…" style="width:180px">
+    </div>
     <div class="drop-zone" id="roster-drop" onclick="document.getElementById('roster-file').click()">
       <div class="icon">🏫</div>
       <div>Drop XLS roster file here or click to browse</div>
@@ -308,18 +343,72 @@
     </div>
     <div id="roster-result" style="margin-top:14px"></div>
   </div>
+
   <div class="card">
-    <h2>Current Roster <span class="roster-count" id="roster-count"></span></h2>
+    <h2>Add Student Manually</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>English Name</label>
+        <input type="text" id="add-english" placeholder="e.g. Wren" style="width:140px">
+      </div>
+      <div class="form-group">
+        <label>Chinese Name <span style="font-weight:400;opacity:0.6">(optional)</span></label>
+        <input type="text" id="add-chinese" placeholder="汉字" style="width:120px">
+      </div>
+      <div class="form-group">
+        <label>Class</label>
+        <select id="add-class" style="width:180px">
+          <option value="">Select class…</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Or new class</label>
+        <input type="text" id="add-class-new" placeholder="AP Lang" style="width:130px">
+      </div>
+      <button class="btn btn-primary" onclick="addStudent()" style="align-self:flex-end">Add Student</button>
+    </div>
+    <div id="add-student-result" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <h2 style="margin:0">Current Roster <span id="roster-count" style="font-size:0.8rem;color:#64748b;font-weight:400"></span></h2>
+      <div class="class-tabs" id="roster-class-tabs" style="margin:0"></div>
+    </div>
     <div id="roster-table-wrap"><div class="empty">No roster loaded</div></div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ SETTINGS ══════════════════════════════ -->
+<div class="panel" id="tab-settings">
+  <div class="card" style="max-width:600px">
+    <h2>DeepSeek API Key</h2>
+    <p style="font-size:0.85rem;color:#64748b;margin-bottom:16px">
+      Used as a fallback when fuzzy name matching is ambiguous. Not required — the app works without it for most cases.
+    </p>
+    <div class="form-group" style="margin-bottom:14px">
+      <label>API Key</label>
+      <div class="api-key-row">
+        <input type="password" id="api-key-input" placeholder="sk-…" autocomplete="off">
+        <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
+        <button class="btn btn-ghost" onclick="toggleShowKey()" id="show-key-btn">Show</button>
+      </div>
+    </div>
+    <div id="api-key-status"></div>
+    <p style="font-size:0.78rem;color:#94a3b8;margin-top:12px">
+      Key is stored locally in the app database only. Get your key from <b>platform.deepseek.com</b>.
+    </p>
   </div>
 </div>
 
 
 <script>
-// ── state ─────────────────────────────────────────────────────────────────────
 let currentAid = null;
-let pendingScores = {}; // student_id -> {score, completion_status}
+let pendingScores = {};
 let allStudents = [];
+let allClasses = [];
+let rosterViewClass = "all";
 
 // ── tabs ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.tab').forEach(t => {
@@ -329,13 +418,15 @@ document.querySelectorAll('.tab').forEach(t => {
     t.classList.add('active');
     document.getElementById('tab-' + t.dataset.tab).classList.add('active');
     if (t.dataset.tab === 'history') loadHistory();
-    if (t.dataset.tab === 'roster') loadRosterTable();
+    if (t.dataset.tab === 'roster') loadRosterTab();
+    if (t.dataset.tab === 'settings') loadSettings();
   });
 });
 
-// ── drag-and-drop helpers ─────────────────────────────────────────────────────
+// ── drag-and-drop ─────────────────────────────────────────────────────────────
 function setupDrop(zoneId, handler) {
   const zone = document.getElementById(zoneId);
+  if (!zone) return;
   zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
   zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
   zone.addEventListener('drop', e => {
@@ -349,58 +440,169 @@ setupDrop('roster-drop', uploadRoster);
 setupDrop('template-drop', uploadTemplate);
 setupDrop('csv-drop', importCsv);
 
+// ── classes helpers ───────────────────────────────────────────────────────────
+async function loadClasses() {
+  const res = await fetch('/api/roster/classes');
+  allClasses = await res.json();
+  populateClassSelects();
+}
+
+function populateClassSelects() {
+  const selectors = ['csv-class-filter', 'upload-class-override', 'add-class'];
+  selectors.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    // Keep first option, replace rest
+    while (el.options.length > 1) el.remove(1);
+    allClasses.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      el.appendChild(opt);
+    });
+    if (current) el.value = current;
+  });
+}
+
 // ── roster ────────────────────────────────────────────────────────────────────
 async function uploadRoster(file) {
+  const customClass = document.getElementById('upload-class-custom').value.trim();
+  const selectClass = document.getElementById('upload-class-override').value.trim();
+  const classOverride = customClass || selectClass;
+
   const fd = new FormData();
   fd.append('file', file);
+  if (classOverride) fd.append('task_class', classOverride);
+
   const res = await fetch('/api/roster/upload', { method: 'POST', body: fd });
   const data = await res.json();
   const el = document.getElementById('roster-result');
   if (data.error) {
     el.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
   } else {
-    el.innerHTML = `<div class="alert alert-success">Loaded ${data.count} students from roster.</div>`;
-    loadRosterTable();
+    const cls = classOverride ? ` (assigned to <b>${classOverride}</b>)` : '';
+    el.innerHTML = `<div class="alert alert-success">Loaded ${data.count} students${cls}.</div>`;
+    await loadClasses();
+    await loadRosterTable();
     updateRosterStatus();
   }
 }
 
-async function loadRosterTable() {
-  const res = await fetch('/api/roster');
-  allStudents = await res.json();
+async function loadRosterTab() {
+  await loadClasses();
+  await loadRosterTable();
+}
+
+async function loadRosterTable(filterClass) {
+  const url = filterClass && filterClass !== 'all' ? `/api/roster?class=${encodeURIComponent(filterClass)}` : '/api/roster';
+  const res = await fetch(url);
+  const students = await res.json();
+  allStudents = filterClass ? allStudents : students; // keep full list in allStudents
   updateRosterStatus();
+
   const wrap = document.getElementById('roster-table-wrap');
   const count = document.getElementById('roster-count');
-  if (!allStudents.length) {
-    wrap.innerHTML = '<div class="empty">No roster loaded</div>';
+
+  // Build class filter tabs
+  const tabsEl = document.getElementById('roster-class-tabs');
+  const tabs = ['all', ...allClasses];
+  tabsEl.innerHTML = tabs.map(c =>
+    `<div class="class-pill ${c === rosterViewClass ? 'active' : ''}" onclick="switchRosterClass('${c}')">${c === 'all' ? 'All' : c}</div>`
+  ).join('');
+
+  if (!students.length) {
+    wrap.innerHTML = '<div class="empty">No students in this class</div>';
     count.textContent = '';
     return;
   }
-  count.textContent = `(${allStudents.length} students)`;
+  count.textContent = `(${students.length} students)`;
+
   let sections = {};
-  allStudents.forEach(s => {
+  students.forEach(s => {
     const k = s.task_class || 'Other';
     if (!sections[k]) sections[k] = [];
     sections[k].push(s);
   });
-  let html = '<table><thead><tr><th>Student ID</th><th>English Name</th><th>Chinese Name</th><th>Admin Class</th><th>Task Class</th></tr></thead><tbody>';
+
+  let html = `<table>
+    <thead><tr>
+      <th>English Name</th><th>Chinese Name</th><th>Class</th><th>Admin Class</th><th>ID</th><th></th>
+    </tr></thead><tbody>`;
+
   for (const [sec, studs] of Object.entries(sections)) {
-    html += `<tr><td colspan="5" style="background:#f8fafc;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px">${sec}</td></tr>`;
+    if (Object.keys(sections).length > 1) {
+      html += `<tr><td colspan="6" class="section-divider">${sec}</td></tr>`;
+    }
     studs.forEach(s => {
-      html += `<tr><td>${s.student_id}</td><td><b>${s.english_name}</b></td><td>${s.chinese_name}</td><td>${s.admin_class}</td><td>${s.task_class}</td></tr>`;
+      const classBadge = s.task_class && s.task_class.includes('AP') ? 'badge-purple' : 'badge-blue';
+      html += `<tr>
+        <td><b>${s.english_name}</b></td>
+        <td>${s.chinese_name || '—'}</td>
+        <td><span class="badge ${classBadge}">${s.task_class || '—'}</span></td>
+        <td>${s.admin_class || '—'}</td>
+        <td style="font-size:0.75rem;color:#94a3b8">${s.student_id}</td>
+        <td>
+          <button class="btn btn-danger btn-sm" onclick="removeStudent('${s.student_id}', '${s.english_name.replace(/'/g,'\\\'')}')" style="padding:3px 10px;font-size:0.75rem">Remove</button>
+        </td>
+      </tr>`;
     });
   }
   html += '</tbody></table>';
   wrap.innerHTML = html;
 }
 
+async function switchRosterClass(cls) {
+  rosterViewClass = cls;
+  await loadRosterTable(cls === 'all' ? null : cls);
+}
+
 function updateRosterStatus() {
   const el = document.getElementById('roster-status');
-  if (allStudents.length) {
-    el.textContent = `${allStudents.length} students loaded`;
+  const total = allStudents.length;
+  if (total) {
+    el.textContent = `${total} students loaded`;
   } else {
     el.textContent = 'No roster loaded';
   }
+}
+
+async function addStudent() {
+  const english = document.getElementById('add-english').value.trim();
+  const chinese = document.getElementById('add-chinese').value.trim();
+  const cls = document.getElementById('add-class-new').value.trim() || document.getElementById('add-class').value;
+  const resultEl = document.getElementById('add-student-result');
+
+  if (!english || !cls) {
+    resultEl.innerHTML = '<div class="alert alert-error">English name and class are required.</div>';
+    return;
+  }
+
+  const res = await fetch('/api/roster/student', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ english_name: english, chinese_name: chinese, task_class: cls, admin_class: cls })
+  });
+  const data = await res.json();
+  if (data.error) {
+    resultEl.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+    return;
+  }
+  resultEl.innerHTML = `<div class="alert alert-success">Added <b>${english}</b> to <b>${cls}</b> (ID: ${data.student_id})</div>`;
+  document.getElementById('add-english').value = '';
+  document.getElementById('add-chinese').value = '';
+  document.getElementById('add-class-new').value = '';
+  await loadClasses();
+  await loadRosterTable(rosterViewClass === 'all' ? null : rosterViewClass);
+  updateRosterStatus();
+}
+
+async function removeStudent(studentId, name) {
+  if (!confirm(`Remove ${name} from the roster? Their scores will also be deleted.`)) return;
+  await fetch(`/api/roster/student/${encodeURIComponent(studentId)}`, { method: 'DELETE' });
+  await loadClasses();
+  await loadRosterTable(rosterViewClass === 'all' ? null : rosterViewClass);
+  updateRosterStatus();
 }
 
 // ── assignments ───────────────────────────────────────────────────────────────
@@ -457,32 +659,35 @@ async function selectAssignment(aid) {
   document.getElementById('detail-max').textContent = a.max_score;
   document.getElementById('detail-date').textContent = a.created_at.split(' ')[0];
 
-  // Check if template already uploaded
   renderScoreTable(data.scores, a.max_score);
   updateScoreSummary(data.scores);
 }
 
-// ── template upload ────────────────────────────────────────────────────────────
+// ── template upload ───────────────────────────────────────────────────────────
 async function uploadTemplate(file) {
   if (!currentAid) { alert('Select an assignment first'); return; }
   const fd = new FormData();
   fd.append('file', file);
   const res = await fetch(`/api/assignments/${currentAid}/template`, { method: 'POST', body: fd });
   const data = await res.json();
+  const zone = document.getElementById('template-drop');
   const label = document.getElementById('template-drop-label');
   if (data.ok) {
+    zone.classList.add('success');
     label.textContent = '✓ Template saved: ' + file.name;
-    document.getElementById('template-drop').style.borderColor = '#10b981';
   } else {
     alert('Error: ' + data.error);
   }
 }
 
-// ── csv import ─────────────────────────────────────────────────────────────────
+// ── csv import ────────────────────────────────────────────────────────────────
 async function importCsv(file) {
   if (!currentAid) { alert('Select an assignment first'); return; }
+  const classFilter = document.getElementById('csv-class-filter').value;
   const fd = new FormData();
   fd.append('file', file);
+  if (classFilter) fd.append('class_filter', classFilter);
+
   const resultEl = document.getElementById('import-result');
   resultEl.innerHTML = '<span class="spinner"></span> Matching names…';
 
@@ -496,29 +701,24 @@ async function importCsv(file) {
   const matched = data.matched || [];
   const unmatched = data.unmatched || [];
 
-  // Apply matched scores into pending
   matched.forEach(m => {
-    pendingScores[m.student.student_id] = {
-      score: m.score,
-      completion_status: 'On Time'
-    };
+    pendingScores[m.student.student_id] = { score: m.score, completion_status: 'On Time' };
   });
 
-  // Refresh score table inputs
   await refreshDetailScores();
 
-  let html = `<div class="alert alert-success">Matched <b>${matched.length}</b> students.`;
-  if (unmatched.length) html += ` <b>${unmatched.length}</b> unmatched (shown below).`;
+  let html = `<div class="alert alert-success">Matched <b>${matched.length}</b> students${classFilter ? ' in <b>' + classFilter + '</b>' : ''}.`;
+  if (unmatched.length) html += ` <b>${unmatched.length}</b> unmatched.`;
   html += '</div>';
 
-  if (matched.some(m => m.confidence < 1.0)) {
-    html += `<div class="alert alert-warn" style="margin-top:8px">Some names were fuzzy-matched. Review the table below.</div>`;
+  const fuzzy = matched.filter(m => m.method !== 'exact');
+  if (fuzzy.length) {
+    html += `<div class="alert alert-warn">Fuzzy-matched: ${fuzzy.map(m => `<b>${m.csv_name}</b> → ${m.student.english_name} (${m.method}, ${Math.round(m.confidence*100)}%)`).join(', ')}</div>`;
   }
 
   if (unmatched.length) {
-    html += `<div style="margin-top:10px;font-size:0.82rem;font-weight:600;color:#991b1b">Unmatched names:</div>
-    <table style="margin-top:6px">
-      <thead><tr><th>CSV Name</th><th>Score</th></tr></thead><tbody>`;
+    html += `<div style="margin-top:10px;font-size:0.82rem;font-weight:600;color:#991b1b">Unmatched — enter manually:</div>
+    <table style="margin-top:6px"><thead><tr><th>CSV Name</th><th>Score</th></tr></thead><tbody>`;
     unmatched.forEach(u => {
       html += `<tr><td>${u.csv_name}</td><td>${u.score ?? '—'}</td></tr>`;
     });
@@ -534,7 +734,7 @@ async function refreshDetailScores() {
   const data = await res.json();
   const scores = data.scores.map(s => {
     if (pendingScores[s.student_id] !== undefined) {
-      return { ...s, score: pendingScores[s.student_id].score, completion_status: pendingScores[s.student_id].completion_status };
+      return { ...s, ...pendingScores[s.student_id] };
     }
     return s;
   });
@@ -542,7 +742,7 @@ async function refreshDetailScores() {
   updateScoreSummary(scores);
 }
 
-// ── score table ────────────────────────────────────────────────────────────────
+// ── score table ───────────────────────────────────────────────────────────────
 function renderScoreTable(scores, maxScore) {
   let sections = {};
   scores.forEach(s => {
@@ -553,30 +753,28 @@ function renderScoreTable(scores, maxScore) {
 
   let html = `<table>
     <thead><tr>
-      <th>English Name</th>
-      <th>Chinese Name</th>
-      <th>Section</th>
-      <th>Score / ${maxScore}</th>
-      <th>Status</th>
+      <th>English Name</th><th>Chinese Name</th><th>Section</th><th>Score / ${maxScore}</th><th>Status</th>
     </tr></thead><tbody>`;
 
   for (const [sec, studs] of Object.entries(sections)) {
-    html += `<tr><td colspan="5" style="background:#f8fafc;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px">${sec}</td></tr>`;
+    if (Object.keys(sections).length > 1) {
+      html += `<tr><td colspan="5" class="section-divider">${sec}</td></tr>`;
+    }
     studs.forEach(s => {
       const pending = pendingScores[s.student_id];
       const score = pending !== undefined ? pending.score : s.score;
       const status = pending !== undefined ? pending.completion_status : (s.completion_status || 'On Time');
       const scoreVal = score !== null && score !== undefined ? score : '';
       const highlight = pending !== undefined ? 'background:#fffbeb;' : '';
+      const classBadge = sec.includes('AP') ? 'badge-purple' : 'badge-gray';
       html += `<tr style="${highlight}">
         <td><b>${s.english_name}</b></td>
-        <td>${s.chinese_name}</td>
-        <td><span class="badge badge-gray">${sec}</span></td>
+        <td>${s.chinese_name || '—'}</td>
+        <td><span class="badge ${classBadge}">${sec}</span></td>
         <td>
           <input type="number" class="score-input" data-sid="${s.student_id}"
             value="${scoreVal}" min="0" max="${maxScore}" step="0.5"
-            onchange="markPending('${s.student_id}', this.value, null)"
-            placeholder="—">
+            onchange="markPending('${s.student_id}', this.value, null)" placeholder="—">
         </td>
         <td>
           <select data-sid-status="${s.student_id}" onchange="markPending('${s.student_id}', null, this.value)">
@@ -595,15 +793,9 @@ function renderScoreTable(scores, maxScore) {
 }
 
 function markPending(sid, scoreVal, statusVal) {
-  if (!pendingScores[sid]) {
-    pendingScores[sid] = { score: null, completion_status: 'On Time' };
-  }
-  if (scoreVal !== null) {
-    pendingScores[sid].score = scoreVal === '' ? null : parseFloat(scoreVal);
-  }
-  if (statusVal !== null) {
-    pendingScores[sid].completion_status = statusVal;
-  }
+  if (!pendingScores[sid]) pendingScores[sid] = { score: null, completion_status: 'On Time' };
+  if (scoreVal !== null) pendingScores[sid].score = scoreVal === '' ? null : parseFloat(scoreVal);
+  if (statusVal !== null) pendingScores[sid].completion_status = statusVal;
 }
 
 function updateScoreSummary(scores) {
@@ -617,23 +809,12 @@ function updateScoreSummary(scores) {
 
 async function saveAllScores() {
   if (!currentAid) return;
-  const entries = Object.entries(pendingScores).map(([student_id, v]) => ({
-    student_id,
-    score: v.score,
-    completion_status: v.completion_status,
-  }));
-
-  // Also collect anything in the input fields not yet in pendingScores
+  const entries = [];
   document.querySelectorAll('[data-sid]').forEach(input => {
     const sid = input.dataset.sid;
-    if (!pendingScores[sid] && input.value !== '') {
-      const sel = document.querySelector(`[data-sid-status="${sid}"]`);
-      entries.push({
-        student_id: sid,
-        score: parseFloat(input.value),
-        completion_status: sel ? sel.value : 'On Time',
-      });
-    }
+    const sel = document.querySelector(`[data-sid-status="${sid}"]`);
+    const score = input.value !== '' ? parseFloat(input.value) : null;
+    entries.push({ student_id: sid, score, completion_status: sel ? sel.value : 'On Time' });
   });
 
   const res = await fetch(`/api/assignments/${currentAid}/scores`, {
@@ -641,14 +822,14 @@ async function saveAllScores() {
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ scores: entries })
   });
-  const data = await res.json();
+  await res.json();
   pendingScores = {};
   await refreshDetailScores();
-  // flash save confirmation
   const btn = document.querySelector('[onclick="saveAllScores()"]');
+  const prev = btn.textContent;
   btn.textContent = '✓ Saved';
   btn.style.background = '#10b981';
-  setTimeout(() => { btn.textContent = 'Save All'; btn.style.background = ''; }, 2000);
+  setTimeout(() => { btn.textContent = prev; btn.style.background = ''; }, 2000);
 }
 
 // ── export ────────────────────────────────────────────────────────────────────
@@ -657,7 +838,7 @@ async function exportXls() {
   window.location.href = `/api/assignments/${currentAid}/export`;
 }
 
-// ── history ────────────────────────────────────────────────────────────────────
+// ── history ───────────────────────────────────────────────────────────────────
 async function loadHistory() {
   const res = await fetch('/api/history');
   const data = await res.json();
@@ -670,9 +851,7 @@ async function loadHistory() {
 
   let html = `<table id="history-table">
     <thead><tr>
-      <th>Student</th>
-      <th>Chinese</th>
-      <th>Section</th>`;
+      <th>Student</th><th>Chinese</th><th>Section</th>`;
   data.assignments.forEach(a => {
     html += `<th title="Max: ${a.max_score}">${a.name}<br><span style="font-weight:400;font-size:0.7rem">${a.created_at.split(' ')[0]}</span></th>`;
   });
@@ -683,9 +862,9 @@ async function loadHistory() {
     if (s.task_class !== lastSection) {
       lastSection = s.task_class;
       const colspan = 3 + data.assignments.length;
-      html += `<tr><td colspan="${colspan}" style="background:#f8fafc;font-size:0.75rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;padding:8px 12px">${s.task_class || 'Other'}</td></tr>`;
+      html += `<tr><td colspan="${colspan}" class="section-divider">${s.task_class || 'Other'}</td></tr>`;
     }
-    html += `<tr><td class="name-cell"><b>${s.english_name}</b></td><td>${s.chinese_name}</td><td>${s.task_class||''}</td>`;
+    html += `<tr><td><b>${s.english_name}</b></td><td>${s.chinese_name||'—'}</td><td>${s.task_class||''}</td>`;
     data.assignments.forEach(a => {
       const key = `${a.id}_${s.student_id}`;
       const score = data.scores[key];
@@ -703,10 +882,53 @@ async function loadHistory() {
   wrap.innerHTML = html;
 }
 
+// ── settings ──────────────────────────────────────────────────────────────────
+async function loadSettings() {
+  const res = await fetch('/api/settings');
+  const data = await res.json();
+  const statusEl = document.getElementById('api-key-status');
+  const badge = document.getElementById('api-header-badge');
+  if (data.deepseek_api_key_set) {
+    statusEl.innerHTML = `<div class="alert alert-success">API key saved. Current: <code>${data.masked}</code></div>`;
+    badge.innerHTML = '<span class="badge badge-green" style="font-size:0.72rem">DeepSeek ✓</span>';
+  } else {
+    statusEl.innerHTML = '<div class="alert alert-warn">No API key saved. DeepSeek fallback disabled.</div>';
+    badge.innerHTML = '';
+  }
+}
+
+async function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key) return;
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ deepseek_api_key: key })
+  });
+  document.getElementById('api-key-input').value = '';
+  await loadSettings();
+}
+
+function toggleShowKey() {
+  const input = document.getElementById('api-key-input');
+  const btn = document.getElementById('show-key-btn');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = 'Hide';
+  } else {
+    input.type = 'password';
+    btn.textContent = 'Show';
+  }
+}
+
 // ── init ──────────────────────────────────────────────────────────────────────
 (async function init() {
-  await loadRosterTable();
+  await loadClasses();
+  const res = await fetch('/api/roster');
+  allStudents = await res.json();
+  updateRosterStatus();
   await loadAssignments();
+  await loadSettings();
 })();
 </script>
 </body>

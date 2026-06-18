@@ -4,8 +4,18 @@ import os
 import requests
 
 
-DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 FUZZY_THRESHOLD = 0.82
+
+
+def _get_api_key() -> str:
+    key = os.environ.get("DEEPSEEK_API_KEY", "")
+    if not key:
+        try:
+            import database
+            key = database.get_setting("deepseek_api_key", "")
+        except Exception:
+            pass
+    return key
 
 
 def _normalize(name: str) -> str:
@@ -40,15 +50,16 @@ def match_name(csv_name: str, students: list[dict]) -> tuple[dict | None, float,
             return s, 1.0, "chinese"
 
     # 4. DeepSeek fallback
-    if DEEPSEEK_API_KEY:
-        result = _deepseek_match(csv_name, students)
+    api_key = _get_api_key()
+    if api_key:
+        result = _deepseek_match(csv_name, students, api_key)
         if result:
             return result, 0.95, "deepseek"
 
     return None, 0.0, "none"
 
 
-def _deepseek_match(csv_name: str, students: list[dict]) -> dict | None:
+def _deepseek_match(csv_name: str, students: list[dict], api_key: str) -> dict | None:
     roster = "\n".join(
         f"{s['english_name']} / {s['chinese_name']}" for s in students
     )
@@ -60,7 +71,7 @@ def _deepseek_match(csv_name: str, students: list[dict]) -> dict | None:
     try:
         resp = requests.post(
             "https://api.deepseek.com/chat/completions",
-            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={
                 "model": "deepseek-chat",
                 "messages": [{"role": "user", "content": prompt}],

@@ -23,6 +23,11 @@ def init_db():
                 task_class TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             CREATE TABLE IF NOT EXISTS assignments (
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -147,3 +152,52 @@ def get_template(assignment_id):
             (assignment_id,)
         ).fetchone()
         return dict(row) if row else None
+
+
+def get_setting(key, default=""):
+    with get_conn() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else default
+
+
+def set_setting(key, value):
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value)
+        )
+
+
+def get_classes():
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT task_class FROM students WHERE task_class IS NOT NULL AND task_class != '' ORDER BY task_class"
+        ).fetchall()
+        return [r["task_class"] for r in rows]
+
+
+def add_student(student_id, english_name, chinese_name, admin_class, task_class):
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO students (student_id, english_name, chinese_name, admin_class, task_class)
+            VALUES (?,?,?,?,?)
+            ON CONFLICT(student_id) DO UPDATE SET
+                english_name=excluded.english_name,
+                chinese_name=excluded.chinese_name,
+                admin_class=excluded.admin_class,
+                task_class=excluded.task_class
+        """, (student_id, english_name, chinese_name, admin_class, task_class))
+
+
+def remove_student(student_id):
+    with get_conn() as conn:
+        conn.execute("DELETE FROM scores WHERE student_id=?", (student_id,))
+        conn.execute("DELETE FROM students WHERE student_id=?", (student_id,))
+
+
+def get_students_by_class(task_class):
+    with get_conn() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM students WHERE task_class=? ORDER BY english_name",
+            (task_class,)
+        ).fetchall()]

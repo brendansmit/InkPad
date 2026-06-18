@@ -21,6 +21,7 @@ def setup():
 @app.route("/api/roster/upload", methods=["POST"])
 def upload_roster():
     f = request.files.get("file")
+    class_override = request.form.get("task_class", "").strip()
     if not f:
         return jsonify({"error": "No file"}), 400
     data = f.read()
@@ -28,13 +29,70 @@ def upload_roster():
         students = xls_writer.parse_xls_roster(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+    if class_override:
+        for s in students:
+            s["task_class"] = class_override
     db.upsert_students(students)
     return jsonify({"count": len(students), "students": students})
 
 
 @app.route("/api/roster", methods=["GET"])
 def get_roster():
+    task_class = request.args.get("class")
+    if task_class:
+        return jsonify(db.get_students_by_class(task_class))
     return jsonify(db.get_all_students())
+
+
+@app.route("/api/roster/classes", methods=["GET"])
+def get_classes():
+    return jsonify(db.get_classes())
+
+
+@app.route("/api/roster/student", methods=["POST"])
+def add_student():
+    body = request.json or {}
+    english_name = body.get("english_name", "").strip()
+    task_class = body.get("task_class", "").strip()
+    if not english_name or not task_class:
+        return jsonify({"error": "english_name and task_class required"}), 400
+    # Generate a stable ID from class prefix + name
+    prefix = "".join(c for c in task_class if c.isalpha())[:4].upper()
+    suffix = "".join(c for c in english_name if c.isalpha()).upper()[:8]
+    student_id = f"{prefix}-{suffix}"
+    db.add_student(
+        student_id=student_id,
+        english_name=english_name,
+        chinese_name=body.get("chinese_name", "").strip(),
+        admin_class=body.get("admin_class", task_class).strip(),
+        task_class=task_class,
+    )
+    return jsonify({"student_id": student_id})
+
+
+@app.route("/api/roster/student/<student_id>", methods=["DELETE"])
+def remove_student(student_id):
+    db.remove_student(student_id)
+    return jsonify({"ok": True})
+
+
+# ── Settings ──────────────────────────────────────────────────────────────────
+
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+    key = db.get_setting("deepseek_api_key", "")
+    # Mask key for display — show last 4 chars only
+    masked = ("*" * (len(key) - 4) + key[-4:]) if len(key) > 4 else ("*" * len(key))
+    return jsonify({"deepseek_api_key_set": bool(key), "masked": masked})
+
+
+@app.route("/api/settings", methods=["POST"])
+def save_settings():
+    body = request.json or {}
+    key = body.get("deepseek_api_key", "").strip()
+    if key:
+        db.set_setting("deepseek_api_key", key)
+    return jsonify({"ok": True})
 
 
 # ── Assignments ───────────────────────────────────────────────────────────────
@@ -84,9 +142,16 @@ def import_csv(aid):
     if not f:
         return jsonify({"error": "No file"}), 400
 
-    students = db.get_all_students()
+    # Optional: filter matching to a specific class
+    class_filter = request.form.get("class_filter", "").strip()
+
+    if class_filter:
+        students = db.get_students_by_class(class_filter)
+    else:
+        students = db.get_all_students()
+
     if not students:
-        return jsonify({"error": "No roster loaded yet"}), 400
+        return jsonify({"error": "No students found for the selected class"}), 400
 
     try:
         rows = csv_parser.parse_csv(f.read())
