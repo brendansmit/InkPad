@@ -268,7 +268,14 @@
           <div>
             <h2 id="detail-name" style="font-size:1.1rem;margin-bottom:2px">—</h2>
             <div style="font-size:0.8rem;color:#64748b">Class: <b id="detail-class">—</b> &nbsp;·&nbsp; Created: <span id="detail-date">—</span></div>
-            <div id="detail-sections" style="font-size:0.78rem;color:#94a3b8;margin-top:2px"></div>
+            <div style="margin-top:8px">
+              <div id="detail-section-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+              <div style="display:flex;gap:6px;align-items:center">
+                <input type="text" id="detail-section-input" placeholder="Add section…" style="width:140px;font-size:0.8rem;padding:4px 8px"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();addDetailSection();}">
+                <button class="btn btn-ghost" style="padding:4px 10px;font-size:0.78rem" onclick="addDetailSection()">+ Add</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -395,11 +402,11 @@
     <div class="form-row">
       <div class="form-group">
         <label>English Name</label>
-        <input type="text" id="add-english" placeholder="e.g. Wren" style="width:140px">
+        <input type="text" id="add-english" placeholder="" style="width:140px">
       </div>
       <div class="form-group">
         <label>Chinese Name <span style="font-weight:400;opacity:0.6">(optional)</span></label>
-        <input type="text" id="add-chinese" placeholder="汉字" style="width:120px">
+        <input type="text" id="add-chinese" placeholder="" style="width:120px">
       </div>
       <div class="form-group">
         <label>Class</label>
@@ -610,12 +617,12 @@ async function loadRosterTable(filterClass) {
 
   let html = `<table>
     <thead><tr>
-      <th>English Name</th><th>Chinese Name</th><th>Pinyin</th><th>Class</th><th>Admin Class</th><th>ID</th><th></th>
+      <th>English Name</th><th>Chinese Name</th><th>Pinyin</th><th>Class</th><th>Admin Class</th><th></th>
     </tr></thead><tbody>`;
 
   for (const [sec, studs] of Object.entries(sections)) {
     if (Object.keys(sections).length > 1) {
-      html += `<tr><td colspan="7" class="section-divider">${sec}</td></tr>`;
+      html += `<tr><td colspan="6" class="section-divider">${sec}</td></tr>`;
     }
     studs.forEach(s => {
       const classBadge = s.task_class && s.task_class.includes('AP') ? 'badge-purple' : 'badge-blue';
@@ -625,7 +632,6 @@ async function loadRosterTable(filterClass) {
         <td style="font-size:0.8rem;color:#64748b">${s.pinyin || '<span style="color:#cbd5e1">—</span>'}</td>
         <td><span class="badge ${classBadge}">${s.task_class || '—'}</span></td>
         <td>${s.admin_class || '—'}</td>
-        <td style="font-size:0.75rem;color:#94a3b8">${s.student_id}</td>
         <td>
           <button class="btn btn-danger btn-sm" onclick="removeStudent('${s.student_id}', '${s.english_name.replace(/'/g,'\\\'')}')" style="padding:3px 10px;font-size:0.75rem">Remove</button>
         </td>
@@ -789,10 +795,8 @@ async function selectAssignment(aid) {
   document.getElementById('detail-name').textContent = a.name;
   document.getElementById('detail-class').textContent = a.class_filter || 'All';
   document.getElementById('detail-date').textContent = a.created_at.split(' ')[0];
-  const secEl = document.getElementById('detail-sections');
-  secEl.textContent = a.sections && a.sections.length
-    ? 'Sections: ' + a.sections.join(' · ')
-    : '';
+  currentSections = a.sections || [];
+  renderDetailSectionPills();
 
   // Populate section dropdown for CSV import
   const csvSecRow = document.getElementById('csv-section-row');
@@ -1199,6 +1203,67 @@ function toggleShowKey() {
     input.type = 'password';
     btn.textContent = 'Show';
   }
+}
+
+// ── detail section editor ─────────────────────────────────────────────────────
+let currentSections = [];
+
+function renderDetailSectionPills() {
+  const wrap = document.getElementById('detail-section-pills');
+  if (!wrap) return;
+  if (!currentSections.length) {
+    wrap.innerHTML = '<span style="font-size:0.78rem;color:#94a3b8">No sections — single score per student</span>';
+    return;
+  }
+  wrap.innerHTML = currentSections.map(s =>
+    `<span class="badge badge-blue" style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px">
+      ${s}
+      <span onclick="removeDetailSection('${s.replace(/'/g,"\\'")}') " style="cursor:pointer;opacity:0.7;font-size:0.85em">✕</span>
+    </span>`
+  ).join('');
+}
+
+async function addDetailSection() {
+  const input = document.getElementById('detail-section-input');
+  const name = input.value.trim();
+  if (!name || currentSections.includes(name)) { input.value = ''; return; }
+  currentSections = [...currentSections, name];
+  input.value = '';
+  await saveDetailSections();
+}
+
+async function removeDetailSection(name) {
+  currentSections = currentSections.filter(s => s !== name);
+  await saveDetailSections();
+}
+
+async function saveDetailSections() {
+  if (!currentAid) return;
+  await fetch(`/api/assignments/${currentAid}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ sections: currentSections })
+  });
+  renderDetailSectionPills();
+  // Update CSV section dropdown
+  const csvSecRow = document.getElementById('csv-section-row');
+  const csvSecSel = document.getElementById('csv-section-target');
+  if (currentSections.length > 0) {
+    csvSecRow.style.display = 'flex';
+    csvSecSel.options.length = 0;
+    currentSections.forEach(sec => {
+      const opt = document.createElement('option');
+      opt.value = sec; opt.textContent = sec;
+      csvSecSel.appendChild(opt);
+    });
+  } else {
+    csvSecRow.style.display = 'none';
+  }
+  // Re-render score table with updated sections
+  const res = await fetch(`/api/assignments/${currentAid}`);
+  const data = await res.json();
+  renderScoreTable(data.scores, currentSections);
+  updateScoreSummary(data.scores);
 }
 
 // ── template library ──────────────────────────────────────────────────────────

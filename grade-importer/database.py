@@ -325,3 +325,11 @@ def set_assignment_library_template(assignment_id, library_template_id):
             "UPDATE assignments SET library_template_id=? WHERE id=?",
             (library_template_id, assignment_id)
         )
+
+
+def update_assignment_sections(assignment_id, sections):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE assignments SET sections=? WHERE id=?",
+            (json.dumps(sections), assignment_id)
+        )

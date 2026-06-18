@@ -122,6 +122,14 @@ def get_assignment(aid):
     return jsonify({"assignment": a, "scores": scores})
 
 
+@app.route("/api/assignments/<int:aid>", methods=["PATCH"])
+def patch_assignment(aid):
+    body = request.json or {}
+    if "sections" in body:
+        db.update_assignment_sections(aid, body["sections"])
+    return jsonify({"ok": True})
+
+
 @app.route("/api/assignments/<int:aid>", methods=["DELETE"])
 def delete_assignment(aid):
     db.delete_assignment(aid)
