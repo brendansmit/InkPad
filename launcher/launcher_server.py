@@ -6,7 +6,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 PY_FLASK = "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
 PY_VENV  = os.path.join(ROOT, "Writing analyzer", ".venv", "bin", "python")
-NODE     = "/usr/local/bin/node"
+NODE     = "/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node"
 
 
 def _port_open(port):
@@ -47,7 +47,7 @@ LAUNCHERS = {
     "speed-dating": lambda: (
         _bg([NODE, "server.js"], os.path.join(ROOT, "speed-dating")) if not _port_open(3464) else None,
         _wait(3464),
-        _open("http://localhost:3464")
+        _open("http://localhost:3464/public/organiser.html")
     ),
 }
 

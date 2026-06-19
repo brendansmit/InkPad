@@ -80,7 +80,7 @@
   }
   .brand h1 em {
     font-style: italic;
-    color: var(--muted);
+    color: #3a5c42;
   }
 
   .sidebar-footer {
@@ -112,76 +112,98 @@
   .card:nth-child(4) { grid-column: 3 / 5; grid-row: 2; }  /* BugSmash */
   .card:nth-child(5) { grid-column: 5 / 7; grid-row: 2; }  /* Speed Dating */
 
+  /* Per-card accent colours */
+  .card:nth-child(1) { --accent: var(--c1); --accent-bg: #eef4ff; }
+  .card:nth-child(2) { --accent: var(--c2); --accent-bg: #f3eeff; }
+  .card:nth-child(3) { --accent: var(--c3); --accent-bg: #edfaf4; }
+  .card:nth-child(4) { --accent: var(--c4); --accent-bg: #fef8ed; }
+  .card:nth-child(5) { --accent: var(--c5); --accent-bg: #fff0f0; }
+
   /* ── card base ───────────────────────────────────── */
   .card {
-    background: #fff;
-    border: 1px solid var(--faint);
-    border-radius: 16px;
-    padding: 24px 26px;
+    background: var(--accent-bg);
+    border: 1.5px solid color-mix(in srgb, var(--accent) 18%, transparent);
+    border-radius: 18px;
+    padding: 22px 24px 20px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    transition: transform 0.18s cubic-bezier(.2,.8,.3,1),
-                box-shadow 0.18s ease,
-                border-color 0.18s ease;
+    transition: transform 0.2s cubic-bezier(.2,.8,.3,1),
+                box-shadow 0.2s ease,
+                border-color 0.2s ease;
   }
 
-  .card::after {
-    content: "";
+  /* Ghost number watermark */
+  .card::before {
+    content: attr(data-num);
     position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: var(--accent);
-    opacity: 0;
-    transition: opacity 0.18s ease;
+    bottom: -12px; right: 10px;
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 7rem;
+    font-weight: 400;
+    color: var(--accent);
+    opacity: 0.07;
+    line-height: 1;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    user-select: none;
+  }
+  .card:hover::before {
+    opacity: 0.13;
+    transform: scale(1.05) translateY(-4px);
   }
 
   .card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+    transform: translateY(-4px);
+    box-shadow: 0 16px 40px color-mix(in srgb, var(--accent) 14%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .card:active { transform: translateY(-1px) scale(0.99); }
+
+  .card.launching {
     border-color: var(--accent);
+    animation: cardpulse 0.9s ease-in-out infinite;
   }
-  .card:hover::after { opacity: 1; }
-  .card:active { transform: translateY(0px) scale(0.99); }
-  .card.launching { border-color: var(--accent); }
-  .card.launching::after { opacity: 1; animation: shimmer 1s ease-in-out infinite; }
-
-  @keyframes shimmer {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.3; }
+  @keyframes cardpulse {
+    0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+    50%       { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
   }
 
-  /* Card top: number tag + arrow */
+  /* Card top: number pill + arrow */
   .card-top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    margin-bottom: 20px;
   }
   .card-num {
-    font-size: 0.7rem;
-    font-weight: 500;
+    font-size: 0.68rem;
+    font-weight: 600;
     color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
-    padding: 3px 9px;
+    background: color-mix(in srgb, var(--accent) 14%, white);
+    padding: 4px 10px;
     border-radius: 99px;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.08em;
+    border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
   }
   .card-arrow {
-    width: 28px; height: 28px;
+    width: 30px; height: 30px;
     border-radius: 50%;
-    border: 1px solid var(--faint);
+    background: white;
+    border: 1.5px solid color-mix(in srgb, var(--accent) 22%, transparent);
     display: flex; align-items: center; justify-content: center;
-    color: var(--muted);
-    font-size: 0.9rem;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    color: var(--accent);
+    font-size: 0.85rem;
+    transition: background 0.15s, transform 0.15s;
+    flex-shrink: 0;
   }
   .card:hover .card-arrow {
     background: var(--accent);
     color: #fff;
-    border-color: var(--accent);
+    transform: rotate(45deg);
   }
 
   /* Card bottom */
@@ -192,25 +214,17 @@
     line-height: 1.15;
     letter-spacing: -0.01em;
     color: var(--ink);
-    margin-bottom: 4px;
+    margin-bottom: 5px;
   }
-  /* Larger top cards get bigger names */
   .card:nth-child(1) .card-name,
-  .card:nth-child(2) .card-name { font-size: 1.65rem; }
+  .card:nth-child(2) .card-name { font-size: 1.7rem; }
 
   .card-desc {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 400;
-    color: var(--muted);
+    color: color-mix(in srgb, var(--accent) 60%, var(--muted));
     letter-spacing: 0.01em;
   }
-
-  /* Per-card accent colours */
-  .card:nth-child(1) { --accent: var(--c1); }
-  .card:nth-child(2) { --accent: var(--c2); }
-  .card:nth-child(3) { --accent: var(--c3); }
-  .card:nth-child(4) { --accent: var(--c4); }
-  .card:nth-child(5) { --accent: var(--c5); }
 
   /* ── status toast ────────────────────────────────── */
   .toast {
@@ -264,7 +278,7 @@ const APPS = [
   { id: "writing-analyzer", name: "Writing Analyzer", desc: "Essay revision tracker",    num: "02" },
   { id: "maestro",          name: "Maestro",          desc: "Group & seating tool",      num: "03" },
   { id: "bugsmash",         name: "BugSmash",         desc: "Code debugging helper",     num: "04" },
-  { id: "speed-dating",     name: "Speed Dating",     desc: "Venue layout builder",      num: "05" },
+  { id: "speed-dating",     name: "Speed Dating",     desc: "Run a speed dating event",  num: "05" },
 ];
 
 const grid  = document.getElementById("grid");
@@ -274,6 +288,7 @@ let toastTimer;
 APPS.forEach(app => {
   const card = document.createElement("div");
   card.className = "card";
+  card.setAttribute("data-num", app.num);
   card.innerHTML = `
     <div class="card-top">
       <span class="card-num">${app.num}</span>
