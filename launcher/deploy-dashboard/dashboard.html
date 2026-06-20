@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Server Dashboard — speeddating.inkheron.app</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --paper:   #f2ede4;
+    --ink:     #1a1410;
+    --surface: #e8e1d5;
+    --faint:   #ddd5c8;
+    --muted:   #8a7f72;
+    --accent:  #2d6a4f;
+    --accent-light: #edf5f0;
+    --accent-mid:   #c6dfd3;
+    --red:     #a03838;
+    --red-light: #fdf0f0;
+    --amber:   #b07820;
+    --amber-light: #fdf6e8;
+    --term-bg: #111009;
+    --term-text: #d4cfc4;
+    --term-dim: #6b665e;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--paper);
+    font-family: 'DM Sans', -apple-system, sans-serif;
+    color: var(--ink);
+  }
+
+  /* ── layout ───────────────────────────────── */
+  .shell {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 36px 28px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  /* ── header ───────────────────────────────── */
+  .page-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .page-title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 1.9rem;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .page-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+  .page-sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  /* ── status banner ────────────────────────── */
+  .status-banner {
+    background: var(--surface);
+    border: 1.5px solid var(--faint);
+    border-radius: 16px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-dot.online  { background: #1f8f5f; box-shadow: 0 0 0 3px rgba(31,143,95,.18); }
+  .status-dot.offline { background: var(--red); box-shadow: 0 0 0 3px rgba(160,56,56,.18); }
+  .status-label {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 1.15rem;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .status-url {
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .status-stats {
+    display: flex;
+    gap: 24px;
+    margin-left: auto;
+    flex-wrap: wrap;
+  }
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+  }
+  .stat-value {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .stat-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .status-refresh {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-left: 8px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    white-space: nowrap;
+  }
+
+  /* ── action cards ─────────────────────────── */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+  .card {
+    background: #fff;
+    border: 1.5px solid var(--faint);
+    border-radius: 16px;
+    padding: 22px 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    cursor: pointer;
+    transition: transform 0.18s cubic-bezier(.2,.8,.3,1),
+                box-shadow 0.18s ease,
+                border-color 0.18s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card::before {
+    content: attr(data-icon);
+    position: absolute;
+    bottom: -8px;
+    right: 10px;
+    font-size: 4.5rem;
+    opacity: 0.05;
+    line-height: 1;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+  }
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0,0,0,.08);
+    border-color: var(--accent-mid);
+  }
+  .card:hover::before { opacity: 0.09; transform: scale(1.06) translateY(-4px); }
+  .card:active { transform: translateY(-1px) scale(0.99); }
+  .card.running { border-color: var(--accent); }
+  .card.running .card-icon { background: var(--accent); color: #fff; }
+
+  .card-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--accent-light);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    transition: background 0.18s, color 0.18s;
+  }
+  .card-title {
+    font-family: 'DM Serif Display', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .card-desc {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.55;
+    font-weight: 400;
+    flex: 1;
+  }
+  .card-action {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* card colour variants */
+  .card.danger .card-icon { background: var(--red-light); color: var(--red); }
+  .card.danger:hover { border-color: #e8b0b0; }
+  .card.danger .card-action { color: var(--red); }
+  .card.neutral .card-icon { background: var(--amber-light); color: var(--amber); }
+  .card.neutral:hover { border-color: #e8d0a0; }
+  .card.neutral .card-action { color: var(--amber); }
+  .card.dark .card-icon { background: #e8e4de; color: #3a3028; }
+  .card.dark:hover { border-color: var(--faint); }
+  .card.dark .card-action { color: #3a3028; }
+
+  /* ── output panel ─────────────────────────── */
+  .output-wrap {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1.5px solid #2a2520;
+  }
+  .output-header {
+    background: #1e1b16;
+    padding: 11px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .output-title {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: #8a7f72;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .output-clear {
+    font-size: 0.72rem;
+    color: #6b665e;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: inherit;
+    padding: 0;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .output-clear:hover { color: #8a7f72; }
+  .output-body {
+    background: var(--term-bg);
+    padding: 18px 20px;
+    min-height: 180px;
+    max-height: 380px;
+    overflow-y: auto;
+    font-family: 'SF Mono', 'Fira Mono', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    color: var(--term-text);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .output-body .dim { color: var(--term-dim); }
+  .output-body .ok  { color: #5cb88a; }
+  .output-body .err { color: #e08080; }
+  .output-placeholder {
+    color: var(--term-dim);
+    font-style: italic;
+  }
+
+  /* spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid rgba(255,255,255,.15);
+    border-top-color: #5cb88a;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @media (max-width: 760px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .status-stats { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- header -->
+  <div class="page-header">
+    <h1 class="page-title">Server <em>Dashboard</em></h1>
+    <div class="page-sub">speeddating.inkheron.app · Singapore SGP1</div>
+  </div>
+
+  <!-- status banner -->
+  <div class="status-banner" id="statusBanner">
+    <div class="status-dot" id="statusDot"></div>
+    <div>
+      <div class="status-label" id="statusLabel">Checking…</div>
+      <div class="status-url">speeddating.inkheron.app</div>
+    </div>
+    <div class="status-stats" id="statusStats"></div>
+    <span class="status-refresh" onclick="loadStatus()">↻ refresh</span>
+  </div>
+
+  <!-- action cards -->
+  <div class="cards">
+
+    <div class="card" id="cardDeploy" data-icon="↑" onclick="runDeploy()">
+      <div class="card-icon">↑</div>
+      <div>
+        <div class="card-title">Deploy Update</div>
+        <div class="card-desc">Push your latest commits from this Mac, pull them on the server and restart the app — all in one click. Takes about 15 seconds.</div>
+      </div>
+      <div class="card-action">Push & restart →</div>
+    </div>
+
+    <div class="card" id="cardLogs" data-icon="≡" onclick="runLogs()">
+      <div class="card-icon">≡</div>
+      <div>
+        <div class="card-title">View Logs</div>
+        <div class="card-desc">Fetch the last 60 lines of live server output. Check here first when something isn't working as expected on the live site.</div>
+      </div>
+      <div class="card-action">Fetch logs →</div>
+    </div>
+
+    <div class="card neutral" id="cardRestart" data-icon="↺" onclick="runRestart()">
+      <div class="card-icon">↺</div>
+      <div>
+        <div class="card-title">Restart App</div>
+        <div class="card-desc">Restart the Node.js process on the server without deploying new code. Use this if the app is frozen or behaving unexpectedly.</div>
+      </div>
+      <div class="card-action">Restart process →</div>
+    </div>
+
+    <div class="card dark" id="cardSSH" data-icon=">_" onclick="runSSH()">
+      <div class="card-icon" style="font-family:monospace;font-size:.85rem;">$_</div>
+      <div>
+        <div class="card-title">Open Terminal</div>
+        <div class="card-desc">Open a direct SSH session to the server in Terminal.app. Use this for anything that needs hands-on manual intervention or advanced debugging.</div>
+      </div>
+      <div class="card-action">SSH into server →</div>
+    </div>
+
+  </div>
+
+  <!-- output panel -->
+  <div class="output-wrap">
+    <div class="output-header">
+      <span class="output-title">Output</span>
+      <button class="output-clear" onclick="clearOutput()">Clear</button>
+    </div>
+    <div class="output-body" id="output">
+      <span class="output-placeholder">Run a command above to see output here.</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const output = document.getElementById('output');
+  const statusDot = document.getElementById('statusDot');
+  const statusLabel = document.getElementById('statusLabel');
+  const statusStats = document.getElementById('statusStats');
+
+  // ── status ─────────────────────────────────
+  async function loadStatus() {
+    statusDot.className = 'status-dot';
+    statusLabel.textContent = 'Checking…';
+    statusStats.innerHTML = '';
+    try {
+      const r = await fetch('/api/status');
+      const d = await r.json();
+      if (d.online) {
+        statusDot.className = 'status-dot online';
+        statusLabel.textContent = 'Online';
+        statusStats.innerHTML = `
+          <div class="stat-item">
+            <div class="stat-value">${fmtUptime(d.uptime_ms)}</div>
+            <div class="stat-label">Uptime</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">${d.memory_mb} MB</div>
+            <div class="stat-label">Memory</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">${d.cpu}%</div>
+            <div class="stat-label">CPU</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value">${d.restarts}</div>
+            <div class="stat-label">Restarts</div>
+          </div>`;
+      } else {
+        statusDot.className = 'status-dot offline';
+        statusLabel.textContent = 'Offline — ' + (d.status || 'unreachable');
+      }
+    } catch {
+      statusDot.className = 'status-dot offline';
+      statusLabel.textContent = 'Cannot reach server';
+    }
+  }
+
+  function fmtUptime(ms) {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return s + 's';
+    const m = Math.floor(s / 60);
+    if (m < 60) return m + 'm';
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + 'h ' + (m % 60) + 'm';
+    return Math.floor(h / 24) + 'd ' + (h % 24) + 'h';
+  }
+
+  // ── output helpers ──────────────────────────
+  function setOutput(html) { output.innerHTML = html; }
+  function clearOutput() { output.innerHTML = '<span class="output-placeholder">Run a command above to see output here.</span>'; }
+
+  function setRunning(cardId, msg) {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('running'));
+    document.getElementById(cardId).classList.add('running');
+    setOutput(`<span class="dim"><span class="spinner"></span>${msg}</span>`);
+  }
+
+  function doneRunning(cardId) {
+    document.getElementById(cardId).classList.remove('running');
+    loadStatus();
+  }
+
+  function colorise(text) {
+    return text
+      .replace(/\$ .+/g, m => `<span class="dim">${m}</span>`)
+      .replace(/error|failed|ERR!/gi, m => `<span class="err">${m}</span>`)
+      .replace(/success|done|online|restarted|up to date/gi, m => `<span class="ok">${m}</span>`);
+  }
+
+  // ── actions ─────────────────────────────────
+  async function runDeploy() {
+    setRunning('cardDeploy', 'Pushing to GitHub, then pulling on server and restarting… this takes ~15 seconds.');
+    try {
+      const r = await fetch('/api/deploy', { method: 'POST' });
+      const d = await r.json();
+      setOutput(colorise(d.output));
+    } catch (e) {
+      setOutput(`<span class="err">Request failed: ${e.message}</span>`);
+    }
+    doneRunning('cardDeploy');
+  }
+
+  async function runLogs() {
+    setRunning('cardLogs', 'Fetching server logs…');
+    try {
+      const r = await fetch('/api/logs');
+      const d = await r.json();
+      setOutput(colorise(d.output));
+      output.scrollTop = output.scrollHeight;
+    } catch (e) {
+      setOutput(`<span class="err">Request failed: ${e.message}</span>`);
+    }
+    doneRunning('cardLogs');
+  }
+
+  async function runRestart() {
+    setRunning('cardRestart', 'Restarting app process on server…');
+    try {
+      const r = await fetch('/api/restart', { method: 'POST' });
+      const d = await r.json();
+      setOutput(colorise(d.output));
+    } catch (e) {
+      setOutput(`<span class="err">Request failed: ${e.message}</span>`);
+    }
+    doneRunning('cardRestart');
+  }
+
+  async function runSSH() {
+    document.getElementById('cardSSH').classList.add('running');
+    setOutput('<span class="dim">Opening Terminal.app with SSH session…</span>');
+    try {
+      await fetch('/api/ssh', { method: 'POST' });
+      setTimeout(() => setOutput('<span class="ok">Terminal opened. You are now connected to the server.</span>'), 800);
+    } catch (e) {
+      setOutput(`<span class="err">Could not open Terminal: ${e.message}</span>`);
+    }
+    setTimeout(() => document.getElementById('cardSSH').classList.remove('running'), 1200);
+  }
+
+  // ── auto-refresh status every 30s ──────────
+  loadStatus();
+  setInterval(loadStatus, 30000);
+</script>
+</body>
+</html>

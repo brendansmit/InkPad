@@ -49,6 +49,11 @@ LAUNCHERS = {
         _wait(3464),
         _open("http://localhost:3464/public/organiser.html")
     ),
+    "server-dashboard": lambda: (
+        _bg([PY_FLASK, "deploy_server.py"], os.path.join(ROOT, "launcher", "deploy-dashboard")) if not _port_open(5095) else None,
+        _wait(5095),
+        _open("http://localhost:5095")
+    ),
 }
 
 
