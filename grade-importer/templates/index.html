@@ -1110,38 +1110,49 @@ async function exportXls() {
   const exportEl = document.getElementById('export-status');
   exportEl.innerHTML = '';
 
-  const res = await fetch(`/api/assignments/${currentAid}/export`);
-  if (!res.ok) {
-    const err = await res.json();
-    exportEl.innerHTML = `<div class="alert alert-error">${err.error}</div>`;
-    exportEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    return;
-  }
+  // Derive a suggested filename from the assignment name before any awaits
+  const nameEl = document.getElementById('detail-name');
+  const suggestedName = (nameEl?.textContent || 'grades').replace(/\s+/g, '_').replace(/[/\\]/g, '-') + '_grades.xls';
 
-  const blob = await res.blob();
-  const cd = res.headers.get('Content-Disposition') || '';
-  const match = cd.match(/filename="?([^"]+)"?/);
-  const suggestedName = match ? match[1] : 'grades.xls';
-
-  // Use File System Access API for save dialog if available
+  // showSaveFilePicker must be called synchronously from the user gesture.
+  // Get the file handle first, then fetch data and write into it.
   if (window.showSaveFilePicker) {
+    let handle;
     try {
-      const handle = await window.showSaveFilePicker({
+      handle = await window.showSaveFilePicker({
         suggestedName,
         types: [{ description: 'Excel Spreadsheet', accept: { 'application/vnd.ms-excel': ['.xls'] } }],
       });
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled — do nothing
+      // showSaveFilePicker not allowed in this context; fall through to blob download
+    }
+
+    if (handle) {
+      exportEl.innerHTML = '<span style="color:#64748b;font-size:0.82rem">Generating…</span>';
+      const res = await fetch(`/api/assignments/${currentAid}/export`);
+      if (!res.ok) {
+        const err = await res.json();
+        exportEl.innerHTML = `<div class="alert alert-error">${err.error}</div>`;
+        return;
+      }
+      const blob = await res.blob();
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
       exportEl.innerHTML = `<div class="alert alert-success">Saved to <b>${handle.name}</b></div>`;
       return;
-    } catch (e) {
-      if (e.name === 'AbortError') return; // user cancelled
-      // fall through to blob download
     }
   }
 
-  // Fallback: trigger browser download
+  // Fallback: fetch then trigger browser download to Downloads folder
+  const res = await fetch(`/api/assignments/${currentAid}/export`);
+  if (!res.ok) {
+    const err = await res.json();
+    exportEl.innerHTML = `<div class="alert alert-error">${err.error}</div>`;
+    return;
+  }
+  const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
