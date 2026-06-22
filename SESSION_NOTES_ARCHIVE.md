@@ -322,3 +322,126 @@
 
 ---
 
+## 2026-06-20 — Server Dashboard
+
+**Asked:** Build a local dashboard to manage the live server without touching the terminal.
+
+**Did:** Built `launcher/deploy-dashboard/` — Flask server (port 5095) + HTML dashboard.
+- **Deploy:** local git push then SSH git pull + npm install + pm2 restart
+- **Logs:** SSH pm2 logs --lines 60 --nostream
+- **Restart:** SSH pm2 restart speed-dating
+- **Open SSH:** osascript opens Terminal.app with SSH session
+- Status banner auto-refreshes every 30s showing uptime, memory, CPU, restart count
+- Dark terminal output panel with green/red syntax colouring
+- Added as card 06 (full-width row 3, forest green accent) in the launcher
+- Commit: 4609df2
+
+
+---
+
+## 2026-06-20 — Missed functional bugs (user called it out)
+
+**Asked:** Challenged dismissal of bugs — "half the shit the app is supposed to do isn't working."
+
+**Bugs found on re-read:**
+
+1. `server.js /topic/translate-send` — identical copy of `/topic/send`, zero translation. Fixed: now calls OpenRouter (DeepSeek) to translate English → Simplified Chinese when `zh` field is absent. Manual zh still takes precedence.
+2. `organiser.html translateAndSend()` — sent only `{ zh }` with empty English field. Server broadcast `topic: ''`. Round.html guarded on `message.topic` being truthy → **phones never received Chinese topics**. Fixed: send both fields; show translated Chinese back in the UI.
+3. `round.html topic_push handler` — `if (message.topic)` → changed to `if (message.topic || message.zh)` so Chinese-only pushes display.
+4. `organiser.html setInterval` — re-rendered full DOM every second, wiping any in-progress text input. Fixed: skip render when an INPUT/TEXTAREA/SELECT has focus.
+
+**Lesson:** Don't dismiss bugs without reading the calling code and the receiving code end-to-end.
+56/56 tests pass. Deployed: commit 12edbce
+
+---
+
+## 2026-06-20 — BugSmash fixes
+
+**Asked:** Fix bugs from BugSmash Standard scan (3-model, 42 findings).
+
+**Triaged:** Most HIGH findings were false positives (already handled by existing guards). 6 real bugs fixed:
+
+1. `server.js` — `generateId` was require()'d inside the seed route handler; moved to top-level import
+2. `server.js` — `/advance`, `/rate`, `/extend`, `/end-round` had no `event.status === 'running'` guard; added 400 errors
+3. `event-store.js` — `validateProfile` accepted age ≤ 0; now requires positive number
+4. `event-store.js` — `advanceRound` incremented `currentRound` before bounds check; fixed order so mutation only happens on success
+5. `event-store.js` — `endRound` never cleaned up `extendRequests[storeKey]`; added delete on round end
+6. `scoring.js` + `ensemble.js` — `clampScore(NaN)` propagated NaN into compat scores; now returns 0
+
+Test mock updated: `makeEvent()` accepts optional status; default store event is `'running'` since all advance/rate/extend tests assume a live round.
+64/64 tests pass. Deployed: commit 534849e
+
+---
+
+## 2026-06-20 — Testing mode tab
+
+**Asked:** Need a sandbox/testing mode so one real phone can test alongside fake users.
+
+**Did:**
+- `server.js`: `POST /events/:id/seed` (organiser-only) — injects 10 pre-built profiles (5F + 5M: Emma Chen, Sophie Liu, Lily Wang, Mia Zhang, Chloe Xu, Lucas Tan, Ethan Lin, Ryan Wu, Kevin Zhao, James Ho). Skips duplicate names safely. Broadcasts `participant_joined` for each so guest list updates live.
+- `organiser.html`: Tab bar (Manage / Testing) at top of event view. Testing tab has Seed button, status line, and usage note. `currentTab` and `testSeedStatus` vars added.
+
+**Deployed:** commit 96300c7
+
+---
+
+## 2026-06-20 — WebSocket reconnect loop fix
+
+**Asked:** Phones show "reconnecting... waiting" continuously.
+
+**Root causes:**
+1. nginx `proxy_read_timeout` defaults to 60s — idle WebSocket connections were killed every minute, causing the 1.2s reconnect loop to restart every ~60s
+2. No client-side keepalive ping, so connections always appeared idle to nginx
+3. Server sends `{ type: 'error' }` when event ID is unknown (stale localStorage), then closes socket — client looped forever instead of stopping
+
+**Did:**
+- `round.html`: send a ping message every 25s to keep connection alive through nginx
+- `round.html`: set `stopReconnect = true` when server sends a fatal error — stops infinite loop from stale event IDs
+- nginx live server: added `proxy_read_timeout 3600s; proxy_send_timeout 3600s;` via SSH, reloaded nginx
+- Deployed: commit aadd905 live on speeddating.inkheron.app
+
+---
+
+## 2026-06-20 — Round-start bug fix
+
+**Asked:** "Nothing happens on phone screens when a round is started."
+
+**Root cause:** `round.html` read `eventId` from the URL `?e=` param but never fell back to `localStorage`. Any guest who navigated to `round.html` without the query string had `eventId = ''`, so `connect()` exited immediately and the WebSocket was never opened. Phones showed the waiting screen forever with no connection.
+
+**Did:**
+- `public/round.html`: Read `stored` from localStorage first, then set `eventId = URL param || stored.eventId || ''`. Guests now connect even without `?e=` in the URL.
+- `server.js /advance`: Enrich pairs with `fName/mName/fPhoto/mPhoto` (partner names/photos visible on phone), add `startedAt` and `endTimestamp` so phones get a real countdown.
+- `event-store.js startEvent`: Store `event.roundLengthMinutes` so `/advance` can compute `endTimestamp` independently.
+- `public/round.html`: Vibrate `[200, 100, 200]` on round start when a pair is found.
+
+**All 42 tests still pass.** Commit: f094245
+
+---
+
+## 2026-06-20 — Organiser visual redesign
+
+**Asked:** Redesign the organiser dashboard — too purple/saturated, cheapens the look. Match the launcher's aesthetic with day and night modes.
+
+**Did:**
+- Replaced `:root` with two CSS themes: `html[data-theme="light"]` (warm cream `#f2ede4` palette, matches launcher) and `html[data-theme="dark"]` (warm near-black `#0f0d0a`, no purple at all)
+- All hardcoded hex values replaced with CSS variables: `--deep`, `--inset`, `--track`, `--table-bg`, `--booth-bg`, `--overlay`, `--grid-line`, `--fixture-*`
+- DM Serif Display on brand name, panel headings, wizard titles, stat numbers; DM Sans replacing Arial throughout
+- Reduced `font-weight: 900` to 500 across the board for DM Sans compatibility
+- Sun/moon toggle button in topbar — persists to `localStorage` as `sd_theme`, defaults to light
+- Accent rose gold slightly darkened for light mode (`#c4705e`) to maintain contrast on cream; dark mode keeps original `#d38e7c`
+
+## 2026-06-20 — BugSmash sweep 3
+
+Asked: do a 3rd sweep of bugs dismissed in sweeps 1 and 2, fix the technically valid ones.
+
+Audited the full BugSmash report again from scratch. Found 5 genuine bugs:
+
+1. **event-store.js roundLengthMinutes** — negative values (e.g. -3) passed the `|| 5` falsy check and were stored. Fixed with `Number.isFinite(rl) && rl > 0` guard.
+2. **organiser.html advanceRound** — used stale `currentEvent.currentRound` (set at page load, never refreshed). Second advance computed `0+1=1` instead of `1+1=2`. Fixed: track `round.current` locally and keep `currentEvent.currentRound` in sync after each advance.
+3. **join.html interests step** — `renderInterests.query` persisted on the function object between visits, stale search text reappeared. Fixed: clear it in `next()` when leaving step 2.
+4. **screen.html rAF** — `requestAnimationFrame(animate)` ran at 60fps unconditionally, doing DOM reads/writes even on fully static screens. Fixed: drop to `setTimeout(animate, 1000)` when `state.endTimestamp` is absent or past; rAF resumes automatically on next tick when a timer is set.
+5. **package.json** — jest was in prod `dependencies` (tests use node:test built-in). Moved to `devDependencies` to keep prod installs lean.
+
+Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not deployed yet.
+
+---

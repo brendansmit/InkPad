@@ -1,128 +1,5 @@
 # Session Notes
 
-## 2026-06-20 — Server Dashboard
-
-**Asked:** Build a local dashboard to manage the live server without touching the terminal.
-
-**Did:** Built `launcher/deploy-dashboard/` — Flask server (port 5095) + HTML dashboard.
-- **Deploy:** local git push then SSH git pull + npm install + pm2 restart
-- **Logs:** SSH pm2 logs --lines 60 --nostream
-- **Restart:** SSH pm2 restart speed-dating
-- **Open SSH:** osascript opens Terminal.app with SSH session
-- Status banner auto-refreshes every 30s showing uptime, memory, CPU, restart count
-- Dark terminal output panel with green/red syntax colouring
-- Added as card 06 (full-width row 3, forest green accent) in the launcher
-- Commit: 4609df2
-
----
-
-## 2026-06-20 — Missed functional bugs (user called it out)
-
-**Asked:** Challenged dismissal of bugs — "half the shit the app is supposed to do isn't working."
-
-**Bugs found on re-read:**
-
-1. `server.js /topic/translate-send` — identical copy of `/topic/send`, zero translation. Fixed: now calls OpenRouter (DeepSeek) to translate English → Simplified Chinese when `zh` field is absent. Manual zh still takes precedence.
-2. `organiser.html translateAndSend()` — sent only `{ zh }` with empty English field. Server broadcast `topic: ''`. Round.html guarded on `message.topic` being truthy → **phones never received Chinese topics**. Fixed: send both fields; show translated Chinese back in the UI.
-3. `round.html topic_push handler` — `if (message.topic)` → changed to `if (message.topic || message.zh)` so Chinese-only pushes display.
-4. `organiser.html setInterval` — re-rendered full DOM every second, wiping any in-progress text input. Fixed: skip render when an INPUT/TEXTAREA/SELECT has focus.
-
-**Lesson:** Don't dismiss bugs without reading the calling code and the receiving code end-to-end.
-56/56 tests pass. Deployed: commit 12edbce
-
----
-
-## 2026-06-20 — BugSmash fixes
-
-**Asked:** Fix bugs from BugSmash Standard scan (3-model, 42 findings).
-
-**Triaged:** Most HIGH findings were false positives (already handled by existing guards). 6 real bugs fixed:
-
-1. `server.js` — `generateId` was require()'d inside the seed route handler; moved to top-level import
-2. `server.js` — `/advance`, `/rate`, `/extend`, `/end-round` had no `event.status === 'running'` guard; added 400 errors
-3. `event-store.js` — `validateProfile` accepted age ≤ 0; now requires positive number
-4. `event-store.js` — `advanceRound` incremented `currentRound` before bounds check; fixed order so mutation only happens on success
-5. `event-store.js` — `endRound` never cleaned up `extendRequests[storeKey]`; added delete on round end
-6. `scoring.js` + `ensemble.js` — `clampScore(NaN)` propagated NaN into compat scores; now returns 0
-
-Test mock updated: `makeEvent()` accepts optional status; default store event is `'running'` since all advance/rate/extend tests assume a live round.
-64/64 tests pass. Deployed: commit 534849e
-
----
-
-## 2026-06-20 — Testing mode tab
-
-**Asked:** Need a sandbox/testing mode so one real phone can test alongside fake users.
-
-**Did:**
-- `server.js`: `POST /events/:id/seed` (organiser-only) — injects 10 pre-built profiles (5F + 5M: Emma Chen, Sophie Liu, Lily Wang, Mia Zhang, Chloe Xu, Lucas Tan, Ethan Lin, Ryan Wu, Kevin Zhao, James Ho). Skips duplicate names safely. Broadcasts `participant_joined` for each so guest list updates live.
-- `organiser.html`: Tab bar (Manage / Testing) at top of event view. Testing tab has Seed button, status line, and usage note. `currentTab` and `testSeedStatus` vars added.
-
-**Deployed:** commit 96300c7
-
----
-
-## 2026-06-20 — WebSocket reconnect loop fix
-
-**Asked:** Phones show "reconnecting... waiting" continuously.
-
-**Root causes:**
-1. nginx `proxy_read_timeout` defaults to 60s — idle WebSocket connections were killed every minute, causing the 1.2s reconnect loop to restart every ~60s
-2. No client-side keepalive ping, so connections always appeared idle to nginx
-3. Server sends `{ type: 'error' }` when event ID is unknown (stale localStorage), then closes socket — client looped forever instead of stopping
-
-**Did:**
-- `round.html`: send a ping message every 25s to keep connection alive through nginx
-- `round.html`: set `stopReconnect = true` when server sends a fatal error — stops infinite loop from stale event IDs
-- nginx live server: added `proxy_read_timeout 3600s; proxy_send_timeout 3600s;` via SSH, reloaded nginx
-- Deployed: commit aadd905 live on speeddating.inkheron.app
-
----
-
-## 2026-06-20 — Round-start bug fix
-
-**Asked:** "Nothing happens on phone screens when a round is started."
-
-**Root cause:** `round.html` read `eventId` from the URL `?e=` param but never fell back to `localStorage`. Any guest who navigated to `round.html` without the query string had `eventId = ''`, so `connect()` exited immediately and the WebSocket was never opened. Phones showed the waiting screen forever with no connection.
-
-**Did:**
-- `public/round.html`: Read `stored` from localStorage first, then set `eventId = URL param || stored.eventId || ''`. Guests now connect even without `?e=` in the URL.
-- `server.js /advance`: Enrich pairs with `fName/mName/fPhoto/mPhoto` (partner names/photos visible on phone), add `startedAt` and `endTimestamp` so phones get a real countdown.
-- `event-store.js startEvent`: Store `event.roundLengthMinutes` so `/advance` can compute `endTimestamp` independently.
-- `public/round.html`: Vibrate `[200, 100, 200]` on round start when a pair is found.
-
-**All 42 tests still pass.** Commit: f094245
-
----
-
-## 2026-06-20 — Organiser visual redesign
-
-**Asked:** Redesign the organiser dashboard — too purple/saturated, cheapens the look. Match the launcher's aesthetic with day and night modes.
-
-**Did:**
-- Replaced `:root` with two CSS themes: `html[data-theme="light"]` (warm cream `#f2ede4` palette, matches launcher) and `html[data-theme="dark"]` (warm near-black `#0f0d0a`, no purple at all)
-- All hardcoded hex values replaced with CSS variables: `--deep`, `--inset`, `--track`, `--table-bg`, `--booth-bg`, `--overlay`, `--grid-line`, `--fixture-*`
-- DM Serif Display on brand name, panel headings, wizard titles, stat numbers; DM Sans replacing Arial throughout
-- Reduced `font-weight: 900` to 500 across the board for DM Sans compatibility
-- Sun/moon toggle button in topbar — persists to `localStorage` as `sd_theme`, defaults to light
-- Accent rose gold slightly darkened for light mode (`#c4705e`) to maintain contrast on cream; dark mode keeps original `#d38e7c`
-
-## 2026-06-20 — BugSmash sweep 3
-
-Asked: do a 3rd sweep of bugs dismissed in sweeps 1 and 2, fix the technically valid ones.
-
-Audited the full BugSmash report again from scratch. Found 5 genuine bugs:
-
-1. **event-store.js roundLengthMinutes** — negative values (e.g. -3) passed the `|| 5` falsy check and were stored. Fixed with `Number.isFinite(rl) && rl > 0` guard.
-2. **organiser.html advanceRound** — used stale `currentEvent.currentRound` (set at page load, never refreshed). Second advance computed `0+1=1` instead of `1+1=2`. Fixed: track `round.current` locally and keep `currentEvent.currentRound` in sync after each advance.
-3. **join.html interests step** — `renderInterests.query` persisted on the function object between visits, stale search text reappeared. Fixed: clear it in `next()` when leaving step 2.
-4. **screen.html rAF** — `requestAnimationFrame(animate)` ran at 60fps unconditionally, doing DOM reads/writes even on fully static screens. Fixed: drop to `setTimeout(animate, 1000)` when `state.endTimestamp` is absent or past; rAF resumes automatically on next tick when a timer is set.
-5. **package.json** — jest was in prod `dependencies` (tests use node:test built-in). Moved to `devDependencies` to keep prod installs lean.
-
-Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not deployed yet.
-
----
-
 ## 2026-06-21 — Launcher server dashboard fix
 
 **Asked:** Fix app launcher — server dashboard button does not open the server dashboard.
@@ -395,3 +272,77 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 **Asked:** Remove stale previous-build download behavior and make one download button fetch the build that just finished.
 
 **Did:** Removed the controls download and latest-download buttons from the UI. The only remaining download button is in the finished panel and is set from the active job's package-ready event or active job status poll. Verified the served page has one download anchor and tests pass.
+
+---
+
+## 2026-06-22 - Model Router package-ready download bug
+
+**Asked:** Fix finished builds showing `done` without revealing the download button.
+
+**Did:** Fixed the event flow so the browser stays connected after generation `done` and waits for the job-level finish event. Fixed the server to send `package:ready` with the current job download URL attached. Added a regression test for the stream contract, restarted the live server and verified the served JS/page.
+
+## 2026-06-23
+
+**Asked:** Whether to build a multi-model code router vs just having Claude build apps directly.
+**Discussion:** Worked through the real constraint (limited Claude Code window time, not quality or cost), and pivoted to building an off-clock OpenRouter scaffold tool with a generate-review-repair loop to stretch window time further. User pushed back correctly on Claude quality claims — cross-model review is the real quality lever.
+**Built:** `prototype-coder/` — Node/Express web app using OpenRouter only. 4-step flow: test key, convert prompt to JSON task plan, dry-run cost estimate, run parallel build with generate-review-repair loop. Zip download of scaffolded project. 10/10 tests passing.
+**Added to launcher:** Port 3471, card 07 in bento grid. Row 3 reshaped from 2 wide cards to 3 equal ones.
+**Model fuzzy validation:** When connection is tested, `/api/openrouter/test` fetches the full OpenRouter model list and caches it in memory. Dry-run validates all model IDs in the plan against the cache using token-overlap fuzzy matching (threshold 0.4). Unknown IDs show amber warnings with suggested correction; no-match IDs show red errors. New files: `src/utils/modelFuzzy.js`, updated `src/openrouter.js`, `src/routes/openrouter.js`, `src/server.js`, `src/routes/plan.js`, `public/app.js`, `public/styles.css`. Committed d35578f.
+
+---
+
+## 2026-06-23 — BugSmash: context-aware fuzzy matching + per-model bundle trimming
+
+**Asked:** Non-Claude models (DeepSeek, Gemini) keep failing — only Haiku works. Fix fuzzy matching and ensure each model gets a bundle sized to its actual context window.
+
+**Did (commit 4e2485c in bug-detector/):**
+- Added `MIN_CTX_TOKENS = 60000` constant and two helpers: `fmtCtx(n)` (formats as "128k ctx") and `maxCharsForCtx(ctxTokens)` (computes per-model char limit, capped at MAX_CHARS)
+- Rewrote `findBestReplacement`: filters to same-provider candidates with context_length >= 60k tokens, scores by name-part overlap (2x weight) + substring prefix bonus + context-length tiebreaker, returns `contextLength` on the result
+- Validation block now builds `modelCtxMap` from the fetched OpenRouter list; each effective model gets `contextLength` stored on it; progress cards show e.g. "queued · 128k ctx" or "→ corrected-id · 64k ctx"
+- Phase 1: each model receives its own prompt built from `bundle.slice(0, maxCharsForCtx(m.contextLength))` rather than one shared prompt — prevents context-overflow failures on smaller models
+- Fallback: same trimming applied using the fallback model's own context window
+
+---
+
+## 2026-06-23 — BugSmash: error visibility + prompt noise reduction
+
+**Asked:** (1) Show WHY a model fails — current display is useless for debugging. (2) Too much noise in bug output; models report speculative issues not real breakages.
+
+**Did (commit c14cc44):**
+- Error cards now show the actual model ID used, full error message (no truncation), and HTTP status. console.error logs full OpenRouter response to DevTools.
+- When a model responds but 0 bugs parse: shows first 120 chars of raw response so format failures are diagnosable vs genuine "no bugs".
+- Timeout card now shows model ID.
+- Prompt: added strict 4-point bug definition (wrong now / traceable trigger / observable failure / reachable entry point — all four required). Expanded disqualified list: null-check speculation, missing try-catch without crash path, race conditions without traced interleaving, any phrasing with "could/might/may/should/assuming". Three-question self-check required before including any finding. Cap dropped 12→8.
+
+---
+
+## 2026-06-23 — BugSmash: model ID fixes, context filter removal, parse fix
+
+**Asked:** Screenshot showed Haiku "Load failed", Gemini "covered by Haiku" (also broken), Sonnet returning "0 bugs — raw: Looking at the code carefully..." (prose preamble killing JSON parse).
+
+**Root causes identified:**
+- `anthropic/claude-haiku-4.5` (dot) causes "Load failed" — correct format uses dashes
+- `deepseek/deepseek-v4-*` and `google/gemini-2.5-*` (no -preview) don't exist on OpenRouter
+- `findBestReplacement` hard-filtered on context_length >= 60k but OR often omits that field — all candidates eliminated, matcher returned null, wrong ID used anyway
+- `parseModelResponse` searched forward — prose preamble contains stray brackets corrupting match
+
+**Did (commit 77be9ac):**
+- Fixed all model IDs: Anthropic use dashes (claude-haiku-4-5, claude-sonnet-4-6), DeepSeek → deepseek/deepseek-chat, Gemini → -preview variants, Qwen/Kimi updated
+- Fallback for levels 2+3 changed to Sonnet 4.6 (confirmed working)
+- findBestReplacement: removed hard context filter, context_length is scoring bonus only
+- maxCharsForCtx: default when unknown raised 32k→128k tokens
+- parseModelResponse: rewrote to search backwards from last [ — handles prose-before-JSON
+
+---
+
+## 2026-06-23 - BugSmash: OpenRouter live model IDs and non-stream scan calls
+
+**Asked:** Debug BugSmash because only Claude models were loading and everything else failed.
+
+**Did:**
+- Fetched OpenRouter's live model list and found the previous ID fix had gone stale again. Current live IDs use dot notation for Claude 4.x and stable non-preview Gemini 2.5 IDs.
+- Updated configured scan and fallback IDs to `anthropic/claude-haiku-4.5`, `anthropic/claude-sonnet-4.6`, `anthropic/claude-opus-4.5`, `google/gemini-2.5-flash` and `google/gemini-2.5-pro`.
+- Changed the main scan call from SSE streaming to a normal chat completion with `max_tokens: 2500`, because the streaming client was brittle across non-Claude providers.
+- Raised scan timeout from 90s to 180s for slower non-Claude responses.
+- Verified all configured IDs exist in the live OpenRouter model list, parsed the embedded script with Node and smoke-tested the page through localhost. No app console errors.
+- Archived 106 oldest active session-note lines into `SESSION_NOTES_ARCHIVE.md` to keep `SESSION_NOTES.md` under the cap.
