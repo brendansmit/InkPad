@@ -1,4 +1,6 @@
 import os
+import subprocess
+import tempfile
 from flask import Flask, request, jsonify, send_file, render_template
 import io
 
@@ -291,6 +293,62 @@ def export_xls(aid):
         as_attachment=True,
         download_name=f"{safe_name}_grades.xls",
     )
+
+
+@app.route("/api/assignments/<int:aid>/export-save", methods=["POST"])
+def export_xls_save(aid):
+    """Generate XLS and show a native macOS Save dialog to pick where it goes."""
+    a = db.get_assignment(aid)
+    if not a:
+        return jsonify({"error": "Assignment not found"}), 404
+
+    tmpl = db.get_template(aid)
+    if not tmpl and a.get("library_template_id"):
+        tmpl = db.get_library_template(a["library_template_id"])
+    if not tmpl:
+        return jsonify({"error": "No XLS template set for this assignment."}), 400
+
+    scores = db.get_scores_for_assignment(aid, a.get("class_filter"))
+    score_total = a.get("score_total")
+    export_max  = a.get("export_max")
+    if score_total and export_max and score_total > 0:
+        for s in scores:
+            if s.get("score") is not None:
+                s["score"] = round(s["score"] / score_total * export_max, 1)
+
+    filled = xls_writer.fill_xls(tmpl["data"], scores)
+    safe_name = a["name"].replace(" ", "_").replace("/", "-") + "_grades.xls"
+
+    script = f'''
+tell application "Finder" to activate
+set savePath to choose file name with prompt "Save grades as:" ¬
+    default name "{safe_name}" ¬
+    default location (path to desktop)
+return POSIX path of savePath
+'''
+    try:
+        result = subprocess.run(
+            ["osascript", "-e", script],
+            capture_output=True, text=True, timeout=120
+        )
+        if result.returncode != 0:
+            # User cancelled (exit code 1) or other error
+            err = result.stderr.strip()
+            if "User canceled" in err or result.returncode == 1:
+                return jsonify({"cancelled": True})
+            return jsonify({"error": err or "Save dialog failed"}), 500
+
+        save_path = result.stdout.strip()
+        if not save_path.endswith(".xls"):
+            save_path += ".xls"
+
+        with open(save_path, "wb") as f:
+            f.write(filled)
+
+        return jsonify({"saved": True, "path": save_path})
+
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Save dialog timed out"}), 500
 
 
 # ── UI ────────────────────────────────────────────────────────────────────────
