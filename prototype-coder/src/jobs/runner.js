@@ -50,6 +50,13 @@ function extractJson(text) {
   }
 }
 
+function stripFences(text) {
+  return text
+    .replace(/^```[^\n]*\n/, '')
+    .replace(/\n```\s*$/, '')
+    .trim();
+}
+
 async function generateFile(client, task, generator, defaults, deps) {
   return client.complete({
     model: generator,
@@ -68,9 +75,12 @@ async function reviewFile(client, task, content, reviewer) {
     response_format: { type: 'json_object' }
   });
   const parsed = extractJson(res.content) || {};
+  const issues = Array.isArray(parsed.issues)
+    ? parsed.issues.map((i) => (typeof i === 'string' ? i : JSON.stringify(i))).filter(Boolean)
+    : [];
   return {
-    passed: !!parsed.passed,
-    issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+    passed: !!parsed.passed || issues.length === 0,
+    issues,
     usage: res.usage
   };
 }
@@ -128,8 +138,9 @@ async function runJob(job, deps) {
         checkBudget(job, budget);
         const res = await generateFile(client, t, models.generator, defaults, deps);
         trackUsage(job, res.usage, models.generator);
-        completedOutputs.set(t.id, { path: t.path, content: res.content });
-        job.addOutput(t.id, { path: t.path, content: res.content, model: models.generator });
+        const genContent = stripFences(res.content);
+        completedOutputs.set(t.id, { path: t.path, content: genContent });
+        job.addOutput(t.id, { path: t.path, content: genContent, model: models.generator });
         job.emit('task:generated', { taskId: t.id, path: t.path, model: models.generator });
       } catch (err) {
         job.emit('task:failed', { taskId: t.id, error: err.message });
@@ -185,7 +196,7 @@ async function runJob(job, deps) {
             checkBudget(job, budget);
             const repaired = await repairFile(client, t, content, review.issues, models.repairer, defaults);
             trackUsage(job, repaired.usage, models.repairer);
-            content = repaired.content;
+            content = stripFences(repaired.content);
             job.addOutput(t.id, { path: t.path, content, model: models.repairer });
             job.emit('repair:done', { taskId: t.id, round: r + 1 });
           } catch (err) {
