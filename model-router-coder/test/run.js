@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { modelFamily, pickCrossFamilyReviewer, sameModelFamily } from "../src/families.js";
 import { createExecutionBatches, estimatePlanCost, parseBuildPlan } from "../src/plan.js";
 import { executeBuildPlan, executeGenerationPlan, parseReviewJson } from "../src/executor.js";
+import { cleanGeneratedContent, createHandoffReport, createZipBuffer } from "../src/output.js";
 
 const tests = [];
 
@@ -110,6 +111,27 @@ test("executeBuildPlan repairs after failed review", async () => {
 test("parseReviewJson extracts fenced JSON", () => {
   const review = parseReviewJson("```json\n{\"approved\":true,\"summary\":\"ok\",\"issues\":[]}\n```");
   assert.equal(review.approved, true);
+});
+
+test("cleanGeneratedContent removes wrapping code fences", () => {
+  assert.equal(cleanGeneratedContent("```js\nconsole.log(1);\n```"), "console.log(1);");
+});
+
+test("createHandoffReport includes known issues", () => {
+  const plan = parseBuildPlan({ projectName: "Demo", stack: "Node", tasks: [{ id: "a", path: "a.js", instruction: "A" }] });
+  const report = createHandoffReport(plan, [{
+    path: "a.js",
+    model: "deepseek/deepseek-v4-pro",
+    reviewer: "qwen/qwen3-coder-flash",
+    knownIssues: [{ severity: "high", problem: "Bug", fix: "Fix bug" }]
+  }]);
+  assert.equal(report.includes("Bug"), true);
+});
+
+test("createZipBuffer writes a zip archive", () => {
+  const zip = createZipBuffer([{ path: "a.txt", content: "hello" }]);
+  assert.equal(zip.subarray(0, 4).toString("hex"), "504b0304");
+  assert.equal(zip.includes(Buffer.from("a.txt")), true);
 });
 
 for (const item of tests) {

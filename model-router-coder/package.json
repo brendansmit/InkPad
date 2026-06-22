@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/openrouter.js && node --check src/families.js && node --check src/plan.js && node --check src/executor.js && node test/run.js"
+    "check": "node --check server.js && node --check src/openrouter.js && node --check src/families.js && node --check src/plan.js && node --check src/executor.js && node --check src/output.js && node test/run.js"
   },
   "engines": {
     "node": ">=16"
