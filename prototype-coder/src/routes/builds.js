@@ -35,7 +35,7 @@ router.get('/:jobId/events', (req, res) => {
 
 router.get('/:jobId/download', (req, res) => {
   const job = req.app.locals.manager.getJob(req.params.jobId);
-  if (!job || job.state !== 'ready' || !job.zipPath || !fs.existsSync(job.zipPath)) {
+  if (!job || !job.zipPath || !fs.existsSync(job.zipPath)) {
     return res.status(404).send('Zip missing for this job');
   }
   const filename = `${job.plan.projectName}-${job.id}.zip`
