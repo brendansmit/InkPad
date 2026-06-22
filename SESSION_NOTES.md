@@ -387,3 +387,11 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 - Section editor on assignment detail: pills with ✕ to remove, inline "Add section" input. Updates score table and CSV import dropdown live.
 - Roster: removed ID column, cleared placeholder text on name inputs.
 - DB: `score_total`, `export_max` columns on assignments (migration).
+
+---
+
+## 2026-06-22 - Model Router single download button
+
+**Asked:** Remove stale previous-build download behavior and make one download button fetch the build that just finished.
+
+**Did:** Removed the controls download and latest-download buttons from the UI. The only remaining download button is in the finished panel and is set from the active job's package-ready event or active job status poll. Verified the served page has one download anchor and tests pass.
