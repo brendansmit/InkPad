@@ -66,11 +66,11 @@ function repairMessages(task, content, issues) {
     {
       role: 'system',
       content:
-        'You repair code. Respond with the corrected full file content only. No markdown fences, no commentary.'
+        'You repair code. Output the COMPLETE corrected file from the very first line to the very last line. Do not truncate, do not summarise, do not omit any section. No markdown fences, no commentary, no explanations — only file content.'
     },
     {
       role: 'user',
-      content: `File: ${task.path}\nOriginal instruction:\n${task.instruction}\nIssues to fix:\n${issues.join('\n')}\n\nCurrent content:\n${content}`
+      content: `File: ${task.path}\n\nOriginal instruction:\n${task.instruction}\n\nIssues to fix:\n${issues.join('\n')}\n\nCurrent (broken) content:\n${content}\n\nReturn the fully corrected file now. Every line must be present.`
     }
   ];
 }

@@ -100,7 +100,11 @@ function validatePlan(raw) {
   const defaults = { ...DEFAULTS, ...planDefaults };
   const correctedTasks = plan.tasks.map((t) => {
     const models = resolveTaskModels(t, defaults, {});
-    return { ...t, ...models };
+    // Absolute paths (e.g. /etc/nginx/...) are rewritten into deploy/ so packager never crashes
+    const taskPath = t.path.startsWith('/')
+      ? 'deploy' + t.path
+      : t.path;
+    return { ...t, path: taskPath, ...models };
   });
 
   return { valid: true, plan: { ...plan, defaults, tasks: correctedTasks } };
