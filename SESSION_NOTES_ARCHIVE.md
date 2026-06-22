@@ -302,3 +302,23 @@
 
 **Commits:** 075d754, 33f70a6 (back button returns to correct wizard step), 6a9792c (day/night theme + DM Sans/Serif redesign)
 
+
+---
+
+## 2026-06-20 — Production deployment
+
+**Asked:** Deploy the speed dating app to a DigitalOcean droplet.
+
+**Did:**
+- DNS: added A record `speeddating` → `167.172.71.219` in Porkbun (deleted wildcard CNAME first)
+- GitHub: pushed speed-dating repo to github.com/brendansmit/speed-dating (private). SESSION_NOTES.md excluded from repo via .gitignore. SSH key generated on Mac and added to GitHub account.
+- Server (Ubuntu 24.04, 1 vCPU / 1 GB, Singapore SGP1): Node 20 via nodesource, build-essential for better-sqlite3 compilation, PM2 for process management, nginx reverse proxy, Certbot SSL via Let's Encrypt.
+- Deploy key generated on server, added to GitHub repo for cloning.
+- App running at https://speeddating.inkheron.app via PM2, auto-restarts on reboot.
+- Organiser account created: brendansmit1@gmail.com.
+- SSL cert auto-renews via certbot systemd timer, expires 2026-09-18.
+
+**To deploy updates:** `cd /var/www/speed-dating && git pull && pm2 restart speed-dating`
+
+---
+

@@ -14,6 +14,9 @@ const promptPanel = document.querySelector("#prompt-panel");
 const jsonPanel = document.querySelector("#json-panel");
 const promptTab = document.querySelector("#tab-prompt");
 const jsonTab = document.querySelector("#tab-json");
+const finishPanel = document.querySelector("#finish-panel");
+const finishText = document.querySelector("#finish-text");
+const finishDownload = document.querySelector("#finish-download");
 const estimateBox = document.querySelector("#estimate");
 const statusBox = document.querySelector("#status");
 let planSource = "empty";
@@ -88,6 +91,7 @@ dryRunButton.addEventListener("click", async () => {
 
 buildButton.addEventListener("click", async () => {
   downloadLink.hidden = true;
+  finishPanel.hidden = true;
   buildButton.disabled = true;
   statusBox.textContent = "Creating build job...";
   try {
@@ -138,11 +142,14 @@ function watchJob(jobId) {
     statusBox.textContent = lines.join("\n");
     statusBox.scrollTop = statusBox.scrollHeight;
     if (event.type === "package:ready") {
-      showDownload(`/api/builds/${jobId}/download`, "Download zip");
+      const url = event.result?.downloadUrl || `/api/builds/${jobId}/download`;
+      showDownload(url, "Download this build");
+      showFinished(event.result?.runId || jobId, url);
       refreshLatestDownload();
     }
     if (event.type === "done" || event.type === "error") {
       finished = true;
+      pollBuildStatus(jobId);
       refreshLatestDownload();
       events.close();
       buildButton.disabled = false;
@@ -152,11 +159,28 @@ function watchJob(jobId) {
     if (!finished) {
       lines.push("SSE connection closed. Use Download latest if the package finished.");
       statusBox.textContent = lines.join("\n");
+      pollBuildStatus(jobId);
       refreshLatestDownload();
     }
     events.close();
     buildButton.disabled = false;
   };
+}
+
+async function pollBuildStatus(jobId) {
+  try {
+    const response = await fetch(`/api/builds/${jobId}`);
+    const body = await response.json();
+    if (!body.ok || !body.job) return;
+    if (body.job.status === "done" && body.job.downloadUrl) {
+      showDownload(body.job.downloadUrl, "Download this build");
+      showFinished(body.job.runId || jobId, body.job.downloadUrl);
+    } else if (body.job.status === "error") {
+      finishPanel.hidden = true;
+    }
+  } catch {
+    // The latest-build fallback remains available if the active job status cannot be fetched.
+  }
 }
 
 async function refreshLatestDownload() {
@@ -176,6 +200,13 @@ function showDownload(url, label) {
   downloadLink.href = url;
   downloadLink.textContent = label;
   downloadLink.hidden = false;
+}
+
+function showFinished(runId, url) {
+  finishText.textContent = `Build ${runId} is packaged and ready to download.`;
+  finishDownload.href = url;
+  finishDownload.textContent = "Download this build";
+  finishPanel.hidden = false;
 }
 
 function buildPayload(includeKey = true) {

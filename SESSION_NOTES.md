@@ -1,22 +1,5 @@
 # Session Notes
 
-## 2026-06-20 — Production deployment
-
-**Asked:** Deploy the speed dating app to a DigitalOcean droplet.
-
-**Did:**
-- DNS: added A record `speeddating` → `167.172.71.219` in Porkbun (deleted wildcard CNAME first)
-- GitHub: pushed speed-dating repo to github.com/brendansmit/speed-dating (private). SESSION_NOTES.md excluded from repo via .gitignore. SSH key generated on Mac and added to GitHub account.
-- Server (Ubuntu 24.04, 1 vCPU / 1 GB, Singapore SGP1): Node 20 via nodesource, build-essential for better-sqlite3 compilation, PM2 for process management, nginx reverse proxy, Certbot SSL via Let's Encrypt.
-- Deploy key generated on server, added to GitHub repo for cloning.
-- App running at https://speeddating.inkheron.app via PM2, auto-restarts on reboot.
-- Organiser account created: brendansmit1@gmail.com.
-- SSL cert auto-renews via certbot systemd timer, expires 2026-09-18.
-
-**To deploy updates:** `cd /var/www/speed-dating && git pull && pm2 restart speed-dating`
-
----
-
 ## 2026-06-20 — Server Dashboard
 
 **Asked:** Build a local dashboard to manage the live server without touching the terminal.
@@ -384,6 +367,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 **Asked:** Troubleshoot `Error: Dry run failed` after converting a prompt into a six-task plan.
 
 **Did:** Found dry run could hang/fail while fetching live OpenRouter model prices. Added fallback built-in model prices, a 3-second price-fetch timeout and better frontend error reporting. Verified a six-task AP Lang-shaped plan dry-runs successfully.
+
+---
+
+## 2026-06-22 - Model Router finished download state
+
+**Asked:** Fix builds finishing without a usable current download link and add obvious text when finished.
+
+**Did:** Added an active build status endpoint, active build download URLs in package-ready events, client-side status polling after done/SSE close and a visible "Build Finished" panel with "Download this build". Verified the live UI serves the new panel and latest zip download still returns a valid zip.
 
 ---
 

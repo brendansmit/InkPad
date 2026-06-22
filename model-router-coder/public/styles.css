@@ -21,6 +21,7 @@ body {
 .hero,
 .settings,
 .workspace,
+.finish,
 .results > div {
   background: #ffffff;
   border: 1px solid #dde2ea;
@@ -183,6 +184,22 @@ select {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px;
   margin-top: 18px;
+}
+
+.finish {
+  grid-column: 1 / -1;
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+.finish h2 {
+  margin: 0 0 6px;
+  color: #166534;
+}
+
+.finish p {
+  margin: 0 0 14px;
+  color: #166534;
 }
 
 .results h2 {

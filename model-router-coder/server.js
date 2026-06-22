@@ -142,6 +142,17 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    const statusMatch = url.pathname.match(/^\/api\/builds\/([^/]+)$/);
+    if (req.method === "GET" && statusMatch) {
+      const job = jobs.get(statusMatch[1]);
+      if (!job) {
+        sendJson(res, 404, { ok: false, error: "Build job not found" });
+        return;
+      }
+      sendJson(res, 200, { ok: true, job: summarizeJob(job) });
+      return;
+    }
+
     const eventsMatch = url.pathname.match(/^\/api\/builds\/([^/]+)\/events$/);
     if (req.method === "GET" && eventsMatch) {
       const job = jobs.get(eventsMatch[1]);
@@ -221,7 +232,11 @@ async function runBuildJob(job) {
     onEvent: (event) => pushJobEvent(job, event)
   });
   const result = await writeBuildOutput(rootDir, job.plan, outputs, job.events);
-  job.result = result;
+  job.result = {
+    ...result,
+    downloadUrl: `/api/builds/${encodeURIComponent(job.id)}/download`,
+    runDownloadUrl: `/api/runs/${encodeURIComponent(result.runId)}/download`
+  };
   pushJobEvent(job, { type: "package:ready", result });
   finishJob(job, "done");
 }
@@ -245,6 +260,18 @@ function finishJob(job, status) {
     client.end();
   }
   job.clients.clear();
+}
+
+function summarizeJob(job) {
+  return {
+    id: job.id,
+    status: job.status,
+    runId: job.result?.runId || null,
+    downloadUrl: job.result?.downloadUrl || null,
+    runDownloadUrl: job.result?.runDownloadUrl || null,
+    zipPath: job.result?.zipPath || null,
+    events: job.events
+  };
 }
 
 async function getModelPrices() {
