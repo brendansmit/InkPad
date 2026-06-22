@@ -57,10 +57,10 @@ function stripFences(text) {
     .trim();
 }
 
-async function generateFile(client, task, generator, defaults, deps) {
+async function generateFile(client, task, generator, defaults, deps, plan) {
   return client.complete({
     model: generator,
-    messages: generationMessages(task, deps),
+    messages: generationMessages(task, deps, plan),
     temperature: defaults.temperature ?? DEFAULTS.temperature,
     max_tokens: task.maxOutputTokens
   });
@@ -136,7 +136,7 @@ async function runJob(job, deps) {
 
       try {
         checkBudget(job, budget);
-        const res = await generateFile(client, t, models.generator, defaults, deps);
+        const res = await generateFile(client, t, models.generator, defaults, deps, job.plan);
         trackUsage(job, res.usage, models.generator);
         const genContent = stripFences(res.content);
         completedOutputs.set(t.id, { path: t.path, content: genContent });

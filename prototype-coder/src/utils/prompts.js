@@ -11,17 +11,28 @@ Return ONLY a JSON object with these exact top-level fields:
 - defaults: { generator, fastGenerator, hardGenerator, reviewer, temperature, concurrency, reviewRounds, retries }
 - tasks: array of { id, path, instruction, dependsOn, generator(optional), reviewer(optional), maxOutputTokens }
 
-Tasks must be non-empty with unique ids. paths must be relative file paths.`
+CRITICAL RULES FOR TASKS:
+1. Each task instruction must be COMPLETE and SELF-CONTAINED. The generator sees ONLY the instruction and dependency file contents — it has no access to the original prompt. So every route, schema column, CSS variable, auth rule, field name, and behaviour must be written out explicitly in the instruction. Do not say "implement the API" — list every endpoint, method, auth requirement, and response shape. Do not say "follow the design" — copy the exact CSS variables, layout rules, and component specs into the instruction.
+2. Do not split backend logic from its data model. If server.js needs a database, include the exact schema (table name, column names, types, defaults) in the server.js instruction.
+3. reviewRounds must be at least 2 so repair passes can run.
+4. omit generator/reviewer/fastGenerator/hardGenerator from defaults — leave those as empty strings or omit them entirely.
+5. Tasks must have unique string ids. Paths must be relative file paths.`
     },
     { role: 'user', content: prompt }
   ];
 }
 
-function generationMessages(task, deps = []) {
+function generationMessages(task, deps = [], plan = {}) {
   const depBlock =
     deps.length === 0
       ? 'None'
       : deps.map((d) => `--- ${d.path} ---\n${d.content}`).join('\n\n');
+
+  const projectCtx = [
+    plan.projectName ? `Project: ${plan.projectName}` : '',
+    plan.description ? `Description: ${plan.description}` : '',
+    plan.stack ? `Stack: ${Array.isArray(plan.stack) ? plan.stack.join(', ') : plan.stack}` : ''
+  ].filter(Boolean).join('\n');
 
   return [
     {
@@ -31,7 +42,7 @@ function generationMessages(task, deps = []) {
     },
     {
       role: 'user',
-      content: `File: ${task.path}\n\nDependencies:\n${depBlock}\n\nInstruction:\n${task.instruction}`
+      content: `${projectCtx ? projectCtx + '\n\n' : ''}File: ${task.path}\n\nDependencies:\n${depBlock}\n\nInstruction:\n${task.instruction}`
     }
   ];
 }

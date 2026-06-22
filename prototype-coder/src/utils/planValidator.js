@@ -25,7 +25,7 @@ const planSchema = z.object({
       reviewer: z.string().optional(),
       temperature: z.number().optional(),
       concurrency: z.number().int().min(1).max(10).optional(),
-      reviewRounds: z.number().int().min(0).max(5).optional(),
+      reviewRounds: z.number().int().min(2).max(5).optional(),
       retries: z.number().int().min(0).max(5).optional()
     })
     .default({}),
