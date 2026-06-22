@@ -33,6 +33,19 @@
       "port": 3463
     },
     {
+      "name": "speed-dating",
+      "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node",
+      "runtimeArgs": ["speed-dating/server.js"],
+      "port": 3464
+    },
+    {
+      "name": "prototype-coder",
+      "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node",
+      "runtimeArgs": ["prototype-coder/src/index.js"],
+      "port": 3471,
+      "env": { "PORT": "3471" }
+    },
+    {
       "name": "launcher",
       "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
       "runtimeArgs": ["launcher/launcher_server.py"],

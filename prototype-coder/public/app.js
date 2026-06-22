@@ -5,6 +5,18 @@ let currentPlan = null;
 let currentJobId = null;
 
 const apiKey = $('apiKey');
+
+// Restore saved key on load
+const STORAGE_KEY = 'pc_openrouter_key';
+const saved = localStorage.getItem(STORAGE_KEY);
+if (saved) {
+  apiKey.value = saved;
+  convertBtn.disabled = false;
+}
+apiKey.addEventListener('input', () => {
+  if (apiKey.value) localStorage.setItem(STORAGE_KEY, apiKey.value);
+  else localStorage.removeItem(STORAGE_KEY);
+});
 const testBtn = $('testBtn');
 const testResult = $('testResult');
 const prompt = $('prompt');
