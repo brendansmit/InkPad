@@ -4,13 +4,13 @@ module.exports = {
   PORT: process.env.PORT || 3000,
   OUTPUT_DIR: process.env.OUTPUT_DIR || path.join(process.cwd(), 'outputs'),
   OPENROUTER_BASE_URL: 'https://openrouter.ai/api/v1',
-  CONVERSION_MODEL: 'deepseek/deepseek-chat',
+  CONVERSION_MODEL: 'google/gemini-2.0-flash-001',
 
   DEFAULTS: {
-    generator: 'deepseek/deepseek-chat',
-    fastGenerator: 'qwen/qwen-2.5-coder-7b-instruct',
-    hardGenerator: 'moonshotai/kimi-k2',
-    reviewer: 'qwen/qwen-2.5-coder-32b-instruct',
+    generator: 'google/gemini-2.0-flash-001',
+    fastGenerator: 'mistralai/mistral-small-3.1-24b-instruct',
+    hardGenerator: 'anthropic/claude-sonnet-4-5',
+    reviewer: 'mistralai/codestral-2501',
     temperature: 0.2,
     concurrency: 2,
     reviewRounds: 2,
