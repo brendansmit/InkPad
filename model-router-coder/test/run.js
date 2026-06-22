@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
+import { modelFamily, pickCrossFamilyReviewer, sameModelFamily } from "../src/families.js";
 import { createExecutionBatches, estimatePlanCost, parseBuildPlan } from "../src/plan.js";
-import { executeGenerationPlan } from "../src/executor.js";
+import { executeBuildPlan, executeGenerationPlan, parseReviewJson } from "../src/executor.js";
 
 const tests = [];
 
@@ -63,6 +64,52 @@ test("executeGenerationPlan injects dependency outputs", async () => {
     { id: "a", dependencies: [] },
     { id: "b", dependencies: ["a.txt"] }
   ]);
+});
+
+test("families block same-family review", () => {
+  assert.equal(modelFamily("moonshotai/kimi-k2.7-code"), "kimi");
+  assert.equal(sameModelFamily("deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash"), true);
+  assert.equal(pickCrossFamilyReviewer("deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash"), "qwen/qwen3-coder-flash");
+});
+
+test("parseBuildPlan replaces same-family reviewer", () => {
+  const plan = parseBuildPlan({
+    tasks: [{
+      id: "a",
+      path: "a.txt",
+      instruction: "A",
+      generator: "qwen/qwen3-coder",
+      reviewer: "qwen/qwen3-coder-flash"
+    }]
+  });
+  assert.equal(plan.tasks[0].reviewer, "deepseek/deepseek-v4-flash");
+});
+
+test("executeBuildPlan repairs after failed review", async () => {
+  const events = [];
+  const plan = parseBuildPlan({
+    defaults: { maxReviewRounds: 2 },
+    tasks: [{ id: "a", path: "a.txt", instruction: "A" }]
+  });
+  const outputs = await executeBuildPlan(plan, {}, {
+    onEvent: (event) => events.push(event.type),
+    generate: async () => ({ content: "bad" }),
+    review: async (_plan, _task, content) => ({
+      approved: content === "fixed",
+      summary: content === "fixed" ? "clean" : "bug",
+      issues: content === "fixed" ? [] : [{ severity: "high", evidence: "bad", problem: "bad", fix: "fix it" }]
+    }),
+    repair: async () => ({ content: "fixed" })
+  });
+  assert.equal(outputs[0].content, "fixed");
+  assert.equal(outputs[0].knownIssues.length, 0);
+  assert.equal(events.includes("review:start"), true);
+  assert.equal(events.includes("repair:done"), true);
+});
+
+test("parseReviewJson extracts fenced JSON", () => {
+  const review = parseReviewJson("```json\n{\"approved\":true,\"summary\":\"ok\",\"issues\":[]}\n```");
+  assert.equal(review.approved, true);
 });
 
 for (const item of tests) {

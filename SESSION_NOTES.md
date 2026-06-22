@@ -404,6 +404,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 
 ---
 
+## 2026-06-22 - Model Router Coder build checkpoint 3
+
+**Asked:** Add the generate-review-fix loop while preventing same-family model review.
+
+**Did:** Added model-family detection, cross-family reviewer selection, review JSON parsing and a generate-review-repair executor. Same-family reviewer choices are automatically replaced with a different family.
+
+---
+
 ## 2026-06-22 — Grade Importer: score conversion, section editor, roster cleanup
 
 **Asked:** (1) Score conversion: state raw total + export max, convert on export. (2) Delete ID column from roster. (3) Clear placeholder text on Add Student inputs. (4) No way to add sections to existing assignment.

@@ -1,7 +1,10 @@
+import { pickCrossFamilyReviewer } from "./families.js";
+
 const DEFAULT_GENERATOR = "deepseek/deepseek-v4-pro";
 const DEFAULT_REVIEWER = "qwen/qwen3-coder-flash";
 const DEFAULT_BUDGET_USD = 4;
 const DEFAULT_OUTPUT_TOKENS = 1800;
+const DEFAULT_REVIEW_ROUNDS = 2;
 
 export function parseBuildPlan(input) {
   const source = typeof input === "string" ? input.trim() : input;
@@ -25,6 +28,7 @@ export function parseBuildPlan(input) {
       generator: String(defaults.generator || DEFAULT_GENERATOR),
       reviewer: String(defaults.reviewer || DEFAULT_REVIEWER),
       maxOutputTokens: numberOr(defaults.maxOutputTokens, DEFAULT_OUTPUT_TOKENS),
+      maxReviewRounds: Math.max(1, Math.min(3, numberOr(defaults.maxReviewRounds, DEFAULT_REVIEW_ROUNDS))),
       concurrency: Math.max(1, Math.min(8, numberOr(defaults.concurrency, 3)))
     },
     tasks: parsed.tasks.map((task, index) => normalizeTask(task, index, defaults))
@@ -123,7 +127,10 @@ function normalizeTask(task, index, defaults) {
     instruction: String(instruction),
     dependsOn: Array.isArray(task.dependsOn) ? task.dependsOn.map(String) : [],
     generator: String(task.generator || defaults.generator || DEFAULT_GENERATOR),
-    reviewer: String(task.reviewer || defaults.reviewer || DEFAULT_REVIEWER),
+    reviewer: pickCrossFamilyReviewer(
+      String(task.generator || defaults.generator || DEFAULT_GENERATOR),
+      String(task.reviewer || defaults.reviewer || DEFAULT_REVIEWER)
+    ),
     maxOutputTokens: numberOr(task.maxOutputTokens, numberOr(defaults.maxOutputTokens, DEFAULT_OUTPUT_TOKENS))
   };
 }
