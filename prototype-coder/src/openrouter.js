@@ -4,7 +4,11 @@ const { OPENROUTER_BASE_URL } = require('./config');
 function createOpenRouter(apiKey) {
   const client = new OpenAI({
     baseURL: OPENROUTER_BASE_URL,
-    apiKey
+    apiKey,
+    defaultHeaders: {
+      'HTTP-Referer': 'http://localhost:3471',
+      'X-Title': 'Prototype Coder'
+    }
   });
 
   return {
