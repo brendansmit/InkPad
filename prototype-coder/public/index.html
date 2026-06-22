@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prototype Coder</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Prototype Coder</h1>
+
+    <section id="api-section">
+      <h2>1. OpenRouter API Key</h2>
+      <input id="apiKey" type="password" placeholder="sk-or-v1-..." autocomplete="off" />
+      <button id="testBtn">Test Connection</button>
+      <div id="testResult" class="status"></div>
+    </section>
+
+    <section id="prompt-section">
+      <h2>2. Build Prompt</h2>
+      <textarea id="prompt" rows="8" placeholder="Paste your refined build plan here..."></textarea>
+      <button id="convertBtn" disabled>Convert to Plan</button>
+      <pre id="planPreview" class="preview"></pre>
+    </section>
+
+    <section id="dryrun-section">
+      <h2>3. Dry Run</h2>
+      <button id="dryRunBtn" disabled>Estimate Cost</button>
+      <div id="estimate" class="status"></div>
+    </section>
+
+    <section id="build-section">
+      <h2>4. Build Draft</h2>
+      <label>
+        <input type="checkbox" id="allowPartial" />
+        Allow partial build on generation failure
+      </label>
+      <button id="buildBtn" disabled>Build Draft</button>
+      <div id="status" class="status state">State: idle</div>
+      <div id="log" class="log"></div>
+    </section>
+
+    <section id="finished-section" class="hidden">
+      <h2>Build Finished</h2>
+      <div id="finishedInfo"></div>
+      <a id="downloadBtn" class="hidden button" href="#">Download Build</a>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
