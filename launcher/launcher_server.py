@@ -19,15 +19,16 @@ def _wait(port, timeout=12):
         time.sleep(0.2)
     return False
 
-def _bg(cmd, cwd):
-    subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+def _bg(cmd, cwd, env=None):
+    merged = {**os.environ, **(env or {})}
+    subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=merged)
 
 def _open(url):
     subprocess.Popen(["open", url])
 
-def _launch_server(cmd, cwd, port, url):
+def _launch_server(cmd, cwd, port, url, env=None):
     if not _port_open(port):
-        _bg(cmd, cwd)
+        _bg(cmd, cwd, env=env)
         if not _wait(port):
             raise RuntimeError(f"server did not start on port {port}")
     _open(url)
@@ -56,10 +57,14 @@ LAUNCHERS = {
     "model-router-coder": lambda: (
         _launch_server([NODE, "server.js"], os.path.join(ROOT, "model-router-coder"), 3470, "http://127.0.0.1:3470")
     ),
+    "prototype-coder": lambda: (
+        _launch_server([NODE, "src/index.js"], os.path.join(ROOT, "prototype-coder"), 3471, "http://localhost:3471", env={"PORT": "3471"})
+    ),
 }
 LAUNCHERS["bug-detector"] = LAUNCHERS["bugsmash"]
 LAUNCHERS["debugger"] = LAUNCHERS["bugsmash"]
 LAUNCHERS["model-router"] = LAUNCHERS["model-router-coder"]
+LAUNCHERS["prototype"] = LAUNCHERS["prototype-coder"]
 
 
 @app.route("/")
