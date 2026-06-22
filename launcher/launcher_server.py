@@ -1,13 +1,22 @@
-import subprocess, socket, time, os, sys
+import json, subprocess, socket, time, os, signal
 from flask import Flask, jsonify, send_from_directory
 
 app = Flask(__name__, static_folder="static")
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+APPS_JSON = os.path.join(os.path.dirname(__file__), "apps.json")
 
 PY_FLASK = "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3"
 PY_VENV  = os.path.join(ROOT, "Writing analyzer", ".venv", "bin", "python")
 NODE     = "/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node"
 
+RUNTIMES = {
+    "node":         NODE,
+    "python_flask": PY_FLASK,
+    "python_venv":  None,   # resolved at call time
+}
+
+
+# ── helpers ──────────────────────────────────────────────────────────
 
 def _port_open(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -34,38 +43,55 @@ def _launch_server(cmd, cwd, port, url, env=None):
     _open(url)
 
 
-LAUNCHERS = {
-    "grade-importer": lambda: (
-        _launch_server([PY_FLASK, "app.py"], os.path.join(ROOT, "grade-importer"), 5050, "http://localhost:5050")
-    ),
-    "writing-analyzer": lambda: (
-        _bg([PY_VENV if os.path.exists(PY_VENV) else PY_FLASK, "app.py"],
-            os.path.join(ROOT, "Writing analyzer")),
-    ),
-    "maestro": lambda: (
-        _launch_server([NODE, "server.js"], os.path.join(ROOT, "class-grouper"), 3456, "http://localhost:3456/v2/")
-    ),
-    "bugsmash": lambda: (
-        _open(os.path.join(ROOT, "bug-detector", "index.html")),
-    ),
-    "speed-dating": lambda: (
-        _launch_server([NODE, "server.js"], os.path.join(ROOT, "speed-dating"), 3464, "http://localhost:3464/public/organiser.html")
-    ),
-    "server-dashboard": lambda: (
-        _launch_server([PY_FLASK, "deploy_server.py"], os.path.join(ROOT, "launcher", "deploy-dashboard"), 5095, "http://localhost:5095")
-    ),
-    "model-router-coder": lambda: (
-        _launch_server([NODE, "server.js"], os.path.join(ROOT, "model-router-coder"), 3470, "http://127.0.0.1:3470")
-    ),
-    "prototype-coder": lambda: (
-        _launch_server([NODE, "src/index.js"], os.path.join(ROOT, "prototype-coder"), 3471, "http://localhost:3471", env={"PORT": "3471"})
-    ),
-}
-LAUNCHERS["bug-detector"] = LAUNCHERS["bugsmash"]
-LAUNCHERS["debugger"] = LAUNCHERS["bugsmash"]
-LAUNCHERS["model-router"] = LAUNCHERS["model-router-coder"]
-LAUNCHERS["prototype"] = LAUNCHERS["prototype-coder"]
+# ── config loader (read fresh on every /launch call) ─────────────────
+#
+# THIS IS THE CRITICAL DESIGN. App definitions live in apps.json, not
+# in Python memory. The server reads the file on each request so you
+# NEVER need to restart it to add or change an app. Just edit apps.json.
+#
+# To add a new app:
+#   1. Add an entry to apps.json (runtime/entry/cwd/port/url/env).
+#   2. Add the card to launcher.html APPS array with the same id.
+#   3. That's it. No server restart. No Python changes.
+#
+# Runtime values: "node" | "python_flask" | "python_venv" | "open"
+# For "open" set "path" (relative to ROOT) instead of entry/cwd/port/url.
+# Optional "env": {} sets extra env vars when starting the process.
 
+def _load_cfg(app_id):
+    with open(APPS_JSON) as f:
+        data = json.load(f)
+    aliases = data.get("_aliases", {})
+    resolved_id = aliases.get(app_id, app_id)
+    return data.get(resolved_id)
+
+def _dispatch(cfg):
+    runtime = cfg.get("runtime")
+
+    if runtime == "open":
+        _open(os.path.join(ROOT, cfg["path"]))
+        return
+
+    if runtime == "python_venv":
+        exe = PY_VENV if os.path.exists(PY_VENV) else PY_FLASK
+    else:
+        exe = RUNTIMES.get(runtime)
+        if not exe:
+            raise RuntimeError(f"unknown runtime: {runtime}")
+
+    cwd  = os.path.join(ROOT, cfg["cwd"])
+    cmd  = [exe, cfg["entry"]]
+    env  = cfg.get("env")
+    port = cfg.get("port")
+    url  = cfg.get("url")
+
+    if port and url:
+        _launch_server(cmd, cwd, port, url, env=env)
+    else:
+        _bg(cmd, cwd, env=env)
+
+
+# ── routes ───────────────────────────────────────────────────────────
 
 @app.route("/")
 def index():
@@ -77,15 +103,25 @@ def logo():
 
 @app.route("/launch/<app_id>")
 def launch(app_id):
-    fn = LAUNCHERS.get(app_id)
-    if not fn:
-        return jsonify({"error": "unknown app"}), 404
     try:
-        fn()
+        cfg = _load_cfg(app_id)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"could not read apps.json: {e}"}), 500
+
+    if not cfg:
+        return jsonify({"ok": False, "error": f"unknown app '{app_id}' — add it to launcher/apps.json"}), 404
+
+    try:
+        _dispatch(cfg)
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+@app.route("/shutdown", methods=["POST"])
+def shutdown():
+    os.kill(os.getpid(), signal.SIGTERM)
+    return jsonify({"ok": True, "message": "shutting down"})
+
 
 if __name__ == "__main__":
-    app.run(port=5099, debug=False)
+    app.run(port=5099, debug=False, use_reloader=True)

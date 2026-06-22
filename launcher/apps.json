@@ -1,0 +1,60 @@
+{
+  "grade-importer": {
+    "runtime": "python_flask",
+    "entry": "app.py",
+    "cwd": "grade-importer",
+    "port": 5050,
+    "url": "http://localhost:5050"
+  },
+  "writing-analyzer": {
+    "runtime": "python_venv",
+    "entry": "app.py",
+    "cwd": "Writing analyzer"
+  },
+  "maestro": {
+    "runtime": "node",
+    "entry": "server.js",
+    "cwd": "class-grouper",
+    "port": 3456,
+    "url": "http://localhost:3456/v2/"
+  },
+  "bugsmash": {
+    "runtime": "open",
+    "path": "bug-detector/index.html"
+  },
+  "speed-dating": {
+    "runtime": "node",
+    "entry": "server.js",
+    "cwd": "speed-dating",
+    "port": 3464,
+    "url": "http://localhost:3464/public/organiser.html"
+  },
+  "model-router-coder": {
+    "runtime": "node",
+    "entry": "server.js",
+    "cwd": "model-router-coder",
+    "port": 3470,
+    "url": "http://127.0.0.1:3470"
+  },
+  "prototype-coder": {
+    "runtime": "node",
+    "entry": "src/index.js",
+    "cwd": "prototype-coder",
+    "port": 3471,
+    "url": "http://localhost:3471",
+    "env": {"PORT": "3471"}
+  },
+  "server-dashboard": {
+    "runtime": "python_flask",
+    "entry": "deploy_server.py",
+    "cwd": "launcher/deploy-dashboard",
+    "port": 5095,
+    "url": "http://localhost:5095"
+  },
+  "_aliases": {
+    "bug-detector": "bugsmash",
+    "debugger": "bugsmash",
+    "model-router": "model-router-coder",
+    "prototype": "prototype-coder"
+  }
+}
