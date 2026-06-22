@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check src/openrouter.js"
+    "check": "node --check server.js && node --check src/openrouter.js && node --check src/plan.js && node --check src/executor.js && node test/run.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=16"
   }
 }

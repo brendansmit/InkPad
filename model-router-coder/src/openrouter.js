@@ -1,3 +1,4 @@
+import { request } from "node:https";
 import { readFile } from "node:fs/promises";
 
 export async function loadEnv(path) {
@@ -19,13 +20,7 @@ export async function loadEnv(path) {
 }
 
 export async function fetchOpenRouterModels(env) {
-  const response = await fetch("https://openrouter.ai/api/v1/models", {
-    headers: openRouterHeaders(env, false)
-  });
-  if (!response.ok) {
-    throw new Error(`OpenRouter models request failed: ${response.status}`);
-  }
-  const body = await response.json();
+  const body = await requestJson("GET", "https://openrouter.ai/api/v1/models", openRouterHeaders(env, false));
   return body.data.map((model) => ({
     id: model.id,
     name: model.name,
@@ -33,6 +28,32 @@ export async function fetchOpenRouterModels(env) {
     inputPrice: Number(model.pricing?.prompt || 0),
     outputPrice: Number(model.pricing?.completion || 0)
   }));
+}
+
+export async function createChatCompletion(env, request) {
+  if (!env.OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY is missing");
+  }
+  const body = await requestJson(
+    "POST",
+    "https://openrouter.ai/api/v1/chat/completions",
+    openRouterHeaders(env, true),
+    {
+      model: request.model,
+      messages: request.messages,
+      temperature: request.temperature ?? 0.2,
+      max_tokens: request.maxTokens
+    }
+  );
+  const content = body.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error("OpenRouter returned no message content");
+  }
+  return {
+    content,
+    usage: body.usage || null,
+    raw: body
+  };
 }
 
 export function openRouterHeaders(env, includeAuth = true) {
@@ -45,4 +66,43 @@ export function openRouterHeaders(env, includeAuth = true) {
     headers.authorization = `Bearer ${env.OPENROUTER_API_KEY}`;
   }
   return headers;
+}
+
+function requestJson(method, target, headers, body = null) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(target);
+    const payload = body ? JSON.stringify(body) : null;
+    const req = request({
+      method,
+      hostname: url.hostname,
+      path: `${url.pathname}${url.search}`,
+      headers: {
+        ...headers,
+        ...(payload ? { "content-length": Buffer.byteLength(payload) } : {})
+      }
+    }, (res) => {
+      let data = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        data += chunk;
+      });
+      res.on("end", () => {
+        let parsed = {};
+        try {
+          parsed = data ? JSON.parse(data) : {};
+        } catch {
+          reject(new Error(`OpenRouter returned invalid JSON with status ${res.statusCode}`));
+          return;
+        }
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          reject(new Error(parsed.error?.message || parsed.message || `OpenRouter request failed: ${res.statusCode}`));
+          return;
+        }
+        resolve(parsed);
+      });
+    });
+    req.on("error", reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
 }
