@@ -420,6 +420,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 
 ---
 
+## 2026-06-22 - Model Router Coder build checkpoint 5
+
+**Asked:** Add server-side build workflow with cost control and live logs.
+
+**Did:** Added dry-run estimates, budget-cap enforcement, background build jobs, SSE event streams and zip download endpoint. Updated README with the supported structured plan format.
+
+---
+
 ## 2026-06-22 — Grade Importer: score conversion, section editor, roster cleanup
 
 **Asked:** (1) Score conversion: state raw total + export max, convert on export. (2) Delete ID column from roster. (3) Clear placeholder text on Add Student inputs. (4) No way to add sections to existing assignment.

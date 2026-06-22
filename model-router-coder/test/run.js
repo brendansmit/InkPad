@@ -134,6 +134,25 @@ test("createZipBuffer writes a zip archive", () => {
   assert.equal(zip.includes(Buffer.from("a.txt")), true);
 });
 
+test("README plan shape remains parseable", () => {
+  const plan = parseBuildPlan({
+    projectName: "Example App",
+    stack: "Node, plain HTML, CSS",
+    budgetUsd: 4,
+    defaults: {
+      generator: "deepseek/deepseek-v4-pro",
+      reviewer: "qwen/qwen3-coder-flash",
+      maxReviewRounds: 2,
+      concurrency: 3
+    },
+    tasks: [
+      { id: "package", path: "package.json", instruction: "Create package file." },
+      { id: "server", path: "server.js", dependsOn: ["package"], instruction: "Create server." }
+    ]
+  });
+  assert.equal(plan.tasks.length, 2);
+});
+
 for (const item of tests) {
   try {
     await item.fn();

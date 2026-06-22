@@ -24,6 +24,39 @@ Then open `http://localhost:3470`.
 ## Current scope
 
 - Fetch OpenRouter model metadata.
-- Serve a small local UI.
+- Dry-run structured build plans against live OpenRouter prices.
+- Run build jobs with server-sent event logs.
+- Package generated drafts into files, handoff report, build log and zip.
 - Keep premium APIs out of the pipeline.
 - Enforce cheap-model usage in later build stages.
+
+## Build Plan Shape
+
+Paste JSON in this shape:
+
+```json
+{
+  "projectName": "Example App",
+  "stack": "Node, plain HTML, CSS",
+  "budgetUsd": 4,
+  "defaults": {
+    "generator": "deepseek/deepseek-v4-pro",
+    "reviewer": "qwen/qwen3-coder-flash",
+    "maxReviewRounds": 2,
+    "concurrency": 3
+  },
+  "tasks": [
+    {
+      "id": "package",
+      "path": "package.json",
+      "instruction": "Create a minimal package.json with start and check scripts."
+    },
+    {
+      "id": "server",
+      "path": "server.js",
+      "dependsOn": ["package"],
+      "instruction": "Create the HTTP server."
+    }
+  ]
+}
+```
