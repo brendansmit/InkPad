@@ -1,53 +1,5 @@
 # Session Notes
 
-## 2026-06-16
-
-**Asked:** Review `cg-settings.js` and `cg-seating.js` for making the seating/layout system more usable and adaptable, especially for reuse in a speed dating app where venues change.
-
-**Did:** Inspected the settings module, seating module and shared seating geometry helper. No app code changed. Conclusion: reusable core is `v2/shared/seating.js` + drag/fixture/editing interactions in `cg-seating.js`; classroom-specific state, labels, presets, teacher desk and assignment logic should be separated before reuse.
-
-**Decision:** Recommend extracting a venue layout editor with a domain-neutral schema: venues contain rooms, rooms contain layout objects, layouts contain tables, seats, fixtures, zones and blocked seats. Speed dating sessions reference a venue layout by id and store round assignments separately.
-
----
-
-## 2026-06-18 — BugSmash tool
-
-**Asked:** Build a multi-model bug detection tool — drop a project folder, fire it at 3 models in parallel via OpenRouter, aggregate findings by model agreement.
-
-**Did:** Built `bug-detector/index.html` — single self-contained HTML file, no server required.
-- 3 scan levels (Quick/Standard/Nuclear) with escalating model quality; level persists in localStorage.
-- Level 1: DeepSeek V4 Flash + Gemini 2.5 Flash + Claude Haiku 4.5 (~$0.05/scan)
-- Level 2: DeepSeek V4 Pro + Gemini 2.5 Pro + Claude Sonnet 4.6 (~$0.30/scan)
-- Level 3: DeepSeek V4 Pro + Gemini 2.5 Pro + Claude Opus 4.8 (~$0.93/scan)
-- Folder drag-and-drop + file picker; skips node_modules, .git, dist, lock files, binaries, .env files.
-- Parallel OpenRouter calls, JSON response parsing, aggregation by file+line proximity (±5 lines).
-- Results sorted by model agreement count then severity; copy-to-clipboard plain text output.
-- "Check model updates" button: fetches OpenRouter model list, asks AI to do cost-benefit analysis.
-- OpenRouter API key stored in localStorage. Mint green accent (#3EB49A).
-
----
-
-## 2026-06-18 — Grade Importer
-
-**Asked:** Build a grade importer app. Takes class list XLS + CSV grade exports, matches student names, fills the XLS template, allows download. Needs history of past assignments.
-
-**Did:** Built Flask web app in `grade-importer/` with SQLite backend.
-- `database.py` — students, assignments, scores, xls_templates tables.
-- `matcher.py` — 3-tier matching: exact English name → fuzzy (difflib, 82%) → Chinese name → DeepSeek API fallback.
-- `csv_parser.py` — auto-detects name/score columns from CSV headers.
-- `xls_writer.py` — reads XLS roster; fills XLS template with scores using xlrd + xlutils (preserves formatting).
-- `app.py` — Flask routes for roster upload, assignment CRUD, CSV import, manual score entry, history matrix, XLS export.
-- `templates/index.html` — single-page UI: Assignments / History / Roster tabs, drag-and-drop CSV/XLS.
-- Class management, AP Lang roster, Settings tab (DeepSeek key), per-section score inputs, autosave.
-- Template library, save-location picker (showSaveFilePicker), pinyin column via pypinyin.
-- Section-targeted CSV import: Zipgrade CSV → specific section (MC), SRQ entered manually, total auto-sums.
-
-**Running at http://localhost:5050.** Start with: `cd grade-importer && python3 app.py`
-
-**Commits:** d6cf2b9, fd6b43f, 4d2f4dd, 2e1e782 (section editor on detail, roster cleanup).
-
----
-
 ## 2026-06-18–20 — Speed Dating app (multi-session build)
 
 **Asked:** Build a bilingual (EN + Simplified Chinese) speed dating event app. Organiser runs from laptop, guests use phones. AI ensemble matching via OpenRouter (DeepSeek v3.2 + Qwen 3.6 flash + Kimi K2). WebSockets for real-time push. SQLite persistence. Organiser accounts with JWT auth. Minimal results page (mutual matches + like count only, no profile data).
