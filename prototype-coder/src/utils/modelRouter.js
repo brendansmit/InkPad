@@ -14,7 +14,7 @@ const DEFAULT_REVIEWER_FOR = {
 };
 
 const THIRD_FAMILY_CANDIDATES = [
-  'mistralai/codestral-2501',
+  'mistralai/codestral-2508',
   'mistralai/mistral-small-3.1-24b-instruct'
 ];
 
