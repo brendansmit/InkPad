@@ -8,7 +8,7 @@ module.exports = {
 
   DEFAULTS: {
     generator: 'deepseek/deepseek-chat',
-    fastGenerator: 'qwen/qwen-2.5-coder-7b-instruct',
+    fastGenerator: 'qwen/qwen3-coder-flash',
     hardGenerator: 'moonshotai/kimi-k2',
     reviewer: 'qwen/qwen-2.5-coder-32b-instruct',
     temperature: 0.2,

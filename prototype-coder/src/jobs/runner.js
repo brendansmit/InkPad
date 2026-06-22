@@ -159,9 +159,17 @@ async function runJob(job, deps) {
       for (let r = 0; r < rounds; r++) {
         job.transition('reviewing');
         job.emit('review:start', { taskId: t.id, round: r + 1, model: models.reviewer });
-        checkBudget(job, budget);
-        const review = await reviewFile(client, t, content, models.reviewer);
-        trackUsage(job, review.usage, models.reviewer);
+
+        let review;
+        try {
+          checkBudget(job, budget);
+          review = await reviewFile(client, t, content, models.reviewer);
+          trackUsage(job, review.usage, models.reviewer);
+        } catch (err) {
+          job.issues.push({ taskId: t.id, message: `Review error (round ${r + 1}): ${err.message}` });
+          job.emit('review:error', { taskId: t.id, round: r + 1, error: err.message });
+          return;
+        }
 
         if (review.passed) {
           job.emit('review:passed', { taskId: t.id, round: r + 1 });
@@ -173,12 +181,18 @@ async function runJob(job, deps) {
         if (r < rounds - 1) {
           job.transition('repairing');
           job.emit('repair:start', { taskId: t.id, round: r + 1, model: models.repairer });
-          checkBudget(job, budget);
-          const repaired = await repairFile(client, t, content, review.issues, models.repairer, defaults);
-          trackUsage(job, repaired.usage, models.repairer);
-          content = repaired.content;
-          job.addOutput(t.id, { path: t.path, content, model: models.repairer });
-          job.emit('repair:done', { taskId: t.id, round: r + 1 });
+          try {
+            checkBudget(job, budget);
+            const repaired = await repairFile(client, t, content, review.issues, models.repairer, defaults);
+            trackUsage(job, repaired.usage, models.repairer);
+            content = repaired.content;
+            job.addOutput(t.id, { path: t.path, content, model: models.repairer });
+            job.emit('repair:done', { taskId: t.id, round: r + 1 });
+          } catch (err) {
+            job.issues.push({ taskId: t.id, message: `Repair error (round ${r + 1}): ${err.message}` });
+            job.emit('repair:error', { taskId: t.id, round: r + 1, error: err.message });
+            return;
+          }
         }
       }
 
