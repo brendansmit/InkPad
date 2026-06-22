@@ -127,6 +127,12 @@ def patch_assignment(aid):
     body = request.json or {}
     if "sections" in body:
         db.update_assignment_sections(aid, body["sections"])
+    if "score_total" in body or "export_max" in body:
+        db.update_assignment_conversion(
+            aid,
+            body.get("score_total"),
+            body.get("export_max")
+        )
     return jsonify({"ok": True})
 
 
@@ -267,6 +273,15 @@ def export_xls(aid):
         return jsonify({"error": "No XLS template set for this assignment. Upload one or select from the library."}), 400
 
     scores = db.get_scores_for_assignment(aid, a.get("class_filter"))
+
+    # Apply score conversion if both values are set
+    score_total = a.get("score_total")
+    export_max  = a.get("export_max")
+    if score_total and export_max and score_total > 0:
+        for s in scores:
+            if s.get("score") is not None:
+                s["score"] = round(s["score"] / score_total * export_max, 1)
+
     filled = xls_writer.fill_xls(tmpl["data"], scores)
 
     safe_name = a["name"].replace(" ", "_").replace("/", "-")

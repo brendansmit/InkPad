@@ -68,6 +68,8 @@ def init_db():
             ("class_filter",       "TEXT"),
             ("sections",           "TEXT DEFAULT '[]'"),
             ("library_template_id","INTEGER"),
+            ("score_total",        "REAL"),
+            ("export_max",         "REAL"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE assignments ADD COLUMN {col} {definition}")
@@ -332,4 +334,12 @@ def update_assignment_sections(assignment_id, sections):
         conn.execute(
             "UPDATE assignments SET sections=? WHERE id=?",
             (json.dumps(sections), assignment_id)
+        )
+
+
+def update_assignment_conversion(assignment_id, score_total, export_max):
+    with get_conn() as conn:
+        conn.execute(
+            "UPDATE assignments SET score_total=?, export_max=? WHERE id=?",
+            (score_total, export_max, assignment_id)
         )

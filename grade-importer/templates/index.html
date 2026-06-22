@@ -280,6 +280,27 @@
         </div>
       </div>
 
+      <div class="card" style="background:#f8fafc;border-color:#e2e8f0">
+        <h2 style="margin-bottom:10px">Score Conversion</h2>
+        <p style="font-size:0.8rem;color:#64748b;margin-bottom:12px">
+          Optional. Raw scores are stored as-is; conversion is applied only on export.
+        </p>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div class="form-group" style="margin:0">
+            <label>Raw total</label>
+            <input type="number" id="conv-total" placeholder="e.g. 25" min="0" step="0.5" style="width:90px"
+              oninput="updateConversionPreview()" onblur="saveConversion()">
+          </div>
+          <span style="font-size:1.1rem;color:#94a3b8;margin-top:18px">→</span>
+          <div class="form-group" style="margin:0">
+            <label>Export max</label>
+            <input type="number" id="conv-export" placeholder="e.g. 22" min="0" step="0.5" style="width:90px"
+              oninput="updateConversionPreview()" onblur="saveConversion()">
+          </div>
+          <div id="conv-preview" style="margin-top:18px;font-size:0.82rem;color:#3b82f6;font-weight:500;white-space:nowrap"></div>
+        </div>
+      </div>
+
       <div class="card">
         <h2>XLS Template</h2>
         <div style="margin-bottom:14px">
@@ -798,6 +819,11 @@ async function selectAssignment(aid) {
   currentSections = a.sections || [];
   renderDetailSectionPills();
 
+  // Load conversion values
+  document.getElementById('conv-total').value  = a.score_total  ?? '';
+  document.getElementById('conv-export').value = a.export_max   ?? '';
+  updateConversionPreview();
+
   // Populate section dropdown for CSV import
   const csvSecRow = document.getElementById('csv-section-row');
   const csvSecSel = document.getElementById('csv-section-target');
@@ -1203,6 +1229,32 @@ function toggleShowKey() {
     input.type = 'password';
     btn.textContent = 'Show';
   }
+}
+
+// ── score conversion ──────────────────────────────────────────────────────────
+function updateConversionPreview() {
+  const total  = parseFloat(document.getElementById('conv-total').value);
+  const expMax = parseFloat(document.getElementById('conv-export').value);
+  const el = document.getElementById('conv-preview');
+  if (!el) return;
+  if (total > 0 && expMax > 0) {
+    const example = Math.round(total * 0.8 * 10) / 10;
+    const converted = Math.round(example / total * expMax * 10) / 10;
+    el.textContent = `e.g. ${example} / ${total} → ${converted}`;
+  } else {
+    el.textContent = '';
+  }
+}
+
+async function saveConversion() {
+  if (!currentAid) return;
+  const total  = parseFloat(document.getElementById('conv-total').value)  || null;
+  const expMax = parseFloat(document.getElementById('conv-export').value) || null;
+  await fetch(`/api/assignments/${currentAid}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ score_total: total, export_max: expMax })
+  });
 }
 
 // ── detail section editor ─────────────────────────────────────────────────────
