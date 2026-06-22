@@ -92,6 +92,10 @@ async function packageBuild(job) {
   fs.mkdirSync(base, { recursive: true });
 
   for (const [, file] of job.outputs) {
+    if (file.path.endsWith('/')) {
+      fs.mkdirSync(safeJoin(base, file.path), { recursive: true });
+      continue;
+    }
     const target = safeJoin(base, file.path);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, file.content, 'utf8');
