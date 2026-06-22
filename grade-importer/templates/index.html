@@ -1108,22 +1108,51 @@ async function saveAllScores(silent = false) {
 async function exportXls() {
   if (!currentAid) return;
   const exportEl = document.getElementById('export-status');
-  exportEl.innerHTML = '<span style="color:#64748b;font-size:0.82rem">Opening save dialog…</span>';
+  exportEl.innerHTML = '';
 
-  const res = await fetch(`/api/assignments/${currentAid}/export-save`, { method: 'POST' });
-  const data = await res.json();
+  const nameEl = document.getElementById('detail-name');
+  const suggestedName = (nameEl?.textContent || 'grades')
+    .replace(/\s+/g, '_').replace(/[/\\]/g, '-') + '_grades.xls';
 
-  if (data.cancelled) {
-    exportEl.innerHTML = '';
-    return;
+  // Chrome / Edge: showSaveFilePicker must be called before any awaits
+  // so the browser still considers it a direct user gesture.
+  if (window.showSaveFilePicker) {
+    let handle;
+    try {
+      handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: 'Excel Spreadsheet', accept: { 'application/vnd.ms-excel': ['.xls'] } }],
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') return; // user cancelled dialog
+      // API blocked (e.g. iframe / insecure) — fall through to link download
+    }
+
+    if (handle) {
+      exportEl.innerHTML = '<span style="color:#64748b;font-size:0.82rem">Generating…</span>';
+      const res = await fetch(`/api/assignments/${currentAid}/export`);
+      if (!res.ok) {
+        const err = await res.json();
+        exportEl.innerHTML = `<div class="alert alert-error">${err.error}</div>`;
+        return;
+      }
+      const writable = await handle.createWritable();
+      await writable.write(await res.blob());
+      await writable.close();
+      exportEl.innerHTML = `<div class="alert alert-success">Saved as <b>${handle.name}</b></div>`;
+      return;
+    }
   }
-  if (data.error) {
-    exportEl.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
-    return;
-  }
 
-  const filename = data.path.split('/').pop();
-  exportEl.innerHTML = `<div class="alert alert-success">Saved: <b>${data.path}</b></div>`;
+  // Safari / Firefox / mobile: point an anchor at the export URL.
+  // The browser downloads it natively — Safari shows its own save dialog
+  // if "Ask where to save" is on, otherwise goes to Downloads.
+  const a = document.createElement('a');
+  a.href = `/api/assignments/${currentAid}/export`;
+  a.download = suggestedName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 // ── history ───────────────────────────────────────────────────────────────────
