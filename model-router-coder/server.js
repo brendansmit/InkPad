@@ -6,7 +6,8 @@ import { loadEnv, fetchOpenRouterModels } from "./src/openrouter.js";
 import { executeBuildPlan } from "./src/executor.js";
 import { estimatePlanCost, modelPriceMap, parseBuildPlan, createExecutionBatches } from "./src/plan.js";
 import { writeBuildOutput } from "./src/output.js";
-import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody } from "./src/api.js";
+import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody, requestEnv, requireApiKey } from "./src/api.js";
+import { createPlanFromPrompt } from "./src/prompt-planner.js";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(rootDir, "public");
@@ -82,8 +83,24 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/plan") {
+      const body = await readJsonBody(req);
+      const envForRequest = requestEnv(env, body);
+      requireApiKey(envForRequest);
+      const result = await createPlanFromPrompt(envForRequest, {
+        prompt: body.prompt,
+        budgetUsd: body.budgetUsd,
+        maxReviewRounds: body.maxReviewRounds,
+        useKimi: body.useKimi
+      });
+      sendJson(res, 200, { ok: true, ...result });
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/builds") {
       const body = await readJsonBody(req);
+      const envForRequest = requestEnv(env, body);
+      requireApiKey(envForRequest);
       const plan = applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body);
       const models = await fetchOpenRouterModels(env);
       const estimate = estimatePlanCost(plan, modelPriceMap(models));
@@ -91,7 +108,7 @@ const server = createServer(async (req, res) => {
         sendJson(res, 400, { ok: false, error: "Dry-run estimate exceeds budget cap", estimate });
         return;
       }
-      const job = createJob(plan, estimate);
+      const job = createJob(plan, estimate, envForRequest);
       sendJson(res, 202, { ok: true, jobId: job.id, estimate });
       runBuildJob(job).catch((error) => {
         pushJobEvent(job, { type: "error", error: error.message });
@@ -150,7 +167,7 @@ server.listen(port, host, () => {
   console.log(`Model Router Coder listening on http://${host}:${port}`);
 });
 
-function createJob(plan, estimate) {
+function createJob(plan, estimate, jobEnv) {
   const job = {
     id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     status: "queued",
@@ -158,7 +175,8 @@ function createJob(plan, estimate) {
     estimate,
     events: [],
     clients: new Set(),
-    result: null
+    result: null,
+    env: jobEnv
   };
   jobs.set(job.id, job);
   pushJobEvent(job, { type: "queued", jobId: job.id, estimate });
@@ -168,7 +186,7 @@ function createJob(plan, estimate) {
 async function runBuildJob(job) {
   job.status = "running";
   pushJobEvent(job, { type: "running", jobId: job.id });
-  const outputs = await executeBuildPlan(job.plan, env, {
+  const outputs = await executeBuildPlan(job.plan, job.env, {
     onEvent: (event) => pushJobEvent(job, event)
   });
   const result = await writeBuildOutput(rootDir, job.plan, outputs, job.events);

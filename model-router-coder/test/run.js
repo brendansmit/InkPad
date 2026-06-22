@@ -3,7 +3,8 @@ import { modelFamily, pickCrossFamilyReviewer, sameModelFamily } from "../src/fa
 import { createExecutionBatches, estimatePlanCost, parseBuildPlan } from "../src/plan.js";
 import { executeBuildPlan, executeGenerationPlan, parseReviewJson } from "../src/executor.js";
 import { cleanGeneratedContent, createHandoffReport, createZipBuffer } from "../src/output.js";
-import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody } from "../src/api.js";
+import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody, requestEnv, requireApiKey } from "../src/api.js";
+import { buildPlannerPrompt, extractJson } from "../src/prompt-planner.js";
 
 const tests = [];
 
@@ -151,11 +152,21 @@ test("api helpers validate request plans and budgets", () => {
   assert.equal(plan.budgetUsd, 2.5);
   assert.throws(() => applyBudgetOverride(plan, { budgetUsd: "free" }), /positive number/);
   assert.throws(() => planInputFromBody({}), /planText or plan/);
+  assert.equal(requestEnv({}, { openRouterApiKey: "sk-test" }).OPENROUTER_API_KEY, "sk-test");
+  assert.throws(() => requireApiKey({}), /API key/);
 });
 
 test("readJsonBody handles empty and invalid bodies", async () => {
   assert.deepEqual(await readJsonBody(asyncIterable([])), {});
   await assert.rejects(() => readJsonBody(asyncIterable(["{bad"])), ApiError);
+});
+
+test("prompt planner helpers enforce default models", () => {
+  const prompt = buildPlannerPrompt("Build an app", { budgetUsd: 3, maxReviewRounds: 2, useKimi: true });
+  assert.equal(prompt.includes("deepseek/deepseek-v4-pro"), true);
+  assert.equal(prompt.includes("qwen/qwen3-coder-flash"), true);
+  assert.equal(prompt.includes("moonshotai/kimi-k2.7-code"), true);
+  assert.equal(extractJson("```json\n{\"ok\":true}\n```"), "{\"ok\":true}");
 });
 
 test("README plan shape remains parseable", () => {

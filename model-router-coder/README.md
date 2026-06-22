@@ -24,10 +24,29 @@ Then open `http://localhost:3470`.
 The UI supports:
 
 - Loading current OpenRouter prices for Kimi, Qwen and DeepSeek.
-- Pasting structured JSON build plans.
+- Pasting a Claude/Codex build and tech-stack prompt.
+- Converting that prompt into a structured task plan with DeepSeek V4 Flash.
+- Editing structured JSON build plans in advanced mode.
 - Dry-running estimated spend before any generation calls.
 - Starting a build job with live logs.
 - Downloading a zip with generated files, `HANDOFF.md` and `build-log.json`.
+
+## Main Flow
+
+1. Paste your OpenRouter API key in Settings. It is stored in browser localStorage and sent with local requests.
+2. Paste the build prompt from Claude, ChatGPT or Codex.
+3. Click **Convert prompt**. This spends a small API call using `deepseek/deepseek-v4-flash`.
+4. Click **Dry run**. This does not generate files or spend generation tokens.
+5. Click **Build draft** when the cost and task plan look right.
+
+Default routing:
+
+```text
+Prompt-to-plan: deepseek/deepseek-v4-flash
+Bulk build: deepseek/deepseek-v4-pro
+Review: qwen/qwen3-coder-flash
+Optional hard-file reviewer: moonshotai/kimi-k2.7-code
+```
 
 ## Current scope
 

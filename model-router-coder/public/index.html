@@ -12,23 +12,54 @@
         <div>
           <p class="eyebrow">Cheap-model prebuilder</p>
           <h1>Model Router Coder</h1>
-          <p class="lede">Paste a subscription-made build plan, dry-run the cost, then generate a draft with cheap cross-family model review.</p>
+          <p class="lede">Paste a Claude build and tech-stack prompt, convert it into a task plan, dry-run the cost, then build the draft with cheap cross-family review.</p>
         </div>
         <button id="load-models" type="button">Load models</button>
       </section>
 
+      <section class="settings">
+        <div>
+          <label for="api-key">OpenRouter API key</label>
+          <input id="api-key" type="password" autocomplete="off" placeholder="sk-or-v1-...">
+        </div>
+        <div>
+          <label for="review-rounds">Review rounds</label>
+          <select id="review-rounds">
+            <option value="1">1 quick pass</option>
+            <option value="2" selected>2 balanced passes</option>
+            <option value="3">3 stricter passes</option>
+          </select>
+        </div>
+        <label class="check">
+          <input id="use-kimi" type="checkbox">
+          Use Kimi on hard files
+        </label>
+      </section>
+
+      <section class="tabs" aria-label="Input mode">
+        <button id="tab-prompt" class="tab active" type="button">Claude Prompt</button>
+        <button id="tab-json" class="tab" type="button">Advanced JSON</button>
+      </section>
+
       <section class="workspace">
-        <div class="editor">
-          <label for="plan">Build plan JSON</label>
+        <div id="prompt-panel" class="editor">
+          <label for="prompt">Build and tech-stack prompt</label>
+          <textarea id="prompt" spellcheck="true"></textarea>
+        </div>
+
+        <div id="json-panel" class="editor" hidden>
+          <label for="plan">Generated task plan JSON</label>
           <textarea id="plan" spellcheck="false"></textarea>
         </div>
 
         <aside class="controls">
           <label for="budget">Budget cap USD</label>
           <input id="budget" type="number" min="0.25" step="0.25" value="4">
+          <button id="convert" type="button">Convert prompt</button>
           <button id="dry-run" type="button">Dry run</button>
           <button id="build" type="button">Build draft</button>
           <a id="download" class="download" href="#" hidden>Download zip</a>
+          <p class="hint">Dry run estimates only. Convert and Build draft spend API credits.</p>
         </aside>
       </section>
 

@@ -372,6 +372,22 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 
 ---
 
+## 2026-06-22 - Model Router UX requirements
+
+**Asked:** Clarify that Model Router Coder needs to accept a Claude build/tech-stack prompt and provide a place to enter an OpenRouter API key. Asked what dry run means versus build draft.
+
+**Did:** Explained that the current JSON-only input is too rigid, that dry run estimates without spending while build draft spends API credits and writes output, and proposed adding a prompt-to-plan flow plus a local API key settings field.
+
+---
+
+## 2026-06-22 - Model Router prompt-first workflow
+
+**Asked:** Implement the full prompt-first workflow with preselected models.
+
+**Did:** Added a Claude Prompt input mode, OpenRouter API key field stored in localStorage, DeepSeek V4 Flash prompt-to-plan endpoint, review-depth and Kimi hard-file options, Advanced JSON mode and request-scoped API key handling for build jobs.
+
+---
+
 ## 2026-06-22 — Grade Importer: score conversion, section editor, roster cleanup
 
 **Asked:** (1) Score conversion: state raw total + export max, convert on export. (2) Delete ID column from roster. (3) Clear placeholder text on Add Student inputs. (4) No way to add sections to existing assignment.

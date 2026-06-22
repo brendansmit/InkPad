@@ -38,3 +38,17 @@ export function applyBudgetOverride(plan, body) {
   plan.budgetUsd = budget;
   return plan;
 }
+
+export function requestEnv(baseEnv, body) {
+  const apiKey = body.openRouterApiKey || body.apiKey || "";
+  return {
+    ...baseEnv,
+    ...(apiKey ? { OPENROUTER_API_KEY: apiKey } : {})
+  };
+}
+
+export function requireApiKey(env) {
+  if (!env.OPENROUTER_API_KEY) {
+    throw new ApiError(400, "OpenRouter API key is required");
+  }
+}
