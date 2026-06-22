@@ -91,7 +91,13 @@ function validatePlan(raw) {
     }
   }
 
-  const defaults = { ...DEFAULTS, ...plan.defaults };
+  // Strip placeholder model IDs from plan.defaults before merging
+  const planDefaults = Object.fromEntries(
+    Object.entries(plan.defaults || {}).filter(([k, v]) =>
+      !['generator','fastGenerator','hardGenerator','reviewer'].includes(k) || (v && v.includes('/'))
+    )
+  );
+  const defaults = { ...DEFAULTS, ...planDefaults };
   const correctedTasks = plan.tasks.map((t) => {
     const models = resolveTaskModels(t, defaults, {});
     return { ...t, ...models };

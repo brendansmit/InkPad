@@ -14,21 +14,30 @@ const DEFAULT_REVIEWER_FOR = {
 };
 
 const THIRD_FAMILY_CANDIDATES = [
-  'google/gemini-2.0-flash-001',
-  'mistralai/codestral-2501'
+  'mistralai/codestral-2501',
+  'mistralai/mistral-small-3.1-24b-instruct'
 ];
+
+// Placeholder strings that look like model IDs but aren't
+const INVALID_MODEL_IDS = new Set(['default', 'auto', 'none', '', null, undefined]);
 
 function defaultReviewer(generator) {
   return DEFAULT_REVIEWER_FOR[family(generator)] || 'qwen/qwen-2.5-coder-32b-instruct';
 }
 
+function validModel(id) {
+  return id && !INVALID_MODEL_IDS.has(id) && id.includes('/');
+}
+
 function resolveTaskModels(task, defaults, opts = {}) {
   let generator =
-    task.generator ||
+    (validModel(task.generator) ? task.generator : null) ||
     (opts.fast ? defaults.fastGenerator : opts.hard ? defaults.hardGenerator : defaults.generator) ||
     DEFAULTS.generator;
 
-  let reviewer = task.reviewer || defaults.reviewer;
+  let reviewer = validModel(task.reviewer) ? task.reviewer
+    : validModel(defaults.reviewer) ? defaults.reviewer
+    : null;
   if (!reviewer || sameFamily(reviewer, generator)) {
     reviewer = defaultReviewer(generator);
   }
