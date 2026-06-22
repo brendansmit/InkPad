@@ -20,8 +20,9 @@ def _port_open(port):
 def _wait(port, timeout=10):
     for _ in range(timeout * 5):
         if _port_open(port):
-            return
+            return True
         time.sleep(0.2)
+    return False
 
 def _open(url):
     subprocess.Popen(["open", url])
@@ -66,7 +67,8 @@ def launch_model_router_coder():
     d = os.path.join(ROOT, "model-router-coder")
     if not _port_open(3470):
         _bg([NODE, "server.js"], d)
-        _wait(3470)
+        if not _wait(3470):
+            raise RuntimeError("server did not start on port 3470")
     _open("http://127.0.0.1:3470")
 
 

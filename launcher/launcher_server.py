@@ -1,4 +1,4 @@
-import subprocess, threading, socket, time, os, sys
+import subprocess, socket, time, os, sys
 from flask import Flask, jsonify, send_from_directory
 
 app = Flask(__name__, static_folder="static")
@@ -25,39 +25,36 @@ def _bg(cmd, cwd):
 def _open(url):
     subprocess.Popen(["open", url])
 
+def _launch_server(cmd, cwd, port, url):
+    if not _port_open(port):
+        _bg(cmd, cwd)
+        if not _wait(port):
+            raise RuntimeError(f"server did not start on port {port}")
+    _open(url)
+
 
 LAUNCHERS = {
     "grade-importer": lambda: (
-        _bg([PY_FLASK, "app.py"], os.path.join(ROOT, "grade-importer")) if not _port_open(5050) else None,
-        _wait(5050),
-        _open("http://localhost:5050")
+        _launch_server([PY_FLASK, "app.py"], os.path.join(ROOT, "grade-importer"), 5050, "http://localhost:5050")
     ),
     "writing-analyzer": lambda: (
         _bg([PY_VENV if os.path.exists(PY_VENV) else PY_FLASK, "app.py"],
             os.path.join(ROOT, "Writing analyzer")),
     ),
     "maestro": lambda: (
-        _bg([NODE, "server.js"], os.path.join(ROOT, "class-grouper")) if not _port_open(3456) else None,
-        _wait(3456),
-        _open("http://localhost:3456/v2/")
+        _launch_server([NODE, "server.js"], os.path.join(ROOT, "class-grouper"), 3456, "http://localhost:3456/v2/")
     ),
     "bugsmash": lambda: (
         _open(os.path.join(ROOT, "bug-detector", "index.html")),
     ),
     "speed-dating": lambda: (
-        _bg([NODE, "server.js"], os.path.join(ROOT, "speed-dating")) if not _port_open(3464) else None,
-        _wait(3464),
-        _open("http://localhost:3464/public/organiser.html")
+        _launch_server([NODE, "server.js"], os.path.join(ROOT, "speed-dating"), 3464, "http://localhost:3464/public/organiser.html")
     ),
     "server-dashboard": lambda: (
-        _bg([PY_FLASK, "deploy_server.py"], os.path.join(ROOT, "launcher", "deploy-dashboard")) if not _port_open(5095) else None,
-        _wait(5095),
-        _open("http://localhost:5095")
+        _launch_server([PY_FLASK, "deploy_server.py"], os.path.join(ROOT, "launcher", "deploy-dashboard"), 5095, "http://localhost:5095")
     ),
     "model-router-coder": lambda: (
-        _bg([NODE, "server.js"], os.path.join(ROOT, "model-router-coder")) if not _port_open(3470) else None,
-        _wait(3470),
-        _open("http://127.0.0.1:3470")
+        _launch_server([NODE, "server.js"], os.path.join(ROOT, "model-router-coder"), 3470, "http://127.0.0.1:3470")
     ),
 }
 
@@ -75,8 +72,11 @@ def launch(app_id):
     fn = LAUNCHERS.get(app_id)
     if not fn:
         return jsonify({"error": "unknown app"}), 404
-    threading.Thread(target=fn, daemon=True).start()
-    return jsonify({"ok": True})
+    try:
+        fn()
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
 
 
 if __name__ == "__main__":

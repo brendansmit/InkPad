@@ -313,10 +313,14 @@ async function launch(app, card) {
   card.classList.add("launching");
   showToast(`Launching ${app.name}…`);
   try {
-    await fetch(`/launch/${app.id}`);
+    const response = await fetch(`/launch/${app.id}`);
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok || !body.ok) {
+      throw new Error(body.error || "Launch failed");
+    }
     showToast(`${app.name} is open`);
-  } catch {
-    showToast(`Could not launch ${app.name}`);
+  } catch (error) {
+    showToast(`Could not launch ${app.name}: ${error.message}`);
   }
   setTimeout(() => card.classList.remove("launching"), 1500);
 }

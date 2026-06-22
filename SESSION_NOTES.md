@@ -356,6 +356,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 
 ---
 
+## 2026-06-22 - Launcher: truthful launch status
+
+**Asked:** Fix Model Router Coder launcher saying it is open when it does not actually launch.
+
+**Did:** Reproduced that Model Router Coder starts with the launcher Node path. Changed the web launcher to wait for server ports and return launch errors, changed the frontend to display failures instead of always saying open and made the Tkinter launcher raise if Model Router Coder does not start.
+
+---
+
 ## 2026-06-22 — Grade Importer: score conversion, section editor, roster cleanup
 
 **Asked:** (1) Score conversion: state raw total + export max, convert on export. (2) Delete ID column from roster. (3) Clear placeholder text on Add Student inputs. (4) No way to add sections to existing assignment.
