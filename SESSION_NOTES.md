@@ -364,6 +364,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 
 ---
 
+## 2026-06-22 - Launcher unknown app and Model Router hardening
+
+**Asked:** Fix the `unknown app` launcher bug and review the BugSmash debugger report.
+
+**Did:** Verified the live launcher route for Model Router returns ok. Added launcher aliases for `bug-detector`, `debugger` and `model-router`. Hardened Model Router request parsing, budget validation, path validation and SSE client writes. Added tests for the real request-validation bugs while leaving false positives alone.
+
+---
+
 ## 2026-06-22 — Grade Importer: score conversion, section editor, roster cleanup
 
 **Asked:** (1) Score conversion: state raw total + export max, convert on export. (2) Delete ID column from roster. (3) Clear placeholder text on Add Student inputs. (4) No way to add sections to existing assignment.

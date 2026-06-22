@@ -57,6 +57,9 @@ LAUNCHERS = {
         _launch_server([NODE, "server.js"], os.path.join(ROOT, "model-router-coder"), 3470, "http://127.0.0.1:3470")
     ),
 }
+LAUNCHERS["bug-detector"] = LAUNCHERS["bugsmash"]
+LAUNCHERS["debugger"] = LAUNCHERS["bugsmash"]
+LAUNCHERS["model-router"] = LAUNCHERS["model-router-coder"]
 
 
 @app.route("/")

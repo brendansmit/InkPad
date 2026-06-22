@@ -121,8 +121,8 @@ function summarizeOutputs(outputs) {
 }
 
 function cleanOutputPath(path) {
-  const value = String(path).replace(/\\/g, "/").replace(/^\/+/, "");
-  if (!value || value.includes("..")) {
+  const value = String(path).trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!value || value === "." || value.includes("..")) {
     throw new Error(`Unsafe output path: ${path}`);
   }
   return value;

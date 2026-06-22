@@ -3,6 +3,7 @@ import { modelFamily, pickCrossFamilyReviewer, sameModelFamily } from "../src/fa
 import { createExecutionBatches, estimatePlanCost, parseBuildPlan } from "../src/plan.js";
 import { executeBuildPlan, executeGenerationPlan, parseReviewJson } from "../src/executor.js";
 import { cleanGeneratedContent, createHandoffReport, createZipBuffer } from "../src/output.js";
+import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody } from "../src/api.js";
 
 const tests = [];
 
@@ -19,6 +20,12 @@ test("parseBuildPlan normalizes tasks and dependencies", () => {
   assert.equal(plan.projectName, "Demo");
   assert.equal(plan.tasks[0].generator, "deepseek/deepseek-v4-pro");
   assert.deepEqual(plan.tasks[1].dependsOn, ["a"]);
+});
+
+test("parseBuildPlan rejects blank output paths", () => {
+  assert.throws(() => parseBuildPlan({
+    tasks: [{ id: "a", path: "   ", instruction: "A" }]
+  }), /missing path|Unsafe output path/);
 });
 
 test("createExecutionBatches respects dependencies", () => {
@@ -134,6 +141,23 @@ test("createZipBuffer writes a zip archive", () => {
   assert.equal(zip.includes(Buffer.from("a.txt")), true);
 });
 
+test("createZipBuffer rejects blank paths", () => {
+  assert.throws(() => createZipBuffer([{ path: "   ", content: "hello" }]), /Unsafe output path/);
+});
+
+test("api helpers validate request plans and budgets", () => {
+  const plan = parseBuildPlan({ tasks: [{ id: "a", path: "a.txt", instruction: "A" }] });
+  applyBudgetOverride(plan, { budgetUsd: "2.5" });
+  assert.equal(plan.budgetUsd, 2.5);
+  assert.throws(() => applyBudgetOverride(plan, { budgetUsd: "free" }), /positive number/);
+  assert.throws(() => planInputFromBody({}), /planText or plan/);
+});
+
+test("readJsonBody handles empty and invalid bodies", async () => {
+  assert.deepEqual(await readJsonBody(asyncIterable([])), {});
+  await assert.rejects(() => readJsonBody(asyncIterable(["{bad"])), ApiError);
+});
+
 test("README plan shape remains parseable", () => {
   const plan = parseBuildPlan({
     projectName: "Example App",
@@ -166,4 +190,10 @@ for (const item of tests) {
 
 function test(name, fn) {
   tests.push({ name, fn });
+}
+
+async function* asyncIterable(parts) {
+  for (const part of parts) {
+    yield Buffer.from(part);
+  }
 }

@@ -6,6 +6,7 @@ import { loadEnv, fetchOpenRouterModels } from "./src/openrouter.js";
 import { executeBuildPlan } from "./src/executor.js";
 import { estimatePlanCost, modelPriceMap, parseBuildPlan, createExecutionBatches } from "./src/plan.js";
 import { writeBuildOutput } from "./src/output.js";
+import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody } from "./src/api.js";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const publicDir = join(rootDir, "public");
@@ -28,15 +29,6 @@ function sendJson(res, status, body) {
 
 function sendSse(res, event) {
   res.write(`data: ${JSON.stringify(event)}\n\n`);
-}
-
-async function readJsonBody(req) {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  const text = Buffer.concat(chunks).toString("utf8");
-  return text ? JSON.parse(text) : {};
 }
 
 async function serveStatic(req, res) {
@@ -78,8 +70,7 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/dry-run") {
       const body = await readJsonBody(req);
-      const plan = parseBuildPlan(body.planText || body.plan);
-      if (body.budgetUsd) plan.budgetUsd = Number(body.budgetUsd);
+      const plan = applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body);
       const models = await fetchOpenRouterModels(env);
       const estimate = estimatePlanCost(plan, modelPriceMap(models));
       sendJson(res, 200, {
@@ -93,8 +84,7 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/builds") {
       const body = await readJsonBody(req);
-      const plan = parseBuildPlan(body.planText || body.plan);
-      if (body.budgetUsd) plan.budgetUsd = Number(body.budgetUsd);
+      const plan = applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body);
       const models = await fetchOpenRouterModels(env);
       const estimate = estimatePlanCost(plan, modelPriceMap(models));
       if (estimate.overBudget) {
@@ -151,7 +141,8 @@ const server = createServer(async (req, res) => {
 
     sendJson(res, 405, { ok: false, error: "Method not allowed" });
   } catch (error) {
-    sendJson(res, 500, { ok: false, error: error.message });
+    const status = error instanceof ApiError ? error.status : 500;
+    sendJson(res, status, { ok: false, error: error.message });
   }
 });
 
@@ -189,8 +180,12 @@ async function runBuildJob(job) {
 function pushJobEvent(job, event) {
   const stamped = { ...event, at: new Date().toISOString() };
   job.events.push(stamped);
-  for (const client of job.clients) {
-    sendSse(client, stamped);
+  for (const client of [...job.clients]) {
+    try {
+      sendSse(client, stamped);
+    } catch {
+      job.clients.delete(client);
+    }
   }
 }
 
