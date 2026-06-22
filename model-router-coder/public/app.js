@@ -3,6 +3,7 @@ const convertButton = document.querySelector("#convert");
 const dryRunButton = document.querySelector("#dry-run");
 const buildButton = document.querySelector("#build");
 const downloadLink = document.querySelector("#download");
+const latestDownloadLink = document.querySelector("#latest-download");
 const promptInput = document.querySelector("#prompt");
 const planInput = document.querySelector("#plan");
 const budgetInput = document.querySelector("#budget");
@@ -34,6 +35,7 @@ promptInput.value = [
 ].join("\n");
 
 planInput.value = JSON.stringify(samplePlan(), null, 2);
+refreshLatestDownload();
 
 promptTab.addEventListener("click", () => setMode("prompt"));
 jsonTab.addEventListener("click", () => setMode("json"));
@@ -123,26 +125,51 @@ async function dryRun() {
 function watchJob(jobId) {
   const events = new EventSource(`/api/builds/${jobId}/events`);
   const lines = [];
+  let finished = false;
   events.onmessage = (message) => {
     const event = JSON.parse(message.data);
     lines.push(formatEvent(event));
     statusBox.textContent = lines.join("\n");
     statusBox.scrollTop = statusBox.scrollHeight;
     if (event.type === "package:ready") {
-      downloadLink.href = `/api/builds/${jobId}/download`;
-      downloadLink.hidden = false;
+      showDownload(`/api/builds/${jobId}/download`, "Download zip");
+      refreshLatestDownload();
     }
     if (event.type === "done" || event.type === "error") {
+      finished = true;
+      refreshLatestDownload();
       events.close();
       buildButton.disabled = false;
     }
   };
   events.onerror = () => {
-    lines.push("SSE connection closed.");
-    statusBox.textContent = lines.join("\n");
+    if (!finished) {
+      lines.push("SSE connection closed. Use Download latest if the package finished.");
+      statusBox.textContent = lines.join("\n");
+      refreshLatestDownload();
+    }
     events.close();
     buildButton.disabled = false;
   };
+}
+
+async function refreshLatestDownload() {
+  try {
+    const response = await fetch("/api/builds/latest");
+    const body = await response.json();
+    if (!body.ok || !body.build) return;
+    latestDownloadLink.href = body.build.downloadUrl || "/api/builds/latest/download";
+    latestDownloadLink.textContent = `Download latest (${body.build.runId})`;
+    latestDownloadLink.hidden = false;
+  } catch {
+    latestDownloadLink.hidden = true;
+  }
+}
+
+function showDownload(url, label) {
+  downloadLink.href = url;
+  downloadLink.textContent = label;
+  downloadLink.hidden = false;
 }
 
 function buildPayload(includeKey = true) {

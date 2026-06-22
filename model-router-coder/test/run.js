@@ -202,6 +202,11 @@ test("prompt planner helpers enforce default models", () => {
   assert.equal(extractJson("```json\n{\"ok\":true}\n```"), "{\"ok\":true}");
 });
 
+test("download fallback route format is stable", () => {
+  const runId = "20260622-120000-example-app";
+  assert.equal(`/api/runs/${encodeURIComponent(runId)}/download`, "/api/runs/20260622-120000-example-app/download");
+});
+
 test("README plan shape remains parseable", () => {
   const plan = parseBuildPlan({
     projectName: "Example App",

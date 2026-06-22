@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import { readdir, readFile, stat } from "node:fs/promises";
+import { basename, extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv, fetchOpenRouterModels } from "./src/openrouter.js";
 import { executeBuildPlan } from "./src/executor.js";
@@ -117,6 +117,22 @@ const server = createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/api/builds/latest") {
+      const latest = await latestBuild();
+      sendJson(res, 200, { ok: true, build: latest });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/builds/latest/download") {
+      const latest = await latestBuild();
+      if (!latest) {
+        sendJson(res, 404, { ok: false, error: "No build zip found" });
+        return;
+      }
+      await sendZip(res, latest.zipPath, `${latest.runId}.zip`);
+      return;
+    }
+
     const eventsMatch = url.pathname.match(/^\/api\/builds\/([^/]+)\/events$/);
     if (req.method === "GET" && eventsMatch) {
       const job = jobs.get(eventsMatch[1]);
@@ -142,12 +158,18 @@ const server = createServer(async (req, res) => {
         sendJson(res, 404, { ok: false, error: "Build zip not ready" });
         return;
       }
-      const file = await readFile(job.result.zipPath);
-      res.writeHead(200, {
-        "content-type": "application/zip",
-        "content-disposition": `attachment; filename="${job.result.runId}.zip"`
-      });
-      res.end(file);
+      await sendZip(res, job.result.zipPath, `${job.result.runId}.zip`);
+      return;
+    }
+
+    const runDownloadMatch = url.pathname.match(/^\/api\/runs\/([^/]+)\/download$/);
+    if (req.method === "GET" && runDownloadMatch) {
+      const build = await buildByRunId(runDownloadMatch[1]);
+      if (!build) {
+        sendJson(res, 404, { ok: false, error: "Build zip not found" });
+        return;
+      }
+      await sendZip(res, build.zipPath, `${build.runId}.zip`);
       return;
     }
 
@@ -214,4 +236,68 @@ function finishJob(job, status) {
     client.end();
   }
   job.clients.clear();
+}
+
+async function sendZip(res, zipPath, filename) {
+  const file = await readFile(zipPath);
+  res.writeHead(200, {
+    "content-type": "application/zip",
+    "content-length": file.length,
+    "content-disposition": `attachment; filename="${filename}"`
+  });
+  res.end(file);
+}
+
+async function latestBuild() {
+  const builds = await listBuilds();
+  return builds[0] || null;
+}
+
+async function buildByRunId(runId) {
+  const safeRunId = basename(String(runId || ""));
+  if (!safeRunId || safeRunId !== runId) return null;
+  return (await listBuilds()).find((build) => build.runId === safeRunId) || null;
+}
+
+async function listBuilds() {
+  const runsDir = join(rootDir, "runs");
+  let entries = [];
+  try {
+    entries = await readdir(runsDir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+
+  const builds = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const runId = entry.name;
+    const runDir = join(runsDir, runId);
+    const zipName = `${runId.replace(/^\d{8}-\d{6}-/, "")}.zip`;
+    const guessedZip = join(runDir, zipName);
+    const zipPath = await firstExistingZip(runDir, guessedZip);
+    if (!zipPath) continue;
+    const info = await stat(zipPath);
+    builds.push({
+      runId,
+      zipPath,
+      size: info.size,
+      createdAt: info.mtime.toISOString(),
+      downloadUrl: `/api/runs/${encodeURIComponent(runId)}/download`
+    });
+  }
+  builds.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return builds;
+}
+
+async function firstExistingZip(runDir, guessedZip) {
+  try {
+    await stat(guessedZip);
+    return guessedZip;
+  } catch {
+    const entries = await readdir(runDir, { withFileTypes: true });
+    const zip = entries.find((entry) => entry.isFile() && entry.name.endsWith(".zip"));
+    return zip ? join(runDir, zip.name) : null;
+  }
 }

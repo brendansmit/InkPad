@@ -1,33 +1,5 @@
 # Session Notes
 
-## 2026-06-20 — Speed dating organiser console + venue builder polish
-
-**Asked (multi-fix session):**
-1. Language toggle: show one language at a time, don't show both at once
-2. Fix dropdown underscores; fix hosting toggle; add setup wizard
-3. Add venue editor (was missing); generate real QR codes; add big screen button
-4. Fix topic push flow (organiser sends topic to phones)
-5. Fix 9 missing server routes (organiser.html was calling endpoints that didn't exist)
-6. Fix venue builder: ChatGPT built a custom overlay instead of plugging in src/app.js
-7. QR code flashing every second (regenerated on each render() call)
-8. QR not appearing on big screen (screen.html had placeholder text, not real QR)
-9. Add back button in venue builder, duplicate layout feature, new room button
-10. Fix layout preview in organiser to show actual table shapes
-
-**Did:**
-- `public/organiser.html`: added language toggle (CSS class swap, data fields untouched); fixed dropdown underscores; added hosting toggle; setup wizard flow; real QR via qrcodejs cached as data URL (`qrDataUrl`); big screen button; topic send to phones. Fixed `openVenueEditor()` to `window.open('/index.html', '_blank')` — uses the REAL venue builder, not a custom overlay.
-- `server.js`: added 9 missing routes — `/organiser/events`, `/events/:id` (GET), topic/send, topic/translate-send, screen-state, timer, vote/start, vote/end, guest check-in (PATCH), guest delete (DELETE). Root `/` redirects to `/public/organiser.html`. 70/70 tests still pass.
-- `public/screen.html`: loaded qrcodejs CDN, added `_qrCache` object, replaced placeholder `qrBox()` with real QR generator using eventId from URL param.
-- `src/app.js`: added "← Organiser" button, "New room" button, "Duplicate layout" button in topbar/actions. Added `_newRoom()` and `_duplicateLayout()` functions. Wired all three click handlers.
-- `public/organiser.html` layout preview: replaced generic `.table-dot` circles with `.lp-table` / `.lp-fixture` CSS using actual VL.TABLE_TYPES dimensions scaled to 170px preview width. Round/rect/booth shape variants. Table numbers shown.
-- `events.db`: test organiser email corrected from 'Test' to 'test@test.com'.
-
-**Key decisions:**
-- Venue builder opens as `window.open('/index.html', '_blank')` — the existing 1257-line src/app.js editor already saves to `speed_dating_v1` localStorage, which organiser.html reads via `storedLayouts()`. No custom editor needed.
-- QR caching: store data URL outside render state; subsequent renders use `<img src=qrDataUrl>` so the 1-second setInterval doesn't regenerate the QR.
-
-**Commits:** 075d754, 33f70a6 (back button returns to correct wizard step), 6a9792c (day/night theme + DM Sans/Serif redesign)
-
 ## 2026-06-20 — Production deployment
 
 **Asked:** Deploy the speed dating app to a DigitalOcean droplet.
@@ -380,6 +352,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 **Asked:** Fix builds failing when OpenRouter returns no message content, and add something stronger than `HANDOFF.md` because Codex may not read it.
 
 **Did:** Added OpenRouter empty-content retries and clearer errors. Changed per-file review/repair failures into warnings so the build can package the last usable file. Added generated root `AGENTS.md` with required first steps and unresolved issues. Added tests and a no-network package simulation for repair failure preservation.
+
+---
+
+## 2026-06-22 - Model Router download recovery
+
+**Asked:** Fix completed builds not being downloadable.
+
+**Did:** Found completed zip files under `model-router-coder/runs/`. Added disk-backed latest-build and run-specific download endpoints so downloads survive missed SSE events or server restarts. Added a persistent "Download latest" UI link and quieter SSE close handling.
 
 ---
 
