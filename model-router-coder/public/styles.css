@@ -18,11 +18,20 @@ body {
   margin: 48px auto;
 }
 
-.panel {
+.hero,
+.workspace,
+.results > div {
   background: #ffffff;
   border: 1px solid #dde2ea;
   border-radius: 8px;
   padding: 28px;
+}
+
+.hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
 
 .eyebrow {
@@ -62,6 +71,70 @@ button:disabled {
   opacity: 0.7;
 }
 
+label {
+  display: block;
+  margin: 0 0 8px;
+  color: #273244;
+  font-weight: 700;
+}
+
+input,
+textarea {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #111827;
+  font: inherit;
+}
+
+textarea {
+  min-height: 520px;
+  padding: 14px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+input {
+  padding: 10px 12px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.controls {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.download {
+  display: block;
+  border-radius: 6px;
+  background: #047857;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 12px 16px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.results h2 {
+  margin: 0 0 12px;
+}
+
 pre {
   min-height: 140px;
   overflow: auto;
@@ -72,4 +145,16 @@ pre {
   color: #e5edf8;
   padding: 16px;
   white-space: pre-wrap;
+}
+
+@media (max-width: 760px) {
+  .hero,
+  .workspace,
+  .results {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    display: grid;
+  }
 }

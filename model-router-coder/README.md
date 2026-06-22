@@ -21,6 +21,14 @@ npm start
 
 Then open `http://localhost:3470`.
 
+The UI supports:
+
+- Loading current OpenRouter prices for Kimi, Qwen and DeepSeek.
+- Pasting structured JSON build plans.
+- Dry-running estimated spend before any generation calls.
+- Starting a build job with live logs.
+- Downloading a zip with generated files, `HANDOFF.md` and `build-log.json`.
+
 ## Current scope
 
 - Fetch OpenRouter model metadata.

@@ -8,12 +8,39 @@
   </head>
   <body>
     <main class="shell">
-      <section class="panel">
-        <p class="eyebrow">Cheap-model prebuilder</p>
-        <h1>Model Router Coder</h1>
-        <p class="lede">Paste a subscription-made build plan here, then let cheap OpenRouter models produce the first draft before Codex or Claude finishes it.</p>
-        <button id="load-models" type="button">Load OpenRouter models</button>
-        <pre id="status">Ready.</pre>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Cheap-model prebuilder</p>
+          <h1>Model Router Coder</h1>
+          <p class="lede">Paste a subscription-made build plan, dry-run the cost, then generate a draft with cheap cross-family model review.</p>
+        </div>
+        <button id="load-models" type="button">Load models</button>
+      </section>
+
+      <section class="workspace">
+        <div class="editor">
+          <label for="plan">Build plan JSON</label>
+          <textarea id="plan" spellcheck="false"></textarea>
+        </div>
+
+        <aside class="controls">
+          <label for="budget">Budget cap USD</label>
+          <input id="budget" type="number" min="0.25" step="0.25" value="4">
+          <button id="dry-run" type="button">Dry run</button>
+          <button id="build" type="button">Build draft</button>
+          <a id="download" class="download" href="#" hidden>Download zip</a>
+        </aside>
+      </section>
+
+      <section class="results">
+        <div>
+          <h2>Estimate</h2>
+          <pre id="estimate">No estimate yet.</pre>
+        </div>
+        <div>
+          <h2>Build Log</h2>
+          <pre id="status">Ready.</pre>
+        </div>
       </section>
     </main>
     <script src="/app.js" type="module"></script>

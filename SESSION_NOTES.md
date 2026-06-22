@@ -428,6 +428,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 
 ---
 
+## 2026-06-22 - Model Router Coder build checkpoint 6
+
+**Asked:** Finish the usable prebuilder interface.
+
+**Did:** Added a practical frontend with sample JSON plan, budget input, dry-run button, build button, live SSE log display and zip download link. Updated README with UI capabilities.
+
+---
+
 ## 2026-06-22 — Grade Importer: score conversion, section editor, roster cleanup
 
 **Asked:** (1) Score conversion: state raw total + export max, convert on export. (2) Delete ID column from roster. (3) Clear placeholder text on Add Student inputs. (4) No way to add sections to existing assignment.
