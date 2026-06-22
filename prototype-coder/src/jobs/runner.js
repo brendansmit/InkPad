@@ -144,6 +144,10 @@ async function runJob(job, deps) {
 
     job.emit('generation:done', { generated: job.outputs.size });
 
+    if (job.outputs.size === 0) {
+      throw new Error('all tasks failed — no files were generated');
+    }
+
     const reviewLimit = pLimit(defaults.concurrency || 2);
     const rounds = defaults.reviewRounds ?? DEFAULTS.reviewRounds;
 
