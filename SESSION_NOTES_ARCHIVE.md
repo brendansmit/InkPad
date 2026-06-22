@@ -255,3 +255,19 @@
 
 ---
 
+
+---
+
+## 2026-06-20 — Launcher wired up for speed dating
+
+**Asked:** Wire up the InkHeron launcher button for speed dating so clicking it starts the app and opens the organiser console.
+
+**Did:**
+- Fixed `launcher/launcher_server.py`: NODE path `/usr/local/bin/node` (Node 16) → `/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node` (Node 20). Speed dating now opens `http://localhost:3464/public/organiser.html` instead of root.
+- Fixed `launcher/launcher.html`: Speed Dating card description updated from "Venue layout builder" → "Run a speed dating event".
+- Archived SESSION_NOTES entries from 2026-06-02 to 2026-06-11 to SESSION_NOTES_ARCHIVE.md.
+
+**Status:** App is ~90% complete. Only deployment remains (HK server setup, nginx, SSL, env vars, PM2).
+
+---
+

@@ -1,18 +1,5 @@
 # Session Notes
 
-## 2026-06-20 — Launcher wired up for speed dating
-
-**Asked:** Wire up the InkHeron launcher button for speed dating so clicking it starts the app and opens the organiser console.
-
-**Did:**
-- Fixed `launcher/launcher_server.py`: NODE path `/usr/local/bin/node` (Node 16) → `/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node` (Node 20). Speed dating now opens `http://localhost:3464/public/organiser.html` instead of root.
-- Fixed `launcher/launcher.html`: Speed Dating card description updated from "Venue layout builder" → "Run a speed dating event".
-- Archived SESSION_NOTES entries from 2026-06-02 to 2026-06-11 to SESSION_NOTES_ARCHIVE.md.
-
-**Status:** App is ~90% complete. Only deployment remains (HK server setup, nginx, SSL, env vars, PM2).
-
----
-
 ## 2026-06-20 — Speed dating organiser console + venue builder polish
 
 **Asked (multi-fix session):**
@@ -385,6 +372,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 **Asked:** Implement the full prompt-first workflow with preselected models.
 
 **Did:** Added a Claude Prompt input mode, OpenRouter API key field stored in localStorage, DeepSeek V4 Flash prompt-to-plan endpoint, review-depth and Kimi hard-file options, Advanced JSON mode and request-scoped API key handling for build jobs.
+
+---
+
+## 2026-06-22 - Model Router partial failure handling
+
+**Asked:** Fix builds failing when OpenRouter returns no message content, and add something stronger than `HANDOFF.md` because Codex may not read it.
+
+**Did:** Added OpenRouter empty-content retries and clearer errors. Changed per-file review/repair failures into warnings so the build can package the last usable file. Added generated root `AGENTS.md` with required first steps and unresolved issues. Added tests and a no-network package simulation for repair failure preservation.
 
 ---
 

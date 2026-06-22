@@ -42,6 +42,7 @@ export async function executeBuildPlan(plan, env, options = {}) {
         reviewer: review ? task.reviewer : null,
         reviews: result.reviews || [],
         knownIssues: result.knownIssues || [],
+        warnings: result.warnings || [],
         usage: result.usage || null
       });
       onEvent({ type: "task:done", taskId: task.id, path: task.path });
@@ -59,10 +60,18 @@ export async function generateReviewedFile(context) {
   let content = first.content;
   const usage = [first.usage].filter(Boolean);
   const reviews = [];
+  const warnings = [];
 
   for (let round = 1; review && round <= maxReviewRounds; round += 1) {
     onEvent({ type: "review:start", taskId: task.id, round, reviewer: task.reviewer });
-    const reviewResult = await review(plan, task, content, dependencies, env, round);
+    let reviewResult;
+    try {
+      reviewResult = await review(plan, task, content, dependencies, env, round);
+    } catch (error) {
+      warnings.push(warningIssue("review-failed", `Review round ${round} failed: ${error.message}`));
+      onEvent({ type: "review:failed", taskId: task.id, round, error: error.message });
+      break;
+    }
     reviews.push(reviewResult);
     if (reviewResult.usage) usage.push(reviewResult.usage);
     onEvent({
@@ -77,7 +86,14 @@ export async function generateReviewedFile(context) {
     }
 
     onEvent({ type: "repair:start", taskId: task.id, round, model: task.generator });
-    const repairResult = await repair(plan, task, content, reviewResult, dependencies, env, round);
+    let repairResult;
+    try {
+      repairResult = await repair(plan, task, content, reviewResult, dependencies, env, round);
+    } catch (error) {
+      warnings.push(warningIssue("repair-failed", `Repair round ${round} failed: ${error.message}`));
+      onEvent({ type: "repair:failed", taskId: task.id, round, error: error.message });
+      break;
+    }
     content = repairResult.content;
     if (repairResult.usage) usage.push(repairResult.usage);
     onEvent({ type: "repair:done", taskId: task.id, round });
@@ -87,7 +103,11 @@ export async function generateReviewedFile(context) {
   return {
     content,
     reviews,
-    knownIssues: lastReview && !lastReview.approved ? lastReview.issues : [],
+    knownIssues: [
+      ...(lastReview && !lastReview.approved ? lastReview.issues : []),
+      ...warnings
+    ],
+    warnings,
     usage
   };
 }
@@ -259,6 +279,15 @@ function normalizeIssue(issue) {
     evidence: String(issue.evidence || ""),
     problem: String(issue.problem || ""),
     fix: String(issue.fix || "")
+  };
+}
+
+function warningIssue(code, message) {
+  return {
+    severity: "high",
+    evidence: code,
+    problem: message,
+    fix: "Keep this generated file, but have Codex or Claude inspect and repair it before trusting the project."
   };
 }
 

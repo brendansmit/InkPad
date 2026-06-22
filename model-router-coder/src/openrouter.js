@@ -34,26 +34,31 @@ export async function createChatCompletion(env, request) {
   if (!env.OPENROUTER_API_KEY) {
     throw new Error("OPENROUTER_API_KEY is missing");
   }
-  const body = await requestJson(
-    "POST",
-    "https://openrouter.ai/api/v1/chat/completions",
-    openRouterHeaders(env, true),
-    {
-      model: request.model,
-      messages: request.messages,
-      temperature: request.temperature ?? 0.2,
-      max_tokens: request.maxTokens
+  const attempts = Math.max(1, Number(request.retries ?? 2));
+  let lastBody = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const body = await requestJson(
+      "POST",
+      "https://openrouter.ai/api/v1/chat/completions",
+      openRouterHeaders(env, true),
+      {
+        model: request.model,
+        messages: request.messages,
+        temperature: request.temperature ?? 0.2,
+        max_tokens: request.maxTokens
+      }
+    );
+    lastBody = body;
+    const content = body.choices?.[0]?.message?.content;
+    if (content) {
+      return {
+        content,
+        usage: body.usage || null,
+        raw: body
+      };
     }
-  );
-  const content = body.choices?.[0]?.message?.content;
-  if (!content) {
-    throw new Error("OpenRouter returned no message content");
   }
-  return {
-    content,
-    usage: body.usage || null,
-    raw: body
-  };
+  throw new Error(`OpenRouter returned no message content for ${request.model}. ${summarizeEmptyResponse(lastBody)}`);
 }
 
 export function openRouterHeaders(env, includeAuth = true) {
@@ -105,4 +110,15 @@ function requestJson(method, target, headers, body = null) {
     if (payload) req.write(payload);
     req.end();
   });
+}
+
+function summarizeEmptyResponse(body) {
+  if (!body) return "No response body.";
+  const choice = body.choices?.[0];
+  const parts = [
+    choice?.finish_reason ? `finish_reason=${choice.finish_reason}` : "",
+    body.error?.message ? `error=${body.error.message}` : "",
+    body.provider ? `provider=${body.provider}` : ""
+  ].filter(Boolean);
+  return parts.length ? parts.join(" ") : "Response had choices but no text content.";
 }

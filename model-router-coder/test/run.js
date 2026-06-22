@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { modelFamily, pickCrossFamilyReviewer, sameModelFamily } from "../src/families.js";
 import { createExecutionBatches, estimatePlanCost, parseBuildPlan } from "../src/plan.js";
 import { executeBuildPlan, executeGenerationPlan, parseReviewJson } from "../src/executor.js";
-import { cleanGeneratedContent, createHandoffReport, createZipBuffer } from "../src/output.js";
+import { cleanGeneratedContent, createAgentsInstructions, createHandoffReport, createZipBuffer } from "../src/output.js";
 import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody, requestEnv, requireApiKey } from "../src/api.js";
 import { buildPlannerPrompt, extractJson } from "../src/prompt-planner.js";
 
@@ -116,6 +116,29 @@ test("executeBuildPlan repairs after failed review", async () => {
   assert.equal(events.includes("repair:done"), true);
 });
 
+test("executeBuildPlan preserves content when repair fails", async () => {
+  const events = [];
+  const plan = parseBuildPlan({
+    defaults: { maxReviewRounds: 2 },
+    tasks: [{ id: "a", path: "a.txt", instruction: "A" }]
+  });
+  const outputs = await executeBuildPlan(plan, {}, {
+    onEvent: (event) => events.push(event.type),
+    generate: async () => ({ content: "last-good" }),
+    review: async () => ({
+      approved: false,
+      summary: "bug",
+      issues: [{ severity: "high", evidence: "x", problem: "broken", fix: "repair" }]
+    }),
+    repair: async () => {
+      throw new Error("OpenRouter returned no message content");
+    }
+  });
+  assert.equal(outputs[0].content, "last-good");
+  assert.equal(outputs[0].knownIssues.some((issue) => issue.evidence === "repair-failed"), true);
+  assert.equal(events.includes("repair:failed"), true);
+});
+
 test("parseReviewJson extracts fenced JSON", () => {
   const review = parseReviewJson("```json\n{\"approved\":true,\"summary\":\"ok\",\"issues\":[]}\n```");
   assert.equal(review.approved, true);
@@ -134,6 +157,16 @@ test("createHandoffReport includes known issues", () => {
     knownIssues: [{ severity: "high", problem: "Bug", fix: "Fix bug" }]
   }]);
   assert.equal(report.includes("Bug"), true);
+});
+
+test("createAgentsInstructions includes required first steps and issues", () => {
+  const plan = parseBuildPlan({ projectName: "Demo", stack: "Node", tasks: [{ id: "a", path: "a.js", instruction: "A" }] });
+  const report = createAgentsInstructions(plan, [{
+    path: "a.js",
+    knownIssues: [{ severity: "high", evidence: "repair-failed", problem: "Repair failed", fix: "Inspect it" }]
+  }]);
+  assert.equal(report.includes("Required First Steps"), true);
+  assert.equal(report.includes("Repair failed"), true);
 });
 
 test("createZipBuffer writes a zip archive", () => {

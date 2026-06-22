@@ -192,8 +192,10 @@ function formatEvent(event) {
   if (event.type === "task:done") return `${prefix} done ${event.taskId}`;
   if (event.type === "review:start") return `${prefix} review ${event.taskId} round ${event.round} (${event.reviewer})`;
   if (event.type === "review:done") return `${prefix} review ${event.taskId}: ${event.approved ? "approved" : `${event.issues} issues`}`;
+  if (event.type === "review:failed") return `${prefix} review failed ${event.taskId}: ${event.error}`;
   if (event.type === "repair:start") return `${prefix} repair ${event.taskId} round ${event.round}`;
   if (event.type === "package:ready") return `${prefix} package ready`;
+  if (event.type === "repair:failed") return `${prefix} repair failed ${event.taskId}: ${event.error}`;
   if (event.type === "error") return `${prefix} error: ${event.error}`;
   return `${prefix} ${event.type}`;
 }
