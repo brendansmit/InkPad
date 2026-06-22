@@ -16,29 +16,25 @@ const promptTab = document.querySelector("#tab-prompt");
 const jsonTab = document.querySelector("#tab-json");
 const estimateBox = document.querySelector("#estimate");
 const statusBox = document.querySelector("#status");
+let planSource = "empty";
 
 apiKeyInput.value = localStorage.getItem("model-router-openrouter-key") || "";
 apiKeyInput.addEventListener("input", () => {
   localStorage.setItem("model-router-openrouter-key", apiKeyInput.value.trim());
 });
 
-promptInput.value = [
-  "Build a small local web app.",
-  "",
-  "Tech stack: Node server, plain HTML, CSS and browser JavaScript. No paid premium APIs.",
-  "",
-  "Requirements:",
-  "- Create a clean usable first screen.",
-  "- Include install and run instructions.",
-  "- Keep files simple enough for Codex or Claude to finish later.",
-  "- Produce a working draft, not marketing copy."
-].join("\n");
-
-planInput.value = JSON.stringify(samplePlan(), null, 2);
+promptInput.value = "";
+planInput.value = "";
 refreshLatestDownload();
 
 promptTab.addEventListener("click", () => setMode("prompt"));
 jsonTab.addEventListener("click", () => setMode("json"));
+promptInput.addEventListener("input", () => {
+  planSource = "stale";
+});
+planInput.addEventListener("input", () => {
+  planSource = planInput.value.trim() ? "manual" : "empty";
+});
 
 modelButton.addEventListener("click", async () => {
   modelButton.disabled = true;
@@ -65,6 +61,7 @@ convertButton.addEventListener("click", async () => {
   statusBox.textContent = "Converting Claude prompt with DeepSeek V4 Flash...";
   try {
     requireApiKey();
+    requirePrompt();
     const response = await postJson("/api/plan", {
       prompt: promptInput.value,
       budgetUsd: Number(budgetInput.value || 4),
@@ -75,6 +72,7 @@ convertButton.addEventListener("click", async () => {
     const body = await response.json();
     if (!body.ok) throw new Error(body.error || "Prompt conversion failed");
     planInput.value = JSON.stringify(body.plan, null, 2);
+    planSource = "converted";
     setMode("json");
     statusBox.textContent = `Plan created with ${body.model}.\nTasks: ${body.plan.tasks.length}`;
   } catch (error) {
@@ -94,6 +92,7 @@ buildButton.addEventListener("click", async () => {
   statusBox.textContent = "Creating build job...";
   try {
     requireApiKey();
+    requireUsablePlan();
     const response = await postJson("/api/builds", buildPayload());
     const body = await response.json();
     if (!body.ok) throw new Error(body.error || "Build request failed");
@@ -109,10 +108,12 @@ async function dryRun() {
   dryRunButton.disabled = true;
   estimateBox.textContent = "Estimating...";
   try {
+    requireUsablePlan();
     const response = await postJson("/api/dry-run", buildPayload(false));
     const body = await response.json();
     if (!body.ok) throw new Error(body.error || "Dry run failed");
     planInput.value = JSON.stringify(body.plan, null, 2);
+    if (planSource === "manual") planSource = "manual";
     estimateBox.textContent = formatEstimate(body.estimate);
     statusBox.textContent = `Batches:\n${body.batches.map((batch, index) => `${index + 1}: ${batch.join(", ")}`).join("\n")}`;
   } catch (error) {
@@ -203,6 +204,33 @@ function requireApiKey() {
   }
 }
 
+function requirePrompt() {
+  if (!promptInput.value.trim()) {
+    throw new Error("Paste the Claude build prompt first");
+  }
+}
+
+function requireUsablePlan() {
+  if (!planInput.value.trim()) {
+    throw new Error("No task plan exists. Convert the Claude Prompt first or paste Advanced JSON.");
+  }
+  if (planSource === "stale") {
+    throw new Error("Prompt changed after conversion. Convert the prompt again before dry run or build.");
+  }
+  const plan = parsePlanInput();
+  if (isSamplePlan(plan)) {
+    throw new Error("Refusing to build the removed sample plan. Convert your real prompt first.");
+  }
+}
+
+function parsePlanInput() {
+  try {
+    return JSON.parse(planInput.value);
+  } catch {
+    throw new Error("Task plan JSON is invalid");
+  }
+}
+
 function formatEstimate(estimate) {
   return [
     `Budget: $${estimate.budgetUsd.toFixed(2)}`,
@@ -231,35 +259,12 @@ function price(raw) {
   return `$${(raw * 1_000_000).toFixed(3)}/M`;
 }
 
-function samplePlan() {
-  return {
-    projectName: "Example App",
-    stack: "Node, plain HTML, CSS",
-    budgetUsd: 4,
-    defaults: {
-      generator: "deepseek/deepseek-v4-pro",
-      reviewer: "qwen/qwen3-coder-flash",
-      maxReviewRounds: 2,
-      concurrency: 3
-    },
-    tasks: [
-      {
-        id: "package",
-        path: "package.json",
-        instruction: "Create a minimal package.json with start and check scripts."
-      },
-      {
-        id: "server",
-        path: "server.js",
-        dependsOn: ["package"],
-        instruction: "Create a small HTTP server that serves a health endpoint and static files."
-      },
-      {
-        id: "home",
-        path: "public/index.html",
-        dependsOn: ["server"],
-        instruction: "Create the main app UI."
-      }
-    ]
-  };
+function isSamplePlan(plan) {
+  return plan?.projectName === "Example App" &&
+    plan?.stack === "Node, plain HTML, CSS" &&
+    Array.isArray(plan.tasks) &&
+    plan.tasks.length === 3 &&
+    plan.tasks.some((task) => task.id === "package") &&
+    plan.tasks.some((task) => task.id === "server") &&
+    plan.tasks.some((task) => task.id === "home");
 }

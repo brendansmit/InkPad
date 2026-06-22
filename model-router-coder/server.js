@@ -6,7 +6,7 @@ import { loadEnv, fetchOpenRouterModels } from "./src/openrouter.js";
 import { executeBuildPlan } from "./src/executor.js";
 import { estimatePlanCost, modelPriceMap, parseBuildPlan, createExecutionBatches } from "./src/plan.js";
 import { writeBuildOutput } from "./src/output.js";
-import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody, requestEnv, requireApiKey } from "./src/api.js";
+import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody, rejectSamplePlan, requestEnv, requireApiKey } from "./src/api.js";
 import { createPlanFromPrompt } from "./src/prompt-planner.js";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
@@ -71,7 +71,7 @@ const server = createServer(async (req, res) => {
 
     if (req.method === "POST" && url.pathname === "/api/dry-run") {
       const body = await readJsonBody(req);
-      const plan = applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body);
+      const plan = rejectSamplePlan(applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body));
       const models = await fetchOpenRouterModels(env);
       const estimate = estimatePlanCost(plan, modelPriceMap(models));
       sendJson(res, 200, {
@@ -101,7 +101,7 @@ const server = createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const envForRequest = requestEnv(env, body);
       requireApiKey(envForRequest);
-      const plan = applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body);
+      const plan = rejectSamplePlan(applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body));
       const models = await fetchOpenRouterModels(env);
       const estimate = estimatePlanCost(plan, modelPriceMap(models));
       if (estimate.overBudget) {

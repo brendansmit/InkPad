@@ -3,7 +3,7 @@ import { modelFamily, pickCrossFamilyReviewer, sameModelFamily } from "../src/fa
 import { createExecutionBatches, estimatePlanCost, parseBuildPlan } from "../src/plan.js";
 import { executeBuildPlan, executeGenerationPlan, parseReviewJson } from "../src/executor.js";
 import { cleanGeneratedContent, createAgentsInstructions, createHandoffReport, createZipBuffer } from "../src/output.js";
-import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody, requestEnv, requireApiKey } from "../src/api.js";
+import { ApiError, applyBudgetOverride, planInputFromBody, readJsonBody, rejectSamplePlan, requestEnv, requireApiKey } from "../src/api.js";
 import { buildPlannerPrompt, extractJson } from "../src/prompt-planner.js";
 
 const tests = [];
@@ -189,6 +189,19 @@ test("api helpers validate request plans and budgets", () => {
   assert.throws(() => requireApiKey({}), /API key/);
 });
 
+test("api rejects removed sample plan", () => {
+  const sample = parseBuildPlan({
+    projectName: "Example App",
+    stack: "Node, plain HTML, CSS",
+    tasks: [
+      { id: "package", path: "package.json", instruction: "A" },
+      { id: "server", path: "server.js", instruction: "B" },
+      { id: "home", path: "public/index.html", instruction: "C" }
+    ]
+  });
+  assert.throws(() => rejectSamplePlan(sample), /removed sample plan/);
+});
+
 test("readJsonBody handles empty and invalid bodies", async () => {
   assert.deepEqual(await readJsonBody(asyncIterable([])), {});
   await assert.rejects(() => readJsonBody(asyncIterable(["{bad"])), ApiError);
@@ -209,7 +222,7 @@ test("download fallback route format is stable", () => {
 
 test("README plan shape remains parseable", () => {
   const plan = parseBuildPlan({
-    projectName: "Example App",
+    projectName: "Reference App",
     stack: "Node, plain HTML, CSS",
     budgetUsd: 4,
     defaults: {

@@ -363,6 +363,22 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 
 ---
 
+## 2026-06-22 - Model Router prompt vs output diagnosis
+
+**Asked:** Compare the AP Lang Reference Dashboard prompt against the downloaded Model Router output.
+
+**Did:** Found the output did not use the AP Lang prompt. The build-log shows it used the default "Example App" JSON plan, producing only package.json, server.js and public/index.html instead of the requested Express/SQLite/upload/admin/student app.
+
+---
+
+## 2026-06-22 - Model Router removed default sample plan
+
+**Asked:** Remove the default placeholder/sample prompt after it caused the wrong app to build.
+
+**Did:** Removed the prefilled prompt and prefilled Example App JSON. Added client-side guards so Dry Run and Build require a converted or manually pasted real plan. Added server-side rejection of the removed sample plan so it cannot be built even if the UI state fails.
+
+---
+
 ## 2026-06-22 — Grade Importer: score conversion, section editor, roster cleanup
 
 **Asked:** (1) Score conversion: state raw total + export max, convert on export. (2) Delete ID column from roster. (3) Clear placeholder text on Add Student inputs. (4) No way to add sections to existing assignment.
