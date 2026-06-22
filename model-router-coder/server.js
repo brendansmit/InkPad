@@ -15,6 +15,13 @@ const env = await loadEnv(join(rootDir, ".env"));
 const port = Number(env.PORT || 3470);
 const host = env.HOST || "127.0.0.1";
 const jobs = new Map();
+const FALLBACK_PRICES = new Map([
+  ["deepseek/deepseek-v4-pro", { inputPrice: 0.000000435, outputPrice: 0.00000087 }],
+  ["deepseek/deepseek-v4-flash", { inputPrice: 0.00000009, outputPrice: 0.00000018 }],
+  ["qwen/qwen3-coder-flash", { inputPrice: 0.000000195, outputPrice: 0.000000975 }],
+  ["qwen/qwen3-coder", { inputPrice: 0.00000022, outputPrice: 0.0000018 }],
+  ["moonshotai/kimi-k2.7-code", { inputPrice: 0.000000612, outputPrice: 0.000003069 }]
+]);
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -72,13 +79,15 @@ const server = createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname === "/api/dry-run") {
       const body = await readJsonBody(req);
       const plan = rejectSamplePlan(applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body));
-      const models = await fetchOpenRouterModels(env);
-      const estimate = estimatePlanCost(plan, modelPriceMap(models));
+      const prices = await getModelPrices();
+      const estimate = estimatePlanCost(plan, prices.prices);
       sendJson(res, 200, {
         ok: true,
         plan,
         batches: createExecutionBatches(plan.tasks).map((batch) => batch.map((task) => task.id)),
-        estimate
+        estimate,
+        priceSource: prices.source,
+        warning: prices.warning
       });
       return;
     }
@@ -102,10 +111,10 @@ const server = createServer(async (req, res) => {
       const envForRequest = requestEnv(env, body);
       requireApiKey(envForRequest);
       const plan = rejectSamplePlan(applyBudgetOverride(parseBuildPlan(planInputFromBody(body)), body));
-      const models = await fetchOpenRouterModels(env);
-      const estimate = estimatePlanCost(plan, modelPriceMap(models));
+      const prices = await getModelPrices();
+      const estimate = estimatePlanCost(plan, prices.prices);
       if (estimate.overBudget) {
-        sendJson(res, 400, { ok: false, error: "Dry-run estimate exceeds budget cap", estimate });
+        sendJson(res, 400, { ok: false, error: "Dry-run estimate exceeds budget cap", estimate, priceSource: prices.source });
         return;
       }
       const job = createJob(plan, estimate, envForRequest);
@@ -236,6 +245,27 @@ function finishJob(job, status) {
     client.end();
   }
   job.clients.clear();
+}
+
+async function getModelPrices() {
+  try {
+    const models = await withTimeout(fetchOpenRouterModels(env), 3000, "OpenRouter price fetch timed out");
+    return { prices: modelPriceMap(models), source: "openrouter" };
+  } catch (error) {
+    return {
+      prices: FALLBACK_PRICES,
+      source: "fallback",
+      warning: `Could not fetch live OpenRouter prices. Used built-in fallback prices. ${error.message}`
+    };
+  }
+}
+
+function withTimeout(promise, ms, message) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 async function sendZip(res, zipPath, filename) {

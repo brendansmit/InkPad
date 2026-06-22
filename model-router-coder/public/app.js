@@ -94,8 +94,8 @@ buildButton.addEventListener("click", async () => {
     requireApiKey();
     requireUsablePlan();
     const response = await postJson("/api/builds", buildPayload());
-    const body = await response.json();
-    if (!body.ok) throw new Error(body.error || "Build request failed");
+    const body = await readJsonResponse(response);
+    if (!body.ok) throw new Error(body.error || `Build request failed (${response.status})`);
     estimateBox.textContent = formatEstimate(body.estimate);
     watchJob(body.jobId);
   } catch (error) {
@@ -110,12 +110,17 @@ async function dryRun() {
   try {
     requireUsablePlan();
     const response = await postJson("/api/dry-run", buildPayload(false));
-    const body = await response.json();
-    if (!body.ok) throw new Error(body.error || "Dry run failed");
+    const body = await readJsonResponse(response);
+    if (!body.ok) throw new Error(body.error || `Dry run failed (${response.status})`);
     planInput.value = JSON.stringify(body.plan, null, 2);
     if (planSource === "manual") planSource = "manual";
     estimateBox.textContent = formatEstimate(body.estimate);
-    statusBox.textContent = `Batches:\n${body.batches.map((batch, index) => `${index + 1}: ${batch.join(", ")}`).join("\n")}`;
+    statusBox.textContent = [
+      `Price source: ${body.priceSource || "unknown"}`,
+      body.warning ? `Warning: ${body.warning}` : "",
+      "Batches:",
+      body.batches.map((batch, index) => `${index + 1}: ${batch.join(", ")}`).join("\n")
+    ].filter(Boolean).join("\n");
   } catch (error) {
     estimateBox.textContent = `Error: ${error.message}`;
   } finally {
@@ -188,6 +193,18 @@ function postJson(url, payload) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload)
   });
+}
+
+async function readJsonResponse(response) {
+  const text = await response.text();
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return {
+      ok: false,
+      error: `Server returned ${response.status} ${response.statusText}: ${text.slice(0, 220)}`
+    };
+  }
 }
 
 function setMode(mode) {
