@@ -20,7 +20,9 @@ function createApp(deps = {}) {
   app.locals.manager = manager;
   app.locals.createOpenRouter = _createOpenRouter;
 
-  app.use('/api/openrouter', require('./routes/openrouter'));
+  const { router: openrouterRouter, getModelCache } = require('./routes/openrouter');
+  app.use('/api/openrouter', openrouterRouter);
+  app.locals.getModelCache = getModelCache;
   app.use('/api/plan', require('./routes/plan'));
   app.use('/api/builds', require('./routes/builds'));
 

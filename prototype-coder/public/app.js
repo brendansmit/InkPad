@@ -126,7 +126,19 @@ dryRunBtn.addEventListener('click', async () => {
       throw new Error((data.issues || []).map((i) => `${i.path}: ${i.message}`).join('; '));
     }
     currentPlan = data.plan;
-    estimate.innerHTML = `valid · ${data.estimate.taskCount} tasks · estimated <b>$${data.estimate.totalUsd}</b> / budget $${data.estimate.budgetUsd}`;
+    let html = `valid · ${data.estimate.taskCount} tasks · estimated <b>$${data.estimate.totalUsd}</b> / budget $${data.estimate.budgetUsd}`;
+    if (data.modelWarnings?.length) {
+      html += `<div class="model-warnings">`;
+      for (const w of data.modelWarnings) {
+        if (w.suggestion) {
+          html += `<div class="mw-warn">⚠ ${escapeHtml(w.original)} not found — using <b>${escapeHtml(w.suggestion)}</b></div>`;
+        } else {
+          html += `<div class="mw-error">✕ ${escapeHtml(w.original)} not found on OpenRouter — no match</div>`;
+        }
+      }
+      html += `</div>`;
+    }
+    estimate.innerHTML = html;
     buildBtn.disabled = false;
   } catch (err) {
     estimate.innerHTML = `<span class="failed">Invalid plan:</span> ${escapeHtml(err.message)}`;

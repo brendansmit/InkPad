@@ -1,8 +1,9 @@
 const { Router } = require('express');
-const { CONVERSION_MODEL } = require('../config');
+const { CONVERSION_MODEL, DEFAULTS } = require('../config');
 const { validatePlan } = require('../utils/planValidator');
 const { estimatePlan } = require('../utils/estimator');
 const { conversionMessages } = require('../utils/prompts');
+const { validateModels } = require('../utils/modelFuzzy');
 
 const router = Router();
 
@@ -60,8 +61,30 @@ router.post('/dry-run', (req, res) => {
     return res.status(400).json({ error: 'Plan validation failed', issues: validation.errors });
   }
 
-  const estimate = estimatePlan(validation.plan);
-  res.json({ valid: true, plan: validation.plan, estimate });
+  const validated = validation.plan;
+  const estimate = estimatePlan(validated);
+
+  // Fuzzy-validate model IDs against the live OpenRouter model list
+  const modelCache = req.app.locals.getModelCache ? req.app.locals.getModelCache() : [];
+  let modelWarnings = [];
+  if (modelCache.length > 0) {
+    const usedIds = [
+      validated.defaults?.generator,
+      validated.defaults?.reviewer,
+      ...validated.tasks.flatMap(t => [t.generator, t.reviewer])
+    ].filter(Boolean);
+
+    const corrections = validateModels(usedIds, modelCache);
+    for (const [original, match] of Object.entries(corrections)) {
+      if (!match) {
+        modelWarnings.push({ original, suggestion: null, message: `"${original}" not found on OpenRouter — no close match` });
+      } else {
+        modelWarnings.push({ original, suggestion: match.id, message: `"${original}" → suggested "${match.id}"` });
+      }
+    }
+  }
+
+  res.json({ valid: true, plan: validated, estimate, modelWarnings });
 });
 
 module.exports = router;

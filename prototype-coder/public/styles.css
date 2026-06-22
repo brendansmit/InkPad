@@ -105,3 +105,7 @@ button:disabled {
 
 .connected { color: var(--success); }
 .failed { color: var(--danger); }
+
+.model-warnings { margin-top: 0.6rem; display: flex; flex-direction: column; gap: 4px; }
+.mw-warn  { font-size: 0.8rem; color: #fbbf24; }
+.mw-error { font-size: 0.8rem; color: var(--danger); }

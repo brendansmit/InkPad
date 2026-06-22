@@ -34,10 +34,12 @@ function createOpenRouter(apiKey) {
         } catch {
           data = text;
         }
-        const reachable = Array.isArray(data?.data) && data.data.length > 0;
-        return { connected: true, listReachable: reachable };
+        const models = Array.isArray(data?.data)
+          ? data.data.map(m => ({ id: m.id, name: m.name || m.id }))
+          : [];
+        return { connected: true, listReachable: models.length > 0, models };
       } catch (err) {
-        return { connected: false, listReachable: false, errorMessage: err.message };
+        return { connected: false, listReachable: false, errorMessage: err.message, models: [] };
       }
     },
 
