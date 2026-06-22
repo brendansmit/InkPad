@@ -12,11 +12,13 @@ Return ONLY a JSON object with these exact top-level fields:
 - tasks: array of { id, path, instruction, dependsOn, generator(optional), reviewer(optional), maxOutputTokens }
 
 CRITICAL RULES FOR TASKS:
-1. Each task instruction must be COMPLETE and SELF-CONTAINED. The generator sees ONLY the instruction and dependency file contents — it has no access to the original prompt. So every route, schema column, CSS variable, auth rule, field name, and behaviour must be written out explicitly in the instruction. Do not say "implement the API" — list every endpoint, method, auth requirement, and response shape. Do not say "follow the design" — copy the exact CSS variables, layout rules, and component specs into the instruction.
-2. Do not split backend logic from its data model. If server.js needs a database, include the exact schema (table name, column names, types, defaults) in the server.js instruction.
-3. reviewRounds must be at least 2 so repair passes can run.
-4. omit generator/reviewer/fastGenerator/hardGenerator from defaults — leave those as empty strings or omit them entirely.
-5. Tasks must have unique string ids. Paths must be relative file paths.`
+1. Each task instruction must be COMPLETE and SELF-CONTAINED. The generator sees ONLY the instruction and dependency file contents — it has no access to the original prompt. Every route, schema column, CSS variable, font, colour, auth rule, field name, API call, and behaviour must be written out explicitly in the instruction. Do not say "follow the design system" or "use the provided styles" — paste the actual CSS variable names and values, font names, layout measurements, and component specs directly into the instruction word for word.
+2. For every HTML or CSS file: paste the full list of CSS custom properties (--variable: value), the font stack, the exact colour hex codes, the layout structure (sidebar width, grid columns, spacing), and the interactive behaviour (what happens on click, hover, form submit). If the prompt specifies a design system, every detail of it goes into every HTML/CSS task that uses it.
+3. For every HTML file that fetches data: name the exact API endpoint, HTTP method, and response shape it must call. Do not say "fetch documents" — say "GET /api/docs returns [{id, title, views, uploaded_at}], render one card per item".
+4. Do not split backend logic from its data model. If server.js needs a database, include the exact schema (table name, column names, types, defaults) in the server.js instruction.
+5. reviewRounds must be at least 2 so repair passes can run.
+6. Omit generator/reviewer/fastGenerator/hardGenerator from defaults — leave those fields out entirely.
+7. Tasks must have unique string ids. Paths must be relative file paths.`
     },
     { role: 'user', content: prompt }
   ];

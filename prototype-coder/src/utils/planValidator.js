@@ -98,13 +98,19 @@ function validatePlan(raw) {
     )
   );
   const defaults = { ...DEFAULTS, ...planDefaults };
+  const LARGE_FILE_EXTS = new Set(['.html', '.js', '.ts', '.tsx', '.jsx', '.css', '.scss']);
   const correctedTasks = plan.tasks.map((t) => {
     const models = resolveTaskModels(t, defaults, {});
     // Absolute paths (e.g. /etc/nginx/...) are rewritten into deploy/ so packager never crashes
     const taskPath = t.path.startsWith('/')
       ? 'deploy' + t.path
       : t.path;
-    return { ...t, path: taskPath, ...models };
+    // Large file types get a higher token cap so generators don't truncate mid-file
+    const ext = require('path').extname(taskPath).toLowerCase();
+    const maxOutputTokens = t.maxOutputTokens && t.maxOutputTokens > 16000
+      ? t.maxOutputTokens
+      : LARGE_FILE_EXTS.has(ext) ? 16000 : t.maxOutputTokens;
+    return { ...t, path: taskPath, maxOutputTokens, ...models };
   });
 
   return { valid: true, plan: { ...plan, defaults, tasks: correctedTasks } };
