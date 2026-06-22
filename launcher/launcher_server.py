@@ -54,6 +54,11 @@ LAUNCHERS = {
         _wait(5095),
         _open("http://localhost:5095")
     ),
+    "model-router-coder": lambda: (
+        _bg([NODE, "server.js"], os.path.join(ROOT, "model-router-coder")) if not _port_open(3470) else None,
+        _wait(3470),
+        _open("http://127.0.0.1:3470")
+    ),
 }
 
 

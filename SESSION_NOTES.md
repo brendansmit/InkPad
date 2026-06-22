@@ -1,45 +1,5 @@
 # Session Notes
 
-## 2026-06-18–20 — Speed Dating app (multi-session build)
-
-**Asked:** Build a bilingual (EN + Simplified Chinese) speed dating event app. Organiser runs from laptop, guests use phones. AI ensemble matching via OpenRouter (DeepSeek v3.2 + Qwen 3.6 flash + Kimi K2). WebSockets for real-time push. SQLite persistence. Organiser accounts with JWT auth. Minimal results page (mutual matches + like count only, no profile data).
-
-**Architecture:** Three surfaces — phone browser, organiser console, big screen (projector/TV). Dual-mode: Online (hosted) vs Local (LAN).
-
-**Theme:** Deep plum (#1C1734), surface (#271F44), rose gold accent (#D38E7C / text #E7B0A0).
-
-**Built (all in speed-dating/):**
-- `matching.js` — bipartite max-weight matching, buildRound, buildSchedule, assignTables. 10 tests pass.
-- `scoring.js` — canonical scoring prompt, callOpenRouter, scorePeople, applyAgePenalty (k=2), strips markdown fences from model output. 9 tests pass.
-- `ensemble.js` — MODELS = ['deepseek/deepseek-v3.2', 'qwen/qwen3.6-flash', 'moonshotai/kimi-k2'], scoreEnsemble parallel with Promise.allSettled, normalise-then-median. 5 tests pass.
-- `event-store.js` — createEvent, addParticipant, scoreNewParticipant, startEvent, advanceRound, endRound, submitRating, requestExtend. 12 tests pass.
-- `server.js` — Fastify HTTP + WebSocket on port 3464. All event routes require organiser JWT except guest-facing ones. Routes: POST /events, /join, /start, /advance, /rate, /extend, /end-round, /topic, /help, /wechat-request, /registration-close, /vote; GET /results, /vote, /ws, /organiser/me; POST /organiser/login, /organiser/logout.
-- `db.js` — better-sqlite3, events + organisers tables.
-- `auth.js` — hashPassword (bcrypt), checkPassword, generateId.
-- `scripts/create-organiser.js` — CLI only way to create organiser accounts (no public signup).
-- `public/join.html` — multi-step registration flow (welcome, basics, interests, personality, photo, consent, code display). Reads from data/copy.json and data/interests.json. Stores {eventId, code} in localStorage.
-- `public/round.html` — round running + rating. WebSocket. States: waiting, round_start (partner/table/countdown/edge pulse), round_end/rating (traffic-light buttons + extend). Topic card + call organiser button.
-- `public/results.html` — minimal: mutual matches + like count only. WeChat request flow. Language toggle.
-- `public/screen.html` — big screen passive renderer. 6 states driven by WebSocket. Bell alert popup bottom-right. Countdown and edge pulse driven by server endTimestamp.
-- `public/organiser.html` — login gate. Event list view + event control view. Guest list, round controls, topic panel, group vote panel, bell alerts. Integrates src/venue-layout.js for room layout.
-- `data/copy.json` — all bilingual strings, EN + 简体, B1/B2, no idioms.
-- `data/interests.json` — 131 items, 17 categories, each {id, en, zh}.
-- `.env` (git-ignored): OPENROUTER_API_KEY, OPENROUTER_BASE_URL. NEVER commit. `.env.example` committed.
-- `mockups/event-app-surfaces.html` — full phone flow mockup (10 screens) + projector states.
-
-**All 70 tests passing.** Full smoke test passed: login → create event → join 2 guests → start → advance → rate both yes → end round → results shows 1 match → help ok.
-
-**Key bugs fixed:**
-- better-sqlite3 compiled for wrong Node version → `npm rebuild better-sqlite3` after every ChatGPT install.
-- DeepSeek wraps output in ```json fences → fence-stripping in scoring.js.
-- Node 16 on machine → installed Node 20 via nvm.
-- GLM slow (30s) → replaced with moonshotai/kimi-k2 (3.4s).
-- POST /advance rejected empty body → removed body schema requirement.
-
-**Security:** OpenRouter API key lives ONLY in .env (git-ignored). events.db git-ignored. No public organiser signup.
-
----
-
 ## 2026-06-20 — Launcher wired up for speed dating
 
 **Asked:** Wire up the InkHeron launcher button for speed dating so clicking it starts the app and opens the organiser console.
@@ -385,6 +345,14 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 **Asked:** Finish the usable prebuilder interface.
 
 **Did:** Added a practical frontend with sample JSON plan, budget input, dry-run button, build button, live SSE log display and zip download link. Updated README with UI capabilities.
+
+---
+
+## 2026-06-22 - Launcher: Model Router Coder
+
+**Asked:** Add Model Router Coder to the app launcher.
+
+**Did:** Added launcher entries for the web Flask launcher and the older Tkinter launcher. The web launcher starts `model-router-coder/server.js` on port 3470 and opens `http://127.0.0.1:3470`.
 
 ---
 

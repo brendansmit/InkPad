@@ -62,6 +62,13 @@ def launch_speed_dating():
         _wait(3464)
     _open("http://localhost:3464")
 
+def launch_model_router_coder():
+    d = os.path.join(ROOT, "model-router-coder")
+    if not _port_open(3470):
+        _bg([NODE, "server.js"], d)
+        _wait(3470)
+    _open("http://127.0.0.1:3470")
+
 
 # ── app definitions ────────────────────────────────────────────────────────────
 
@@ -71,6 +78,7 @@ APPS = [
     {"name": "Maestro",           "short": "M",  "desc": "Group & seating tool",       "color": "#10b981", "fn": launch_maestro},
     {"name": "BugSmash",          "short": "BS", "desc": "Code debugging helper",      "color": "#f59e0b", "fn": launch_bugsmash},
     {"name": "Speed\nDating",     "short": "SD", "desc": "Venue layout builder",       "color": "#ef4444", "fn": launch_speed_dating},
+    {"name": "Model\nRouter",     "short": "MR", "desc": "Cheap AI prebuilder",        "color": "#2563eb", "fn": launch_model_router_coder},
 ]
 
 
