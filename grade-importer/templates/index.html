@@ -820,6 +820,7 @@ async function selectAssignment(aid) {
   renderDetailSectionPills();
 
   // Load conversion values
+  currentScoreTotal = parseFloat(a.score_total) || 0;
   document.getElementById('conv-total').value  = a.score_total  ?? '';
   document.getElementById('conv-export').value = a.export_max   ?? '';
   updateConversionPreview();
@@ -947,8 +948,14 @@ async function refreshDetailScores() {
 }
 
 // ── score table ───────────────────────────────────────────────────────────────
+function pct(score) {
+  if (currentScoreTotal <= 0 || score === null || score === undefined || score === '') return '—';
+  return (Math.round(score / currentScoreTotal * 1000) / 10) + '%';
+}
+
 function renderScoreTable(scores, assignmentSections) {
   const hasSections = assignmentSections && assignmentSections.length > 0;
+  const showPct = currentScoreTotal > 0;
   let classBuckets = {};
   scores.forEach(s => {
     const k = s.task_class || 'Other';
@@ -956,7 +963,8 @@ function renderScoreTable(scores, assignmentSections) {
     classBuckets[k].push(s);
   });
 
-  const colSpan = hasSections ? assignmentSections.length + 3 : 4;
+  let colSpan = hasSections ? assignmentSections.length + 3 : 4;
+  if (showPct) colSpan++;
 
   let html = `<table><thead><tr>
     <th>English Name</th><th>Chinese Name</th><th>Class</th>`;
@@ -966,6 +974,7 @@ function renderScoreTable(scores, assignmentSections) {
   } else {
     html += `<th>Score</th>`;
   }
+  if (showPct) html += `<th style="color:#3b82f6">%</th>`;
   html += `</tr></thead><tbody>`;
 
   for (const [cls, studs] of Object.entries(classBuckets)) {
@@ -994,6 +1003,7 @@ function renderScoreTable(scores, assignmentSections) {
             placeholder="—" style="width:70px"></td>`;
         });
         html += `<td id="total-${s.student_id}" style="font-weight:600;color:#334155">${hasAny ? total : '—'}</td>`;
+        if (showPct) html += `<td id="pct-${s.student_id}" style="font-weight:600;color:#3b82f6">${hasAny ? pct(total) : '—'}</td>`;
       } else {
         const score = pending !== undefined ? pending.score : s.score;
         const scoreVal = score !== null && score !== undefined ? score : '';
@@ -1001,6 +1011,7 @@ function renderScoreTable(scores, assignmentSections) {
           value="${scoreVal}" min="0" step="0.5"
           oninput="markPending('${s.student_id}',this.value);scheduleAutosave()"
           placeholder="—" style="width:90px"></td>`;
+        if (showPct) html += `<td style="font-weight:600;color:#3b82f6">${pct(scoreVal !== '' ? parseFloat(scoreVal) : null)}</td>`;
       }
       html += `</tr>`;
     });
@@ -1025,8 +1036,9 @@ function markSectionScore(sid, section, val) {
     let sum = 0; let hasAny = false;
     inputs.forEach(inp => { if (inp.value !== '') { sum += parseFloat(inp.value) || 0; hasAny = true; } });
     totalEl.textContent = hasAny ? sum : '—';
-    // compute total score as sum
     pendingScores[sid].score = hasAny ? sum : null;
+    const pctEl = document.getElementById('pct-' + sid);
+    if (pctEl) pctEl.textContent = hasAny ? pct(sum) : '—';
   }
 }
 
@@ -1255,15 +1267,21 @@ async function saveConversion() {
   if (!currentAid) return;
   const total  = parseFloat(document.getElementById('conv-total').value)  || null;
   const expMax = parseFloat(document.getElementById('conv-export').value) || null;
+  currentScoreTotal = total || 0;
   await fetch(`/api/assignments/${currentAid}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ score_total: total, export_max: expMax })
   });
+  // Re-render so the % column appears/disappears based on whether total is set
+  const res = await fetch(`/api/assignments/${currentAid}`);
+  const data = await res.json();
+  renderScoreTable(data.scores, currentSections);
 }
 
 // ── detail section editor ─────────────────────────────────────────────────────
 let currentSections = [];
+let currentScoreTotal = 0;
 
 function renderDetailSectionPills() {
   const wrap = document.getElementById('detail-section-pills');
