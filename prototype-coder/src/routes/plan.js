@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { CONVERSION_MODEL, DEFAULTS } = require('../config');
+const { CONVERSION_MODEL, DEFAULTS, SPEC_DEFAULTS } = require('../config');
 const { validatePlan } = require('../utils/planValidator');
 const { estimatePlan } = require('../utils/estimator');
 const { conversionMessages } = require('../utils/prompts');
@@ -19,15 +19,17 @@ function extractJson(text) {
 }
 
 router.post('/convert', async (req, res) => {
-  const { apiKey, prompt } = req.body;
+  const { apiKey, prompt, mode = 'prototype' } = req.body;
   if (!apiKey || !prompt) {
     return res.status(400).json({ error: 'apiKey and prompt are required' });
   }
 
+  const convModel = CONVERSION_MODEL[mode] || CONVERSION_MODEL.prototype;
+
   try {
     const client = req.app.locals.createOpenRouter(apiKey);
     const result = await client.complete({
-      model: CONVERSION_MODEL,
+      model: convModel,
       messages: conversionMessages(prompt),
       temperature: 0.2,
       max_tokens: 32000,
@@ -46,17 +48,17 @@ router.post('/convert', async (req, res) => {
   } catch (err) {
     res.status(400).json({
       error: 'OpenRouter conversion failed',
-      model: CONVERSION_MODEL,
+      model: convModel,
       details: err.message
     });
   }
 });
 
 router.post('/dry-run', (req, res) => {
-  const { plan } = req.body;
+  const { plan, mode = 'prototype' } = req.body;
   if (!plan) return res.status(400).json({ error: 'plan is required' });
 
-  const validation = validatePlan(plan);
+  const validation = validatePlan(plan, mode);
   if (!validation.valid) {
     return res.status(400).json({ error: 'Plan validation failed', issues: validation.errors });
   }
@@ -64,7 +66,6 @@ router.post('/dry-run', (req, res) => {
   const validated = validation.plan;
   const estimate = estimatePlan(validated);
 
-  // Fuzzy-validate model IDs against the live OpenRouter model list
   const modelCache = req.app.locals.getModelCache ? req.app.locals.getModelCache() : [];
   let modelWarnings = [];
   if (modelCache.length > 0) {

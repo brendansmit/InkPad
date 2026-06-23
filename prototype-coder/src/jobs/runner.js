@@ -1,6 +1,6 @@
 const fs = require('fs');
 const pLimit = require('p-limit');
-const { DEFAULTS } = require('../config');
+const { DEFAULTS, SPEC_DEFAULTS } = require('../config');
 const { resolveTaskModels } = require('../utils/modelRouter');
 const { price, estimatePlan } = require('../utils/estimator');
 const { generationMessages, reviewMessages, repairMessages } = require('../utils/prompts');
@@ -97,7 +97,8 @@ async function repairFile(client, task, content, issues, repairer, defaults) {
 async function runJob(job, deps) {
   const { createOpenRouter, packageBuild } = deps;
   const client = createOpenRouter(job.apiKey);
-  const defaults = { ...DEFAULTS, ...(job.plan.defaults || {}), ...(job.options || {}) };
+  const modeBase = job.options?.mode === 'spec' ? SPEC_DEFAULTS : DEFAULTS;
+  const defaults = { ...modeBase, ...(job.plan.defaults || {}), ...(job.options || {}) };
   const budget = job.plan.budgetUsd || defaults.budgetUsd;
   const allowPartial = !!job.options.allowPartial;
 

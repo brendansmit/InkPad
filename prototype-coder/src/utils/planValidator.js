@@ -1,5 +1,6 @@
+const path = require('path');
 const { z } = require('zod');
-const { DEFAULTS } = require('../config');
+const { DEFAULTS, SPEC_DEFAULTS } = require('../config');
 const { resolveTaskModels } = require('./modelRouter');
 
 const taskSchema = z.object({
@@ -32,7 +33,9 @@ const planSchema = z.object({
   tasks: z.array(taskSchema).min(1)
 });
 
-function validatePlan(raw) {
+const LARGE_FILE_EXTS = new Set(['.html', '.js', '.ts', '.tsx', '.jsx', '.css', '.scss']);
+
+function validatePlan(raw, mode = 'prototype') {
   const result = planSchema.safeParse(raw);
   if (!result.success) {
     const errors = result.error.issues.map((i) => ({
@@ -91,25 +94,22 @@ function validatePlan(raw) {
     }
   }
 
-  // Strip placeholder model IDs from plan.defaults before merging
+  const modeBase = mode === 'spec' ? SPEC_DEFAULTS : DEFAULTS;
   const planDefaults = Object.fromEntries(
     Object.entries(plan.defaults || {}).filter(([k, v]) =>
-      !['generator','fastGenerator','hardGenerator','reviewer'].includes(k) || (v && v.includes('/'))
+      !['generator', 'fastGenerator', 'hardGenerator', 'reviewer'].includes(k) || (v && v.includes('/'))
     )
   );
-  const defaults = { ...DEFAULTS, ...planDefaults };
-  const LARGE_FILE_EXTS = new Set(['.html', '.js', '.ts', '.tsx', '.jsx', '.css', '.scss']);
+  const defaults = { ...modeBase, ...planDefaults };
+
   const correctedTasks = plan.tasks.map((t) => {
     const models = resolveTaskModels(t, defaults, {});
-    // Absolute paths (e.g. /etc/nginx/...) are rewritten into deploy/ so packager never crashes
-    const taskPath = t.path.startsWith('/')
-      ? 'deploy' + t.path
-      : t.path;
-    // Large file types get a higher token cap so generators don't truncate mid-file
-    const ext = require('path').extname(taskPath).toLowerCase();
-    const maxOutputTokens = t.maxOutputTokens && t.maxOutputTokens > 16000
-      ? t.maxOutputTokens
-      : LARGE_FILE_EXTS.has(ext) ? 16000 : t.maxOutputTokens;
+    const taskPath = t.path.startsWith('/') ? 'deploy' + t.path : t.path;
+    const ext = path.extname(taskPath).toLowerCase();
+    const maxOutputTokens =
+      t.maxOutputTokens && t.maxOutputTokens > 16000
+        ? t.maxOutputTokens
+        : LARGE_FILE_EXTS.has(ext) ? 16000 : t.maxOutputTokens;
     return { ...t, path: taskPath, maxOutputTokens, ...models };
   });
 
