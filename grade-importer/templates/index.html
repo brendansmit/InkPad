@@ -299,6 +299,13 @@
           </div>
           <div id="conv-preview" style="margin-top:18px;font-size:0.82rem;color:#3b82f6;font-weight:500;white-space:nowrap"></div>
         </div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.82rem;font-weight:600;color:#475569">Rounding</span>
+          <button id="round-0" onclick="setRounding(0)"
+            style="padding:3px 12px;border-radius:6px;border:1.5px solid #cbd5e1;background:#f1f5f9;font-size:0.8rem;cursor:pointer">0 dp</button>
+          <button id="round-1" onclick="setRounding(1)"
+            style="padding:3px 12px;border-radius:6px;border:1.5px solid #3b82f6;background:#eff6ff;color:#2563eb;font-size:0.8rem;cursor:pointer;font-weight:600">1 dp</button>
+        </div>
       </div>
 
       <div class="card">
@@ -824,6 +831,7 @@ async function selectAssignment(aid) {
   document.getElementById('conv-total').value  = a.score_total  ?? '';
   document.getElementById('conv-export').value = a.export_max   ?? '';
   updateConversionPreview();
+  applyRoundingUI(a.export_round ?? 1);
 
   // Populate section dropdown for CSV import
   const csvSecRow = document.getElementById('csv-section-row');
@@ -1263,6 +1271,29 @@ function updateConversionPreview() {
   }
 }
 
+let currentExportRound = 1;
+
+function applyRoundingUI(dp) {
+  currentExportRound = dp;
+  const btn0 = document.getElementById('round-0');
+  const btn1 = document.getElementById('round-1');
+  if (!btn0 || !btn1) return;
+  const active = 'padding:3px 12px;border-radius:6px;border:1.5px solid #3b82f6;background:#eff6ff;color:#2563eb;font-size:0.8rem;cursor:pointer;font-weight:600';
+  const idle   = 'padding:3px 12px;border-radius:6px;border:1.5px solid #cbd5e1;background:#f1f5f9;font-size:0.8rem;cursor:pointer';
+  btn0.style.cssText = dp === 0 ? active : idle;
+  btn1.style.cssText = dp === 1 ? active : idle;
+}
+
+async function setRounding(dp) {
+  if (!currentAid) return;
+  applyRoundingUI(dp);
+  await fetch(`/api/assignments/${currentAid}`, {
+    method: 'PATCH',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ export_round: dp })
+  });
+}
+
 async function saveConversion() {
   if (!currentAid) return;
   const total  = parseFloat(document.getElementById('conv-total').value)  || null;
@@ -1271,7 +1302,7 @@ async function saveConversion() {
   await fetch(`/api/assignments/${currentAid}`, {
     method: 'PATCH',
     headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ score_total: total, export_max: expMax })
+    body: JSON.stringify({ score_total: total, export_max: expMax, export_round: currentExportRound })
   });
   // Re-render so the % column appears/disappears based on whether total is set
   const res = await fetch(`/api/assignments/${currentAid}`);

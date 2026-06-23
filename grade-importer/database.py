@@ -70,6 +70,7 @@ def init_db():
             ("library_template_id","INTEGER"),
             ("score_total",        "REAL"),
             ("export_max",         "REAL"),
+            ("export_round",       "INTEGER DEFAULT 1"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE assignments ADD COLUMN {col} {definition}")
@@ -337,9 +338,9 @@ def update_assignment_sections(assignment_id, sections):
         )
 
 
-def update_assignment_conversion(assignment_id, score_total, export_max):
+def update_assignment_conversion(assignment_id, score_total, export_max, export_round=1):
     with get_conn() as conn:
         conn.execute(
-            "UPDATE assignments SET score_total=?, export_max=? WHERE id=?",
-            (score_total, export_max, assignment_id)
+            "UPDATE assignments SET score_total=?, export_max=?, export_round=? WHERE id=?",
+            (score_total, export_max, int(export_round) if export_round is not None else 1, assignment_id)
         )

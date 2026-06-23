@@ -127,11 +127,12 @@ def patch_assignment(aid):
     body = request.json or {}
     if "sections" in body:
         db.update_assignment_sections(aid, body["sections"])
-    if "score_total" in body or "export_max" in body:
+    if "score_total" in body or "export_max" in body or "export_round" in body:
         db.update_assignment_conversion(
             aid,
             body.get("score_total"),
-            body.get("export_max")
+            body.get("export_max"),
+            body.get("export_round", 1)
         )
     return jsonify({"ok": True})
 
@@ -275,12 +276,13 @@ def export_xls(aid):
     scores = db.get_scores_for_assignment(aid, a.get("class_filter"))
 
     # Apply score conversion if both values are set
-    score_total = a.get("score_total")
-    export_max  = a.get("export_max")
+    score_total  = a.get("score_total")
+    export_max   = a.get("export_max")
+    export_round = int(a.get("export_round") or 1)
     if score_total and export_max and score_total > 0:
         for s in scores:
             if s.get("score") is not None:
-                s["score"] = round(s["score"] / score_total * export_max, 1)
+                s["score"] = round(s["score"] / score_total * export_max, export_round)
 
     filled = xls_writer.fill_xls(tmpl["data"], scores)
 
@@ -302,4 +304,4 @@ def index():
 
 if __name__ == "__main__":
     db.init_db()
-    app.run(debug=True, port=5050)
+    app.run(debug=False, port=5050)

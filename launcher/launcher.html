@@ -94,6 +94,11 @@
     font-size: 0.78rem;
     margin-bottom: 2px;
   }
+  .sidebar-restart {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #1e293b;
+  }
 
   /* ── right: bento grid ───────────────────────────── */
   .bento {
@@ -269,6 +274,16 @@
       Click any card to open.<br>
       Servers start automatically.
     </div>
+    <div class="sidebar-restart">
+      <label style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;display:block;margin-bottom:7px">Restart server</label>
+      <select id="restart-select" style="width:100%;margin-bottom:8px;padding:5px 8px;border-radius:7px;border:1.5px solid #334155;background:#0f172a;color:#e2e8f0;font-size:0.8rem">
+        <option value="">— choose app —</option>
+      </select>
+      <button id="restart-btn" onclick="restartServer()" style="width:100%;padding:7px 0;border-radius:7px;border:none;background:#3b82f6;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;transition:opacity .15s">
+        ↺ Kill &amp; Restart
+      </button>
+      <div id="restart-msg" style="font-size:0.75rem;margin-top:6px;min-height:16px;color:#94a3b8"></div>
+    </div>
   </aside>
 
   <!-- Bento grid -->
@@ -333,6 +348,40 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add("show");
   toastTimer = setTimeout(() => toast.classList.remove("show"), 3000);
+}
+
+// Populate restart dropdown with server apps (those that have a port)
+const SERVER_APPS = APPS.filter(a => !["writing-analyzer", "server-dashboard"].includes(a.id));
+const restartSel = document.getElementById('restart-select');
+SERVER_APPS.forEach(a => {
+  const opt = document.createElement('option');
+  opt.value = a.id;
+  opt.textContent = a.name;
+  restartSel.appendChild(opt);
+});
+
+async function restartServer() {
+  const appId = restartSel.value;
+  if (!appId) { showToast('Choose an app first'); return; }
+  const app = APPS.find(a => a.id === appId);
+  const btn = document.getElementById('restart-btn');
+  const msg = document.getElementById('restart-msg');
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  msg.textContent = 'Stopping…';
+  try {
+    const res = await fetch(`/restart/${appId}`, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) throw new Error(body.error || 'Restart failed');
+    msg.style.color = '#10b981';
+    msg.textContent = `${app.name} restarted`;
+    showToast(`${app.name} restarted`);
+  } catch (err) {
+    msg.style.color = '#ef4444';
+    msg.textContent = err.message;
+  }
+  btn.disabled = false;
+  btn.style.opacity = '1';
 }
 </script>
 </body>

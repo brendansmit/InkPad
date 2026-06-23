@@ -22,7 +22,7 @@ def _port_open(port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         return s.connect_ex(("localhost", port)) == 0
 
-def _wait(port, timeout=12):
+def _wait(port, timeout=25):
     for _ in range(timeout * 5):
         if _port_open(port): return True
         time.sleep(0.2)
@@ -30,6 +30,9 @@ def _wait(port, timeout=12):
 
 def _bg(cmd, cwd, env=None):
     merged = {**os.environ, **(env or {})}
+    # Strip werkzeug reloader flag so child Flask apps don't think they're
+    # already inside a reloader child and skip binding their port.
+    merged.pop('WERKZEUG_RUN_MAIN', None)
     subprocess.Popen(cmd, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=merged)
 
 def _open(url):
@@ -111,6 +114,37 @@ def launch(app_id):
     if not cfg:
         return jsonify({"ok": False, "error": f"unknown app '{app_id}' — add it to launcher/apps.json"}), 404
 
+    try:
+        _dispatch(cfg)
+        return jsonify({"ok": True})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+@app.route("/restart/<app_id>", methods=["POST"])
+def restart_app(app_id):
+    try:
+        cfg = _load_cfg(app_id)
+    except Exception as e:
+        return jsonify({"ok": False, "error": f"could not read apps.json: {e}"}), 500
+    if not cfg:
+        return jsonify({"ok": False, "error": f"unknown app '{app_id}'"}), 404
+    port = cfg.get("port")
+    if not port:
+        return jsonify({"ok": False, "error": "app has no port (not a server)"}), 400
+
+    # Kill whatever is on that port
+    try:
+        result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True)
+        pids = result.stdout.strip().split()
+        for pid in pids:
+            if pid:
+                os.kill(int(pid), signal.SIGTERM)
+        if pids:
+            time.sleep(1)
+    except Exception:
+        pass
+
+    # Start fresh
     try:
         _dispatch(cfg)
         return jsonify({"ok": True})
