@@ -42,13 +42,11 @@
     border-right: 1px solid var(--faint);
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    padding: 36px 28px 28px;
+    padding: 28px 22px 24px;
     position: relative;
     overflow: hidden;
   }
 
-  /* Ink wash background accent */
   .sidebar::before {
     content: "";
     position: absolute;
@@ -60,33 +58,187 @@
 
   .logo-wrap {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 22px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--faint);
   }
   .logo-wrap img {
-    width: 72px;
-    height: 72px;
+    width: 42px; height: 42px;
     object-fit: contain;
-    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.12));
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.12));
   }
   .brand h1 {
     font-family: 'DM Serif Display', Georgia, serif;
-    font-size: 1.55rem;
+    font-size: 1.15rem;
     font-weight: 400;
-    line-height: 1.1;
+    line-height: 1.15;
     letter-spacing: -0.01em;
     color: var(--ink);
   }
-  .brand h1 em {
-    font-style: italic;
-    color: #3a5c42;
+  .brand h1 em { font-style: italic; color: #3a5c42; }
+
+  /* ── tabs ────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 18px;
+    border-bottom: 1.5px solid var(--faint);
+  }
+  .tab {
+    padding: 7px 14px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1.5px;
+    transition: color 0.14s, border-color 0.14s;
+    user-select: none;
+  }
+  .tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+  .tab:hover:not(.active) { color: color-mix(in srgb, var(--ink) 60%, var(--muted)); }
+
+  /* ── tab panels ──────────────────────────────────── */
+  .panel { display: none; flex: 1; flex-direction: column; overflow-y: auto; }
+  .panel.active { display: flex; }
+
+  /* ── Servers panel ───────────────────────────────── */
+  .server-card {
+    background: rgba(26,20,16,0.04);
+    border: 1px solid var(--faint);
+    border-radius: 11px;
+    padding: 13px 14px;
+    margin-bottom: 10px;
+  }
+  .server-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    display: inline-block;
+    margin-right: 6px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
+  }
+  .server-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+  .server-url {
+    font-size: 0.68rem;
+    color: var(--muted);
+    margin-bottom: 10px;
+    padding-left: 13px;
+  }
+  .server-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+  .sbtn {
+    font-size: 0.7rem;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--faint);
+    background: white;
+    color: var(--ink);
+    cursor: pointer;
+    text-decoration: none;
+    font-family: inherit;
+    transition: background 0.12s, border-color 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .sbtn:hover { background: var(--faint); border-color: #d0c9bc; }
+  .sbtn.restart { color: #b45309; border-color: #fde68a; background: #fffbeb; }
+  .sbtn.restart:hover { background: #fef3c7; }
+  .open-dashboard-btn {
+    width: 100%;
+    padding: 8px 0;
+    margin-bottom: 14px;
+    border-radius: 8px;
+    border: 1.5px solid var(--faint);
+    background: white;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .open-dashboard-btn:hover { background: var(--faint); border-color: #d0c9bc; }
+
+  .restart-msg {
+    font-size: 0.68rem;
+    margin-top: 6px;
+    min-height: 14px;
+    color: var(--muted);
   }
 
+  /* ── Apps panel ──────────────────────────────────── */
+  .apps-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .restart-block {
+    margin-bottom: 18px;
+  }
+  .block-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 7px;
+  }
+  .restart-sel {
+    width: 100%;
+    margin-bottom: 7px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    border: 1px solid var(--faint);
+    background: white;
+    color: var(--ink);
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .restart-btn-main {
+    width: 100%;
+    padding: 7px 0;
+    border-radius: 7px;
+    border: none;
+    background: var(--ink);
+    color: var(--paper);
+    font-weight: 700;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: opacity .15s;
+    font-family: inherit;
+  }
+  .restart-btn-main:hover { opacity: 0.85; }
+  .restart-result {
+    font-size: 0.72rem;
+    margin-top: 6px;
+    min-height: 14px;
+    color: var(--muted);
+  }
   .sidebar-footer {
     font-size: 0.72rem;
     color: var(--muted);
     line-height: 1.6;
+    padding-top: 14px;
+    border-top: 1px solid var(--faint);
   }
   .sidebar-footer strong {
     display: block;
@@ -94,32 +246,25 @@
     font-size: 0.78rem;
     margin-bottom: 2px;
   }
-  .sidebar-restart {
-    padding: 16px 0;
-    border-top: 1px solid #1e293b;
-    border-bottom: 1px solid #1e293b;
-  }
 
   /* ── right: bento grid ───────────────────────────── */
   .bento {
-    padding: 28px 28px 28px 28px;
+    padding: 28px;
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
     gap: 12px;
     height: 100vh;
   }
 
-  /* Card placements */
-  .card:nth-child(1) { grid-column: 1 / 4; grid-row: 1; }  /* Grade Importer — wide */
-  .card:nth-child(2) { grid-column: 4 / 7; grid-row: 1; }  /* Writing Analyzer — wide */
-  .card:nth-child(3) { grid-column: 1 / 3; grid-row: 2; }  /* Maestro */
-  .card:nth-child(4) { grid-column: 3 / 5; grid-row: 2; }  /* BugSmash */
-  .card:nth-child(5) { grid-column: 5 / 7; grid-row: 2; }  /* Speed Dating */
-  .card:nth-child(6) { grid-column: 1 / 3; grid-row: 3; }  /* Model Router */
-  .card:nth-child(7) { grid-column: 3 / 5; grid-row: 3; }  /* Prototype Coder */
-  .card:nth-child(8) { grid-column: 5 / 7; grid-row: 3; }  /* Server Dashboard */
-  .card:nth-child(9) { grid-column: 1 / 7; grid-row: 4; }  /* AP Lang Dashboard */
+  /* Card placements — 7 cards, 3 rows */
+  .card:nth-child(1) { grid-column: 1 / 4; grid-row: 1; }
+  .card:nth-child(2) { grid-column: 4 / 7; grid-row: 1; }
+  .card:nth-child(3) { grid-column: 1 / 3; grid-row: 2; }
+  .card:nth-child(4) { grid-column: 3 / 5; grid-row: 2; }
+  .card:nth-child(5) { grid-column: 5 / 7; grid-row: 2; }
+  .card:nth-child(6) { grid-column: 1 / 4; grid-row: 3; }
+  .card:nth-child(7) { grid-column: 4 / 7; grid-row: 3; }
 
   /* Per-card accent colours */
   .card:nth-child(1) { --accent: var(--c1); --accent-bg: #eef4ff; }
@@ -129,8 +274,6 @@
   .card:nth-child(5) { --accent: var(--c5); --accent-bg: #fff0f0; }
   .card:nth-child(6) { --accent: #2563eb;   --accent-bg: #eef4ff; }
   .card:nth-child(7) { --accent: #0e7490;   --accent-bg: #ecfeff; }
-  .card:nth-child(8) { --accent: #2d6a4f;   --accent-bg: #edf5f0; }
-  .card:nth-child(9) { --accent: #246343;   --accent-bg: #EAF3EC; }
 
   /* ── card base ───────────────────────────────────── */
   .card {
@@ -148,8 +291,6 @@
                 box-shadow 0.2s ease,
                 border-color 0.2s ease;
   }
-
-  /* Ghost number watermark */
   .card::before {
     content: attr(data-num);
     position: absolute;
@@ -164,18 +305,13 @@
     transition: opacity 0.2s ease, transform 0.2s ease;
     user-select: none;
   }
-  .card:hover::before {
-    opacity: 0.13;
-    transform: scale(1.05) translateY(-4px);
-  }
-
+  .card:hover::before { opacity: 0.13; transform: scale(1.05) translateY(-4px); }
   .card:hover {
     transform: translateY(-4px);
     box-shadow: 0 16px 40px color-mix(in srgb, var(--accent) 14%, transparent);
     border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   }
   .card:active { transform: translateY(-1px) scale(0.99); }
-
   .card.launching {
     border-color: var(--accent);
     animation: cardpulse 0.9s ease-in-out infinite;
@@ -184,8 +320,6 @@
     0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
     50%       { box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 0%, transparent); }
   }
-
-  /* Card top: number pill + arrow */
   .card-top {
     display: flex;
     justify-content: space-between;
@@ -213,13 +347,7 @@
     transition: background 0.15s, transform 0.15s;
     flex-shrink: 0;
   }
-  .card:hover .card-arrow {
-    background: var(--accent);
-    color: #fff;
-    transform: rotate(45deg);
-  }
-
-  /* Card bottom */
+  .card:hover .card-arrow { background: var(--accent); color: #fff; transform: rotate(45deg); }
   .card-name {
     font-family: 'DM Serif Display', Georgia, serif;
     font-size: 1.45rem;
@@ -230,8 +358,9 @@
     margin-bottom: 5px;
   }
   .card:nth-child(1) .card-name,
-  .card:nth-child(2) .card-name { font-size: 1.7rem; }
-
+  .card:nth-child(2) .card-name,
+  .card:nth-child(6) .card-name,
+  .card:nth-child(7) .card-name { font-size: 1.7rem; }
   .card-desc {
     font-size: 0.76rem;
     font-weight: 400;
@@ -239,7 +368,7 @@
     letter-spacing: 0.01em;
   }
 
-  /* ── status toast ────────────────────────────────── */
+  /* ── toast ───────────────────────────────────────── */
   .toast {
     position: fixed;
     bottom: 24px; left: 50%; transform: translateX(-50%) translateY(12px);
@@ -253,10 +382,7 @@
     pointer-events: none;
     white-space: nowrap;
   }
-  .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
 </head>
 <body>
@@ -265,27 +391,69 @@
 
   <!-- Sidebar -->
   <aside class="sidebar">
+
+    <!-- Logo — always visible -->
     <div class="logo-wrap">
       <img src="/logo" alt="InkHeron">
       <div class="brand">
-        <h1>Ink<em>Heron</em><br>Apps</h1>
+        <h1>Ink<em>Heron</em> Apps</h1>
       </div>
     </div>
-    <div class="sidebar-restart">
-      <label style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;display:block;margin-bottom:7px">Restart server</label>
-      <select id="restart-select" style="width:100%;margin-bottom:8px;padding:5px 8px;border-radius:7px;border:1.5px solid #334155;background:#0f172a;color:#e2e8f0;font-size:0.8rem">
-        <option value="">— choose app —</option>
-      </select>
-      <button id="restart-btn" onclick="restartServer()" style="width:100%;padding:7px 0;border-radius:7px;border:none;background:#3b82f6;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;transition:opacity .15s">
-        ↺ Kill &amp; Restart
-      </button>
-      <div id="restart-msg" style="font-size:0.75rem;margin-top:6px;min-height:16px;color:#94a3b8"></div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="servers">Servers</div>
+      <div class="tab"        data-tab="apps">Apps</div>
     </div>
-    <div class="sidebar-footer">
-      <strong>9 tools</strong>
-      Click any card to open.<br>
-      Servers start automatically.
+
+    <!-- Servers panel -->
+    <div class="panel active" id="panel-servers">
+
+      <button class="open-dashboard-btn" onclick="launchDashboard()">↗ Open Server Dashboard</button>
+
+      <div class="server-card">
+        <div class="server-name"><span class="server-dot"></span>Speed Dating</div>
+        <div class="server-url">speeddating.inkheron.app</div>
+        <div class="server-actions">
+          <a class="sbtn" href="https://speeddating.inkheron.app" target="_blank">↗ Open</a>
+          <a class="sbtn" href="https://speeddating.inkheron.app/public/organiser.html" target="_blank">↗ Organiser</a>
+          <button class="sbtn restart" onclick="restartServer('speed-dating', this)">↺ Restart</button>
+        </div>
+        <div class="restart-msg" id="msg-speed-dating"></div>
+      </div>
+
+      <div class="server-card">
+        <div class="server-name"><span class="server-dot"></span>AP Lang Library</div>
+        <div class="server-url">lang.inkheron.app</div>
+        <div class="server-actions">
+          <a class="sbtn" href="https://lang.inkheron.app" target="_blank">↗ Library</a>
+          <a class="sbtn" href="https://lang.inkheron.app/admin.html" target="_blank">↗ Admin</a>
+          <button class="sbtn restart" onclick="restartServer('ap-lang-dashboard', this)">↺ Restart</button>
+        </div>
+        <div class="restart-msg" id="msg-ap-lang-dashboard"></div>
+      </div>
+
     </div>
+
+    <!-- Apps panel -->
+    <div class="panel" id="panel-apps">
+      <div class="apps-section">
+        <div class="restart-block">
+          <span class="block-label">Restart local server</span>
+          <select id="restart-select" class="restart-sel">
+            <option value="">— choose app —</option>
+          </select>
+          <button class="restart-btn-main" onclick="restartLocal()">↺ Kill &amp; Restart</button>
+          <div class="restart-result" id="restart-result"></div>
+        </div>
+        <div class="sidebar-footer">
+          <strong>7 tools</strong>
+          Click any card to open.<br>
+          Servers start automatically.
+        </div>
+      </div>
+    </div>
+
   </aside>
 
   <!-- Bento grid -->
@@ -297,18 +465,17 @@
 
 <script>
 const APPS = [
-  { id: "grade-importer",   name: "Grade Importer",   desc: "Import & export grades",    num: "01" },
-  { id: "writing-analyzer", name: "Writing Analyzer", desc: "Essay revision tracker",    num: "02" },
-  { id: "maestro",          name: "Maestro",          desc: "Group & seating tool",      num: "03" },
-  { id: "bugsmash",         name: "BugSmash",         desc: "Code debugging helper",     num: "04" },
-  { id: "speed-dating",      name: "Speed Dating",      desc: "Run a speed dating event",           num: "05" },
-  { id: "model-router-coder", name: "Model Router",     desc: "Cheap AI prebuilder with cross-family review", num: "06" },
-  { id: "prototype-coder",   name: "Prototype Coder",  desc: "OpenRouter scaffold builder · generate, review, repair", num: "07" },
-  { id: "server-dashboard",  name: "SpeedDating App Server Dashboard",  desc: "Deploy updates · view logs · restart the live server on speeddating.inkheron.app",  num: "08" },
-  { id: "ap-lang-dashboard", name: "AP Lang Library",                  desc: "Student reference library · upload & manage HTML documents · live at lang.inkheron.app", num: "09" },
+  { id: "grade-importer",    name: "Grade Importer",  desc: "Import & export grades",                                        num: "01" },
+  { id: "writing-analyzer",  name: "Writing Analyzer",desc: "Essay revision tracker",                                        num: "02" },
+  { id: "maestro",           name: "Maestro",         desc: "Group & seating tool",                                          num: "03" },
+  { id: "bugsmash",          name: "BugSmash",        desc: "Code debugging helper",                                         num: "04" },
+  { id: "speed-dating",      name: "Speed Dating",    desc: "Run a speed dating event",                                      num: "05" },
+  { id: "model-router-coder",name: "Model Router",    desc: "Cheap AI prebuilder with cross-family review",                  num: "06" },
+  { id: "prototype-coder",   name: "Prototype Coder", desc: "OpenRouter scaffold builder · generate, review, repair",        num: "07" },
 ];
 
-const grid  = document.getElementById("grid");
+// ── Bento grid ──────────────────────────────────────────
+const grid = document.getElementById("grid");
 const toast = document.getElementById("toast");
 let toastTimer;
 
@@ -334,14 +501,12 @@ async function launch(app, card) {
   card.classList.add("launching");
   showToast(`Launching ${app.name}…`);
   try {
-    const response = await fetch(`/launch/${app.id}`);
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok || !body.ok) {
-      throw new Error(body.error || "Launch failed");
-    }
+    const res = await fetch(`/launch/${app.id}`);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) throw new Error(body.error || "Launch failed");
     showToast(`${app.name} is open`);
-  } catch (error) {
-    showToast(`Could not launch ${app.name}: ${error.message}`);
+  } catch (err) {
+    showToast(`Could not launch ${app.name}: ${err.message}`);
   }
   setTimeout(() => card.classList.remove("launching"), 1500);
 }
@@ -353,8 +518,50 @@ function showToast(msg) {
   toastTimer = setTimeout(() => toast.classList.remove("show"), 3000);
 }
 
-// Populate restart dropdown with server apps (those that have a port)
-const SERVER_APPS = APPS.filter(a => !["writing-analyzer", "server-dashboard"].includes(a.id));
+async function launchDashboard() {
+  showToast('Opening Server Dashboard…');
+  try {
+    const res = await fetch('/launch/server-dashboard');
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) throw new Error(body.error || 'Launch failed');
+    showToast('Server Dashboard is open');
+  } catch (err) {
+    showToast(`Could not open dashboard: ${err.message}`);
+  }
+}
+
+// ── Tab switching ───────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Live server restart (Servers panel) ────────────────
+async function restartServer(appId, btn) {
+  const msgEl = document.getElementById('msg-' + appId);
+  btn.disabled = true;
+  msgEl.style.color = 'var(--muted)';
+  msgEl.textContent = 'Restarting…';
+  try {
+    const res = await fetch(`/restart/${appId}`, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.ok) throw new Error(body.error || 'Failed');
+    msgEl.style.color = '#059669';
+    msgEl.textContent = 'Restarted ✓';
+    setTimeout(() => msgEl.textContent = '', 4000);
+  } catch (err) {
+    msgEl.style.color = '#dc2626';
+    msgEl.textContent = err.message;
+  }
+  btn.disabled = false;
+}
+
+// ── Local server restart (Apps panel) ──────────────────
+const SERVER_APPS = APPS.filter(a => !["writing-analyzer"].includes(a.id));
 const restartSel = document.getElementById('restart-select');
 SERVER_APPS.forEach(a => {
   const opt = document.createElement('option');
@@ -363,28 +570,24 @@ SERVER_APPS.forEach(a => {
   restartSel.appendChild(opt);
 });
 
-async function restartServer() {
+async function restartLocal() {
   const appId = restartSel.value;
   if (!appId) { showToast('Choose an app first'); return; }
   const app = APPS.find(a => a.id === appId);
-  const btn = document.getElementById('restart-btn');
-  const msg = document.getElementById('restart-msg');
-  btn.disabled = true;
-  btn.style.opacity = '0.6';
-  msg.textContent = 'Stopping…';
+  const resultEl = document.getElementById('restart-result');
+  resultEl.style.color = 'var(--muted)';
+  resultEl.textContent = 'Stopping…';
   try {
     const res = await fetch(`/restart/${appId}`, { method: 'POST' });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || !body.ok) throw new Error(body.error || 'Restart failed');
-    msg.style.color = '#10b981';
-    msg.textContent = `${app.name} restarted`;
+    resultEl.style.color = '#059669';
+    resultEl.textContent = `${app.name} restarted`;
     showToast(`${app.name} restarted`);
   } catch (err) {
-    msg.style.color = '#ef4444';
-    msg.textContent = err.message;
+    resultEl.style.color = '#dc2626';
+    resultEl.textContent = err.message;
   }
-  btn.disabled = false;
-  btn.style.opacity = '1';
 }
 </script>
 </body>

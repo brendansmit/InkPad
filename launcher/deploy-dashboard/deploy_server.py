@@ -1,12 +1,32 @@
 import subprocess, threading, os, json, time
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 
 app = Flask(__name__, static_folder='.', static_url_path='')
 
 SSH_KEY  = os.path.expanduser('~/.ssh/id_ed25519')
 SSH_HOST = 'root@167.172.71.219'
-LOCAL_REPO = os.path.expanduser('~/Documents/Claude/speed-dating')
-APP_NAME = 'speed-dating'
+
+SERVERS = {
+    'speed-dating': {
+        'pm2_name':    'speed-dating',
+        'local_repo':  os.path.expanduser('~/Documents/Claude/speed-dating'),
+        'remote_path': '/var/www/speed-dating',
+        'npm_restart': 'pm2 restart speed-dating',
+        'label':       'speeddating.inkheron.app',
+    },
+    'ap-lang': {
+        'pm2_name':    'ap-lang',
+        'local_repo':  os.path.expanduser('~/Documents/Claude/ap-lang-dashboard'),
+        'remote_path': '/var/www/ap-lang-dashboard',
+        'npm_install': 'rm -rf node_modules && npm install --omit=dev',
+        'npm_restart': 'pm2 restart ap-lang',
+        'label':       'lang.inkheron.app',
+    },
+}
+
+def get_server():
+    key = request.args.get('server', 'speed-dating')
+    return SERVERS.get(key) or SERVERS['speed-dating']
 
 def ssh(cmd, timeout=20):
     result = subprocess.run(
@@ -22,53 +42,69 @@ def index():
 
 @app.route('/api/status')
 def status():
+    srv = get_server()
     try:
         out, ok = ssh('pm2 jlist', timeout=10)
         processes = json.loads(out.strip())
-        sd = next((p for p in processes if p['name'] == APP_NAME), None)
-        if sd:
-            env = sd.get('pm2_env', {})
-            monit = sd.get('monit', {})
+        proc = next((p for p in processes if p['name'] == srv['pm2_name']), None)
+        if proc:
+            env = proc.get('pm2_env', {})
+            monit = proc.get('monit', {})
             uptime_ms = int(time.time() * 1000) - env.get('pm_uptime', 0)
             return jsonify({
-                'online': env.get('status') == 'online',
-                'status': env.get('status', 'unknown'),
-                'uptime_ms': uptime_ms,
-                'restarts': env.get('restart_time', 0),
-                'memory_mb': round(monit.get('memory', 0) / 1024 / 1024, 1),
-                'cpu': monit.get('cpu', 0),
+                'online':     env.get('status') == 'online',
+                'status':     env.get('status', 'unknown'),
+                'uptime_ms':  uptime_ms,
+                'restarts':   env.get('restart_time', 0),
+                'memory_mb':  round(monit.get('memory', 0) / 1024 / 1024, 1),
+                'cpu':        monit.get('cpu', 0),
+                'label':      srv['label'],
             })
-        return jsonify({'online': False, 'status': 'not found'})
+        return jsonify({'online': False, 'status': 'not found', 'label': srv['label']})
     except Exception as e:
-        return jsonify({'online': False, 'status': 'unreachable', 'error': str(e)})
+        return jsonify({'online': False, 'status': 'unreachable', 'error': str(e), 'label': srv['label']})
 
 @app.route('/api/deploy', methods=['POST'])
 def deploy():
+    srv = get_server()
     lines = []
-    # 1. local git push
+
     push = subprocess.run(
         ['git', 'push', 'origin', 'main'],
-        capture_output=True, text=True, cwd=LOCAL_REPO
+        capture_output=True, text=True, cwd=srv['local_repo']
     )
     lines.append('$ git push origin main')
     lines.append((push.stdout + push.stderr).strip() or '(no output)')
-    # 2. remote pull + restart
-    lines.append('\n$ ssh: git pull && npm install --omit=dev && pm2 restart speed-dating')
-    out, ok = ssh(
-        'cd /var/www/speed-dating && git pull && npm install --omit=dev && pm2 restart speed-dating',
-        timeout=90
+
+    npm_install = srv.get('npm_install', 'npm install --omit=dev')
+    remote_cmd = (
+        f"cd {srv['remote_path']} && "
+        f"git pull && {npm_install} && {srv['npm_restart']}"
     )
+    lines.append(f'\n$ ssh: git pull && {npm_install} && {srv["npm_restart"]}')
+    out, ok = ssh(remote_cmd, timeout=90)
     lines.append(out.strip() or '(no output)')
     return jsonify({'output': '\n'.join(lines), 'success': ok})
 
 @app.route('/api/logs')
 def logs():
-    out, _ = ssh('pm2 logs speed-dating --lines 60 --nostream --raw', timeout=15)
+    srv = get_server()
+    out, _ = ssh(f"pm2 logs {srv['pm2_name']} --lines 60 --nostream --raw", timeout=15)
     return jsonify({'output': out or '(no logs)'})
 
 @app.route('/api/restart', methods=['POST'])
 def restart():
-    out, ok = ssh('pm2 restart speed-dating', timeout=15)
+    srv = get_server()
+    out, ok = ssh(srv['npm_restart'], timeout=15)
+    return jsonify({'output': out.strip() or '(no output)', 'success': ok})
+
+@app.route('/api/run', methods=['POST'])
+def run_cmd():
+    data = request.get_json(silent=True) or {}
+    cmd = (data.get('cmd') or '').strip()
+    if not cmd:
+        return jsonify({'output': '(no command)', 'success': False})
+    out, ok = ssh(cmd, timeout=30)
     return jsonify({'output': out.strip() or '(no output)', 'success': ok})
 
 @app.route('/api/ssh', methods=['POST'])
