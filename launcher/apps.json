@@ -51,6 +51,13 @@
     "port": 5095,
     "url": "http://localhost:5095"
   },
+  "ap-lang-dashboard": {
+    "runtime": "node",
+    "entry": "server.js",
+    "cwd": "ap-lang-dashboard",
+    "port": 3000,
+    "url": "http://localhost:3000"
+  },
   "_aliases": {
     "bug-detector": "bugsmash",
     "debugger": "bugsmash",
