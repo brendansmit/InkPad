@@ -20,6 +20,20 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 1 Step 1.8 backups and basics
+- Phase/Step worked: Phase 1, Step 1.8
+- Built: Added `ops/backup.sh`, `ops/RESTORE.md` and `ops/SECURITY.md`. Installed `sqlite3` on
+  the droplet, created root-only `/etc/inkheron/backup.key`, installed
+  `/usr/local/sbin/inkheron-backup`, added `/etc/cron.d/inkheron-backup` for nightly 03:15
+  backups, and produced `/var/backups/inkheron/inkheron-20260625T112543Z.tar.gz.enc`.
+- Decisions: Backups include `/opt/inkheron-platform/data/inkheron.db` and
+  `/opt/etherpad-lite/var/etherpad.sqlite`, encrypted with OpenSSL AES-256-CBC and PBKDF2.
+  Current droplet root disk was not converted to full-disk encryption in place; documented that
+  true FDE needs a planned rebuild or encrypted volume migration.
+- Open / next: Phase 1 exit check, then Phase 2 identity and auth.
+- Gotchas hit: Backup directory is root-only, so restore tests need `sudo` to find the encrypted
+  backup file. Restore test passed with `PRAGMA integrity_check` returning `ok` for both DBs.
+
 ## 2026-06-25 — Phase 1 Step 1.7 SQLite schema
 - Phase/Step worked: Phase 1, Step 1.7
 - Built: Added `migrations/001_initial_schema.sql` and a Node migration runner at
