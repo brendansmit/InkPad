@@ -20,6 +20,18 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 1 Step 1.4 Caddy HTTPS and WebSocket
+- Phase/Step worked: Phase 1, Step 1.4
+- Built: Installed Caddy `2.6.2`, configured `/etc/caddy/Caddyfile` for
+  `inkpad.inkheron.app`, reverse-proxied to Etherpad on `127.0.0.1:9001`, obtained a valid
+  Let's Encrypt certificate and enabled Caddy at boot.
+- Decisions: Disabled nginx and left it installed. Backed up nginx config under
+  `/root/inkheron-backups/nginx-before-caddy-*` before handing ports 80 and 443 to Caddy.
+- Open / next: Phase 1, Step 1.5 reachability from China VPN-off and third-party checks.
+- Gotchas hit: Ports 80 and 443 were occupied by nginx serving an older Express/static app from
+  this reused droplet. Caddy passes WebSocket by default; verified with a public `wss://`
+  Socket.IO handshake returning an Engine.IO session id.
+
 ## 2026-06-25 — Phase 1 Step 1.3 Etherpad local install
 - Phase/Step worked: Phase 1, Step 1.3
 - Built: Installed Etherpad under `/opt/etherpad-lite`, pinned to stable `v3.3.2`, upgraded Node
