@@ -20,6 +20,19 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 1 Step 1.5 reachability checks started
+- Phase/Step worked: Phase 1, Step 1.5
+- Built: Verified `inkpad.inkheron.app` resolves to `167.172.71.219` through Chinese public DNS
+  resolvers AliDNS `223.5.5.5` and DNSPod `119.29.29.29`. Re-verified public HTTPS returns
+  `200` from Caddy and WebSocket upgrade returns an Engine.IO session id through
+  `wss://inkpad.inkheron.app/socket.io/`.
+- Decisions: Did not mark Step 1.5 complete because the done condition requires a real China
+  mobile-data VPN-off browser test with live pad editing.
+- Open / next: Run `https://inkpad.inkheron.app/` from Chinese mobile data with VPN off, open a
+  pad in two tabs and confirm edits sync live. Optional browser checks: 17CE, BOCE and GreatFire.
+- Gotchas hit: 17CE's documented WebSocket API requires API credentials. BOCE blocks direct
+  scripted access with WAF. GreatFire timed out from this environment.
+
 ## 2026-06-25 — Phase 1 Step 1.4 Caddy HTTPS and WebSocket
 - Phase/Step worked: Phase 1, Step 1.4
 - Built: Installed Caddy `2.6.2`, configured `/etc/caddy/Caddyfile` for
