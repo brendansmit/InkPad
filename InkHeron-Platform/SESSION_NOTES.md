@@ -20,6 +20,20 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 1 Step 1.3 Etherpad local install
+- Phase/Step worked: Phase 1, Step 1.3
+- Built: Installed Etherpad under `/opt/etherpad-lite`, pinned to stable `v3.3.2`, upgraded Node
+  to `24.18.0`, installed `pnpm 11.1.2`, configured Etherpad to bind to `127.0.0.1:9001`,
+  configured Etherpad DB as SQLite at `/opt/etherpad-lite/var/etherpad.sqlite`, and created an
+  enabled `etherpad.service`.
+- Decisions: Used the latest stable Etherpad tag instead of the default `develop` branch.
+  Removed `ProtectHome=true` from the systemd unit because pnpm reads the account home path from
+  `/etc/passwd` during plugin migration and fails under home protection.
+- Open / next: Phase 1, Step 1.4 install Caddy and route HTTPS/WebSocket traffic to Etherpad.
+- Gotchas hit: Etherpad `v3.3.2` requires Node `>=24`; the droplet had Node 22. The first
+  config-edit attempts failed due remote shell quoting before touching the file. Service startup
+  failed until pnpm's home-access issue was isolated with `systemd-run`.
+
 ## 2026-06-25 — Phase 1 Step 1.2 server hardening
 - Phase/Step worked: Phase 1, Step 1.2
 - Built: Created `inkheron` non-root sudo user with SSH key access, set timezone to
