@@ -25,9 +25,9 @@ test('migration creates canonical schema and is idempotent', () => {
   const first = runMigrations(dbPath);
   const second = runMigrations(dbPath);
 
-  assert.deepEqual(first.applied, ['001_initial_schema.sql']);
+  assert.deepEqual(first.applied, ['001_initial_schema.sql', '002_student_must_change_default.sql']);
   assert.deepEqual(second.applied, []);
-  assert.deepEqual(second.skipped, ['001_initial_schema.sql']);
+  assert.deepEqual(second.skipped, ['001_initial_schema.sql', '002_student_must_change_default.sql']);
 
   const db = new DatabaseSync(dbPath);
   try {
@@ -35,6 +35,14 @@ test('migration creates canonical schema and is idempotent', () => {
       const actual = db.prepare(`PRAGMA table_info(${table})`).all().map((column) => column.name);
       assert.deepEqual(actual, columns, table);
     }
+
+    db.prepare('INSERT INTO classes (name) VALUES (?)').run('Default Check');
+    db.prepare(`
+      INSERT INTO students (username, display_name, password_hash, class_id)
+      VALUES ('default-check', 'Default Check', 'hash', 1)
+    `).run();
+    const student = db.prepare('SELECT must_change_password FROM students WHERE username = ?').get('default-check');
+    assert.equal(student.must_change_password, 0);
 
     const padIndexes = db.prepare('PRAGMA index_list(pads)').all().map((index) => index.name);
     assert.ok(padIndexes.some((name) => name.includes('student_id') || name.includes('assignment_id')));

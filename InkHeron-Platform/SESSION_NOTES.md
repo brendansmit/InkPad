@@ -20,6 +20,19 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 2 Step 2.1 classes and students
+- Phase/Step worked: Phase 2, Step 2.1
+- Built: Added DB helpers, bcrypt password hashing, class CRUD routes and student CRUD routes.
+  Added corrective migration `002_student_must_change_default.sql` so new students default
+  `must_change_password` to false. Deployed to the droplet and created one test class with three
+  test students through the local API.
+- Decisions: API responses never include `password_hash`. Setup CRUD routes are usable locally on
+  the droplet at `127.0.0.1:3000`, but Caddy blocks public `/api/*` with 404 until auth and guards
+  are built.
+- Open / next: Phase 2, Step 2.2 student login.
+- Gotchas hit: Node `node:sqlite` reports duplicate constraints as `ERR_SQLITE_ERROR` with a
+  message, not a dedicated unique-constraint code, so duplicate handling maps the message to 409.
+
 ## 2026-06-25 — Phase 1 Step 1.8 backups and basics
 - Phase/Step worked: Phase 1, Step 1.8
 - Built: Added `ops/backup.sh`, `ops/RESTORE.md` and `ops/SECURITY.md`. Installed `sqlite3` on

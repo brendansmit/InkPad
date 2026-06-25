@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 import { buildApp } from '../src/app.js';
 
+function temporaryDatabasePath() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-app-'));
+  return path.join(dir, 'inkheron.db');
+}
+
 test('healthz returns ok', async () => {
-  const app = await buildApp();
+  const app = await buildApp({ databasePath: temporaryDatabasePath() });
   const response = await app.inject({ method: 'GET', url: '/healthz' });
 
   assert.equal(response.statusCode, 200);
@@ -16,7 +24,7 @@ test('healthz returns ok', async () => {
 });
 
 test('serves self-hosted assets', async () => {
-  const app = await buildApp();
+  const app = await buildApp({ databasePath: temporaryDatabasePath() });
   const response = await app.inject({ method: 'GET', url: '/assets/styles.css' });
 
   assert.equal(response.statusCode, 200);

@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS students (
   password_hash TEXT NOT NULL,
   class_id INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  must_change_password INTEGER NOT NULL DEFAULT 1 CHECK (must_change_password IN (0, 1)),
+  must_change_password INTEGER NOT NULL DEFAULT 0 CHECK (must_change_password IN (0, 1)),
   FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE RESTRICT
 );
 

@@ -1,0 +1,110 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
+import { verifyPassword } from '../src/auth/passwords.js';
+import { buildApp } from '../src/app.js';
+
+function temporaryDatabasePath() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-identity-'));
+  return path.join(dir, 'inkheron.db');
+}
+
+test('classes and students can be created, listed, updated and deleted', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath });
+
+  const createdClass = await app.inject({
+    method: 'POST',
+    url: '/api/classes',
+    payload: { name: 'Grade 9' },
+  });
+  assert.equal(createdClass.statusCode, 201);
+  const classId = createdClass.json().class.id;
+
+  const updatedClass = await app.inject({
+    method: 'PATCH',
+    url: `/api/classes/${classId}`,
+    payload: { name: 'Grade 9 Writing' },
+  });
+  assert.equal(updatedClass.statusCode, 200);
+  assert.equal(updatedClass.json().class.name, 'Grade 9 Writing');
+
+  const createdStudent = await app.inject({
+    method: 'POST',
+    url: '/api/students',
+    payload: {
+      username: 'alice',
+      display_name: 'Alice Chen',
+      password: 'correct horse',
+      class_id: classId,
+    },
+  });
+  assert.equal(createdStudent.statusCode, 201);
+  const student = createdStudent.json().student;
+  assert.equal(student.username, 'alice');
+  assert.equal(student.must_change_password, false);
+  assert.equal(student.password_hash, undefined);
+
+  const listedStudents = await app.inject({ method: 'GET', url: '/api/students' });
+  assert.equal(listedStudents.statusCode, 200);
+  assert.equal(listedStudents.json().students.length, 1);
+  assert.equal(listedStudents.json().students[0].password_hash, undefined);
+
+  const updatedStudent = await app.inject({
+    method: 'PATCH',
+    url: `/api/students/${student.id}`,
+    payload: { display_name: 'Alice Zhang', password: 'new correct horse' },
+  });
+  assert.equal(updatedStudent.statusCode, 200);
+  assert.equal(updatedStudent.json().student.display_name, 'Alice Zhang');
+  assert.equal(updatedStudent.json().student.password_hash, undefined);
+
+  const db = new DatabaseSync(databasePath);
+  try {
+    const stored = db.prepare('SELECT password_hash, must_change_password FROM students WHERE username = ?').get('alice');
+    assert.notEqual(stored.password_hash, 'correct horse');
+    assert.notEqual(stored.password_hash, 'new correct horse');
+    assert.match(stored.password_hash, /^\$2[aby]\$/);
+    assert.equal(stored.must_change_password, 0);
+    assert.equal(await verifyPassword('new correct horse', stored.password_hash), true);
+  } finally {
+    db.close();
+  }
+
+  const deletedStudent = await app.inject({ method: 'DELETE', url: `/api/students/${student.id}` });
+  assert.equal(deletedStudent.statusCode, 204);
+
+  const deletedClass = await app.inject({ method: 'DELETE', url: `/api/classes/${classId}` });
+  assert.equal(deletedClass.statusCode, 204);
+
+  await app.close();
+});
+
+test('student plaintext password is never returned and duplicates fail', async () => {
+  const app = await buildApp({ databasePath: temporaryDatabasePath() });
+  const classResponse = await app.inject({
+    method: 'POST',
+    url: '/api/classes',
+    payload: { name: 'Grade 10' },
+  });
+  const classId = classResponse.json().class.id;
+
+  const payload = {
+    username: 'duplicate',
+    display_name: 'Duplicate Student',
+    password: 'long enough',
+    class_id: classId,
+  };
+
+  const first = await app.inject({ method: 'POST', url: '/api/students', payload });
+  const second = await app.inject({ method: 'POST', url: '/api/students', payload });
+
+  assert.equal(first.statusCode, 201);
+  assert.equal(second.statusCode, 409);
+  assert.doesNotMatch(JSON.stringify(first.json()), /long enough/);
+
+  await app.close();
+});
