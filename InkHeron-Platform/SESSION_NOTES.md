@@ -20,6 +20,15 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 1 Step 1.5 China reachability confirmed
+- Phase/Step worked: Phase 1, Step 1.5
+- Built: User confirmed `https://inkpad.inkheron.app/` works from China with VPN off. Current
+  public surface is pure Etherpad, which is expected before the Fastify wrapper phase.
+- Decisions: Mark Step 1.5 complete based on the real China-side test plus prior DNS, HTTPS and
+  WebSocket checks.
+- Open / next: Phase 1, Step 1.6 Fastify wrapper skeleton.
+- Gotchas hit: none.
+
 ## 2026-06-25 — Phase 1 Step 1.5 reachability checks started
 - Phase/Step worked: Phase 1, Step 1.5
 - Built: Verified `inkpad.inkheron.app` resolves to `167.172.71.219` through Chinese public DNS
