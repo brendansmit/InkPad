@@ -20,6 +20,19 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 1 Step 1.6 Fastify wrapper skeleton
+- Phase/Step worked: Phase 1, Step 1.6
+- Built: Added a Node/Fastify wrapper with `GET /healthz`, static self-hosted assets, local
+  Inter and Source Serif 4 font files, and a minimal InkHeron landing page. Deployed it to
+  `/opt/inkheron-platform` as `inkheron-wrapper.service` on `127.0.0.1:3000`.
+- Decisions: Caddy now routes wrapper traffic to `127.0.0.1:3000`, while Etherpad keeps `/p/*`,
+  `/socket.io/*`, `/static/*`, `/locales.json`, `/manifest.json` and `/favicon.ico` on
+  `127.0.0.1:9001`.
+- Open / next: Phase 1, Step 1.7 platform SQLite schema.
+- Gotchas hit: Initial wrapper returned 500 on `/` because `@fastify/static` was registered with
+  `decorateReply: false` while the route used `reply.sendFile`. Fixed and redeployed. Local
+  machine Node is 16, so tests use the bundled Node 24 runtime.
+
 ## 2026-06-25 — Phase 1 Step 1.5 China reachability confirmed
 - Phase/Step worked: Phase 1, Step 1.5
 - Built: User confirmed `https://inkpad.inkheron.app/` works from China with VPN off. Current
