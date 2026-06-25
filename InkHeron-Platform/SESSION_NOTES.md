@@ -20,6 +20,19 @@ Entry format:
 
 ---
 
+## 2026-06-25 — Phase 1 Step 1.7 SQLite schema
+- Phase/Step worked: Phase 1, Step 1.7
+- Built: Added `migrations/001_initial_schema.sql` and a Node migration runner at
+  `src/db/migrate.js`. Created canonical tables `students`, `classes`, `assignments`, `pads`,
+  `submissions`, `grades` and `paste_events`, plus `settings`, `teachers` and
+  `schema_migrations`.
+- Decisions: Used Node 24 `node:sqlite` instead of adding a native SQLite package. Runtime DB
+  files are ignored with `data/*.db` and `data/*.db-*`.
+- Open / next: Phase 1, Step 1.8 backups and basics.
+- Gotchas hit: `node:sqlite` prints an experimental warning in Node 24. Remote schema verification
+  first failed due shell quoting, not due the migration. Rerun verified all expected tables and
+  columns.
+
 ## 2026-06-25 — Phase 1 Step 1.6 Fastify wrapper skeleton
 - Phase/Step worked: Phase 1, Step 1.6
 - Built: Added a Node/Fastify wrapper with `GET /healthz`, static self-hosted assets, local
