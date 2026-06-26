@@ -1,4 +1,5 @@
 import { EtherpadService } from '../etherpad/api.js';
+import { renderWriteView } from '../views/write.js';
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -108,7 +109,16 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       const session = await service.createSessionCookie(groupId, authorId);
 
       reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
-      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}`);
+
+      let settings = {};
+      try { settings = JSON.parse(assignment.settings_json ?? '{}'); } catch (_) { /* ignore */ }
+
+      return reply.type('text/html').send(renderWriteView({
+        title: assignment.title,
+        dueAt: assignment.due_at,
+        spellcheck: settings.spellcheck !== false,
+        etherpadPadId: pad.etherpad_pad_id,
+      }));
     }
   );
 }

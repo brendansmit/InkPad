@@ -20,6 +20,21 @@ Entry format:
 
 ---
 
+## 2026-06-26 — Phase 3 Step 3.4 wrapper shell around the pad
+- Phase/Step worked: Phase 3, Step 3.4
+- Built: Added `src/views/write.js` with `renderWriteView({ title, dueAt, spellcheck, etherpadPadId })`.
+  Generates the full write-view HTML (writetop bar, duebar, padwrap/padframe with iframe, writeactions
+  with Save and Submit buttons) matching the inkheron_student_v2.html mockup. Uses design tokens from
+  /assets/styles.css plus inline write-view CSS. XSS-safe via `esc()` helper. Updated
+  `GET /write/:assignmentId` to render this HTML (with sessionID cookie set) instead of redirecting.
+  Updated pads.test.js assertions to check for 200 HTML, title presence, iframe element, and pad URL;
+  29/29 tests pass.
+- Decisions: Settings JSON defaults `spellcheck` to true when the field is absent. Save and Submit
+  buttons are present but wired in Steps 3.7 and 4.x. Due date formatted server-side with
+  `toLocaleString` (en-US locale).
+- Open / next: Phase 3, Step 3.5 Etherpad plugins installed on the droplet.
+- Gotchas hit: none.
+
 ## 2026-06-26 — Phase 3 Step 3.3 hand student into pad
 - Phase/Step worked: Phase 3, Step 3.3
 - Built: Added `GET /write/:assignmentId` route in `src/routes/pads.js`. Provisions or reuses

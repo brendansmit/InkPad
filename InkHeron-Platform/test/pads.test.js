@@ -211,7 +211,7 @@ test('unauthenticated request to pad route is rejected', async () => {
 
 // ── Step 3.3 — /write/:assignmentId ──────────────────────────────────────────
 
-test('GET /write/:id redirects to pad and sets sessionID cookie', async () => {
+test('GET /write/:id renders wrapper shell with iframe and sets sessionID cookie', async () => {
   const databasePath = temporaryDatabasePath();
   const fakeEtherpad = makeFakeEtherpadService();
   const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
@@ -226,8 +226,14 @@ test('GET /write/:id redirects to pad and sets sessionID cookie', async () => {
     headers: { cookie: studentCookies },
   });
 
-  assert.equal(response.statusCode, 302);
-  assert.ok(response.headers.location.startsWith('/p/'), `location should start with /p/, got: ${response.headers.location}`);
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.headers['content-type'].includes('text/html'), 'response must be HTML');
+
+  const html = response.body;
+  assert.ok(html.includes('First essay'), 'HTML must contain assignment title');
+  assert.ok(html.includes('<iframe'), 'HTML must contain an iframe');
+  assert.ok(html.includes('/p/'), 'iframe src must include Etherpad pad path');
+  assert.ok(html.includes('id="submit-btn"'), 'HTML must include submit button');
 
   const setCookie = response.headers['set-cookie'];
   const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
@@ -248,7 +254,14 @@ test('GET /write/:id reuses same pad on repeat visits', async () => {
   const first = await app.inject({ method: 'GET', url: `/write/${assignmentId}`, headers: { cookie: studentCookies } });
   const second = await app.inject({ method: 'GET', url: `/write/${assignmentId}`, headers: { cookie: studentCookies } });
 
-  assert.equal(first.headers.location, second.headers.location, 'both visits must land on the same pad');
+  assert.equal(first.statusCode, 200);
+  assert.equal(second.statusCode, 200);
+
+  const firstMatch = first.body.match(/src="(\/p\/[^"]+)"/);
+  const secondMatch = second.body.match(/src="(\/p\/[^"]+)"/);
+  assert.ok(firstMatch, 'first response must have iframe src');
+  assert.ok(secondMatch, 'second response must have iframe src');
+  assert.equal(firstMatch[1], secondMatch[1], 'both visits must embed the same pad URL');
 
   const createCalls = fakeEtherpad.calls.filter(c => c.method === 'createAssignmentPad');
   assert.equal(createCalls.length, 1, 'pad must only be created once');
