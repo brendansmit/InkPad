@@ -6,6 +6,7 @@ import { openDatabase } from './db/database.js';
 import { registerIdentityRoutes } from './routes/identity.js';
 import { registerAuth } from './routes/auth.js';
 import { registerPadRoutes } from './routes/pads.js';
+import { registerAssignmentRoutes } from './routes/assignments.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,6 +46,7 @@ export async function buildApp(options = {}) {
 
   await registerAuth(app, { db });
   await registerIdentityRoutes(app, { db });
+  await registerAssignmentRoutes(app, { db });
   await registerPadRoutes(app, { db, etherpadService: options.etherpadService });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));

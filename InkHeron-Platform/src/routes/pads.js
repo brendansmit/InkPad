@@ -1,5 +1,7 @@
 import { EtherpadService } from '../etherpad/api.js';
 import { renderWriteView } from '../views/write.js';
+import { renderLockedView } from '../views/locked.js';
+import { notifyTeacher } from '../services/serverChan.js';
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -12,7 +14,9 @@ function requirePositiveInteger(value, field) {
 }
 
 async function resolveAssignmentAndStudent(db, assignmentId, studentId) {
-  const assignment = db.prepare('SELECT id, class_id, title, settings_json FROM assignments WHERE id = ?').get(assignmentId);
+  const assignment = db.prepare(
+    'SELECT id, class_id, title, type, settings_json, opens_at, due_at FROM assignments WHERE id = ?'
+  ).get(assignmentId);
   if (!assignment) {
     const err = new Error('assignment_not_found');
     err.statusCode = 404;
@@ -50,6 +54,19 @@ async function provisionPad(db, service, { assignment, student }) {
   return pad;
 }
 
+// Auto-lock a draft pad that has passed its due date.
+// Creates a submission row so the teacher can see the work.
+function applyDueDateLock(db, pad, assignment) {
+  const now = new Date().toISOString();
+  if (!assignment.due_at || assignment.due_at > now) return false;
+  if (pad.state !== 'writing') return false;
+
+  db.prepare("UPDATE pads SET state = 'submitted' WHERE id = ?").run(pad.id);
+  db.prepare("INSERT OR IGNORE INTO submissions (pad_id, submitted_at) VALUES (?, ?)").run(pad.id, now);
+  pad.state = 'submitted';
+  return true;
+}
+
 export async function registerPadRoutes(app, { db, etherpadService }) {
   const service = etherpadService ?? new EtherpadService({ apiKey: process.env.ETHERPAD_API_KEY || 'unset' });
 
@@ -57,8 +74,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
    * GET /api/assignments/:id/pad
    *
    * JSON endpoint: returns pad metadata and Etherpad session id.
-   * If no pad row exists yet, creates the Etherpad pad and stores it with state 'writing'.
-   * Reuses the same pad on subsequent calls.
+   * Enforces opens_at (404 if not yet open) and due_at auto-lock.
    */
   app.get('/api/assignments/:id/pad',
     { preValidation: [app.requireStudentSession] },
@@ -67,7 +83,14 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       const studentId = request.session.user.id;
 
       const { assignment, student } = await resolveAssignmentAndStudent(db, assignmentId, studentId);
+
+      const now = new Date().toISOString();
+      if (assignment.opens_at && assignment.opens_at > now) {
+        return reply.code(403).send({ error: 'not_open_yet' });
+      }
+
       const pad = await provisionPad(db, service, { assignment, student });
+      applyDueDateLock(db, pad, assignment);
 
       const groupId = await service.ensureClassGroup(assignment.class_id);
       const authorId = await service.ensureStudentAuthor(studentId, student.display_name);
@@ -88,12 +111,9 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
   /**
    * GET /write/:assignmentId
    *
-   * Entry point for the student write view. Provisions (or reuses) the pad, mints an
-   * Etherpad session, sets the sessionID cookie so Etherpad accepts the request, and
-   * redirects to the pad URL. Etherpad and the wrapper share the same domain so the
-   * cookie is visible to both.
-   *
-   * Step 3.4 will replace the redirect with a full wrapper-shell page.
+   * Student write view. Enforces opens_at and due_at. For locked pads
+   * (exam submitted or past due_at) renders the locked view. Otherwise
+   * sets the Etherpad session cookie and renders the write shell.
    */
   app.get('/write/:assignmentId',
     { preValidation: [app.requireStudentSession] },
@@ -102,7 +122,29 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       const studentId = request.session.user.id;
 
       const { assignment, student } = await resolveAssignmentAndStudent(db, assignmentId, studentId);
+
+      const now = new Date().toISOString();
+
+      // Step 4.2 — not yet open
+      if (assignment.opens_at && assignment.opens_at > now) {
+        return reply.code(403).send({ error: 'not_open_yet' });
+      }
+
       const pad = await provisionPad(db, service, { assignment, student });
+
+      // Step 4.4 — due-date auto-lock
+      applyDueDateLock(db, pad, assignment);
+
+      let settings = {};
+      try { settings = JSON.parse(assignment.settings_json ?? '{}'); } catch (_) { /* ignore */ }
+
+      // Step 4.3 — locked views
+      if (pad.state === 'submitted' && settings.submit_behaviour === 'exam') {
+        return reply.type('text/html').send(renderLockedView({ title: assignment.title, reason: 'exam' }));
+      }
+      if (pad.state === 'submitted' && assignment.due_at && assignment.due_at < now) {
+        return reply.type('text/html').send(renderLockedView({ title: assignment.title, reason: 'due' }));
+      }
 
       const groupId = await service.ensureClassGroup(assignment.class_id);
       const authorId = await service.ensureStudentAuthor(studentId, student.display_name);
@@ -110,15 +152,61 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
 
       reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
 
-      let settings = {};
-      try { settings = JSON.parse(assignment.settings_json ?? '{}'); } catch (_) { /* ignore */ }
-
       return reply.type('text/html').send(renderWriteView({
         title: assignment.title,
         dueAt: assignment.due_at,
         spellcheck: settings.spellcheck !== false,
         etherpadPadId: pad.etherpad_pad_id,
+        padId: pad.id,
+        padState: pad.state,
       }));
+    }
+  );
+
+  /**
+   * POST /api/pads/:padId/submit
+   *
+   * Student submits their work. Transitions writing → submitted.
+   * Creates a submissions row and fires a Server酱 WeChat notification.
+   * Exam pads are terminal (locked forever). Draft pads stay editable until due_at.
+   */
+  app.post('/api/pads/:padId/submit',
+    { preValidation: [app.requireStudentSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const studentId = request.session.user.id;
+
+      const pad = db.prepare(`
+        SELECT p.id, p.state, p.assignment_id,
+               a.settings_json, a.title AS assignment_title,
+               st.display_name AS student_name
+        FROM pads p
+        JOIN assignments a ON a.id = p.assignment_id
+        JOIN students st ON st.id = p.student_id
+        WHERE p.id = ? AND p.student_id = ?
+      `).get(padId, studentId);
+
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      if (pad.state !== 'writing') return reply.code(409).send({ error: 'already_submitted' });
+
+      let settings = {};
+      try { settings = JSON.parse(pad.settings_json ?? '{}'); } catch (_) { /* ignore */ }
+
+      db.prepare("UPDATE pads SET state = 'submitted' WHERE id = ?").run(padId);
+      const result = db.prepare(
+        "INSERT INTO submissions (pad_id, submitted_at) VALUES (?, datetime('now'))"
+      ).run(padId);
+
+      notifyTeacher(db, {
+        studentName: pad.student_name,
+        assignmentTitle: pad.assignment_title,
+      }).catch(() => {});
+
+      return reply.code(201).send({
+        pad: { id: padId, state: 'submitted' },
+        submission: { id: result.lastInsertRowid },
+        locked: settings.submit_behaviour === 'exam',
+      });
     }
   );
 }

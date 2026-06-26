@@ -20,6 +20,44 @@ Entry format:
 
 ---
 
+## 2026-06-26 — Phase 4 complete — assignment lifecycle and submission
+- Phase/Step worked: Phase 4, Steps 4.1–4.6
+- Built:
+  - 4.1 `src/routes/assignments.js`: teacher CRUD (POST/GET/PATCH/DELETE /api/assignments),
+    `buildSettingsJson` enforces word_count=true and paste_detection=true always; student
+    `GET /api/student/assignments` returns assignments with derived status.
+  - 4.2 opens_at enforcement in /write/:id and /api/assignments/:id/pad (403 not_open_yet).
+  - 4.3 `POST /api/pads/:padId/submit` in pads.js: writing→submitted transition, submissions
+    row, returns `locked: true` for exam behaviour.
+  - 4.4 `applyDueDateLock` in pads.js: on-open check, auto-transitions writing→submitted +
+    creates submission row when due_at has passed; renders locked view.
+  - 4.5 `src/services/serverChan.js`: reads serverchan_key from settings table, fires
+    Server酱 push on submit; silent no-op if key unset.
+  - 4.6 `deriveStatus` in assignments.js maps pad/submission state to dashboard pills
+    (upcoming/not_started/in_progress/submitted/marked/needs_rewrite/closed/resubmitted).
+  - `src/views/locked.js`: renders the "Assignment closed" locked view.
+  - Registered registerAssignmentRoutes in app.js.
+  - 42/42 tests pass (added assignments.test.js and submissions.test.js).
+- Decisions: due-date lock creates a submission row so the teacher sees the work even if
+  the student never clicked Submit. Server酱 failures are fire-and-forget (`.catch(()=>{})`).
+  CSRF tokens required on all state-changing student routes.
+- Open / next: Phase 5 — paste detection plugin.
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 3 Step 3.5 Etherpad plugins installed on droplet
+- Phase/Step worked: Phase 3, Step 3.5
+- Built: Installed ep_headings2, ep_align, ep_comments_page, ep_countable, ep_stable_authorid
+  directly into /opt/etherpad-lite/src/node_modules by curling each tarball from npmmirror
+  and extracting with tar --strip-components=1. Etherpad restarted and confirmed active.
+- Decisions: Bypassed pnpm entirely — pnpm's content store was empty so any `pnpm add`
+  triggered a full workspace re-download (hundreds of packages, timed out twice). Direct
+  tarball extraction is safe for production; pnpm lock file not updated but Etherpad loads
+  plugins by scanning node_modules for ep_* packages, not from lock file.
+- Open / next: Phase 3 exit check, then Phase 4 assignment lifecycle.
+- Gotchas hit: `pnpm -w` failed (not a workspace root); `npm install` failed (link: protocol);
+  `pnpm --filter ep_etherpad-lite add` timed out on both npmjs.org and npmmirror due to
+  empty pnpm store. Tarball-direct approach was the fix.
+
 ## 2026-06-26 — Phase 3 Steps 3.5–3.7 plugins, spellcheck, save-state
 - Phase/Step worked: Phase 3, Steps 3.5, 3.6, 3.7
 - Built: Added all client-side JS to `src/views/write.js`:
