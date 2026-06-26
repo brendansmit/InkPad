@@ -20,12 +20,13 @@ function formatDue(dueAt) {
   });
 }
 
-export function renderWriteView({ title, dueAt, spellcheck, etherpadPadId, padId, csrfToken }) {
+export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpadPadId, padId, csrfToken }) {
   const dueLabel = formatDue(dueAt);
   const spellLabel = spellcheck ? 'Spellcheck on for this draft' : 'Spellcheck off for this draft';
   const padUrl = `/p/${encodeURIComponent(etherpadPadId)}`;
   // Emit a safe JS boolean literal for inline scripts
   const spellcheckJs = spellcheck ? 'true' : 'false';
+  const pasteBlockJs = pasteBlock ? 'true' : 'false';
   // Safe injection: padId is a positive integer from the DB; csrfToken is a 64-char hex string
   const padIdJs = JSON.stringify(Number(padId) || 0);
   const csrfTokenJs = JSON.stringify(String(csrfToken ?? ''));
@@ -118,6 +119,7 @@ ${dueLabel ? `<div class="duebar">
   'use strict';
 
   var SPELLCHECK = ${spellcheckJs};
+  var PASTE_BLOCK = ${pasteBlockJs};
   var PAD_ID = ${padIdJs};
   var CSRF_TOKEN = ${csrfTokenJs};
   var saveEl = document.getElementById('savestate');
@@ -149,23 +151,66 @@ ${dueLabel ? `<div class="duebar">
   window.addEventListener('message', function (event) {
     if (!event.data) return;
     var data = event.data;
-
-    // Save-state messages from Etherpad
     if (event.source === iframe.contentWindow) {
       var action = typeof data === 'object' ? data.action : '';
       if (action === 'change' || action === 'commit') setSaving();
     }
-
-    // Paste events from ep_inkheron_paste (come from inside Etherpad's nested iframes)
-    if (typeof data === 'object' && data.type === 'ih_paste_event' && PAD_ID) {
-      fetch('/api/pads/' + PAD_ID + '/paste-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
-        body: JSON.stringify({ length: data.length, input_type: data.inputType }),
-        credentials: 'same-origin',
-      }).catch(function () {}); // fire-and-forget; never interrupt the student
-    }
   });
+
+  // ── Paste detection (Step 5.2 / 5.3) ─────────────────────────────────────
+  // Direct DOM approach — same-origin access through nginx means we can reach
+  // inside Etherpad's nested iframes without a plugin.
+  var pendingPasteLength = 0;
+
+  function recordPaste(len) {
+    if (!PAD_ID || len < 5) return;
+    fetch('/api/pads/' + PAD_ID + '/paste-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+      body: JSON.stringify({ length: len, input_type: 'insertFromPaste' }),
+      credentials: 'same-origin',
+    }).catch(function () {});
+  }
+
+  function getAceInnerDoc() {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc) return null;
+      var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
+      if (!aceOuter || !aceOuter.contentDocument) return null;
+      var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
+      if (aceInner && aceInner.contentDocument) return aceInner.contentDocument;
+      // Some builds have a flatter structure
+      return aceOuter.contentDocument;
+    } catch (_) { return null; }
+  }
+
+  function attachPasteListeners(innerDoc) {
+    innerDoc.addEventListener('beforeinput', function (evt) {
+      if (evt.inputType !== 'insertFromPaste') return;
+      if (PASTE_BLOCK) { evt.preventDefault(); return; }
+      try {
+        var text = evt.dataTransfer ? evt.dataTransfer.getData('text/plain') : '';
+        pendingPasteLength = text ? text.length : 0;
+      } catch (_) { pendingPasteLength = 0; }
+    });
+
+    innerDoc.addEventListener('input', function (evt) {
+      if (evt.inputType !== 'insertFromPaste') return;
+      var len = pendingPasteLength;
+      pendingPasteLength = 0;
+      recordPaste(len);
+    });
+  }
+
+  var pasteAttached = false;
+  var pasteAttempts = 0;
+  function tryAttachPaste() {
+    if (pasteAttached) return;
+    var doc = getAceInnerDoc();
+    if (doc) { attachPasteListeners(doc); pasteAttached = true; return; }
+    if (++pasteAttempts < 30) setTimeout(tryAttachPaste, 500);
+  }
 
   // Manually clicking Save just confirms/flushes the indicator.
   saveBtn.addEventListener('click', function () {
@@ -219,6 +264,7 @@ ${dueLabel ? `<div class="duebar">
 
   iframe.addEventListener('load', function () {
     setTimeout(trySpellcheck, 200);
+    setTimeout(tryAttachPaste, 500);
     syncWordCount();
   });
 

@@ -156,6 +156,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         title: assignment.title,
         dueAt: assignment.due_at,
         spellcheck: settings.spellcheck !== false,
+        pasteBlock: settings.paste_block === true,
         etherpadPadId: pad.etherpad_pad_id,
         padId: pad.id,
         padState: pad.state,
