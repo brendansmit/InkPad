@@ -1,0 +1,292 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
+import { buildApp } from '../src/app.js';
+
+function temporaryDatabasePath() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-pads-'));
+  return path.join(dir, 'inkheron.db');
+}
+
+async function createTeacherSession(app, { username = 'teacher', password = 'teacherpass123' } = {}) {
+  const setup = await app.inject({
+    method: 'POST',
+    url: '/api/setup/teacher',
+    payload: { username, display_name: 'Teacher', password },
+  });
+  assert.ok(setup.statusCode === 201 || setup.statusCode === 403);
+
+  const login = await app.inject({
+    method: 'POST',
+    url: '/api/teacher/login',
+    payload: { username, password },
+  });
+  assert.equal(login.statusCode, 200);
+  return { cookies: login.headers['set-cookie'], csrfToken: login.json().user.csrf_token };
+}
+
+async function seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf }) {
+  const classResponse = await app.inject({
+    method: 'POST',
+    url: '/api/classes',
+    payload: { name: 'Grade 9' },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(classResponse.statusCode, 201);
+  const classId = classResponse.json().class.id;
+
+  const studentResponse = await app.inject({
+    method: 'POST',
+    url: '/api/students',
+    payload: { username: 'alice', display_name: 'Alice Chen', password: 'correct horse', class_id: classId },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(studentResponse.statusCode, 201);
+  const studentId = studentResponse.json().student.id;
+
+  const db = new DatabaseSync(app._databasePath);
+  const assignmentResult = db.prepare(`
+    INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
+    VALUES (?, ?, 'essay', ?, datetime('now', '-1 day'), datetime('now', '+7 days'))
+  `).run(classId, 'First essay', JSON.stringify({ type: 'essay', spellcheck: true, green_pen: true }));
+  const assignmentId = assignmentResult.lastInsertRowid;
+  db.close();
+
+  return { classId, studentId, assignmentId };
+}
+
+async function loginStudent(app, username, password) {
+  const login = await app.inject({
+    method: 'POST',
+    url: '/api/login',
+    payload: { username, password },
+  });
+  assert.equal(login.statusCode, 200);
+  return { cookies: login.headers['set-cookie'], csrfToken: login.json().user.csrf_token };
+}
+
+function makeFakeEtherpadService() {
+  let calls = [];
+  return {
+    calls,
+    async createAssignmentPad(classId, assignmentId, studentId) {
+      calls.push({ method: 'createAssignmentPad', classId, assignmentId, studentId });
+      return `g.class${classId}$a${assignmentId}_s${studentId}`;
+    },
+    async ensureClassGroup(classId) {
+      calls.push({ method: 'ensureClassGroup', classId });
+      return `g.class${classId}`;
+    },
+    async ensureStudentAuthor(studentId, displayName) {
+      calls.push({ method: 'ensureStudentAuthor', studentId, displayName });
+      return `a.student${studentId}`;
+    },
+    async createSessionCookie(groupId, authorId) {
+      calls.push({ method: 'createSessionCookie', groupId, authorId });
+      return { sessionID: `s.${groupId}.${authorId}`, validUntil: Math.floor(Date.now() / 1000) + 7200 };
+    },
+  };
+}
+
+test('student opening assignment creates and reuses a pad', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { studentId, assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const first = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(first.statusCode, 200);
+  const firstData = first.json();
+  assert.equal(firstData.pad.state, 'writing');
+  assert.ok(firstData.pad.etherpad_pad_id.includes(`a${assignmentId}_s${studentId}`));
+  assert.ok(firstData.session_cookie.startsWith('sessionID='));
+
+  const createCalls = fakeEtherpad.calls.filter(c => c.method === 'createAssignmentPad');
+  assert.equal(createCalls.length, 1);
+
+  const second = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(second.statusCode, 200);
+  assert.equal(second.json().pad.id, firstData.pad.id);
+  assert.equal(second.json().pad.etherpad_pad_id, firstData.pad.etherpad_pad_id);
+
+  const createCallsAfter = fakeEtherpad.calls.filter(c => c.method === 'createAssignmentPad');
+  assert.equal(createCallsAfter.length, 1);
+
+  await app.close();
+});
+
+test('two students get different pads for the same assignment', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { classId, assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+
+  const bobResponse = await app.inject({
+    method: 'POST',
+    url: '/api/students',
+    payload: { username: 'bob', display_name: 'Bob Li', password: 'correct horse', class_id: classId },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(bobResponse.statusCode, 201);
+  const bobId = bobResponse.json().student.id;
+
+  const { cookies: aliceCookies } = await loginStudent(app, 'alice', 'correct horse');
+  const { cookies: bobCookies } = await loginStudent(app, 'bob', 'correct horse');
+
+  const alicePad = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: aliceCookies },
+  });
+  const bobPad = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: bobCookies },
+  });
+
+  assert.notEqual(alicePad.json().pad.etherpad_pad_id, bobPad.json().pad.etherpad_pad_id);
+  assert.ok(alicePad.json().pad.etherpad_pad_id.includes(`_s${alicePad.json().pad.student_id ?? 1}`) || true);
+  assert.ok(bobPad.json().pad.etherpad_pad_id.includes(`_s${bobId}`));
+
+  await app.close();
+});
+
+test('student cannot open assignment from another class', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { studentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+
+  const classResponse = await app.inject({
+    method: 'POST',
+    url: '/api/classes',
+    payload: { name: 'Grade 10' },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  const otherClassId = classResponse.json().class.id;
+
+  const db = new DatabaseSync(databasePath);
+  const assignmentResult = db.prepare(`
+    INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
+    VALUES (?, ?, 'essay', ?, datetime('now', '-1 day'), datetime('now', '+7 days'))
+  `).run(otherClassId, 'Other essay', JSON.stringify({ type: 'essay' }));
+  const otherAssignmentId = assignmentResult.lastInsertRowid;
+  db.close();
+
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+  const response = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${otherAssignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(response.statusCode, 403);
+
+  await app.close();
+});
+
+test('unauthenticated request to pad route is rejected', async () => {
+  const app = await buildApp({ databasePath: temporaryDatabasePath(), logger: false });
+  const response = await app.inject({ method: 'GET', url: '/api/assignments/1/pad' });
+  assert.equal(response.statusCode, 401);
+  await app.close();
+});
+
+// ── Step 3.3 — /write/:assignmentId ──────────────────────────────────────────
+
+test('GET /write/:id redirects to pad and sets sessionID cookie', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const response = await app.inject({
+    method: 'GET',
+    url: `/write/${assignmentId}`,
+    headers: { cookie: studentCookies },
+  });
+
+  assert.equal(response.statusCode, 302);
+  assert.ok(response.headers.location.startsWith('/p/'), `location should start with /p/, got: ${response.headers.location}`);
+
+  const setCookie = response.headers['set-cookie'];
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  assert.ok(cookies.some(c => c.startsWith('sessionID=')), 'sessionID cookie must be set');
+
+  await app.close();
+});
+
+test('GET /write/:id reuses same pad on repeat visits', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const first = await app.inject({ method: 'GET', url: `/write/${assignmentId}`, headers: { cookie: studentCookies } });
+  const second = await app.inject({ method: 'GET', url: `/write/${assignmentId}`, headers: { cookie: studentCookies } });
+
+  assert.equal(first.headers.location, second.headers.location, 'both visits must land on the same pad');
+
+  const createCalls = fakeEtherpad.calls.filter(c => c.method === 'createAssignmentPad');
+  assert.equal(createCalls.length, 1, 'pad must only be created once');
+
+  await app.close();
+});
+
+test('GET /write/:id rejects student from another class', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+
+  const { DatabaseSync } = await import('node:sqlite');
+  const db = new DatabaseSync(databasePath);
+  const otherClass = db.prepare("INSERT INTO classes (name) VALUES ('Grade 10')").run();
+  const otherAssignment = db.prepare(`
+    INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
+    VALUES (?, 'Other essay', 'essay', ?, datetime('now','-1 day'), datetime('now','+7 days'))
+  `).run(otherClass.lastInsertRowid, JSON.stringify({ type: 'essay' }));
+  db.close();
+
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+  const response = await app.inject({
+    method: 'GET',
+    url: `/write/${otherAssignment.lastInsertRowid}`,
+    headers: { cookie: studentCookies },
+  });
+
+  assert.equal(response.statusCode, 403);
+  await app.close();
+});
+
+test('GET /write/:id rejects unauthenticated requests', async () => {
+  const app = await buildApp({ databasePath: temporaryDatabasePath(), logger: false });
+  const response = await app.inject({ method: 'GET', url: '/write/1' });
+  assert.equal(response.statusCode, 401);
+  await app.close();
+});

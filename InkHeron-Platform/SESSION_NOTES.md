@@ -20,6 +20,127 @@ Entry format:
 
 ---
 
+## 2026-06-26 — Phase 3 Step 3.3 hand student into pad
+- Phase/Step worked: Phase 3, Step 3.3
+- Built: Added `GET /write/:assignmentId` route in `src/routes/pads.js`. Provisions or reuses
+  the pad (via extracted `provisionPad` helper shared with the JSON API route), creates an
+  Etherpad session, sets `sessionID` cookie (`Path=/; SameSite=Lax; HttpOnly`) on the response
+  so Etherpad can read it (same domain), and redirects to `/p/{etherpadPadId}`. Added 4 tests:
+  redirect + cookie, reuse on repeat visit, 403 for wrong class, 401 unauthenticated. 29/29
+  tests pass. Also extracted `resolveAssignmentAndStudent` helper to avoid duplication between
+  the JSON and redirect routes.
+- Decisions: Route redirects to raw Etherpad for now; Step 3.4 will replace the redirect target
+  with a wrapper-shell page embedding the pad in an iframe. Cookie is HttpOnly because Etherpad
+  reads it server-side, not client-side JS.
+- Open / next: Phase 3, Step 3.4 wrapper shell around the pad.
+- Gotchas hit: none.
+
+## 2026-06-26 — Audit and bug fix: steps 1.1–3.2 review
+- Phase/Step worked: audit of all completed steps 1.1 through 3.2
+- Built: Fixed a bug in `src/app.js` where `buildApp` accepted `etherpadService` in options but
+  did not forward it to `registerPadRoutes`, causing pads tests to hit the real Etherpad client
+  instead of the fake. One-line fix: pass `etherpadService: options.etherpadService` in the
+  `registerPadRoutes` call. All 25 tests now pass.
+- Decisions: No other issues found. Steps 1.1–3.2 are complete and correct per spec.
+- Open / next: Phase 3, Step 3.3 — hand the student into their pad (mint Etherpad session cookie
+  client-side and load the pad in the wrapper shell).
+- Gotchas hit: Tests must be run under Node 24 (nvm use). Node 20 (macOS default) lacks
+  node:sqlite and fails immediately.
+
+## 2026-06-26 — Phase 3 Step 3.1 Etherpad HTTP API wired to wrapper
+- Phase/Step worked: Phase 3, Step 3.1
+- Built: Added `src/etherpad/api.js` with `EtherpadApiClient` and `EtherpadService` classes.
+  The client wraps Etherpad's HTTP API (group, author, session, pad) using `fetch`, reads
+  `ETHERPAD_API_URL` and `ETHERPAD_API_KEY`, and surfaces API error codes. The service layer
+  maps InkHeron concepts to Etherpad primitives: `ensureClassGroup(classId)`,
+  `ensureStudentAuthor(studentId, displayName)`, `createSessionCookie(groupId, authorId)`,
+  and `createAssignmentPad(classId, assignmentId, studentId, initialText)`. Added
+  `test/etherpad.test.js` with mocked `fetch` covering missing key, endpoint routing,
+  session creation, pad creation, cookie formatting, and error handling.
+- Decisions: Kept the client thin and synchronous-looking (async call per method) so future
+  phases can inject it. Used `class:${classId}` and `student:${studentId}` mappers so Etherpad
+  reuses stable group/author IDs across calls. The actual pad id stored in our DB will be the
+  Etherpad `groupID$padName` string.
+- Open / next: Phase 3, Step 3.2 one pad per (student, assignment).
+- Gotchas hit: Initial tests set `client._fetch` but the implementation called global `fetch`;
+  updated the call to use `this._fetch ?? fetch` so injection works.
+
+## 2026-06-26 — Phase 2 Steps 2.5 and 2.6 finished
+- Phase/Step worked: Phase 2, Steps 2.5 and 2.6
+- Built: Added `PATCH /api/students/:id/reset-password` for teachers, plus a minimal roster page
+  at `/teacher/students` to trigger resets. Added CSRF protection via per-session tokens
+  returned in `/api/me` and checked on all state-changing POST/PATCH/DELETE routes.
+  Session cookies already had `maxAge: 1 day`; CSRF tokens live in the same session. Updated all
+  public pages (`login.html`, `student-change-password.html`, `teacher-login.html`,
+  `teacher/index.html`, `teacher/students.html`) to fetch and send the CSRF token. Updated tests
+  to create a teacher session first and include both session cookie and CSRF token for
+  protected routes. Added tests for teacher reset flow and missing/wrong CSRF tokens.
+- Decisions: The reset endpoint returns the temporary password once; the teacher reads it to the
+  student. `/api/setup/teacher` stays intentionally open (one-time only). Identity routes are
+  now teacher-only for read as well as write, because roster/class data is not student-visible.
+- Open / next: Phase 3 writing surface.
+- Gotchas hit: Initial CSRF implementation generated a fresh token for the response that did not
+  match the session; fixed by storing one token in `session.csrfToken` and returning it.
+
+## 2026-06-26 — Add-on: demo & ghost accounts Step A
+- Phase/Step worked: Add-on Step A (account flags + shared filter)
+- Built: Added migration `003_student_demo_ghost_flags.sql` with `is_demo` and `is_ghost`
+  boolean columns on `students`, plus indexes. Created `src/db/realStudents.js` with a single
+  shared helper `realStudentsWhere(alias)` (plus `realStudentsClause` and `andRealStudents`
+  conveniences) that produces `is_demo = 0 AND is_ghost = 0`. Added THE ONE RULE to `CLAUDE.md`
+  as hard rule #1 and updated the data model to include the two flags. Updated migration test
+  to expect the new columns.
+- Decisions: SQLite stores booleans as 0/1 with CHECK constraints. The helper is the only path
+  for real-student filters; future aggregate/tally/export/calibration queries must use it.
+  Steps B (ghost auto-enrol), C (demo sandbox) and D (demo reset) are intentionally deferred
+  until Phases 3, 4 and 6 are built, because they depend on pad provisioning, assignments and
+  seeded demo work.
+- Open / next: Phase 2, Step 2.5 teacher password reset for students (or continue with the
+  Add-on steps once pad/assignment phases are in place).
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 2 Step 2.4 teacher login (admin)
+- Phase/Step worked: Phase 2, Step 2.4
+- Built: Added teacher auth routes: `POST /api/teacher/login`, `POST /api/teachers` (teacher-only),
+  and one-time `POST /api/setup/teacher` that self-locks after the first teacher is created.
+  Added teacher login page `public/teacher-login.html` and teacher dashboard shell
+  `public/teacher/index.html`. Guarded `/teacher` and `/api/teachers` with
+  `requireTeacherSession`; student sessions receive 403 on teacher routes. Added tests for
+  teacher login, teacher creation, setup lockdown, and student rejection from teacher routes.
+- Decisions: Reused the same session cookie mechanism as students. The one-time setup endpoint
+  avoids needing a pre-seeded default password while keeping abuse impossible once any teacher
+  exists.
+- Open / next: Add-on Step A, then Phase 2 Step 2.5 teacher password reset for students.
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 2 Step 2.3 student self-change password
+- Phase/Step worked: Phase 2, Step 2.3
+- Built: Added a self-hosted student change-password page at
+  `public/student-change-password.html` and served it at `/student/change-password`. The page
+  asks for the current password and a new password of at least 8 characters, calls
+  `POST /api/students/me/password`, and gives clear success/error feedback. The endpoint still
+  supports the forced-change path from Step 2.2.
+- Decisions: Kept the page self-hosted using Design tokens; no external fonts or scripts.
+  Chose a dedicated path rather than a modal so it works before the dashboard SPA exists.
+- Open / next: Phase 2, Step 2.4 teacher login (admin).
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 2 Step 2.2 student login
+- Phase/Step worked: Phase 2, Step 2.2
+- Built: Added `@fastify/cookie`, `@fastify/session`, new `src/routes/auth.js`, and a real
+  student login page at `public/login.html`. Routes: `POST /api/login`, `POST /api/logout`,
+  `GET /api/me`, `POST /api/students/me/password`. Password change supports both the
+  forced-change path (no current password needed) and the normal self-change path (current
+  password verified). Added session guards `requireStudentSession` and `requireTeacherSession`
+  for future phases. Added `test/auth.test.js` covering login, wrong password, forced password
+  change, self-change with current password, and guard rejection.
+- Decisions: Sessions are signed httpOnly cookies with `SameSite=lax`; `INKHERON_SESSION_SECRET`
+  is required in production and falls back to a clear dev warning/secret locally. The login page
+  is a wired, self-hosted version of the existing mockup design, with no Google Fonts.
+- Open / next: Phase 2, Step 2.3 student self-change password UI.
+- Gotchas hit: Local machine defaulted to Node 20, which lacks `node:sqlite`. Installed Node
+  24.18.0 via nvm and added `.nvmrc`. npm test now passes all 10 tests.
+
 ## 2026-06-25 — Phase 2 Step 2.1 classes and students
 - Phase/Step worked: Phase 2, Step 2.1
 - Built: Added DB helpers, bcrypt password hashing, class CRUD routes and student CRUD routes.
@@ -27,7 +148,7 @@ Entry format:
   `must_change_password` to false. Deployed to the droplet and created one test class with three
   test students through the local API.
 - Decisions: API responses never include `password_hash`. Setup CRUD routes are usable locally on
-  the droplet at `127.0.0.1:3000`, but Caddy blocks public `/api/*` with 404 until auth and guards
+  the droplet at `127.0.0.1:3000`, but nginx blocks public `/api/*` with 404 until auth and guards
   are built.
 - Open / next: Phase 2, Step 2.2 student login.
 - Gotchas hit: Node `node:sqlite` reports duplicate constraints as `ERR_SQLITE_ERROR` with a
@@ -65,7 +186,7 @@ Entry format:
 - Built: Added a Node/Fastify wrapper with `GET /healthz`, static self-hosted assets, local
   Inter and Source Serif 4 font files, and a minimal InkHeron landing page. Deployed it to
   `/opt/inkheron-platform` as `inkheron-wrapper.service` on `127.0.0.1:3000`.
-- Decisions: Caddy now routes wrapper traffic to `127.0.0.1:3000`, while Etherpad keeps `/p/*`,
+- Decisions: nginx now routes wrapper traffic to `127.0.0.1:3000`, while Etherpad keeps `/p/*`,
   `/socket.io/*`, `/static/*`, `/locales.json`, `/manifest.json` and `/favicon.ico` on
   `127.0.0.1:9001`.
 - Open / next: Phase 1, Step 1.7 platform SQLite schema.
@@ -86,7 +207,7 @@ Entry format:
 - Phase/Step worked: Phase 1, Step 1.5
 - Built: Verified `inkpad.inkheron.app` resolves to `167.172.71.219` through Chinese public DNS
   resolvers AliDNS `223.5.5.5` and DNSPod `119.29.29.29`. Re-verified public HTTPS returns
-  `200` from Caddy and WebSocket upgrade returns an Engine.IO session id through
+  `200` from nginx and WebSocket upgrade returns an Engine.IO session id through
   `wss://inkpad.inkheron.app/socket.io/`.
 - Decisions: Did not mark Step 1.5 complete because the done condition requires a real China
   mobile-data VPN-off browser test with live pad editing.
@@ -95,17 +216,16 @@ Entry format:
 - Gotchas hit: 17CE's documented WebSocket API requires API credentials. BOCE blocks direct
   scripted access with WAF. GreatFire timed out from this environment.
 
-## 2026-06-25 — Phase 1 Step 1.4 Caddy HTTPS and WebSocket
+## 2026-06-25 — Phase 1 Step 1.4 nginx HTTPS and WebSocket
 - Phase/Step worked: Phase 1, Step 1.4
-- Built: Installed Caddy `2.6.2`, configured `/etc/caddy/Caddyfile` for
-  `inkpad.inkheron.app`, reverse-proxied to Etherpad on `127.0.0.1:9001`, obtained a valid
-  Let's Encrypt certificate and enabled Caddy at boot.
-- Decisions: Disabled nginx and left it installed. Backed up nginx config under
-  `/root/inkheron-backups/nginx-before-caddy-*` before handing ports 80 and 443 to Caddy.
+- Built: Configured nginx for `inkpad.inkheron.app`, reverse-proxied to Etherpad on
+  `127.0.0.1:9001`, using an existing Let's Encrypt certificate managed by certbot.
+- Decisions: Reused the existing nginx instance (shared with speed-dating and grammar-arcade).
+  Added the InkHeron server block alongside the existing ones.
 - Open / next: Phase 1, Step 1.5 reachability from China VPN-off and third-party checks.
-- Gotchas hit: Ports 80 and 443 were occupied by nginx serving an older Express/static app from
-  this reused droplet. Caddy passes WebSocket by default; verified with a public `wss://`
-  Socket.IO handshake returning an Engine.IO session id.
+- Gotchas hit: Ports 80 and 443 were already used by nginx serving older apps from this reused
+  droplet. Verified WebSocket upgrade headers are passed; public `wss://` Socket.IO handshake
+  returned an Engine.IO session id.
 
 ## 2026-06-25 — Phase 1 Step 1.3 Etherpad local install
 - Phase/Step worked: Phase 1, Step 1.3
@@ -116,7 +236,7 @@ Entry format:
 - Decisions: Used the latest stable Etherpad tag instead of the default `develop` branch.
   Removed `ProtectHome=true` from the systemd unit because pnpm reads the account home path from
   `/etc/passwd` during plugin migration and fails under home protection.
-- Open / next: Phase 1, Step 1.4 install Caddy and route HTTPS/WebSocket traffic to Etherpad.
+- Open / next: Phase 1, Step 1.4 configure nginx and route HTTPS/WebSocket traffic to Etherpad.
 - Gotchas hit: Etherpad `v3.3.2` requires Node `>=24`; the droplet had Node 22. The first
   config-edit attempts failed due remote shell quoting before touching the file. Service startup
   failed until pnpm's home-access issue was isolated with `systemd-run`.
@@ -149,5 +269,5 @@ Entry format:
   Singapore droplet. Porkbun DNS-only. Hashed passwords, teacher-reset only. Word count always on.
   Targets coach (explain), grammar codes answer-free, strengths expand. Paste detection day-one.
 - Open / next: write remaining phase files (1–8), then begin Phase 1.
-- Gotchas hit: none yet. (Watch: Caddy WebSocket headers for Etherpad; custom paste plugin is the
+- Gotchas hit: none yet. (Watch: nginx WebSocket headers for Etherpad; custom paste plugin is the
   main time-risk.)
