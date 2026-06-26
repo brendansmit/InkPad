@@ -159,7 +159,38 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         etherpadPadId: pad.etherpad_pad_id,
         padId: pad.id,
         padState: pad.state,
+        csrfToken: request.session.csrfToken ?? '',
       }));
+    }
+  );
+
+  /**
+   * POST /api/pads/:padId/paste-event
+   *
+   * Records a paste event detected by the ep_inkheron_paste plugin.
+   * The plugin runs inside the Etherpad iframe and postMessages to the
+   * wrapper shell; the shell's JS calls this endpoint with the student's
+   * auth cookie and CSRF token.
+   */
+  app.post('/api/pads/:padId/paste-event',
+    { preValidation: [app.requireStudentSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const studentId = request.session.user.id;
+
+      const pad = db.prepare('SELECT id FROM pads WHERE id = ? AND student_id = ?').get(padId, studentId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+
+      const { length, input_type } = request.body ?? {};
+      if (typeof length !== 'number' || length < 1) {
+        return reply.code(400).send({ error: 'length_required' });
+      }
+
+      db.prepare(
+        "INSERT INTO paste_events (pad_id, at, length, input_type) VALUES (?, datetime('now'), ?, ?)"
+      ).run(padId, Math.round(length), input_type ?? 'insertFromPaste');
+
+      return reply.code(201).send({ ok: true });
     }
   );
 

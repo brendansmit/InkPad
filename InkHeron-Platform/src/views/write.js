@@ -20,12 +20,15 @@ function formatDue(dueAt) {
   });
 }
 
-export function renderWriteView({ title, dueAt, spellcheck, etherpadPadId }) {
+export function renderWriteView({ title, dueAt, spellcheck, etherpadPadId, padId, csrfToken }) {
   const dueLabel = formatDue(dueAt);
   const spellLabel = spellcheck ? 'Spellcheck on for this draft' : 'Spellcheck off for this draft';
   const padUrl = `/p/${encodeURIComponent(etherpadPadId)}`;
   // Emit a safe JS boolean literal for inline scripts
   const spellcheckJs = spellcheck ? 'true' : 'false';
+  // Safe injection: padId is a positive integer from the DB; csrfToken is a 64-char hex string
+  const padIdJs = JSON.stringify(Number(padId) || 0);
+  const csrfTokenJs = JSON.stringify(String(csrfToken ?? ''));
 
   return `<!doctype html>
 <html lang="en">
@@ -115,6 +118,8 @@ ${dueLabel ? `<div class="duebar">
   'use strict';
 
   var SPELLCHECK = ${spellcheckJs};
+  var PAD_ID = ${padIdJs};
+  var CSRF_TOKEN = ${csrfTokenJs};
   var saveEl = document.getElementById('savestate');
   var wcEl = document.getElementById('wc');
   var saveBtn = document.getElementById('save-btn');
@@ -142,11 +147,24 @@ ${dueLabel ? `<div class="duebar">
   // it finished loading, "message" type with action "change" means a revision
   // was committed. We listen broadly and use any revision-related message.
   window.addEventListener('message', function (event) {
-    if (event.source !== iframe.contentWindow) return;
+    if (!event.data) return;
     var data = event.data;
-    if (!data) return;
-    var action = typeof data === 'object' ? data.action : '';
-    if (action === 'change' || action === 'commit') setSaving();
+
+    // Save-state messages from Etherpad
+    if (event.source === iframe.contentWindow) {
+      var action = typeof data === 'object' ? data.action : '';
+      if (action === 'change' || action === 'commit') setSaving();
+    }
+
+    // Paste events from ep_inkheron_paste (come from inside Etherpad's nested iframes)
+    if (typeof data === 'object' && data.type === 'ih_paste_event' && PAD_ID) {
+      fetch('/api/pads/' + PAD_ID + '/paste-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify({ length: data.length, input_type: data.inputType }),
+        credentials: 'same-origin',
+      }).catch(function () {}); // fire-and-forget; never interrupt the student
+    }
   });
 
   // Manually clicking Save just confirms/flushes the indicator.
