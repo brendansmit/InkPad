@@ -24,6 +24,8 @@ export function renderWriteView({ title, dueAt, spellcheck, etherpadPadId }) {
   const dueLabel = formatDue(dueAt);
   const spellLabel = spellcheck ? 'Spellcheck on for this draft' : 'Spellcheck off for this draft';
   const padUrl = `/p/${encodeURIComponent(etherpadPadId)}`;
+  // Emit a safe JS boolean literal for inline scripts
+  const spellcheckJs = spellcheck ? 'true' : 'false';
 
   return `<!doctype html>
 <html lang="en">
@@ -46,6 +48,8 @@ export function renderWriteView({ title, dueAt, spellcheck, etherpadPadId }) {
     .writetop .sp{flex:1;}
     .savestate{font-size:12.5px;color:var(--text-3);white-space:nowrap;display:flex;align-items:center;gap:5px;}
     .savestate .tick{color:var(--sage-500);}
+    .savestate.saving{color:var(--amber-700);}
+    .savestate.saving .tick{color:var(--amber-700);}
     .duebar{max-width:880px;margin:18px auto 0;padding:0 26px;}
     .duenote{background:var(--surface);border:1px solid var(--border);
       border-radius:var(--r-sm);padding:11px 15px;font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px;}
@@ -105,6 +109,105 @@ ${dueLabel ? `<div class="duebar">
   <button class="btn ghost" id="save-btn">Save</button>
   <button class="btn p" id="submit-btn">Submit for grading</button>
 </div>
+
+<script>
+(function () {
+  'use strict';
+
+  var SPELLCHECK = ${spellcheckJs};
+  var saveEl = document.getElementById('savestate');
+  var wcEl = document.getElementById('wc');
+  var saveBtn = document.getElementById('save-btn');
+  var iframe = document.getElementById('padiframe');
+
+  // ── Save-state UI (Step 3.7) ─────────────────────────────────────────────
+  // Etherpad autosaves on every keystroke. We show "Saving…" briefly
+  // whenever the iframe fires a message indicating a change, then settle to
+  // "Saved ✓" after 1.5 s of silence.
+  var saveTimer = null;
+
+  function setSaving() {
+    clearTimeout(saveTimer);
+    saveEl.className = 'savestate saving';
+    saveEl.innerHTML = '<span class="tick">&#8230;</span> Saving';
+    saveTimer = setTimeout(setSaved, 1500);
+  }
+
+  function setSaved() {
+    saveEl.className = 'savestate';
+    saveEl.innerHTML = '<span class="tick">&#10003;</span> Saved';
+  }
+
+  // Etherpad emits postMessages for various events; "padInitialized" means
+  // it finished loading, "message" type with action "change" means a revision
+  // was committed. We listen broadly and use any revision-related message.
+  window.addEventListener('message', function (event) {
+    if (event.source !== iframe.contentWindow) return;
+    var data = event.data;
+    if (!data) return;
+    var action = typeof data === 'object' ? data.action : '';
+    if (action === 'change' || action === 'commit') setSaving();
+  });
+
+  // Manually clicking Save just confirms/flushes the indicator.
+  saveBtn.addEventListener('click', function () {
+    setSaving();
+    // Force a brief "Saving..." then Saved to give psychological confirmation.
+    setTimeout(setSaved, 800);
+  });
+
+  // ── Word count (Step 3.7 / ep_countable) ─────────────────────────────────
+  // ep_countable renders a count element inside the Etherpad iframe.
+  // Since we are same-origin, poll for it after the iframe loads.
+  function syncWordCount() {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc) return;
+      var el = padDoc.querySelector('.ep_countable_words, .word-count, [data-word-count]');
+      if (el) {
+        var txt = el.textContent.trim();
+        if (txt) wcEl.textContent = txt + (txt.match(/word/i) ? '' : ' words');
+      }
+    } catch (_) { /* cross-origin guard */ }
+  }
+
+  var wcInterval = setInterval(syncWordCount, 2000);
+
+  // ── Spellcheck flag (Step 3.6) ────────────────────────────────────────────
+  // The padchrome note already shows the state. Here we attempt to set the
+  // spellcheck attribute on Etherpad's contenteditable surface once the iframe
+  // and its inner ACE editor iframe have finished loading.
+  function applySpellcheck() {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc) return false;
+      // Etherpad nests the editor in a second iframe (ace_outer / ace_inner)
+      var innerFrame = padDoc.querySelector('iframe[name="ace_outer"], iframe.ace_outer, #editorcontainerbox iframe');
+      if (!innerFrame || !innerFrame.contentDocument) return false;
+      var editable = innerFrame.contentDocument.querySelector('#innerdocbody, [contenteditable="true"]');
+      if (!editable) return false;
+      editable.setAttribute('spellcheck', SPELLCHECK ? 'true' : 'false');
+      return true;
+    } catch (_) { return false; }
+  }
+
+  // Retry until the inner frame is accessible (it loads after the outer frame).
+  var spellRetries = 0;
+  function trySpellcheck() {
+    if (applySpellcheck()) return;
+    spellRetries++;
+    if (spellRetries < 20) setTimeout(trySpellcheck, 500);
+  }
+
+  iframe.addEventListener('load', function () {
+    setTimeout(trySpellcheck, 200);
+    syncWordCount();
+  });
+
+  // Also clean up interval if the user navigates away.
+  window.addEventListener('beforeunload', function () { clearInterval(wcInterval); });
+}());
+</script>
 
 </body>
 </html>`;

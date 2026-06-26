@@ -20,6 +20,25 @@ Entry format:
 
 ---
 
+## 2026-06-26 — Phase 3 Steps 3.5–3.7 plugins, spellcheck, save-state
+- Phase/Step worked: Phase 3, Steps 3.5, 3.6, 3.7
+- Built: Added all client-side JS to `src/views/write.js`:
+  - Step 3.6: `SPELLCHECK` boolean injected server-side as a safe literal. Chrome note already
+    reflects the flag (done in 3.4). After iframe loads, JS walks into Etherpad's nested ACE
+    editor iframe to set `spellcheck="true/false"` on the contenteditable surface, with 20 retries
+    at 500 ms intervals (inner frame loads after outer).
+  - Step 3.7: Save-state indicator listens for `change`/`commit` postMessages from the Etherpad
+    iframe and shows "Saving... → Saved ✓". Save button triggers a brief Saving/Saved cycle as
+    psychological confirmation. Word count polls the iframe DOM every 2 s for ep_countable's
+    `.ep_countable_words` element (same-origin, so accessible once the plugin is installed).
+  - Step 3.5: ops step — install 5 plugins on the droplet (see commands above in SESSION_NOTES).
+    Not yet done; plugins required for word count and full spellcheck to function in-browser.
+- Decisions: `spellcheckJs` is emitted as `true`/`false` literal (not string interpolation of
+  user data) so there is no XSS path. Word-count sync does not start until iframe `load` fires.
+- Open / next: Step 3.5 must be completed on the droplet (install plugins, restart etherpad).
+  After that: Phase 3 exit check, then Phase 4 assignment lifecycle and submission.
+- Gotchas hit: none (browser-level verification of 3.6/3.7 requires the droplet with plugins).
+
 ## 2026-06-26 — Phase 3 Step 3.4 wrapper shell around the pad
 - Phase/Step worked: Phase 3, Step 3.4
 - Built: Added `src/views/write.js` with `renderWriteView({ title, dueAt, spellcheck, etherpadPadId })`.

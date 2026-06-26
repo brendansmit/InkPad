@@ -234,6 +234,9 @@ test('GET /write/:id renders wrapper shell with iframe and sets sessionID cookie
   assert.ok(html.includes('<iframe'), 'HTML must contain an iframe');
   assert.ok(html.includes('/p/'), 'iframe src must include Etherpad pad path');
   assert.ok(html.includes('id="submit-btn"'), 'HTML must include submit button');
+  assert.ok(html.includes('id="save-btn"'), 'HTML must include save button');
+  assert.ok(html.includes('savestate'), 'HTML must include save-state indicator');
+  assert.ok(html.includes('Spellcheck on'), 'HTML must show spellcheck note');
 
   const setCookie = response.headers['set-cookie'];
   const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
