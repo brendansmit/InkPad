@@ -186,9 +186,18 @@ ${dueLabel ? `<div class="duebar">
   }
 
   function attachPasteListeners(innerDoc) {
+    var lastCopyFromPad = false;
+
+    // Track copies from within the pad so we can allow intra-pad paste
+    innerDoc.addEventListener('copy', function () { lastCopyFromPad = true; });
+    innerDoc.addEventListener('cut', function () { lastCopyFromPad = true; });
+
     innerDoc.addEventListener('beforeinput', function (evt) {
       if (evt.inputType !== 'insertFromPaste') return;
-      if (PASTE_BLOCK) { evt.preventDefault(); return; }
+      if (PASTE_BLOCK) {
+        if (!lastCopyFromPad) { evt.preventDefault(); return; }
+        lastCopyFromPad = false; // consume — next paste must come from a fresh in-pad copy
+      }
       try {
         var text = evt.dataTransfer ? evt.dataTransfer.getData('text/plain') : '';
         pendingPasteLength = text ? text.length : 0;
