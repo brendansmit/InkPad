@@ -1,4 +1,4 @@
-import subprocess, threading, os, json, time
+import subprocess, threading, os, json, time, urllib.request
 from flask import Flask, jsonify, send_from_directory, request
 
 app = Flask(__name__, static_folder='.', static_url_path='')
@@ -13,6 +13,7 @@ SERVERS = {
         'remote_path': '/var/www/speed-dating',
         'npm_restart': 'pm2 restart speed-dating',
         'label':       'speeddating.inkheron.app',
+        'health_url':  'https://speeddating.inkheron.app',
     },
     'ap-lang': {
         'pm2_name':    'ap-lang',
@@ -21,6 +22,16 @@ SERVERS = {
         'npm_install': 'rm -rf node_modules && npm install --omit=dev',
         'npm_restart': 'pm2 restart ap-lang',
         'label':       'lang.inkheron.app',
+        'health_url':  'https://lang.inkheron.app',
+    },
+    'grammar-arcade': {
+        'pm2_name':    'grammar-arcade',
+        'local_repo':  os.path.expanduser('~/Documents/Claude/Grammar Arcade/Gramm-Builder'),
+        'remote_path': '/var/www/grammar-arcade',
+        'npm_install': 'pnpm install --frozen-lockfile && PORT=3465 BASE_PATH=/ pnpm --filter @workspace/grammar-case-lab run build',
+        'npm_restart': 'cd /var/www/grammar-arcade && pm2 reload ecosystem.config.cjs --update-env',
+        'label':       'eap.inkheron.app',
+        'health_url':  'https://eap.inkheron.app/api/health',
     },
 }
 
@@ -43,6 +54,20 @@ def index():
 @app.route('/api/status')
 def status():
     srv = get_server()
+    label = srv['label']
+
+    # Primary: fast HTTP health check on the public URL
+    health_url = srv.get('health_url', f"https://{label}")
+    try:
+        req = urllib.request.Request(health_url, headers={'User-Agent': 'deploy-dashboard'})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            http_ok = resp.status < 400
+        if http_ok:
+            return jsonify({'online': True, 'status': 'online', 'label': label})
+    except Exception:
+        pass
+
+    # Fallback: SSH pm2 jlist (only if HTTP check failed)
     try:
         out, ok = ssh('pm2 jlist', timeout=10)
         processes = json.loads(out.strip())
@@ -58,11 +83,11 @@ def status():
                 'restarts':   env.get('restart_time', 0),
                 'memory_mb':  round(monit.get('memory', 0) / 1024 / 1024, 1),
                 'cpu':        monit.get('cpu', 0),
-                'label':      srv['label'],
+                'label':      label,
             })
-        return jsonify({'online': False, 'status': 'not found', 'label': srv['label']})
+        return jsonify({'online': False, 'status': 'not found', 'label': label})
     except Exception as e:
-        return jsonify({'online': False, 'status': 'unreachable', 'error': str(e), 'label': srv['label']})
+        return jsonify({'online': False, 'status': 'unreachable', 'error': str(e), 'label': label})
 
 @app.route('/api/deploy', methods=['POST'])
 def deploy():
