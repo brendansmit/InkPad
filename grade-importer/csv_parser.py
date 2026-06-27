@@ -20,11 +20,15 @@ def parse_csv(file_bytes: bytes) -> list[dict]:
             f"Could not detect name/score columns. Found headers: {headers}"
         )
 
+    IGNORED_NAMES = {"test", "demo", "test student", "demo student", "sample", "example"}
+
     rows = []
     for row in reader:
         name = row.get(name_col, "").strip()
         raw_score = row.get(score_col, "").strip()
         if not name:
+            continue
+        if name.lower() in IGNORED_NAMES:
             continue
         try:
             score = float(raw_score)

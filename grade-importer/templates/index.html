@@ -352,7 +352,10 @@
           <div>Drop CSV here or click to browse</div>
           <input type="file" id="csv-file" accept=".csv" onchange="importCsv(this.files[0])">
         </div>
-        <div id="import-result" style="margin-top:14px"></div>
+        <p style="font-size:0.75rem;color:#94a3b8;margin:8px 0 0">
+          Rows named <em>Test</em>, <em>Demo</em>, <em>Sample</em> etc. are automatically skipped.
+        </p>
+        <div id="import-result" style="margin-top:10px"></div>
       </div>
 
       <div class="card">
