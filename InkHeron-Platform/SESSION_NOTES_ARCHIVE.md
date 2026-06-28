@@ -4,6 +4,49 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-06-26 — Add-on: demo & ghost accounts Step A
+- Phase/Step worked: Add-on Step A (account flags + shared filter)
+- Built: Added migration `003_student_demo_ghost_flags.sql` with `is_demo` and `is_ghost`
+  boolean columns on `students`, plus indexes. Created `src/db/realStudents.js` with a single
+  shared helper `realStudentsWhere(alias)` (plus `realStudentsClause` and `andRealStudents`
+  conveniences) that produces `is_demo = 0 AND is_ghost = 0`. Added THE ONE RULE to `CLAUDE.md`
+  as hard rule #1 and updated the data model to include the two flags. Updated migration test
+  to expect the new columns.
+- Decisions: SQLite stores booleans as 0/1 with CHECK constraints. The helper is the only path
+  for real-student filters; future aggregate/tally/export/calibration queries must use it.
+  Steps B (ghost auto-enrol), C (demo sandbox) and D (demo reset) are intentionally deferred
+  until Phases 3, 4 and 6 are built, because they depend on pad provisioning, assignments and
+  seeded demo work.
+- Open / next: Phase 2, Step 2.5 teacher password reset for students (or continue with the
+  Add-on steps once pad/assignment phases are in place).
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 2 Step 2.4 teacher login (admin)
+- Phase/Step worked: Phase 2, Step 2.4
+- Built: Added teacher auth routes: `POST /api/teacher/login`, `POST /api/teachers` (teacher-only),
+  and one-time `POST /api/setup/teacher` that self-locks after the first teacher is created.
+  Added teacher login page `public/teacher-login.html` and teacher dashboard shell
+  `public/teacher/index.html`. Guarded `/teacher` and `/api/teachers` with
+  `requireTeacherSession`; student sessions receive 403 on teacher routes. Added tests for
+  teacher login, teacher creation, setup lockdown, and student rejection from teacher routes.
+- Decisions: Reused the same session cookie mechanism as students. The one-time setup endpoint
+  avoids needing a pre-seeded default password while keeping abuse impossible once any teacher
+  exists.
+- Open / next: Add-on Step A, then Phase 2 Step 2.5 teacher password reset for students.
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 2 Step 2.3 student self-change password
+- Phase/Step worked: Phase 2, Step 2.3
+- Built: Added a self-hosted student change-password page at
+  `public/student-change-password.html` and served it at `/student/change-password`. The page
+  asks for the current password and a new password of at least 8 characters, calls
+  `POST /api/students/me/password`, and gives clear success/error feedback. The endpoint still
+  supports the forced-change path from Step 2.2.
+- Decisions: Kept the page self-hosted using Design tokens; no external fonts or scripts.
+  Chose a dedicated path rather than a modal so it works before the dashboard SPA exists.
+- Open / next: Phase 2, Step 2.4 teacher login (admin).
+- Gotchas hit: none.
+
 ## 2026-06-26 — Phase 2 Step 2.2 student login
 - Phase/Step worked: Phase 2, Step 2.2
 - Built: Added `@fastify/cookie`, `@fastify/session`, new `src/routes/auth.js`, and a real
