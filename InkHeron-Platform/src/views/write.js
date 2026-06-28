@@ -54,18 +54,18 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .savestate .tick{color:var(--sage-500);}
     .savestate.saving{color:var(--amber-700);}
     .savestate.saving .tick{color:var(--amber-700);}
-    .duebar{max-width:880px;margin:18px auto 0;padding:0 26px;}
+    .duebar{max-width:1200px;margin:14px auto 0;padding:0 20px;}
     .duenote{background:var(--surface);border:1px solid var(--border);
       border-radius:var(--r-sm);padding:11px 15px;font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px;}
     .duenote .ic{font-size:14px;}
-    .padwrap{max-width:880px;margin:18px auto 0;padding:0 26px;flex:1;display:flex;flex-direction:column;}
+    .padwrap{max-width:1200px;margin:14px auto 0;padding:0 20px;flex:1;display:flex;flex-direction:column;}
     .padframe{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
-      overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:500px;}
-    .padchrome{display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface);}
+      overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
+    .padchrome{display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
     .pdot{width:9px;height:9px;border-radius:50%;}
     .scnote{margin-left:auto;font-size:11.5px;color:var(--text-3);}
-    .padiframe{flex:1;width:100%;border:none;min-height:480px;display:block;}
-    .writeactions{max-width:880px;margin:20px auto;padding:0 26px;display:flex;align-items:center;gap:12px;width:100%;}
+    .padiframe{flex:1;width:100%;border:none;min-height:0;display:block;}
+    .writeactions{max-width:1200px;margin:16px auto;padding:0 20px;display:flex;align-items:center;gap:12px;width:100%;}
     .writeactions .sp{flex:1;}
     .wordcount{font-size:13px;color:var(--text-3);}
     .btn{font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:var(--r-sm);cursor:pointer;
