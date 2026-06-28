@@ -20,6 +20,16 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.6 grades and release all
+- Phase/Step worked: Phase 6, Step 6.6
+- Built: Added held grade save route `POST /api/submissions/:submissionId/grade`, release route
+  `POST /api/assignments/:id/release-grades`, dashboard held/released labels, review page grade
+  save button and release-all button on the assignment dashboard.
+- Decisions: Saving or editing a grade resets it to held. Release all flips every graded
+  submission for that assignment to released together.
+- Open / next: Phase 6 Step 6.7 CSV export.
+- Gotchas hit: none.
+
 ## 2026-06-28 — Phase 6 Step 6.5 strengths and targets
 - Phase/Step worked: Phase 6, Step 6.5
 - Built: Added `submission_feedback` storage, a small feedback library, selected feedback in the

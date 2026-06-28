@@ -148,8 +148,9 @@
             </div>
             <div class="stack" style="margin-top:12px;max-width:180px;">
               <button class="btn primary" type="button" id="saveFeedbackBtn" ${data.submission?'':'disabled'}>Save feedback</button>
+              <button class="btn" type="button" id="saveGradeBtn" ${data.submission?'':'disabled'}>Save grade</button>
             </div>
-            <p class="muted" id="feedbackMsg">${data.submission?'Grades save in the next step.':'Submit the pad before saving feedback.'}</p>
+            <p class="muted" id="feedbackMsg">${data.submission?'Feedback and grades are held until release.':'Submit the pad before saving feedback.'}</p>
           </div>
         </section>
       `;
@@ -165,6 +166,7 @@
         document.getElementById('codesBtn').textContent=coded?'Plain text':'Literacy codes';
       });
       document.getElementById('saveFeedbackBtn').addEventListener('click',()=>saveFeedback(data.submission?.id));
+      document.getElementById('saveGradeBtn').addEventListener('click',()=>saveGrade(data.submission?.id));
     }
 
     async function saveFeedback(submissionId){
@@ -181,6 +183,19 @@
       const msg=document.getElementById('feedbackMsg');
       if(!r.ok){msg.textContent='Could not save feedback.';return;}
       msg.textContent='Feedback saved.';
+    }
+
+    async function saveGrade(submissionId){
+      if(!submissionId) return;
+      const score=Number(document.getElementById('gradeInput').value);
+      const r=await fetch(`/api/submissions/${submissionId}/grade`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({score}),
+      });
+      const msg=document.getElementById('feedbackMsg');
+      if(!r.ok){msg.textContent='Could not save grade.';return;}
+      msg.textContent='Grade saved and held until release.';
     }
 
     function selectedValues(select){

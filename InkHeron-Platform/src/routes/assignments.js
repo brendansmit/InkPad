@@ -76,6 +76,8 @@ function publicDashboardRow(row) {
     paste_total_length: Number(row.paste_total_length ?? 0),
     latest_paste_at: row.latest_paste_at ?? null,
     score: row.score ?? null,
+    grade_released: Boolean(row.grade_released),
+    grade_state: row.grade_id ? (row.grade_released ? 'released' : 'held') : null,
   };
 }
 
@@ -229,6 +231,53 @@ export async function registerAssignmentRoutes(app, { db }) {
 
       const updated = db.prepare('SELECT * FROM assignments WHERE id = ?').get(id);
       return { assignment: publicAssignment(updated) };
+    }
+  );
+
+  app.post('/api/assignments/:id/release-grades',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const assignment = db.prepare('SELECT id FROM assignments WHERE id = ?').get(id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      db.exec('BEGIN');
+      try {
+        db.prepare(`
+          UPDATE grades
+          SET released = 1
+          WHERE submission_id IN (
+            SELECT sub.id
+            FROM submissions sub
+            JOIN pads p ON p.id = sub.pad_id
+            WHERE p.assignment_id = ?
+          )
+        `).run(id);
+        db.prepare(`
+          UPDATE submissions
+          SET released = 1
+          WHERE id IN (
+            SELECT sub.id
+            FROM submissions sub
+            JOIN pads p ON p.id = sub.pad_id
+            WHERE p.assignment_id = ?
+          )
+          AND is_graded = 1
+        `).run(id);
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+
+      const released = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM grades g
+        JOIN submissions sub ON sub.id = g.submission_id
+        JOIN pads p ON p.id = sub.pad_id
+        WHERE p.assignment_id = ? AND g.released = 1
+      `).get(id);
+      return { released: released.count };
     }
   );
 

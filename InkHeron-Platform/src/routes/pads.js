@@ -370,6 +370,48 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
     }
   );
 
+  app.post('/api/submissions/:submissionId/grade',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const submissionId = requirePositiveInteger(request.params.submissionId, 'submissionId');
+      const score = Number(request.body?.score);
+      if (!Number.isFinite(score) || score < 0) {
+        return reply.code(400).send({ error: 'score_required' });
+      }
+
+      const submission = db.prepare(`
+        SELECT sub.id, p.id AS pad_id
+        FROM submissions sub
+        JOIN pads p ON p.id = sub.pad_id
+        WHERE sub.id = ?
+      `).get(submissionId);
+      if (!submission) return reply.code(404).send({ error: 'submission_not_found' });
+
+      const existing = db.prepare('SELECT id FROM grades WHERE submission_id = ?').get(submissionId);
+      if (existing) {
+        db.prepare(`
+          UPDATE grades
+          SET score = ?, released = 0, graded_at = datetime('now')
+          WHERE submission_id = ?
+        `).run(score, submissionId);
+      } else {
+        db.prepare('INSERT INTO grades (submission_id, score, released) VALUES (?, ?, 0)').run(submissionId, score);
+      }
+      db.prepare('UPDATE submissions SET is_graded = 1, released = 0 WHERE id = ?').run(submissionId);
+      db.prepare("UPDATE pads SET state = 'marked' WHERE id = ?").run(submission.pad_id);
+
+      const grade = db.prepare('SELECT id, score, released, graded_at FROM grades WHERE submission_id = ?').get(submissionId);
+      return {
+        grade: {
+          id: grade.id,
+          score: grade.score,
+          released: Boolean(grade.released),
+          graded_at: grade.graded_at,
+        },
+      };
+    }
+  );
+
   app.get('/api/pads/:padId/timeslider',
     { preValidation: [app.requireTeacherSession] },
     async (request, reply) => {

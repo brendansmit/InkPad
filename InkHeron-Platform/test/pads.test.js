@@ -369,6 +369,16 @@ test('teacher can open a student pad review with text and paste evidence', async
   assert.equal(savedFeedback.statusCode, 200);
   assert.equal(savedFeedback.json().feedback.length, 3);
 
+  const savedGrade = await app.inject({
+    method: 'POST',
+    url: `/api/submissions/${submissionId}/grade`,
+    payload: { score: 87.5 },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(savedGrade.statusCode, 200);
+  assert.equal(savedGrade.json().grade.score, 87.5);
+  assert.equal(savedGrade.json().grade.released, false);
+
   const review = await app.inject({
     method: 'GET',
     url: `/api/pads/${padId}/review`,
@@ -387,7 +397,24 @@ test('teacher can open a student pad review with text and paste evidence', async
   assert.equal(body.feedback.length, 3);
   assert.ok(body.feedback_options.strengths.some(item => item.id === 'clear_argument'));
   assert.ok(body.feedback.some(item => item.key === 'sentence_boundaries'));
+  assert.equal(body.grade.score, 87.5);
+  assert.equal(body.grade.released, false);
   assert.equal(fakeEtherpad.calls.filter(call => call.method === 'getPadText').length, 1);
+
+  const release = await app.inject({
+    method: 'POST',
+    url: `/api/assignments/${assignmentId}/release-grades`,
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(release.statusCode, 200);
+  assert.equal(release.json().released, 1);
+
+  const releasedReview = await app.inject({
+    method: 'GET',
+    url: `/api/pads/${padId}/review`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(releasedReview.json().grade.released, true);
 
   await app.close();
 });
