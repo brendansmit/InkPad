@@ -191,3 +191,50 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 - Open / next: write remaining phase files (1–8), then begin Phase 1.
 - Gotchas hit: none yet. (Watch: nginx WebSocket headers for Etherpad; custom paste plugin is the
   main time-risk.)
+
+## 2026-06-26 — Audit and bug fix: steps 1.1–3.2 review
+- Phase/Step worked: audit of all completed steps 1.1 through 3.2
+- Built: Fixed a bug in `src/app.js` where `buildApp` accepted `etherpadService` in options but
+  did not forward it to `registerPadRoutes`, causing pads tests to hit the real Etherpad client
+  instead of the fake. One-line fix: pass `etherpadService: options.etherpadService` in the
+  `registerPadRoutes` call. All 25 tests now pass.
+- Decisions: No other issues found. Steps 1.1–3.2 are complete and correct per spec.
+- Open / next: Phase 3, Step 3.3 — hand the student into their pad (mint Etherpad session cookie
+  client-side and load the pad in the wrapper shell).
+- Gotchas hit: Tests must be run under Node 24 (nvm use). Node 20 (macOS default) lacks
+  node:sqlite and fails immediately.
+
+## 2026-06-26 — Phase 3 Step 3.1 Etherpad HTTP API wired to wrapper
+- Phase/Step worked: Phase 3, Step 3.1
+- Built: Added `src/etherpad/api.js` with `EtherpadApiClient` and `EtherpadService` classes.
+  The client wraps Etherpad's HTTP API (group, author, session, pad) using `fetch`, reads
+  `ETHERPAD_API_URL` and `ETHERPAD_API_KEY`, and surfaces API error codes. The service layer
+  maps InkHeron concepts to Etherpad primitives: `ensureClassGroup(classId)`,
+  `ensureStudentAuthor(studentId, displayName)`, `createSessionCookie(groupId, authorId)`,
+  and `createAssignmentPad(classId, assignmentId, studentId, initialText)`. Added
+  `test/etherpad.test.js` with mocked `fetch` covering missing key, endpoint routing,
+  session creation, pad creation, cookie formatting, and error handling.
+- Decisions: Kept the client thin and synchronous-looking (async call per method) so future
+  phases can inject it. Used `class:${classId}` and `student:${studentId}` mappers so Etherpad
+  reuses stable group/author IDs across calls. The actual pad id stored in our DB will be the
+  Etherpad `groupID$padName` string.
+- Open / next: Phase 3, Step 3.2 one pad per (student, assignment).
+- Gotchas hit: Initial tests set `client._fetch` but the implementation called global `fetch`;
+  updated the call to use `this._fetch ?? fetch` so injection works.
+
+## 2026-06-26 — Phase 2 Steps 2.5 and 2.6 finished
+- Phase/Step worked: Phase 2, Steps 2.5 and 2.6
+- Built: Added `PATCH /api/students/:id/reset-password` for teachers, plus a minimal roster page
+  at `/teacher/students` to trigger resets. Added CSRF protection via per-session tokens
+  returned in `/api/me` and checked on all state-changing POST/PATCH/DELETE routes.
+  Session cookies already had `maxAge: 1 day`; CSRF tokens live in the same session. Updated all
+  public pages (`login.html`, `student-change-password.html`, `teacher-login.html`,
+  `teacher/index.html`, `teacher/students.html`) to fetch and send the CSRF token. Updated tests
+  to create a teacher session first and include both session cookie and CSRF token for
+  protected routes. Added tests for teacher reset flow and missing/wrong CSRF tokens.
+- Decisions: The reset endpoint returns the temporary password once; the teacher reads it to the
+  student. `/api/setup/teacher` stays intentionally open (one-time only). Identity routes are
+  now teacher-only for read as well as write, because roster/class data is not student-visible.
+- Open / next: Phase 3 writing surface.
+- Gotchas hit: Initial CSRF implementation generated a fresh token for the response that did not
+  match the session; fixed by storing one token in `session.csrfToken` and returning it.
