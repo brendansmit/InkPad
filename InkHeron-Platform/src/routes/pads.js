@@ -352,6 +352,8 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         return reply.type('text/html').send(renderGreenPenView({
           title: assignment.title,
           etherpadPadId: pad.etherpad_pad_id,
+          padId: pad.id,
+          csrfToken: request.session.csrfToken ?? '',
           text,
           codes: selectedCodeRows(db, submission?.id),
           feedback: selectedFeedbackRows(db, submission?.id),
@@ -654,6 +656,52 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         pad: { id: padId, state: 'submitted' },
         submission: { id: result.lastInsertRowid },
         locked: settings.submit_behaviour === 'exam',
+      });
+    }
+  );
+
+  /**
+   * POST /api/pads/:padId/resubmit
+   *
+   * Student resends a revised green-pen draft. Transitions
+   * green_pen_open -> resubmitted, records a fresh submission row and locks
+   * the pad until the teacher reopens it.
+   */
+  app.post('/api/pads/:padId/resubmit',
+    { preValidation: [app.requireStudentSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const studentId = request.session.user.id;
+
+      const pad = db.prepare(`
+        SELECT p.id,
+               p.state,
+               a.title AS assignment_title,
+               st.display_name AS student_name
+        FROM pads p
+        JOIN assignments a ON a.id = p.assignment_id
+        JOIN students st ON st.id = p.student_id
+        WHERE p.id = ? AND p.student_id = ?
+      `).get(padId, studentId);
+
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      if (pad.state !== 'green_pen_open') return reply.code(409).send({ error: 'not_open_for_resubmit' });
+
+      db.prepare("UPDATE pads SET state = 'resubmitted' WHERE id = ?").run(padId);
+      const result = db.prepare(
+        "INSERT INTO submissions (pad_id, submitted_at) VALUES (?, datetime('now'))"
+      ).run(padId);
+
+      await notifyTeacher(db, {
+        studentName: pad.student_name,
+        assignmentTitle: pad.assignment_title,
+        action: 'resubmitted work',
+      }).catch(() => {});
+
+      return reply.code(201).send({
+        pad: { id: padId, state: 'resubmitted' },
+        submission: { id: result.lastInsertRowid },
+        locked: true,
       });
     }
   );

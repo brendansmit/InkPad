@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { buildApp } from '../src/app.js';
 
@@ -260,6 +261,9 @@ test('finish marking reopens green-pen assignment for rewrite', async () => {
   assert.ok(view.body.includes('Develop explanation'));
   assert.ok(view.body.includes('Clear argument'));
   assert.ok(view.body.includes('id="resend-btn"'));
+  assert.ok(view.body.includes('/api/pads/'));
+  assert.ok(view.body.includes('/resubmit'));
+  assert.ok(view.body.includes('X-CSRF-Token'));
   assert.ok(view.body.includes('title="Writing pad"'), 'green-pen work should be editable again');
   assert.ok(!view.body.includes('Assignment closed'));
 
@@ -269,6 +273,64 @@ test('finish marking reopens green-pen assignment for rewrite', async () => {
   assert.equal(asgn.status, 'needs_rewrite');
 
   await app.close();
+});
+
+test('student can resend a green-pen revision and the pad locks', async () => {
+  const fakeEtherpad = makeFakeEtherpad();
+  const app = await buildApp({ databasePath: tmpDb(), logger: false, etherpadService: fakeEtherpad });
+  const teacher = await setupTeacher(app);
+  const { classId, student } = await createClassAndStudent(app, teacher);
+  const assignmentId = await createAssignment(app, teacher, classId, { green_pen: true });
+  const padId = await openPad(app, student, assignmentId);
+  const db = new DatabaseSync(app._databasePath);
+  db.prepare("INSERT INTO settings (key, value) VALUES ('serverchan_key', 'send-key')").run();
+  db.close();
+
+  const originalFetch = globalThis.fetch;
+  const notifications = [];
+  globalThis.fetch = async (url, options) => {
+    notifications.push({ url: String(url), body: String(options?.body ?? '') });
+    return new Response(JSON.stringify({ code: 0 }), { status: 200 });
+  };
+
+  try {
+    const submitted = await app.inject({ method: 'POST', url: `/api/pads/${padId}/submit`,
+      headers: { 'X-CSRF-Token': student.csrf, cookie: student.cookies } });
+    const firstSubmissionId = submitted.json().submission.id;
+
+    await app.inject({ method: 'POST', url: `/api/submissions/${firstSubmissionId}/finish-marking`,
+      headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+
+    const resent = await app.inject({ method: 'POST', url: `/api/pads/${padId}/resubmit`,
+      headers: { 'X-CSRF-Token': student.csrf, cookie: student.cookies } });
+    assert.equal(resent.statusCode, 201);
+    assert.equal(resent.json().pad.state, 'resubmitted');
+    assert.equal(resent.json().locked, true);
+    assert.ok(resent.json().submission.id > firstSubmissionId);
+
+    const second = await app.inject({ method: 'POST', url: `/api/pads/${padId}/resubmit`,
+      headers: { 'X-CSRF-Token': student.csrf, cookie: student.cookies } });
+    assert.equal(second.statusCode, 409);
+
+    const view = await app.inject({ method: 'GET', url: `/write/${assignmentId}`,
+      headers: { cookie: student.cookies } });
+    assert.equal(view.statusCode, 200);
+    assert.ok(view.body.includes('Assignment closed'));
+    assert.ok(!view.body.includes('id="resend-btn"'));
+
+    const dashboard = await app.inject({ method: 'GET', url: '/api/student/assignments',
+      headers: { cookie: student.cookies } });
+    const asgn = dashboard.json().assignments.find(a => a.id === assignmentId);
+    assert.equal(asgn.status, 'resubmitted');
+
+    assert.equal(notifications.length, 2);
+    assert.ok(notifications[1].url.includes('/send-key.send'));
+    assert.ok(notifications[1].body.includes('Alice+resubmitted+work'));
+    assert.ok(notifications[1].body.includes('Assignment%3A+Essay'));
+  } finally {
+    globalThis.fetch = originalFetch;
+    await app.close();
+  }
 });
 
 test('finish marking keeps non-green-pen assignment locked', async () => {

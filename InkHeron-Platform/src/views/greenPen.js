@@ -56,8 +56,10 @@ function renderFeedback(feedback, kind) {
   return rows.map(item => renderExpander(item, kind)).join('');
 }
 
-export function renderGreenPenView({ title, etherpadPadId, text, codes, feedback }) {
+export function renderGreenPenView({ title, etherpadPadId, padId, csrfToken, text, codes, feedback }) {
   const padUrl = `/p/${encodeURIComponent(etherpadPadId)}`;
+  const padIdJs = JSON.stringify(Number(padId));
+  const csrfTokenJs = JSON.stringify(csrfToken ?? '');
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -137,8 +139,27 @@ export function renderGreenPenView({ title, etherpadPadId, text, codes, feedback
     </aside>
   </main>
   <script>
+    var PAD_ID = ${padIdJs};
+    var CSRF_TOKEN = ${csrfTokenJs};
     document.querySelectorAll('.exp').forEach(function(button){
       button.addEventListener('click', function(){ button.classList.toggle('open'); });
+    });
+    document.getElementById('resend-btn').addEventListener('click', async function(){
+      var button = this;
+      button.disabled = true;
+      button.textContent = 'Resending...';
+      try {
+        var response = await fetch('/api/pads/' + PAD_ID + '/resubmit', {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': CSRF_TOKEN },
+          credentials: 'same-origin'
+        });
+        if (!response.ok) throw new Error('resubmit_failed');
+        window.location.href = '/';
+      } catch (_) {
+        button.disabled = false;
+        button.textContent = 'Resend when ready';
+      }
     });
   </script>
 </body>

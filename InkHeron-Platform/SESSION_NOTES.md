@@ -378,3 +378,19 @@ Entry format:
 - Decisions: Kept nginx routing narrow with `location = /` so the Etherpad catch-all still owns
   pad assets, sockets and `/p/...`.
 - Open / next: Phase 7, Step 7.5 resend revised version.
+
+## 2026-06-28 — Phase 7 Step 7.5 resend revised version
+- Phase/Step worked: Phase 7, Step 7.5
+- Built: Added `POST /api/pads/:padId/resubmit` for student-owned `green_pen_open` pads. Resend
+  now requires CSRF, transitions the pad to `resubmitted`, creates a fresh submission row, locks
+  the pad and sends the ServerChan notification with `resubmitted work` wording. Wired the
+  green-pen `Resend when ready` button to call the endpoint and return students to the dashboard.
+- Verification: Ran focused `test/submissions.test.js`, full `node --test test/*.test.js` with
+  56/56 passing and `node --check` on the changed modules. Deployed the route, view and notifier
+  to the droplet, restarted the wrapper, then verified the audit student moved assignment 2 from
+  `needs_rewrite` to `resubmitted`; `/write/2` locked and hid the resend button. Live wrapper,
+  Etherpad and nginx log scans showed no new errors.
+- Decisions: A revised version is recorded as a new `submissions` row against the same Etherpad
+  pad, relying on Etherpad timeslider history for the text version rather than adding a new
+  snapshot column in this step.
+- Open / next: Phase 7 exit check, then move to the next phase/spec.
