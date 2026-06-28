@@ -136,3 +136,26 @@ test('student plaintext password is never returned and duplicates fail', async (
 
   await app.close();
 });
+
+test('roster page is teacher-only', async () => {
+  const app = await buildApp({ databasePath: temporaryDatabasePath() });
+  const { csrfToken, cookies } = await createTeacherSession(app);
+
+  const classRes = await app.inject({ method: 'POST', url: '/api/classes', payload: { name: 'G9' }, headers: { 'X-CSRF-Token': csrfToken, cookie: cookies } });
+  const classId = classRes.json().class.id;
+  await app.inject({ method: 'POST', url: '/api/students', payload: { username: 'eve', display_name: 'Eve', password: 'password99', class_id: classId }, headers: { 'X-CSRF-Token': csrfToken, cookie: cookies } });
+  const sLogin = await app.inject({ method: 'POST', url: '/api/login', payload: { username: 'eve', password: 'password99' } });
+  const student = { cookies: sLogin.headers['set-cookie'], csrf: sLogin.json().user.csrf_token };
+
+  const unauth = await app.inject({ method: 'GET', url: '/teacher/students' });
+  assert.equal(unauth.statusCode, 401);
+
+  const studentPage = await app.inject({ method: 'GET', url: '/teacher/students', headers: { cookie: student.cookies } });
+  assert.equal(studentPage.statusCode, 403);
+
+  const page = await app.inject({ method: 'GET', url: '/teacher/students', headers: { cookie: cookies } });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.body, /Roster/);
+
+  await app.close();
+});

@@ -7,33 +7,56 @@
   <link rel="icon" href="/assets/InkHeron%20Logo.png">
   <link rel="stylesheet" href="/assets/styles.css">
   <style>
-    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--r-sm:10px;--r-md:14px;--r-lg:20px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
+    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--r-sm:10px;--r-md:14px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
     *{box-sizing:border-box;}
     body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;}
     .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
-    .appbar .glyph{width:32px;height:32px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;font-weight:600;transform:rotate(-4deg);}
-    .appbar .nm{font-family:var(--serif);font-size:17px;font-weight:600;}
-    .appbar .sp{flex:1;}
-    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);}
-    .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
-    .btn.p{background:var(--green-600);color:#fff;border:none;}
-    .container{max-width:720px;margin:0 auto;padding:30px 26px 80px;}
-    h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px;}
-    .lead{color:var(--text-2);font-size:15px;margin:0 0 22px;}
-    .filter{display:flex;gap:10px;margin-bottom:18px;align-items:center;}
-    select{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:9px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
-    .row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:var(--shadow-card);}
-    .row .name{font-weight:600;}
-    .row .user{color:var(--text-3);font-size:13px;}
-    .row .meta{display:flex;flex-direction:column;gap:2px;}
-    .row .actions{display:flex;gap:8px;}
-    .btn.sm{min-height:34px;padding:0 12px;font-size:13px;}
-    .temp{font-family:ui-monospace,'SF Mono',Menlo,monospace;background:var(--green-50);color:var(--green-700);padding:2px 8px;border-radius:6px;font-size:13px;}
-    .msg{display:none;margin-bottom:16px;border-radius:var(--r-sm);padding:12px 14px;font-size:13px;background:var(--green-50);color:var(--green-700);}
-    .msg.on{display:block;}
-    .empty{color:var(--text-3);font-size:13.5px;text-align:center;padding:20px;}
+    .glyph{width:32px;height:32px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;font-weight:600;transform:rotate(-4deg);}
+    .nm{font-family:var(--serif);font-size:17px;font-weight:600;}
+    .sp{flex:1;}
     .back{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
     .back:hover{color:var(--text);}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;}
+    .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
+    .btn.p{background:var(--green-600);color:#fff;border:none;}
+    .btn.sm{min-height:32px;padding:0 11px;font-size:12.5px;}
+    .btn.danger{color:var(--maroon-500);border-color:rgba(140,47,59,0.3);}
+    .btn.danger:hover{background:var(--maroon-50);}
+    .container{max-width:760px;margin:0 auto;padding:30px 26px 80px;}
+    h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:-.01em;margin:0 0 8px;}
+    h2{font-size:15px;font-weight:700;margin:0 0 12px;color:var(--text);}
+    .lead{color:var(--text-2);font-size:15px;margin:0 0 28px;}
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:18px 20px;margin-bottom:20px;}
+    .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+    input,select{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:9px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    input:focus,select:focus{outline:3px solid rgba(36,99,67,0.16);border-color:var(--green-600);}
+    .form-row{display:grid;gap:10px;align-items:end;}
+    .form-row.cols4{grid-template-columns:1fr 1fr 1fr 130px;}
+    .form-row.cols3{grid-template-columns:1fr 1fr 120px;}
+    .form-row.cols2{grid-template-columns:1fr 100px;}
+    .form-row input,.form-row select{width:100%;}
+    label{display:block;color:var(--text-2);font-size:11.5px;font-weight:700;margin:0 0 5px;text-transform:uppercase;}
+    .class-list{display:flex;flex-wrap:wrap;gap:8px;min-height:32px;}
+    .class-chip{display:inline-flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:5px 12px;font-size:13px;}
+    .class-chip .cn{font-weight:600;}
+    .class-chip button{background:none;border:none;cursor:pointer;color:var(--text-3);font-size:12px;padding:1px 3px;line-height:1;}
+    .class-chip button:hover{color:var(--maroon-500);}
+    .filter-bar{display:flex;gap:10px;align-items:center;margin-bottom:14px;}
+    .filter-bar select{min-width:160px;}
+    .student-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:13px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:var(--shadow-card);}
+    .student-row .meta{display:flex;flex-direction:column;gap:2px;min-width:0;}
+    .student-row .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .student-row .info{color:var(--text-3);font-size:12.5px;}
+    .student-row .actions{display:flex;gap:6px;flex-shrink:0;}
+    .edit-row{background:rgba(247,246,242,0.7);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;margin:-2px 0 10px;display:none;}
+    .edit-row.open{display:block;}
+    .edit-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:12px;}
+    .msg{display:none;margin-bottom:16px;border-radius:var(--r-sm);padding:12px 14px;font-size:13px;background:var(--green-50);color:var(--green-700);}
+    .msg.on{display:block;}
+    .msg.err{background:var(--maroon-50);color:var(--maroon-500);}
+    .temp{font-family:ui-monospace,'SF Mono',Menlo,monospace;background:var(--green-50);color:var(--green-700);padding:2px 8px;border-radius:6px;font-size:13px;user-select:all;}
+    .empty{color:var(--text-3);font-size:13.5px;text-align:center;padding:20px;}
+    @media(max-width:600px){.form-row.cols4{grid-template-columns:1fr 1fr;}.form-row.cols3{grid-template-columns:1fr;}.form-row.cols2{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
@@ -44,39 +67,149 @@
   </div>
 
   <main class="container">
-    <a class="back" href="/teacher">← Back to dashboard</a>
+    <a class="back" href="/teacher">&lt; Back to dashboard</a>
     <h1>Roster</h1>
-    <p class="lead">Reset a student's password when they have forgotten it.</p>
+    <p class="lead">Manage classes and students. Reset passwords when students forget them.</p>
 
     <div class="msg" id="msg"></div>
 
-    <div class="filter">
-      <label for="classFilter">Class</label>
-      <select id="classFilter"><option value="">All classes</option></select>
+    <div class="panel" id="classPanel">
+      <div class="panel-head">
+        <h2>Classes</h2>
+      </div>
+      <div class="class-list" id="classList"><span style="color:var(--text-3);font-size:13px">Loading...</span></div>
+      <form id="addClassForm" class="form-row cols2" style="margin-top:14px" autocomplete="off">
+        <div>
+          <label for="newClassName">New class name</label>
+          <input id="newClassName" placeholder="e.g. Grade 9A" required>
+        </div>
+        <div><label>&nbsp;</label><button class="btn p" type="submit" style="width:100%">Add class</button></div>
+      </form>
     </div>
 
-    <div id="roster"></div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Students</h2>
+        <div class="filter-bar" style="margin:0">
+          <label for="classFilter" style="margin:0;white-space:nowrap">Class</label>
+          <select id="classFilter"><option value="">All classes</option></select>
+        </div>
+      </div>
+
+      <form id="addStudentForm" class="form-row cols4" style="margin-bottom:16px" autocomplete="off">
+        <div>
+          <label for="newName">Display name</label>
+          <input id="newName" placeholder="Full name" required>
+        </div>
+        <div>
+          <label for="newUsername">Username</label>
+          <input id="newUsername" placeholder="Login username" required>
+        </div>
+        <div>
+          <label for="newPassword">Initial password</label>
+          <input id="newPassword" type="password" placeholder="8+ chars" required>
+        </div>
+        <div>
+          <label for="newClass">Class</label>
+          <select id="newClass" required><option value="">— pick —</option></select>
+        </div>
+        <div style="grid-column:1/-1;display:flex;justify-content:flex-end">
+          <button class="btn p" type="submit">Add student</button>
+        </div>
+      </form>
+
+      <div id="roster"></div>
+    </div>
   </main>
 
   <script>
     let csrfToken='';
+    let classes=[];
+    let editOpenId=null;
+
     async function init(){
       const me=await fetch('/api/me');
-      if(!me.ok){ window.location.href='/teacher-login'; return; }
+      if(!me.ok){window.location.href='/teacher-login';return;}
       const data=await me.json();
-      if(data.user.type!=='teacher'){ window.location.href='/'; return; }
+      if(data.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=data.user.csrf_token;
-      loadClasses();
+      await loadClasses();
       loadStudents();
     }
 
     async function loadClasses(){
       const r=await fetch('/api/classes');
       const data=await r.json();
+      classes=data.classes||[];
+      renderClasses();
       const sel=document.getElementById('classFilter');
-      data.classes.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
-      sel.addEventListener('change',loadStudents);
+      const prevVal=sel.value;
+      sel.innerHTML='<option value="">All classes</option>';
+      const nc=document.getElementById('newClass');
+      nc.innerHTML='<option value="">— pick —</option>';
+      classes.forEach(c=>{
+        const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);
+        const o2=document.createElement('option');o2.value=c.id;o2.textContent=c.name;nc.appendChild(o2);
+      });
+      if(prevVal) sel.value=prevVal;
     }
+
+    function renderClasses(){
+      const box=document.getElementById('classList');
+      if(!classes.length){box.innerHTML='<span style="color:var(--text-3);font-size:13px">No classes yet.</span>';return;}
+      box.innerHTML='';
+      classes.forEach(c=>{
+        const chip=document.createElement('div');chip.className='class-chip';
+        chip.dataset.id=c.id;
+        chip.innerHTML=`<span class="cn" id="cn-${c.id}">${escapeHtml(c.name)}</span><button title="Rename" data-action="rename" data-id="${c.id}" data-name="${escapeHtml(c.name)}">✎</button><button class="danger" title="Delete" data-action="delete" data-id="${c.id}" data-name="${escapeHtml(c.name)}">✕</button>`;
+        box.appendChild(chip);
+      });
+      box.querySelectorAll('button[data-action="rename"]').forEach(b=>b.addEventListener('click',()=>renameClass(b.dataset.id,b.dataset.name)));
+      box.querySelectorAll('button[data-action="delete"]').forEach(b=>b.addEventListener('click',()=>deleteClass(b.dataset.id,b.dataset.name)));
+    }
+
+    async function renameClass(id,currentName){
+      const name=prompt('New class name:',currentName);
+      if(!name||name.trim()===currentName) return;
+      const r=await fetch(`/api/classes/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({name:name.trim()})});
+      if(!r.ok){showMsg('Could not rename class.',true);return;}
+      await loadClasses();loadStudents();
+    }
+
+    async function deleteClass(id,name){
+      if(!confirm(`Delete class "${name}"? Students in this class must be moved or deleted first.`)) return;
+      const r=await fetch(`/api/classes/${id}`,{method:'DELETE',headers:{'X-CSRF-Token':csrfToken}});
+      if(!r.ok){const d=await r.json().catch(()=>({}));showMsg(d.error==='constraint_failed'?'Remove all students from this class first.':'Could not delete class.',true);return;}
+      await loadClasses();loadStudents();
+    }
+
+    document.getElementById('addClassForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const name=document.getElementById('newClassName').value.trim();
+      if(!name) return;
+      const r=await fetch('/api/classes',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({name})});
+      if(!r.ok){showMsg('Could not add class.',true);return;}
+      document.getElementById('newClassName').value='';
+      await loadClasses();loadStudents();
+    });
+
+    document.getElementById('classFilter').addEventListener('change',loadStudents);
+
+    document.getElementById('addStudentForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const payload={
+        display_name:document.getElementById('newName').value.trim(),
+        username:document.getElementById('newUsername').value.trim(),
+        password:document.getElementById('newPassword').value,
+        class_id:Number(document.getElementById('newClass').value),
+      };
+      if(!payload.class_id){showMsg('Please select a class.',true);return;}
+      const r=await fetch('/api/students',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify(payload)});
+      if(!r.ok){const d=await r.json().catch(()=>({}));showMsg(d.error==='duplicate'?'Username already exists.':'Could not add student.',true);return;}
+      document.getElementById('addStudentForm').reset();
+      showMsg(`Student ${escapeHtml(payload.display_name)} added.`,false);
+      loadStudents();
+    });
 
     async function loadStudents(){
       const classId=document.getElementById('classFilter').value;
@@ -85,33 +218,76 @@
       const data=await r.json();
       const box=document.getElementById('roster');
       box.innerHTML='';
-      if(!data.students.length){box.innerHTML='<div class="empty">No students found.</div>';return;}
+      editOpenId=null;
+      if(!data.students||!data.students.length){box.innerHTML='<div class="empty">No students found.</div>';return;}
       data.students.forEach(s=>{
-        const row=document.createElement('div');row.className='row';
-        row.innerHTML=`<div class="meta"><span class="name">${escapeHtml(s.display_name)}</span><span class="user">${escapeHtml(s.username)}${s.must_change_password?' · password must be changed':''}</span></div><div class="actions"><button class="btn sm" data-id="${s.id}" data-name="${escapeHtml(s.display_name)}">Reset password</button></div>`;
-        box.appendChild(row);
+        const cls=classes.find(c=>c.id===s.class_id);
+        const row=document.createElement('div');row.className='student-row';row.dataset.id=s.id;
+        row.innerHTML=`<div class="meta"><span class="name">${escapeHtml(s.display_name)}</span><span class="info">${escapeHtml(s.username)}${cls?' &middot; '+escapeHtml(cls.name):''}${s.must_change_password?' &middot; must change password':''}</span></div><div class="actions"><button class="btn sm" data-action="edit" data-id="${s.id}">Edit</button><button class="btn sm" data-action="reset" data-id="${s.id}" data-name="${escapeHtml(s.display_name)}">Reset pw</button><button class="btn sm danger" data-action="del" data-id="${s.id}" data-name="${escapeHtml(s.display_name)}">Delete</button></div>`;
+        const edit=document.createElement('div');edit.className='edit-row';edit.id=`edit-${s.id}`;
+        edit.innerHTML=`<div class="form-row cols3"><div><label>Display name</label><input id="en-${s.id}" value="${escapeHtml(s.display_name)}"></div><div><label>Username</label><input id="eu-${s.id}" value="${escapeHtml(s.username)}"></div><div><label>Class</label><select id="ec-${s.id}"></select></div></div><div class="edit-footer"><button class="btn sm" data-action="cancel" data-id="${s.id}">Cancel</button><button class="btn sm p" data-action="save" data-id="${s.id}">Save</button></div>`;
+        box.appendChild(row);box.appendChild(edit);
+        const ec=edit.querySelector(`#ec-${s.id}`);
+        classes.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;if(c.id===s.class_id)o.selected=true;ec.appendChild(o);});
       });
-      box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>resetPassword(b.dataset.id,b.dataset.name)));
+      box.querySelectorAll('[data-action="edit"]').forEach(b=>b.addEventListener('click',()=>openEdit(b.dataset.id)));
+      box.querySelectorAll('[data-action="cancel"]').forEach(b=>b.addEventListener('click',()=>closeEdit(b.dataset.id)));
+      box.querySelectorAll('[data-action="save"]').forEach(b=>b.addEventListener('click',()=>saveEdit(b.dataset.id)));
+      box.querySelectorAll('[data-action="reset"]').forEach(b=>b.addEventListener('click',()=>resetPassword(b.dataset.id,b.dataset.name)));
+      box.querySelectorAll('[data-action="del"]').forEach(b=>b.addEventListener('click',()=>deleteStudent(b.dataset.id,b.dataset.name)));
+    }
+
+    function openEdit(id){
+      if(editOpenId) closeEdit(editOpenId);
+      editOpenId=id;
+      document.getElementById(`edit-${id}`).classList.add('open');
+    }
+    function closeEdit(id){
+      const el=document.getElementById(`edit-${id}`);
+      if(el) el.classList.remove('open');
+      if(editOpenId===id) editOpenId=null;
+    }
+
+    async function saveEdit(id){
+      const payload={
+        display_name:document.getElementById(`en-${id}`).value.trim(),
+        username:document.getElementById(`eu-${id}`).value.trim(),
+        class_id:Number(document.getElementById(`ec-${id}`).value),
+      };
+      const r=await fetch(`/api/students/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify(payload)});
+      if(!r.ok){const d=await r.json().catch(()=>({}));showMsg(d.error==='duplicate'?'Username already taken.':'Could not save changes.',true);return;}
+      showMsg('Student updated.',false);
+      loadStudents();
     }
 
     async function resetPassword(id,name){
       if(!confirm(`Reset password for ${name}? A temporary password will be shown once.`)) return;
       const r=await fetch(`/api/students/${id}/reset-password`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({})});
-      const msg=document.getElementById('msg');
-      if(!r.ok){
-        msg.textContent='Could not reset password. Please try again.';
-        msg.className='msg on';msg.style.background='var(--maroon-50)';msg.style.color='var(--maroon-500)';
-        return;
-      }
+      if(!r.ok){showMsg('Could not reset password.',true);return;}
       const data=await r.json();
-      msg.innerHTML=`Temporary password for <strong>${escapeHtml(data.student.username)}</strong>: <span class="temp">${escapeHtml(data.temp_password)}</span>. Read it to the student — it will not be shown again.`;
-      msg.className='msg on';msg.style.background='';msg.style.color='';
+      showMsg(`Temporary password for ${escapeHtml(data.student.username)}: <span class="temp">${escapeHtml(data.temp_password)}</span> — read it to the student now. It will not be shown again.`,false);
       loadStudents();
     }
 
-    function escapeHtml(str){const div=document.createElement('div');div.textContent=str;return div.innerHTML;}
+    async function deleteStudent(id,name){
+      if(!confirm(`Delete student ${name}? This cannot be undone.`)) return;
+      const r=await fetch(`/api/students/${id}`,{method:'DELETE',headers:{'X-CSRF-Token':csrfToken}});
+      if(!r.ok){showMsg('Could not delete student.',true);return;}
+      showMsg(`${escapeHtml(name)} deleted.`,false);
+      loadStudents();
+    }
 
-    document.getElementById('logoutBtn').addEventListener('click',async ()=>{await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});window.location.href='/teacher-login';});
+    function showMsg(html,isError){
+      const msg=document.getElementById('msg');
+      msg.innerHTML=html;
+      msg.className=isError?'msg on err':'msg on';
+    }
+    function escapeHtml(str){const d=document.createElement('div');d.textContent=str;return d.innerHTML;}
+
+    document.getElementById('logoutBtn').addEventListener('click',async()=>{
+      await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+      window.location.href='/teacher-login';
+    });
 
     init();
   </script>
