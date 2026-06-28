@@ -32,10 +32,14 @@
     .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);}
     .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
     .btn.p{background:var(--green-600);color:#fff;border:none;}
+    .btn.sm{min-height:32px;padding:0 12px;font-size:12px;}
     .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
     .msg{display:none;margin-bottom:16px;border-radius:var(--r-sm);padding:12px 14px;font-size:13px;background:var(--green-50);color:var(--green-700);}
     .msg.on{display:block;}
     .msg.err{background:var(--maroon-50);color:var(--maroon-500);}
+    .testresult{font-size:12px;margin-top:5px;min-height:16px;color:var(--text-2);}
+    .testresult.ok{color:var(--green-700);}
+    .testresult.err{color:var(--maroon-500);}
     @media(max-width:680px){.container{padding:24px 18px 64px;}.row{grid-template-columns:1fr;}.actions{justify-content:stretch;}.actions .btn{flex:1;}}
   </style>
 </head>
@@ -59,14 +63,20 @@
           <label for="openrouterKey">OpenRouter API key</label>
           <input id="openrouterKey" name="openrouter_api_key" type="password" autocomplete="new-password" placeholder="Paste a new key">
         </div>
-        <div class="state" id="openrouterState"><span class="pill">Loading</span></div>
+        <div>
+          <div class="state" id="openrouterState"><span class="pill">Loading</span></div>
+          <div class="testresult" id="openrouterTestResult"></div>
+        </div>
       </div>
       <div class="row">
         <div>
           <label for="serverchanKey">ServerChan key</label>
           <input id="serverchanKey" name="serverchan_key" type="password" autocomplete="new-password" placeholder="Paste a new key">
         </div>
-        <div class="state" id="serverchanState"><span class="pill">Loading</span></div>
+        <div>
+          <div class="state" id="serverchanState"><span class="pill">Loading</span></div>
+          <div class="testresult" id="serverchanTestResult"></div>
+        </div>
       </div>
       <div class="actions">
         <button class="btn" id="reloadBtn" type="button">Reload</button>
@@ -97,10 +107,32 @@
 
     function renderState(id, setting){
       const el=document.getElementById(id);
+      const resultId=id.replace('State','TestResult');
+      const testButton=`<button class="btn sm" type="button" onclick="testKey('${resultId}','${id}')">Test</button>`;
       if(setting && setting.is_set){
-        el.innerHTML=`<span class="pill on">Set</span><span class="mask">${escapeHtml(setting.masked)}</span>`;
+        el.innerHTML=`<span class="pill on">Set</span><span class="mask">${escapeHtml(setting.masked)}</span>${testButton}`;
       }else{
-        el.innerHTML='<span class="pill">Not set</span>';
+        el.innerHTML=`<span class="pill">Not set</span>${testButton}`;
+      }
+    }
+
+    async function testKey(resultId, stateId){
+      const endpoint=stateId==='openrouterState'?'/api/settings/test/openrouter':'/api/settings/test/serverchan';
+      const btn=document.querySelector(`#${stateId} button`);
+      const resultEl=document.getElementById(resultId);
+      if(btn){btn.disabled=true;btn.textContent='Testing...';}
+      resultEl.textContent='';
+      resultEl.className='testresult';
+      const r=await fetch(endpoint,{method:'POST',headers:{'X-CSRF-Token':csrfToken}}).catch(()=>null);
+      if(btn){btn.disabled=false;btn.textContent='Test';}
+      if(!r){resultEl.className='testresult err';resultEl.textContent='Network error.';return;}
+      const data=await r.json().catch(()=>({}));
+      if(data.ok){
+        resultEl.className='testresult ok';
+        resultEl.textContent=data.model?`Connected. Model: ${data.model.id}`:data.message;
+      }else{
+        resultEl.className='testresult err';
+        resultEl.textContent=data.message??'Test failed.';
       }
     }
 

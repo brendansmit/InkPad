@@ -32,6 +32,11 @@ export function readSecretSettings(db) {
   );
 }
 
+export function readRawSetting(db, key) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row?.value?.trim() ?? null;
+}
+
 export function writeSecretSettings(db, input) {
   const updates = Object.entries(input ?? {})
     .filter(([key]) => secretSettingKeys.includes(key));

@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 import { buildApp } from '../src/app.js';
 import { maskSecret } from '../src/services/settingsStore.js';
+import { resolveOpenRouterModel } from '../src/services/keyTests.js';
 
 function tmpDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-settings-'));
@@ -59,6 +60,14 @@ test('maskSecret keeps only a small prefix and suffix', () => {
   assert.equal(maskSecret('sk-or-12345678904f2a'), 'sk-or-...4f2a');
   assert.equal(maskSecret('short'), '****');
   assert.equal(maskSecret(''), null);
+});
+
+test('resolveOpenRouterModel chooses a matching model', () => {
+  const model = resolveOpenRouterModel([
+    { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4' },
+    { id: 'openai/gpt-4.1-mini', name: 'GPT 4.1 Mini' },
+  ]);
+  assert.equal(model.id, 'openai/gpt-4.1-mini');
 });
 
 test('teacher can store settings and read back only masked values', async () => {
@@ -140,6 +149,60 @@ test('settings API rejects students and missing CSRF', async () => {
   await app.close();
 });
 
+test('test-openrouter returns 400 when key not set', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await createTeacherSession(app);
+
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/settings/test-openrouter',
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+  });
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.json().ok, false);
+
+  await app.close();
+});
+
+test('test-serverchan returns 400 when key not set', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await createTeacherSession(app);
+
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/settings/test-serverchan',
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+  });
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.json().ok, false);
+
+  await app.close();
+});
+
+test('test endpoints reject students and missing CSRF', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await createTeacherSession(app);
+  const student = await createStudentSession(app, teacher);
+
+  for (const url of ['/api/settings/test-openrouter', '/api/settings/test-serverchan']) {
+    const studentRes = await app.inject({
+      method: 'POST',
+      url,
+      headers: { 'X-CSRF-Token': student.csrf, cookie: student.cookies },
+    });
+    assert.equal(studentRes.statusCode, 403, `student access to ${url}`);
+
+    const noCsrf = await app.inject({
+      method: 'POST',
+      url,
+      headers: { cookie: teacher.cookies },
+    });
+    assert.equal(noCsrf.statusCode, 403, `missing CSRF for ${url}`);
+  }
+
+  await app.close();
+});
+
 test('teacher settings screen is teacher-only and linked from dashboard', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await createTeacherSession(app);
@@ -175,4 +238,95 @@ test('teacher settings screen is teacher-only and linked from dashboard', async 
   assert.match(dashboard.body, /href="\/teacher\/settings"/);
 
   await app.close();
+});
+
+test('teacher can test stored OpenRouter and ServerChan keys', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await createTeacherSession(app);
+  await app.inject({
+    method: 'PATCH',
+    url: '/api/settings',
+    payload: {
+      openrouter_api_key: 'sk-or-test-key',
+      serverchan_key: 'SCT-test-key',
+    },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+  });
+
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options = {}) => {
+    calls.push({ url: String(url), headers: options.headers ?? {}, body: String(options.body ?? '') });
+    if (String(url).endsWith('/api/v1/key')) {
+      assert.equal(options.headers.Authorization, 'Bearer sk-or-test-key');
+      return new Response(JSON.stringify({ data: { label: 'InkHeron' } }), { status: 200 });
+    }
+    if (String(url).endsWith('/api/v1/models')) {
+      return new Response(JSON.stringify({
+        data: [
+          { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4' },
+          { id: 'openai/gpt-4.1-mini', name: 'GPT 4.1 Mini' },
+        ],
+      }), { status: 200 });
+    }
+    if (String(url).includes('sctapi.ftqq.com')) {
+      return new Response(JSON.stringify({ code: 0, message: 'success' }), { status: 200 });
+    }
+    throw new Error(`Unexpected URL ${url}`);
+  };
+
+  try {
+    const openrouter = await app.inject({
+      method: 'POST',
+      url: '/api/settings/test/openrouter',
+      headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    });
+    assert.equal(openrouter.statusCode, 200);
+    assert.equal(openrouter.json().ok, true);
+    assert.equal(openrouter.json().model.id, 'openai/gpt-4.1-mini');
+    assert.equal(JSON.stringify(openrouter.json()).includes('sk-or-test-key'), false);
+
+    const serverchan = await app.inject({
+      method: 'POST',
+      url: '/api/settings/test/serverchan',
+      headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    });
+    assert.equal(serverchan.statusCode, 200);
+    assert.equal(serverchan.json().ok, true);
+    assert.equal(JSON.stringify(serverchan.json()).includes('SCT-test-key'), false);
+    assert.ok(calls.some(call => call.url.includes('/SCT-test-key.send')));
+  } finally {
+    globalThis.fetch = originalFetch;
+    await app.close();
+  }
+});
+
+test('key test endpoints report missing keys without network calls', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await createTeacherSession(app);
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    throw new Error('network should not be called');
+  };
+
+  try {
+    const openrouter = await app.inject({
+      method: 'POST',
+      url: '/api/settings/test/openrouter',
+      headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    });
+    assert.equal(openrouter.statusCode, 200);
+    assert.equal(openrouter.json().ok, false);
+
+    const serverchan = await app.inject({
+      method: 'POST',
+      url: '/api/settings/test/serverchan',
+      headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    });
+    assert.equal(serverchan.statusCode, 200);
+    assert.equal(serverchan.json().ok, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+    await app.close();
+  }
 });

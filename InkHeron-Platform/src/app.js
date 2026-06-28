@@ -8,6 +8,7 @@ import { registerAuth } from './routes/auth.js';
 import { registerPadRoutes } from './routes/pads.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
+import { registerSettingsTestRoutes } from './routes/settingsTests.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,6 +55,7 @@ export async function buildApp(options = {}) {
   await registerIdentityRoutes(app, { db });
   await registerAssignmentRoutes(app, { db });
   await registerSettingsRoutes(app, { db });
+  await registerSettingsTestRoutes(app, { db });
   await registerPadRoutes(app, { db, etherpadService: options.etherpadService });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
