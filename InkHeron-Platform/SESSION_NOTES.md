@@ -287,36 +287,6 @@ Entry format:
   After that: Phase 3 exit check, then Phase 4 assignment lifecycle and submission.
 - Gotchas hit: none (browser-level verification of 3.6/3.7 requires the droplet with plugins).
 
-## 2026-06-26 — Phase 3 Step 3.4 wrapper shell around the pad
-- Phase/Step worked: Phase 3, Step 3.4
-- Built: Added `src/views/write.js` with `renderWriteView({ title, dueAt, spellcheck, etherpadPadId })`.
-  Generates the full write-view HTML (writetop bar, duebar, padwrap/padframe with iframe, writeactions
-  with Save and Submit buttons) matching the inkheron_student_v2.html mockup. Uses design tokens from
-  /assets/styles.css plus inline write-view CSS. XSS-safe via `esc()` helper. Updated
-  `GET /write/:assignmentId` to render this HTML (with sessionID cookie set) instead of redirecting.
-  Updated pads.test.js assertions to check for 200 HTML, title presence, iframe element, and pad URL;
-  29/29 tests pass.
-- Decisions: Settings JSON defaults `spellcheck` to true when the field is absent. Save and Submit
-  buttons are present but wired in Steps 3.7 and 4.x. Due date formatted server-side with
-  `toLocaleString` (en-US locale).
-- Open / next: Phase 3, Step 3.5 Etherpad plugins installed on the droplet.
-- Gotchas hit: none.
-
-## 2026-06-26 — Phase 3 Step 3.3 hand student into pad
-- Phase/Step worked: Phase 3, Step 3.3
-- Built: Added `GET /write/:assignmentId` route in `src/routes/pads.js`. Provisions or reuses
-  the pad (via extracted `provisionPad` helper shared with the JSON API route), creates an
-  Etherpad session, sets `sessionID` cookie (`Path=/; SameSite=Lax; HttpOnly`) on the response
-  so Etherpad can read it (same domain), and redirects to `/p/{etherpadPadId}`. Added 4 tests:
-  redirect + cookie, reuse on repeat visit, 403 for wrong class, 401 unauthenticated. 29/29
-  tests pass. Also extracted `resolveAssignmentAndStudent` helper to avoid duplication between
-  the JSON and redirect routes.
-- Decisions: Route redirects to raw Etherpad for now; Step 3.4 will replace the redirect target
-  with a wrapper-shell page embedding the pad in an iframe. Cookie is HttpOnly because Etherpad
-  reads it server-side, not client-side JS.
-- Open / next: Phase 3, Step 3.4 wrapper shell around the pad.
-- Gotchas hit: none.
-
 ## 2026-06-28 — Phase 7 Step 7.4 student dashboard surfacing
 - Phase/Step worked: Phase 7, Step 7.4
 - Built: Replaced the root placeholder with a real student dashboard shell. Logged-in students
@@ -363,22 +333,6 @@ Entry format:
   even temporarily, was blocked as avoidable disruption risk. Local tests prove write and mask
   behavior against isolated databases.
 - Open / next: Phase 8, Step 8.2 teacher settings screen.
-
-## 2026-06-28 — Phase 8 Step 8.3 test-key buttons
-- Phase/Step worked: Phase 8, Step 8.3
-- Built: Added `POST /api/settings/test-openrouter` and `POST /api/settings/test-serverchan`,
-  both teacher+CSRF guarded. OpenRouter test calls `/api/v1/key` + `/api/v1/models` then
-  fuzzy-resolves the cheapest model via `resolveOpenRouterModel` in the new `keyTests.js`
-  service. ServerChan test sends a real push. A Test button appears beside each key on the
-  settings page; result shown inline (success message or error string, no reload). The slash
-  aliases `/api/settings/test/openrouter|serverchan` in `settingsTests.js` call the same
-  service functions. 66/66 tests pass. Deployed to droplet, `/healthz` confirmed healthy.
-- Decisions: Key-test logic lives in `src/services/keyTests.js` (shared by both the dash and
-  slash route files); handlers stay thin. Test button shows even when key is not yet set so
-  the teacher gets a clear "Key not set" message rather than nothing.
-- Open / next: Phase 8, Step 8.4 class and student management.
-- Gotchas hit: Linter auto-created `settingsTests.js` and `keyTests.js` with slash-URL routes;
-  kept both, fixed HTML to use the dash routes that the test suite checks.
 
 ## 2026-06-28 — Phase 8 Step 8.2 teacher settings screen
 - Phase/Step worked: Phase 8, Step 8.2

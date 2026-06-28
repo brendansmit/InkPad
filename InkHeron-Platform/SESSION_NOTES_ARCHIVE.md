@@ -238,3 +238,33 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 - Open / next: Phase 3 writing surface.
 - Gotchas hit: Initial CSRF implementation generated a fresh token for the response that did not
   match the session; fixed by storing one token in `session.csrfToken` and returning it.
+
+## 2026-06-26 — Phase 3 Step 3.4 wrapper shell around the pad
+- Phase/Step worked: Phase 3, Step 3.4
+- Built: Added `src/views/write.js` with `renderWriteView({ title, dueAt, spellcheck, etherpadPadId })`.
+  Generates the full write-view HTML (writetop bar, duebar, padwrap/padframe with iframe, writeactions
+  with Save and Submit buttons) matching the inkheron_student_v2.html mockup. Uses design tokens from
+  /assets/styles.css plus inline write-view CSS. XSS-safe via `esc()` helper. Updated
+  `GET /write/:assignmentId` to render this HTML (with sessionID cookie set) instead of redirecting.
+  Updated pads.test.js assertions to check for 200 HTML, title presence, iframe element, and pad URL;
+  29/29 tests pass.
+- Decisions: Settings JSON defaults `spellcheck` to true when the field is absent. Save and Submit
+  buttons are present but wired in Steps 3.7 and 4.x. Due date formatted server-side with
+  `toLocaleString` (en-US locale).
+- Open / next: Phase 3, Step 3.5 Etherpad plugins installed on the droplet.
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 3 Step 3.3 hand student into pad
+- Phase/Step worked: Phase 3, Step 3.3
+- Built: Added `GET /write/:assignmentId` route in `src/routes/pads.js`. Provisions or reuses
+  the pad (via extracted `provisionPad` helper shared with the JSON API route), creates an
+  Etherpad session, sets `sessionID` cookie (`Path=/; SameSite=Lax; HttpOnly`) on the response
+  so Etherpad can read it (same domain), and redirects to `/p/{etherpadPadId}`. Added 4 tests:
+  redirect + cookie, reuse on repeat visit, 403 for wrong class, 401 unauthenticated. 29/29
+  tests pass. Also extracted `resolveAssignmentAndStudent` helper to avoid duplication between
+  the JSON and redirect routes.
+- Decisions: Route redirects to raw Etherpad for now; Step 3.4 will replace the redirect target
+  with a wrapper-shell page embedding the pad in an iframe. Cookie is HttpOnly because Etherpad
+  reads it server-side, not client-side JS.
+- Open / next: Phase 3, Step 3.4 wrapper shell around the pad.
+- Gotchas hit: none.
