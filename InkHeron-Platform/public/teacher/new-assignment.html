@@ -84,8 +84,10 @@
         </div>
         <div class="row2">
           <div class="field">
-            <label for="fClass">Class <span style="color:var(--maroon-500)">*</span></label>
-            <select id="fClass" required><option value="">— select a class —</option></select>
+            <label>Classes <span style="color:var(--maroon-500)">*</span></label>
+            <div id="classChecks" style="display:flex;flex-direction:column;gap:7px;margin-top:2px;">
+              <span style="color:var(--text-3);font-size:13px">Loading classes…</span>
+            </div>
           </div>
           <div class="field">
             <label>Type</label>
@@ -164,18 +166,27 @@
       const r=await fetch('/api/classes');
       if(!r.ok) return;
       const data=await r.json();
-      const sel=document.getElementById('fClass');
+      const box=document.getElementById('classChecks');
+      box.innerHTML='';
       (data.classes||[]).forEach(c=>{
-        const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);
+        const lbl=document.createElement('label');
+        lbl.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;';
+        const cb=document.createElement('input');
+        cb.type='checkbox';cb.name='classId';cb.value=c.id;
+        cb.style.cssText='width:16px;height:16px;accent-color:var(--green-600);cursor:pointer;';
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(c.name));
+        box.appendChild(lbl);
       });
+      if(!data.classes?.length) box.innerHTML='<span style="color:var(--text-3);font-size:13px">No classes yet. <a href="/teacher/students">Create one first.</a></span>';
     }
 
     document.getElementById('newForm').addEventListener('submit',async e=>{
       e.preventDefault();
       const title=document.getElementById('fTitle').value.trim();
-      const classId=Number(document.getElementById('fClass').value);
+      const selectedClasses=[...document.querySelectorAll('input[name="classId"]:checked')].map(cb=>Number(cb.value));
       if(!title){showMsg('Please enter a title.',true);return;}
-      if(!classId){showMsg('Please select a class.',true);return;}
+      if(!selectedClasses.length){showMsg('Please select at least one class.',true);return;}
 
       const type=document.querySelector('input[name="type"]:checked').value;
       const submit_behaviour=document.querySelector('input[name="submit_behaviour"]:checked').value;
@@ -184,29 +195,28 @@
       const opens=document.getElementById('fOpens').value;
       const due=document.getElementById('fDue').value;
       const prompt=document.getElementById('fPrompt').value.trim();
-
       const settings={submit_behaviour,spellcheck,green_pen};
       if(prompt) settings.prompt=prompt;
-      const payload={title,class_id:classId,type,settings,opens_at:opens||null,due_at:due||null};
 
       const btn=document.getElementById('submitBtn');
-      btn.disabled=true;btn.textContent='Creating...';
+      btn.disabled=true;btn.textContent=`Creating${selectedClasses.length>1?' ('+selectedClasses.length+' classes)':''}…`;
 
-      const r=await fetch('/api/assignments',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-        body:JSON.stringify(payload),
-      });
+      let lastId='';
+      let failed=0;
+      for(const classId of selectedClasses){
+        const r=await fetch('/api/assignments',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+          body:JSON.stringify({title,class_id:classId,type,settings,opens_at:opens||null,due_at:due||null}),
+        });
+        if(r.ok){const d=await r.json();lastId=d.assignment?.id||'';}
+        else failed++;
+      }
 
       btn.disabled=false;btn.textContent='Create assignment';
 
-      if(!r.ok){
-        const d=await r.json().catch(()=>({}));
-        showMsg(d.error==='class_not_found'?'Class not found.':d.error||'Could not create assignment.',true);
-        return;
-      }
-      const result=await r.json();
-      window.location.href=`/teacher/assignments?highlight=${result.assignment?.id||''}`;
+      if(failed){showMsg(`${failed} class${failed!==1?'es':''} failed to create.`,true);return;}
+      window.location.href=`/teacher/assignments?highlight=${lastId}`;
     });
 
     function showMsg(text,isError){
