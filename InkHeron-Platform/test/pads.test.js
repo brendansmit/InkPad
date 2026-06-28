@@ -340,6 +340,24 @@ test('teacher can open a student pad review with text and paste evidence', async
   });
   assert.equal(paste.statusCode, 201);
 
+  const submitted = await app.inject({
+    method: 'POST',
+    url: `/api/pads/${padId}/submit`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(submitted.statusCode, 201);
+
+  const db = new DatabaseSync(databasePath);
+  try {
+    const submission = db.prepare('SELECT id FROM submissions WHERE pad_id = ?').get(padId);
+    db.prepare(`
+      INSERT INTO submission_codes (submission_id, start_offset, end_offset, code, category, label)
+      VALUES (?, 0, 9, 'SENT', 'Sentence control', 'Sentence boundary')
+    `).run(submission.id);
+  } finally {
+    db.close();
+  }
+
   const review = await app.inject({
     method: 'GET',
     url: `/api/pads/${padId}/review`,
@@ -352,6 +370,9 @@ test('teacher can open a student pad review with text and paste evidence', async
   assert.equal(body.assignment.title, 'First essay');
   assert.equal(body.paste_events.length, 1);
   assert.equal(body.paste_events[0].length, 33);
+  assert.equal(body.codes.length, 1);
+  assert.equal(body.codes[0].code, 'SENT');
+  assert.equal(body.codes[0].category, 'Sentence control');
   assert.equal(fakeEtherpad.calls.filter(call => call.method === 'getPadText').length, 1);
 
   await app.close();

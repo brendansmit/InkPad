@@ -35,6 +35,11 @@
     .pill.flag{background:var(--maroon-50);color:var(--maroon-500);}
     .paper{padding:28px 34px;min-height:460px;}
     .paper-text{white-space:pre-wrap;font-family:var(--serif);font-size:18px;line-height:1.72;color:var(--ink);}
+    .code-mark{border-bottom:2px solid var(--maroon-500);background:var(--maroon-50);padding:0 1px;cursor:help;}
+    .code-mark sup{font-family:var(--font);font-size:10px;font-weight:700;color:var(--maroon-500);margin-left:2px;}
+    .legend{display:grid;gap:8px;margin-top:10px;}
+    .legend-item{font-size:12.5px;color:var(--text-2);background:var(--surface-2);border-radius:8px;padding:8px;}
+    .legend-item strong{color:var(--maroon-500);}
     .marking{margin-top:18px;padding:18px;}
     .marking-grid{display:grid;grid-template-columns:1fr 1fr 140px;gap:12px;}
     select,input{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
@@ -106,6 +111,10 @@
             <span class="sub">${escapeHtml(submitted)}</span>
           </div>
           <div class="section">
+            <span class="label">Codes</span>
+            ${data.codes.length?`<div class="legend">${codeLegend(data.codes)}</div>`:'<span class="sub">No literacy codes attached</span>'}
+          </div>
+          <div class="section">
             <span class="label">Evidence</span>
             ${pasteCount?`<span class="pill flag">${pasteCount} paste event${pasteCount===1?'':'s'}</span>`:'<span class="sub">No paste events</span>'}
             <div class="paste-list">${data.paste_events.map(event=>`<div class="paste-item">${escapeHtml(formatDate(event.at))}<br>${event.length} chars</div>`).join('')}</div>
@@ -117,7 +126,7 @@
         </aside>
         <section>
           <article class="paper">
-            <div class="paper-text">${escapeHtml(data.text || 'No text found for this pad.')}</div>
+            <div class="paper-text" id="paperText">${escapeHtml(data.text || 'No text found for this pad.')}</div>
           </article>
           <div class="marking">
             <div class="marking-grid">
@@ -141,7 +150,46 @@
       document.getElementById('replayBtn').addEventListener('click',()=>{
         window.location.href=`/api/pads/${data.pad.id}/timeslider`;
       });
-      document.getElementById('codesBtn').addEventListener('click',()=>{});
+      let coded=false;
+      document.getElementById('codesBtn').addEventListener('click',()=>{
+        coded=!coded;
+        document.getElementById('paperText').innerHTML=coded
+          ? renderCodedText(data.text || 'No text found for this pad.', data.codes)
+          : escapeHtml(data.text || 'No text found for this pad.');
+        document.getElementById('codesBtn').textContent=coded?'Plain text':'Literacy codes';
+      });
+    }
+
+    function codeLegend(codes){
+      const unique=new Map();
+      codes.forEach(item=>{
+        const key=`${item.code}|${item.category}`;
+        if(!unique.has(key)) unique.set(key,item);
+      });
+      return [...unique.values()].map(item=>`<div class="legend-item"><strong>${escapeHtml(item.code)}</strong> ${escapeHtml(item.category)}</div>`).join('');
+    }
+
+    function renderCodedText(text,codes){
+      const cleanCodes=(codes || [])
+        .map(code=>({
+          ...code,
+          start_offset:Math.max(0,Math.min(text.length,Number(code.start_offset))),
+          end_offset:Math.max(0,Math.min(text.length,Number(code.end_offset))),
+        }))
+        .filter(code=>Number.isFinite(code.start_offset) && Number.isFinite(code.end_offset) && code.end_offset > code.start_offset)
+        .sort((a,b)=>a.start_offset-b.start_offset || a.end_offset-b.end_offset);
+      let cursor=0;
+      let html='';
+      cleanCodes.forEach(code=>{
+        if(code.start_offset < cursor) return;
+        html+=escapeHtml(text.slice(cursor,code.start_offset));
+        const marked=escapeHtml(text.slice(code.start_offset,code.end_offset));
+        const title=escapeHtml(code.category);
+        html+=`<span class="code-mark" title="${title}">${marked}<sup>${escapeHtml(code.code)}</sup></span>`;
+        cursor=code.end_offset;
+      });
+      html+=escapeHtml(text.slice(cursor));
+      return html || escapeHtml(text);
     }
 
     function renderError(message){

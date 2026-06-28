@@ -246,6 +246,12 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         WHERE pad_id = ?
         ORDER BY at ASC, id ASC
       `).all(padId);
+      const codes = pad.submission_id ? db.prepare(`
+        SELECT id, start_offset, end_offset, code, category, label
+        FROM submission_codes
+        WHERE submission_id = ?
+        ORDER BY start_offset ASC, end_offset ASC, id ASC
+      `).all(pad.submission_id) : [];
 
       const text = await service.getPadText(pad.etherpad_pad_id);
 
@@ -277,6 +283,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
           graded_at: pad.graded_at,
         } : null,
         paste_events: pasteEvents,
+        codes,
         text,
       };
     }

@@ -14,6 +14,7 @@ const expectedColumns = {
   submissions: ['id', 'pad_id', 'submitted_at', 'is_graded', 'released'],
   grades: ['id', 'submission_id', 'score', 'released', 'graded_at'],
   paste_events: ['id', 'pad_id', 'at', 'length', 'input_type'],
+  submission_codes: ['id', 'submission_id', 'start_offset', 'end_offset', 'code', 'category', 'label', 'created_at'],
   settings: ['key', 'value', 'updated_at'],
   teachers: ['id', 'username', 'display_name', 'password_hash', 'created_at'],
 };
@@ -25,9 +26,9 @@ test('migration creates canonical schema and is idempotent', () => {
   const first = runMigrations(dbPath);
   const second = runMigrations(dbPath);
 
-  assert.deepEqual(first.applied, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql']);
+  assert.deepEqual(first.applied, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql', '004_submission_codes.sql']);
   assert.deepEqual(second.applied, []);
-  assert.deepEqual(second.skipped, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql']);
+  assert.deepEqual(second.skipped, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql', '004_submission_codes.sql']);
 
   const db = new DatabaseSync(dbPath);
   try {

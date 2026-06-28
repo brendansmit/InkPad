@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.4 literacy coding view
+- Phase/Step worked: Phase 6, Step 6.4
+- Built: Added `submission_codes` storage for analyzer-provided inline codes, returned codes in
+  the teacher review API, and wired the review page Literacy codes button to toggle coded text
+  with answer-free inline marks and a code/category legend.
+- Decisions: InkHeron stores and renders codes only. Code generation/import remains a Phase 7
+  boundary with the Writing Analyzer.
+- Open / next: Phase 6 Step 6.5 strengths and targets selection.
+- Gotchas hit: Step 6.4 depends on Phase 7 data, so this step builds the display/storage boundary
+  and handles the no-code case cleanly.
+
 ## 2026-06-28 — Phase 6 Step 6.3 timeslider replay
 - Phase/Step worked: Phase 6, Step 6.3
 - Built: Added teacher author mapping in Etherpad, `GET /api/pads/:padId/timeslider` to issue
