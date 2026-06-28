@@ -231,6 +231,16 @@ test('teacher assignment dashboard shows status, submission time and paste flags
   assert.equal(rows.cara.status, 'not_started');
   assert.equal(rows.cara.pad_id, null);
 
+  const csv = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/export.csv`,
+    headers: { cookie: teacher.cookies } });
+  assert.equal(csv.statusCode, 200);
+  assert.match(csv.headers['content-type'], /text\/csv/);
+  assert.match(csv.headers['content-disposition'], /assignment-/);
+  assert.match(csv.body, /"Student name","Username","Status","Submitted at","Grade","Grade state","Paste flag","Paste count"/);
+  assert.match(csv.body, /"Alice","alice","writing"/);
+  assert.match(csv.body, /"Bob","bob","submitted"/);
+  assert.match(csv.body, /"yes","1"/);
+
   await app.close();
 });
 

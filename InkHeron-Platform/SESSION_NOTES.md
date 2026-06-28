@@ -20,6 +20,15 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.7 CSV export
+- Phase/Step worked: Phase 6, Step 6.7
+- Built: Added `GET /api/assignments/:id/export.csv` with student name, username, status,
+  submitted time, grade, grade state, paste flag and paste count. Added Export CSV button to the
+  assignment dashboard.
+- Decisions: CSV uses the same server-derived dashboard status and paste fields as the UI.
+- Open / next: Phase 6 Step 6.8 carry-forward targets.
+- Gotchas hit: none.
+
 ## 2026-06-28 — Phase 6 Step 6.6 grades and release all
 - Phase/Step worked: Phase 6, Step 6.6
 - Built: Added held grade save route `POST /api/submissions/:submissionId/grade`, release route

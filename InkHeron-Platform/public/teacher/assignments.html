@@ -22,7 +22,7 @@
     .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);}
     .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
     .controls{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,220px) minmax(150px,190px) minmax(150px,190px);gap:12px;align-items:end;margin-bottom:18px;}
-    .toolbar{display:flex;justify-content:flex-end;margin:-6px 0 18px;}
+    .toolbar{display:flex;justify-content:flex-end;gap:10px;margin:-6px 0 18px;}
     label{display:block;color:var(--text-2);font-size:12px;font-weight:700;margin:0 0 6px;text-transform:uppercase;}
     select{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
     .summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;margin:0 0 18px;}
@@ -93,7 +93,10 @@
         </select>
       </div>
     </div>
-    <div class="toolbar"><button class="btn" id="releaseBtn" type="button">Release all grades</button></div>
+    <div class="toolbar">
+      <button class="btn" id="exportBtn" type="button">Export CSV</button>
+      <button class="btn" id="releaseBtn" type="button">Release all grades</button>
+    </div>
 
     <div class="summary" id="summary"></div>
 
@@ -155,6 +158,7 @@
       document.getElementById(id).addEventListener('change',loadDashboard);
       });
       document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
+      document.getElementById('exportBtn').addEventListener('click',exportCsv);
       document.getElementById('logoutBtn').addEventListener('click',async ()=>{
         await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
         window.location.href='/teacher-login';
@@ -167,6 +171,11 @@
       if(!confirm('Release all saved grades for this assignment?')) return;
       const r=await fetch(`/api/assignments/${id}/release-grades`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
       if(r.ok) await loadDashboard();
+    }
+
+    function exportCsv(){
+      const id=document.getElementById('assignmentSelect').value;
+      if(id) window.location.href=`/api/assignments/${id}/export.csv`;
     }
 
     async function loadDashboard(){

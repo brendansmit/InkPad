@@ -93,6 +93,11 @@ function sortDashboardRows(rows, sort) {
   return rows.sort(byName);
 }
 
+function csvCell(value) {
+  const text = value === null || value === undefined ? '' : String(value);
+  return `"${text.replaceAll('"', '""')}"`;
+}
+
 export async function registerAssignmentRoutes(app, { db }) {
   // ── Teacher routes ──────────────────────────────────────────────────────
 
@@ -207,6 +212,80 @@ export async function registerAssignmentRoutes(app, { db }) {
         class: { id: assignment.class_id, name: assignment.class_name },
         students: sortDashboardRows(students, request.query.sort),
       };
+    }
+  );
+
+  app.get('/api/assignments/:id/export.csv',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const assignment = db.prepare(`
+        SELECT a.*, c.name AS class_name
+        FROM assignments a
+        JOIN classes c ON c.id = a.class_id
+        WHERE a.id = ?
+      `).get(id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      const rows = db.prepare(`
+        SELECT s.id AS student_id,
+               s.display_name,
+               s.username,
+               p.id AS pad_id,
+               p.state AS pad_state,
+               sub.id AS submission_id,
+               sub.submitted_at,
+               sub.is_graded,
+               sub.released AS submission_released,
+               g.id AS grade_id,
+               g.score,
+               g.released AS grade_released,
+               paste.paste_count,
+               paste.paste_total_length,
+               paste.latest_paste_at
+        FROM students s
+        LEFT JOIN pads p ON p.student_id = s.id AND p.assignment_id = ?
+        LEFT JOIN (
+          SELECT sub_inner.*
+          FROM submissions sub_inner
+          JOIN (
+            SELECT pad_id, MAX(id) AS latest_id
+            FROM submissions
+            GROUP BY pad_id
+          ) latest ON latest.latest_id = sub_inner.id
+        ) sub ON sub.pad_id = p.id
+        LEFT JOIN grades g ON g.submission_id = sub.id
+        LEFT JOIN (
+          SELECT pad_id,
+                 COUNT(*) AS paste_count,
+                 COALESCE(SUM(length), 0) AS paste_total_length,
+                 MAX(at) AS latest_paste_at
+          FROM paste_events
+          GROUP BY pad_id
+        ) paste ON paste.pad_id = p.id
+        WHERE s.class_id = ?
+        ORDER BY s.display_name COLLATE NOCASE
+      `).all(id, assignment.class_id).map(publicDashboardRow);
+
+      const header = ['Student name', 'Username', 'Status', 'Submitted at', 'Grade', 'Grade state', 'Paste flag', 'Paste count'];
+      const lines = [
+        header.map(csvCell).join(','),
+        ...sortDashboardRows(rows, 'student').map(row => [
+          row.display_name,
+          row.username,
+          row.status,
+          row.submitted_at,
+          row.score,
+          row.grade_state,
+          row.paste_flag ? 'yes' : 'no',
+          row.paste_count,
+        ].map(csvCell).join(',')),
+      ];
+
+      const filename = `assignment-${assignment.id}-export.csv`;
+      reply.header('Content-Type', 'text/csv; charset=utf-8');
+      reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+      return lines.join('\n');
     }
   );
 
