@@ -460,7 +460,7 @@ test('teacher timeslider route creates an Etherpad session and redirects to the 
   });
 
   assert.equal(replay.statusCode, 302);
-  assert.equal(replay.headers.location, `/p/${encodeURIComponent(etherpadPadId)}/timeslider`);
+  assert.equal(replay.headers.location, `/p/${encodeURIComponent(etherpadPadId)}/timeslider?embed=1`);
   const cookies = Array.isArray(replay.headers['set-cookie'])
     ? replay.headers['set-cookie']
     : [replay.headers['set-cookie']];

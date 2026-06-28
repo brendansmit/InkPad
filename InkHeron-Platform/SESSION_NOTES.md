@@ -20,6 +20,21 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 bug hunt and Etherpad fixes
+- Phase/Step worked: Post-Phase 6 bug hunt
+- Built: Ran deployed HTTP audit across teacher/student login, CSRF, role guards, Etherpad pad
+  provisioning, write shell, paste event, submit, dashboard, review, feedback, grade, release,
+  CSV and replay. Fixed production session config by adding a real
+  `INKHERON_SESSION_SECRET`, `INKHERON_SESSION_SECURE=true` and `INKHERON_TRUST_PROXY=true` on
+  the droplet. Added app support for `INKHERON_TRUST_PROXY=true`. Fixed replay redirect to
+  Etherpad v3's required `/timeslider?embed=1`.
+- Decisions: Production wrapper now trusts nginx forwarded HTTPS headers so Secure session
+  cookies are issued correctly. Timeslider replay uses the embedded Etherpad history route.
+- Open / next: Browser plugin navigation still timed out before page load, so the completed pass
+  is HTTP/API plus remote log verification, not visual browser automation.
+- Gotchas hit: Secure cookies silently failed without Fastify trustProxy. Etherpad v3 redirects
+  legacy `/p/:pad/timeslider` back to the pad unless `embed=1` is present.
+
 ## 2026-06-28 — Phase 6 exit check and deployment
 - Phase/Step worked: Phase 6 exit check and deploy
 - Built: Re-ran full local suite with 52/52 passing, deployed the platform to

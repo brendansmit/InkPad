@@ -472,7 +472,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       );
       const session = await service.createSessionCookie(groupId, authorId);
       reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
-      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}/timeslider`);
+      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}/timeslider?embed=1`);
     }
   );
 

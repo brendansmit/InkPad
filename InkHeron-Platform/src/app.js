@@ -19,6 +19,7 @@ function defaultDatabasePath() {
 export async function buildApp(options = {}) {
   const app = Fastify({
     logger: options.logger ?? false,
+    trustProxy: options.trustProxy ?? process.env.INKHERON_TRUST_PROXY === 'true',
   });
   const databasePath = options.databasePath ?? process.env.INKHERON_DB_PATH ?? defaultDatabasePath();
   const db = options.db ?? openDatabase(databasePath);
