@@ -384,17 +384,22 @@
       const a=detailGroup[0];
       if(!a) return;
       document.getElementById('detailTitle').textContent=a.title;
-      // Populate class selector
       const sel=document.getElementById('detailClassSel');
-      sel.innerHTML=detailGroup.map(ga=>`<option value="${ga.id}">${escapeHtml(classNameFor(ga.class_id))}</option>`).join('');
-      sel.style.display=detailGroup.length>1?'':'none';
+      if(detailGroup.length>1){
+        sel.innerHTML=`<option value="all">All classes</option>`+
+          detailGroup.map(ga=>`<option value="${ga.id}">${escapeHtml(classNameFor(ga.class_id))}</option>`).join('');
+        sel.style.display='';
+      } else {
+        sel.innerHTML=`<option value="${a.id}">${escapeHtml(classNameFor(a.class_id))}</option>`;
+        sel.style.display='none';
+      }
       show('detailView');
-      openDetail(a.id);
+      openDetail('all');
     }
 
-    async function openDetail(id){
-      currentId=id;
-      setUrl(id);
+    async function openDetail(idOrAll){
+      currentId=idOrAll;
+      if(idOrAll!=='all') setUrl(idOrAll);
       await loadDashboard();
     }
 
@@ -411,7 +416,9 @@
       document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
       document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
-      document.getElementById('detailClassSel').addEventListener('change',e=>openDetail(Number(e.target.value)));
+      document.getElementById('detailClassSel').addEventListener('change',e=>{
+        const v=e.target.value;openDetail(v==='all'?'all':Number(v));
+      });
       ['statusFilter','pasteFilter','sortSelect'].forEach(id=>{
         document.getElementById(id).addEventListener('change',loadDashboard);
       });
@@ -432,12 +439,17 @@
     }
 
     async function releaseGrades(){
-      if(!currentId) return;
+      const ids=currentId==='all'?detailGroup.map(a=>a.id):[currentId];
+      if(!ids.length) return;
       if(!confirm('Release all saved grades for this assignment?')) return;
-      const r=await fetch(`/api/assignments/${currentId}/release-grades`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-      if(r.ok) await loadDashboard();
+      await Promise.all(ids.map(id=>fetch(`/api/assignments/${id}/release-grades`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}})));
+      await loadDashboard();
     }
-    function exportCsv(){if(currentId) window.location.href=`/api/assignments/${currentId}/export.csv`;}
+
+    function exportCsv(){
+      if(currentId&&currentId!=='all') window.location.href=`/api/assignments/${currentId}/export.csv`;
+      else if(currentId==='all'&&detailGroup.length) window.location.href=`/api/assignments/${detailGroup[0].id}/export.csv`;
+    }
 
     async function loadDashboard(){
       if(!currentId) return;
@@ -446,6 +458,20 @@
         paste:document.getElementById('pasteFilter').value,
         sort:document.getElementById('sortSelect').value,
       });
+
+      if(currentId==='all'){
+        // Fetch all classes in parallel and merge
+        const results=await Promise.all(
+          detailGroup.map(a=>fetch(`/api/assignments/${a.id}/dashboard?${qs}`).then(r=>r.ok?r.json():null))
+        );
+        const allStudents=results.flatMap(d=>d?d.students:[]);
+        // Sort merged list by display_name
+        allStudents.sort((a,b)=>a.display_name.localeCompare(b.display_name,undefined,{sensitivity:'base'}));
+        renderSummary(allStudents);
+        renderRows(allStudents);
+        return;
+      }
+
       const r=await fetch(`/api/assignments/${currentId}/dashboard?${qs}`);
       if(!r.ok){renderEmpty('Could not load this assignment.');return;}
       const data=await r.json();
