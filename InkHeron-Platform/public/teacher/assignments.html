@@ -7,7 +7,7 @@
   <link rel="icon" href="/assets/InkHeron%20Logo.png">
   <link rel="stylesheet" href="/assets/styles.css">
   <style>
-    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--blue-50:#E8F0F7;--blue-700:#1F5076;--amber-50:#FBF0DC;--amber-700:#8A5A12;--r-sm:10px;--r-md:14px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,'SF Mono',Menlo,monospace;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
+    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--surface-3:#E8E6DF;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--blue-50:#E8F0F7;--blue-700:#1F5076;--amber-50:#FBF0DC;--amber-700:#8A5A12;--r-sm:10px;--r-md:14px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,'SF Mono',Menlo,monospace;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
     *{box-sizing:border-box;}
     body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;}
     .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
@@ -15,17 +15,36 @@
     .appbar .nm{font-family:var(--serif);font-size:17px;font-weight:600;}
     .appbar .sp{flex:1;}
     .container{max-width:1120px;margin:0 auto;padding:30px 26px 80px;}
-    h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:0;margin:0 0 8px;}
-    .lead{color:var(--text-2);font-size:15px;margin:0 0 22px;}
+    h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:0;margin:0;}
     .back{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
     .back:hover{color:var(--text);}
-    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;}
     .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
-    .controls{display:grid;grid-template-columns:minmax(220px,1fr) minmax(160px,220px) minmax(150px,190px) minmax(150px,190px);gap:12px;align-items:end;margin-bottom:18px;}
-    .toolbar{display:flex;justify-content:flex-end;gap:10px;margin:-6px 0 18px;}
+    .btn.p{background:var(--green-600);color:#fff;border:none;box-shadow:0 4px 14px rgba(36,99,67,.22);}
+    .btn.p:hover{box-shadow:0 7px 20px rgba(36,99,67,.30);}
+    .btn.sm{min-height:32px;padding:0 12px;font-size:13px;}
+    /* ── List view ── */
+    .asgn-list{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
+    .asgn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:18px 20px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:16px;cursor:pointer;transition:box-shadow 160ms,transform 160ms;text-decoration:none;color:inherit;}
+    .asgn-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
+    .asgn-card .card-body{flex:1;min-width:0;}
+    .asgn-card .card-title{font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .asgn-card .card-meta{color:var(--text-3);font-size:12.5px;margin-top:3px;}
+    .asgn-card .card-arrow{color:var(--text-3);font-size:18px;flex-shrink:0;}
+    .asgn-card .badge{display:inline-flex;align-items:center;height:22px;border-radius:999px;padding:0 9px;font-size:11.5px;font-weight:700;background:var(--surface-3);color:var(--text-2);flex-shrink:0;}
+    .asgn-card .badge.essay{background:var(--blue-50);color:var(--blue-700);}
+    .asgn-card .badge.test{background:var(--amber-50);color:var(--amber-700);}
+    .empty-state{text-align:center;padding:60px 20px;color:var(--text-3);}
+    .empty-state p{margin:8px 0 20px;font-size:15px;}
+    /* ── Detail view ── */
+    .detail-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;}
+    .detail-header h2{font-family:var(--serif);font-size:22px;font-weight:600;margin:0;flex:1;min-width:0;}
+    .detail-header .class-tag{color:var(--text-2);font-size:13.5px;white-space:nowrap;}
+    .controls{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:12px;align-items:end;margin-bottom:14px;}
+    .toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px;}
     label{display:block;color:var(--text-2);font-size:12px;font-weight:700;margin:0 0 6px;text-transform:uppercase;}
     select{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
-    .summary{display:grid;grid-template-columns:repeat(5,minmax(120px,1fr));gap:10px;margin:0 0 18px;}
+    .summary{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:10px;margin:0 0 16px;}
     .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-card);}
     .metric .n{font-size:24px;font-weight:700;line-height:1;}
     .metric .k{color:var(--text-2);font-size:12px;margin-top:6px;}
@@ -44,7 +63,7 @@
     .pill.held{background:var(--amber-50);color:var(--amber-700);}
     .mono{font-family:var(--mono);font-size:12.5px;color:var(--text-2);}
     .empty{color:var(--text-3);font-size:13.5px;text-align:center;padding:28px;}
-    @media(max-width:760px){.container{padding:24px 18px 64px;}.controls{grid-template-columns:1fr;}.summary{grid-template-columns:repeat(2,minmax(120px,1fr));}}
+    @media(max-width:760px){.container{padding:24px 18px 64px;}.controls{grid-template-columns:1fr;}.summary{grid-template-columns:repeat(2,minmax(110px,1fr));}}
   </style>
 </head>
 <body>
@@ -56,148 +75,186 @@
 
   <main class="container">
     <a class="back" href="/teacher">← Back to dashboard</a>
-    <div style="display:flex;align-items:baseline;gap:16px;margin-bottom:8px;">
-      <h1 style="margin:0;">Assignments</h1>
-      <a class="btn" href="/teacher/new-assignment" style="margin-left:auto;min-height:36px;padding:0 14px;font-size:13px;">+ New assignment</a>
-    </div>
-    <p class="lead" id="assignmentLead">Choose an assignment to review class progress.</p>
 
-    <div class="controls">
-      <div>
-        <label for="assignmentSelect">Assignment</label>
-        <select id="assignmentSelect"></select>
+    <!-- ── List view ── -->
+    <div id="listView">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+        <h1>Assignments</h1>
+        <a class="btn p sm" href="/teacher/new-assignment" style="margin-left:auto;">+ New assignment</a>
       </div>
-      <div>
-        <label for="statusFilter">Status</label>
-        <select id="statusFilter">
-          <option value="all">All statuses</option>
-          <option value="not_started">Not started</option>
-          <option value="writing">Writing</option>
-          <option value="submitted">Submitted</option>
-          <option value="marked">Marked</option>
-          <option value="released">Released</option>
-        </select>
-      </div>
-      <div>
-        <label for="pasteFilter">Paste</label>
-        <select id="pasteFilter">
-          <option value="all">All</option>
-          <option value="flagged">Flagged</option>
-          <option value="clear">Clear</option>
-        </select>
-      </div>
-      <div>
-        <label for="sortSelect">Sort</label>
-        <select id="sortSelect">
-          <option value="student">Student</option>
-          <option value="status">Status</option>
-          <option value="submitted_at">Submission time</option>
-          <option value="paste">Paste flags</option>
-        </select>
-      </div>
-    </div>
-    <div class="toolbar">
-      <button class="btn" id="exportBtn" type="button">Export CSV</button>
-      <button class="btn" id="releaseBtn" type="button">Release all grades</button>
+      <p style="color:var(--text-2);font-size:15px;margin:0 0 4px;">Click an assignment to see class progress.</p>
+      <div class="asgn-list" id="asgnList"></div>
     </div>
 
-    <div class="summary" id="summary"></div>
-
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Student</th>
-            <th>Status</th>
-            <th>Submitted</th>
-            <th>Paste</th>
-            <th>Score</th>
-            <th>Review</th>
-          </tr>
-        </thead>
-        <tbody id="studentsBody"></tbody>
-      </table>
+    <!-- ── Detail view ── -->
+    <div id="detailView" style="display:none;">
+      <button class="back" id="backBtn" type="button" style="background:none;border:none;cursor:pointer;padding:0;">← All assignments</button>
+      <div class="detail-header">
+        <h2 id="detailTitle"></h2>
+        <span class="class-tag" id="detailClass"></span>
+        <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
+        <button class="btn sm" id="releaseBtn" type="button">Release all grades</button>
+      </div>
+      <div class="controls">
+        <div>
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter">
+            <option value="all">All statuses</option>
+            <option value="not_started">Not started</option>
+            <option value="writing">Writing</option>
+            <option value="submitted">Submitted</option>
+            <option value="marked">Marked</option>
+            <option value="released">Released</option>
+          </select>
+        </div>
+        <div>
+          <label for="pasteFilter">Paste</label>
+          <select id="pasteFilter">
+            <option value="all">All</option>
+            <option value="flagged">Flagged</option>
+            <option value="clear">Clear</option>
+          </select>
+        </div>
+        <div>
+          <label for="sortSelect">Sort</label>
+          <select id="sortSelect">
+            <option value="student">Student</option>
+            <option value="status">Status</option>
+            <option value="submitted_at">Submission time</option>
+            <option value="paste">Paste flags</option>
+          </select>
+        </div>
+      </div>
+      <div class="summary" id="summary"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th><th>Status</th><th>Submitted</th><th>Paste</th><th>Score</th><th>Review</th>
+            </tr>
+          </thead>
+          <tbody id="studentsBody"></tbody>
+        </table>
+      </div>
     </div>
   </main>
 
   <script>
+  (function(){
+    'use strict';
     let csrfToken='';
     let assignments=[];
+    let classes=[];
+    let currentId=null;
 
     async function init(){
       const me=await fetch('/api/me');
-      if(!me.ok){ window.location.href='/teacher-login'; return; }
+      if(!me.ok){window.location.href='/teacher-login';return;}
       const user=await me.json();
-      if(user.user.type!=='teacher'){ window.location.href='/'; return; }
+      if(user.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=user.user.csrf_token;
-      await loadAssignments();
+
+      const [ar,cr]=await Promise.all([fetch('/api/assignments'),fetch('/api/classes')]);
+      const ad=await ar.json(); assignments=ad.assignments||[];
+      const cd=await cr.json(); classes=cd.classes||[];
+
+      renderList();
+
+      const params=new URLSearchParams(window.location.search);
+      const openId=Number(params.get('id')||params.get('highlight'));
+      if(openId && assignments.find(a=>a.id===openId)) openDetail(openId);
+
       bindControls();
+    }
+
+    function classNameFor(classId){
+      return (classes.find(c=>c.id===classId)||{}).name||'';
+    }
+
+    function renderList(){
+      const box=document.getElementById('asgnList');
+      if(!assignments.length){
+        box.innerHTML=`<div class="empty-state"><p>No assignments yet.</p><a class="btn p" href="/teacher/new-assignment">+ Create your first assignment</a></div>`;
+        return;
+      }
+      box.innerHTML=assignments.map(a=>{
+        const cls=escapeHtml(classNameFor(a.class_id));
+        const due=a.due_at?'Due '+formatDate(a.due_at):'No due date';
+        return `<div class="asgn-card" data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${escapeHtml(a.title)}">
+          <div class="card-body">
+            <div class="card-title">${escapeHtml(a.title)}</div>
+            <div class="card-meta">${cls?cls+' · ':''}${due}</div>
+          </div>
+          <span class="badge ${a.type}">${a.type==='test'?'Test':'Essay'}</span>
+          <span class="card-arrow">›</span>
+        </div>`;
+      }).join('');
+      box.querySelectorAll('.asgn-card').forEach(card=>{
+        const id=Number(card.dataset.id);
+        card.addEventListener('click',()=>openDetail(id));
+        card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')openDetail(id);});
+      });
+    }
+
+    async function openDetail(id){
+      currentId=id;
+      document.getElementById('listView').style.display='none';
+      document.getElementById('detailView').style.display='';
+      const a=assignments.find(x=>x.id===id)||{};
+      document.getElementById('detailTitle').textContent=a.title||'';
+      document.getElementById('detailClass').textContent=classNameFor(a.class_id);
+      const url=new URL(window.location.href);
+      url.searchParams.set('id',id);
+      url.searchParams.delete('highlight');
+      history.replaceState(null,'',url.toString());
       await loadDashboard();
     }
 
-    async function loadAssignments(){
-      const r=await fetch('/api/assignments');
-      const data=await r.json();
-      assignments=data.assignments || [];
-      const select=document.getElementById('assignmentSelect');
-      select.innerHTML='';
-      if(!assignments.length){
-        select.innerHTML='<option value="">No assignments</option>';
-        renderEmpty('No assignments found.');
-        return;
-      }
-      assignments.forEach(a=>{
-        const option=document.createElement('option');
-        option.value=a.id;
-        option.textContent=a.title;
-        select.appendChild(option);
-      });
-      const params=new URLSearchParams(window.location.search);
-      if(params.get('id')) select.value=params.get('id');
+    function showList(){
+      currentId=null;
+      document.getElementById('detailView').style.display='none';
+      document.getElementById('listView').style.display='';
+      const url=new URL(window.location.href);
+      url.searchParams.delete('id');
+      history.replaceState(null,'',url.toString());
     }
 
     function bindControls(){
-      ['assignmentSelect','statusFilter','pasteFilter','sortSelect'].forEach(id=>{
-      document.getElementById(id).addEventListener('change',loadDashboard);
-      });
+      document.getElementById('backBtn').addEventListener('click',showList);
       document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
-      document.getElementById('logoutBtn').addEventListener('click',async ()=>{
+      ['statusFilter','pasteFilter','sortSelect'].forEach(id=>{
+        document.getElementById(id).addEventListener('change',loadDashboard);
+      });
+      document.getElementById('logoutBtn').addEventListener('click',async()=>{
         await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
         window.location.href='/teacher-login';
       });
     }
 
     async function releaseGrades(){
-      const id=document.getElementById('assignmentSelect').value;
-      if(!id) return;
+      if(!currentId) return;
       if(!confirm('Release all saved grades for this assignment?')) return;
-      const r=await fetch(`/api/assignments/${id}/release-grades`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+      const r=await fetch(`/api/assignments/${currentId}/release-grades`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
       if(r.ok) await loadDashboard();
     }
 
     function exportCsv(){
-      const id=document.getElementById('assignmentSelect').value;
-      if(id) window.location.href=`/api/assignments/${id}/export.csv`;
+      if(currentId) window.location.href=`/api/assignments/${currentId}/export.csv`;
     }
 
     async function loadDashboard(){
-      const id=document.getElementById('assignmentSelect').value;
-      if(!id) return;
+      if(!currentId) return;
       const qs=new URLSearchParams({
         status:document.getElementById('statusFilter').value,
         paste:document.getElementById('pasteFilter').value,
         sort:document.getElementById('sortSelect').value,
       });
-      const r=await fetch(`/api/assignments/${id}/dashboard?${qs.toString()}`);
-      if(!r.ok){ renderEmpty('Could not load this assignment.'); return; }
+      const r=await fetch(`/api/assignments/${currentId}/dashboard?${qs.toString()}`);
+      if(!r.ok){renderEmpty('Could not load this assignment.');return;}
       const data=await r.json();
-      document.getElementById('assignmentLead').textContent=`${data.class.name} · ${data.assignment.title}`;
       renderSummary(data.students);
       renderRows(data.students);
-      const url=new URL(window.location.href);
-      url.searchParams.set('id',id);
-      history.replaceState(null,'',url.toString());
     }
 
     function renderSummary(rows){
@@ -206,19 +263,15 @@
         if(counts[row.status]!==undefined) counts[row.status]+=1;
         if(row.paste_flag) counts.paste+=1;
       });
-      const items=[
-        ['Total',counts.total],
-        ['Not started',counts.not_started],
-        ['Writing',counts.writing],
-        ['Submitted',counts.submitted],
-        ['Paste flags',counts.paste],
-      ];
-      document.getElementById('summary').innerHTML=items.map(([label,value])=>`<div class="metric"><div class="n">${value}</div><div class="k">${label}</div></div>`).join('');
+      document.getElementById('summary').innerHTML=[
+        ['Total',counts.total],['Not started',counts.not_started],['Writing',counts.writing],
+        ['Submitted',counts.submitted],['Paste flags',counts.paste],
+      ].map(([k,v])=>`<div class="metric"><div class="n">${v}</div><div class="k">${k}</div></div>`).join('');
     }
 
     function renderRows(rows){
       const body=document.getElementById('studentsBody');
-      if(!rows.length){ renderEmpty('No students match these filters.'); return; }
+      if(!rows.length){renderEmpty('No students match these filters.');return;}
       body.innerHTML=rows.map(row=>`
         <tr>
           <td><span class="student">${escapeHtml(row.display_name)}</span><span class="user">${escapeHtml(row.username)}</span></td>
@@ -226,30 +279,23 @@
           <td>${row.submitted_at?`<span class="mono">${formatDate(row.submitted_at)}</span>`:'-'}</td>
           <td>${row.paste_flag?`<span class="pill flag">${row.paste_count} event${row.paste_count===1?'':'s'}</span>`:'-'}</td>
           <td>${row.score===null?'-':`${escapeHtml(String(row.score))} <span class="pill ${row.grade_state==='released'?'released':'held'}">${row.grade_state==='released'?'Released':'Held'}</span>`}</td>
-          <td>${row.pad_id?`<a class="btn" href="/teacher/review?pad_id=${row.pad_id}">Review</a>`:'-'}</td>
-        </tr>
-      `).join('');
+          <td>${row.pad_id?`<a class="btn sm" href="/teacher/review?pad_id=${row.pad_id}">Review</a>`:'-'}</td>
+        </tr>`).join('');
     }
 
-    function renderEmpty(message){
+    function renderEmpty(msg){
       document.getElementById('summary').innerHTML='';
-      document.getElementById('studentsBody').innerHTML=`<tr><td class="empty" colspan="6">${escapeHtml(message)}</td></tr>`;
+      document.getElementById('studentsBody').innerHTML=`<tr><td class="empty" colspan="6">${escapeHtml(msg)}</td></tr>`;
     }
 
-    function statusLabel(status){
-      const labels={not_started:'Not started',writing:'Writing',submitted:'Submitted',marked:'Marked',released:'Released',green_pen_open:'Green pen',resubmitted:'Resubmitted'};
-      return labels[status] || status;
+    function statusLabel(s){
+      return {not_started:'Not started',writing:'Writing',submitted:'Submitted',marked:'Marked',released:'Released',green_pen_open:'Green pen',resubmitted:'Resubmitted'}[s]||s;
     }
-
-    function formatDate(value){
-      const date=new Date(value);
-      if(Number.isNaN(date.getTime())) return value;
-      return date.toLocaleString([], { dateStyle:'medium', timeStyle:'short' });
-    }
-
-    function escapeHtml(str){const div=document.createElement('div');div.textContent=str;return div.innerHTML;}
+    function formatDate(v){const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString([],{dateStyle:'medium',timeStyle:'short'});}
+    function escapeHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
     init();
+  }());
   </script>
 </body>
 </html>
