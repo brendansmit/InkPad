@@ -64,17 +64,22 @@
     .import-panel p{margin:6px 0 0;color:var(--text-2);font-size:13px;}
     .import-panel input[type=file]{display:none;}
     .import-icon{font-size:28px;line-height:1;}
-    .preview-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13.5px;}
-    .preview-table th,.preview-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;}
+    .col-picker{display:flex;gap:16px;align-items:flex-end;margin:14px 0 10px;flex-wrap:wrap;}
+    .col-picker>div{display:flex;flex-direction:column;gap:5px;}
+    .col-picker label{font-size:11.5px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.04em;}
+    .col-picker select{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:7px 10px;font:inherit;font-size:13.5px;background:var(--surface);color:var(--text);min-width:180px;}
+    .preview-table{width:100%;border-collapse:collapse;font-size:13.5px;}
+    .preview-table th,.preview-table td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle;}
     .preview-table th{background:var(--surface-2);font-size:12px;text-transform:uppercase;color:var(--text-2);}
     .preview-table tr:last-child td{border-bottom:none;}
-    .preview-table input{padding:5px 8px;font-size:13px;min-height:0;}
-    .preview-wrap{max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);}
+    .preview-wrap{max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);}
+    .match-ok{color:var(--green-600);font-size:12px;font-weight:700;}
+    .match-none{color:var(--maroon-500);font-size:12px;font-weight:700;}
+    .match-sel{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:4px 8px;font:inherit;font-size:12.5px;background:var(--surface);color:var(--text);}
     .import-footer{display:flex;align-items:center;gap:12px;margin-top:12px;}
-    .import-footer select{width:auto;min-width:180px;}
     .import-footer .sp{flex:1;}
-    .skip-row{opacity:.45;}
-    .skip-btn{background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-3);padding:2px 6px;}
+    .skip-row td{opacity:.4;}
+    .skip-btn{background:none;border:none;cursor:pointer;font-size:13px;color:var(--text-3);padding:2px 6px;line-height:1;}
     .skip-btn:hover{color:var(--maroon-500);}
   </style>
 </head>
@@ -130,21 +135,28 @@
       <div class="import-panel" id="dropZone" onclick="document.getElementById('fileInput').click()">
         <div class="import-icon">&#128196;</div>
         <strong>Drop a CSV or Excel file here</strong>
-        <p>Column A = display name &nbsp;|&nbsp; Column B = username (optional, auto-generated if blank)</p>
+        <p>Works with any layout — you pick which column is the name and which is the class.</p>
         <input type="file" id="fileInput" accept=".csv,.xlsx,.xls,.ods">
       </div>
 
       <div id="importPreview" style="display:none">
-        <h3 style="margin:18px 0 10px;font-size:15px;">Preview — check names before importing</h3>
+        <div class="col-picker">
+          <div>
+            <label>Name column</label>
+            <select id="nameCol"></select>
+          </div>
+          <div>
+            <label>Class column</label>
+            <select id="classCol"><option value="">— none —</option></select>
+          </div>
+        </div>
         <div class="preview-wrap">
           <table class="preview-table">
-            <thead><tr><th></th><th>Display name</th><th>Username</th></tr></thead>
+            <thead><tr><th style="width:32px"></th><th>Name</th><th>Class</th></tr></thead>
             <tbody id="previewBody"></tbody>
           </table>
         </div>
         <div class="import-footer">
-          <label style="margin:0;white-space:nowrap">Import into class</label>
-          <select id="importClass"><option value="">— pick a class —</option></select>
           <span class="sp"></span>
           <button class="btn" id="cancelImport">Cancel</button>
           <button class="btn p" id="doImport">Import students</button>
@@ -300,53 +312,107 @@
     }
 
     // ── CSV / Excel import ──────────────────────────────────────────────────
-    function autoUsername(displayName){
-      return displayName.toLowerCase()
-        .replace(/[^\p{L}\p{N}\s]/gu,'')
-        .trim()
-        .replace(/\s+/g,'.');
+    let rawData=[];   // full 2D array from file
+    let headerRow=[]; // column labels shown in pickers
+
+    function autoUsername(name){
+      return name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').trim().replace(/\s+/g,'.');
     }
 
-    function parseRows(raw){
-      // raw is array of arrays (any source)
-      const rows=[];
-      raw.forEach((r,i)=>{
-        const name=(r[0]??'').toString().trim();
-        if(!name||name.toLowerCase()==='name'||name.toLowerCase()==='display name') return; // skip header
-        const username=(r[1]??'').toString().trim()||autoUsername(name);
-        rows.push({name,username,skip:false,origIdx:i});
-      });
-      return rows;
-    }
-
-    function renderPreview(rows){
-      importRows=rows;
-      const body=document.getElementById('previewBody');
-      body.innerHTML='';
-      rows.forEach((row,i)=>{
-        const tr=document.createElement('tr');tr.id=`pr-${i}`;if(row.skip)tr.className='skip-row';
-        tr.innerHTML=`<td><button class="skip-btn" data-i="${i}" title="${row.skip?'Include':'Skip'}">${row.skip?'&#8635;':'&#10005;'}</button></td><td><input id="pn-${i}" value="${escapeHtml(row.name)}"></td><td><input id="pu-${i}" value="${escapeHtml(row.username)}"></td>`;
-        body.appendChild(tr);
-      });
-      body.querySelectorAll('.skip-btn').forEach(b=>b.addEventListener('click',()=>{
-        const i=Number(b.dataset.i);
-        importRows[i].skip=!importRows[i].skip;
-        renderPreview(importRows);
-      }));
-      document.getElementById('importPreview').style.display='';
+    function matchClass(cellValue){
+      const v=(cellValue??'').toString().trim().toLowerCase();
+      if(!v) return null;
+      return classes.find(c=>c.name.toLowerCase()===v) || null;
     }
 
     function parseCsv(text){
-      const lines=text.split(/\r?\n/);
-      return lines.map(l=>{
+      return text.split(/\r?\n/).map(l=>{
         const cells=[];let cur='';let inQ=false;
-        for(let c=0;c<l.length;c++){
-          const ch=l[c];
-          if(ch==='"'){inQ=!inQ;}else if((ch===','||ch==='\t'||ch===';')&&!inQ){cells.push(cur);cur='';}else{cur+=ch;}
+        for(const ch of l){
+          if(ch==='"'){inQ=!inQ;}
+          else if((ch===','||ch==='\t'||ch===';')&&!inQ){cells.push(cur);cur='';}
+          else{cur+=ch;}
         }
         cells.push(cur);
         return cells;
       }).filter(r=>r.some(c=>c.trim()));
+    }
+
+    function populateColPickers(headers){
+      const nameSel=document.getElementById('nameCol');
+      const classSel=document.getElementById('classCol');
+      nameSel.innerHTML='';
+      classSel.innerHTML='<option value="">— none —</option>';
+      headers.forEach((h,i)=>{
+        const label=h?`${h} (col ${i+1})`:`Column ${i+1}`;
+        [nameSel,classSel].forEach(sel=>{
+          const o=document.createElement('option');o.value=i;o.textContent=label;sel.appendChild(o);
+        });
+      });
+      // auto-guess: pick column whose header contains "english" or "name"
+      const nameGuess=headers.findIndex(h=>/english|first.?name|student.?name/i.test(h));
+      if(nameGuess>=0) nameSel.value=nameGuess;
+      const classGuess=headers.findIndex(h=>/admin.*class|class|group/i.test(h));
+      if(classGuess>=0) classSel.value=classGuess;
+    }
+
+    function buildPreview(){
+      const nameCol=Number(document.getElementById('nameCol').value);
+      const classColVal=document.getElementById('classCol').value;
+      const classCol=classColVal===''?null:Number(classColVal);
+      const body=document.getElementById('previewBody');
+      body.innerHTML='';
+      importRows=[];
+
+      // skip the header row (index 0) if it matches our headers
+      const startRow=rawData.length>1&&rawData[0].join('')===headerRow.join('')?1:0;
+
+      rawData.slice(startRow).forEach((r,i)=>{
+        const name=(r[nameCol]??'').toString().trim();
+        if(!name) return;
+        const classCell=classCol!==null?(r[classCol]??'').toString().trim():'';
+        const matched=classCell?matchClass(classCell):null;
+        const row={name,classCell,matched,classId:matched?matched.id:null,skip:false};
+        importRows.push(row);
+        const idx=importRows.length-1;
+
+        const tr=document.createElement('tr');tr.id=`pr-${idx}`;
+        let classHtml='';
+        if(!classCell){
+          // no class column selected or cell empty — show fallback picker
+          classHtml=`<select class="match-sel" data-i="${idx}">`+
+            `<option value="">— pick class —</option>`+
+            classes.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')+
+            `</select>`;
+        } else if(matched){
+          classHtml=`<span class="match-ok">&#10003; ${escapeHtml(matched.name)}</span>`;
+        } else {
+          classHtml=`<span class="match-none">&#10007; "${escapeHtml(classCell)}"</span> `+
+            `<select class="match-sel" data-i="${idx}">`+
+            `<option value="">pick manually</option>`+
+            classes.map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('')+
+            `</select>`;
+        }
+
+        tr.innerHTML=`<td><button class="skip-btn" data-i="${idx}">&#10005;</button></td>`+
+          `<td>${escapeHtml(name)}</td><td>${classHtml}</td>`;
+        body.appendChild(tr);
+      });
+
+      // attach skip buttons
+      body.querySelectorAll('.skip-btn').forEach(b=>b.addEventListener('click',()=>{
+        const i=Number(b.dataset.i);
+        importRows[i].skip=!importRows[i].skip;
+        const tr=document.getElementById(`pr-${i}`);
+        if(tr) tr.className=importRows[i].skip?'skip-row':'';
+        b.textContent=importRows[i].skip?'↺':'✕';
+      }));
+      // attach fallback class selectors
+      body.querySelectorAll('.match-sel').forEach(sel=>sel.addEventListener('change',()=>{
+        importRows[Number(sel.dataset.i)].classId=sel.value?Number(sel.value):null;
+      }));
+
+      document.getElementById('importPreview').style.display='';
     }
 
     function handleFile(file){
@@ -354,20 +420,27 @@
       const ext=file.name.split('.').pop().toLowerCase();
       if(ext==='csv'){
         const reader=new FileReader();
-        reader.onload=e=>renderPreview(parseRows(parseCsv(e.target.result)));
+        reader.onload=e=>{
+          rawData=parseCsv(e.target.result);
+          headerRow=rawData[0]||[];
+          populateColPickers(headerRow);
+          buildPreview();
+        };
         reader.readAsText(file,'UTF-8');
       } else if(['xlsx','xls','ods'].includes(ext)){
-        if(typeof XLSX==='undefined'){showMsg('Excel parser not loaded. Try refreshing the page.',true);return;}
+        if(typeof XLSX==='undefined'){showMsg('Excel parser not loaded. Try refreshing.',true);return;}
         const reader=new FileReader();
         reader.onload=e=>{
           const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
           const ws=wb.Sheets[wb.SheetNames[0]];
-          const data=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-          renderPreview(parseRows(data));
+          rawData=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+          headerRow=rawData[0]||[];
+          populateColPickers(headerRow);
+          buildPreview();
         };
         reader.readAsArrayBuffer(file);
       } else {
-        showMsg('Unsupported file type. Use CSV or Excel (.xlsx).',true);
+        showMsg('Unsupported file type. Use CSV or Excel (.xlsx, .xls).',true);
       }
     }
 
@@ -376,23 +449,22 @@
     dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('over'));
     dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('over');handleFile(e.dataTransfer.files[0]);});
     document.getElementById('fileInput').addEventListener('change',e=>handleFile(e.target.files[0]));
+    document.getElementById('nameCol').addEventListener('change',buildPreview);
+    document.getElementById('classCol').addEventListener('change',buildPreview);
 
     document.getElementById('cancelImport').addEventListener('click',()=>{
       document.getElementById('importPreview').style.display='none';
       document.getElementById('fileInput').value='';
-      importRows=[];
+      importRows=[];rawData=[];headerRow=[];
     });
 
     document.getElementById('doImport').addEventListener('click',async()=>{
-      const classId=Number(document.getElementById('importClass').value);
-      if(!classId){showMsg('Please select a class to import into.',true);return;}
-      // collect current values from inputs
-      const toImport=importRows.map((row,i)=>({
-        name:document.getElementById(`pn-${i}`).value.trim(),
-        username:document.getElementById(`pu-${i}`).value.trim(),
-        skip:row.skip,
-      })).filter(r=>!r.skip&&r.name&&r.username);
-
+      const toImport=importRows.filter(r=>!r.skip&&r.name);
+      const noClass=toImport.filter(r=>!r.classId);
+      if(noClass.length){
+        showMsg(`${noClass.length} student${noClass.length!==1?'s':''} still need a class assigned. Use the dropdown next to their name.`,true);
+        return;
+      }
       if(!toImport.length){showMsg('No students to import.',true);return;}
 
       const btn=document.getElementById('doImport');
@@ -401,15 +473,20 @@
       const tempPassword='ChangeMe1';
       let added=0,failed=[];
       for(const s of toImport){
-        const r=await fetch('/api/students',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({display_name:s.name,username:s.username,password:tempPassword,class_id:classId})});
+        const username=autoUsername(s.name);
+        const r=await fetch('/api/students',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+          body:JSON.stringify({display_name:s.name,username,password:tempPassword,class_id:s.classId}),
+        });
         if(r.ok) added++;
-        else{const d=await r.json().catch(()=>({}));failed.push(`${s.username} (${d.error||'error'})`);}
+        else{const d=await r.json().catch(()=>({}));failed.push(`${s.name} (${d.error||'error'})`);}
       }
 
       btn.disabled=false;btn.textContent='Import students';
       document.getElementById('importPreview').style.display='none';
       document.getElementById('fileInput').value='';
-      importRows=[];
+      importRows=[];rawData=[];headerRow=[];
 
       let msg=`${added} student${added!==1?'s':''} imported. Temp password: <span class="temp">${tempPassword}</span> — students must change it on first login.`;
       if(failed.length) msg+=` Failed: ${failed.join(', ')}.`;
