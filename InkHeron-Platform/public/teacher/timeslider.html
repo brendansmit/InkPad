@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InkHeron — Timeslider</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:-apple-system,system-ui,sans-serif;font-size:14px;background:#F7F6F2;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+    .bar{display:flex;align-items:center;gap:12px;padding:10px 20px;background:rgba(247,246,242,0.95);border-bottom:1px solid rgba(20,20,18,0.12);flex-shrink:0;z-index:10;}
+    .glyph{width:28px;height:28px;border-radius:8px;background:#246343;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-size:15px;font-weight:600;transform:rotate(-4deg);}
+    .nm{font-family:Georgia,serif;font-size:16px;font-weight:600;}
+    .sep{color:rgba(20,20,18,0.25);font-size:13px;}
+    .title{font-size:14px;color:#5C5B55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:40vw;}
+    .sp{flex:1;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid rgba(20,20,18,0.22);background:#fff;color:#1C1C1A;text-decoration:none;font-family:inherit;}
+    .btn:hover{background:#F1EFE9;}
+    iframe{flex:1;width:100%;border:none;display:block;}
+    #err{flex:1;display:flex;align-items:center;justify-content:center;color:#8C8B83;font-size:15px;}
+  </style>
+</head>
+<body>
+  <div class="bar">
+    <div class="glyph">i</div>
+    <div class="nm">InkHeron</div>
+    <span class="sep">/</span>
+    <span class="title" id="barTitle">Timeslider</span>
+    <span class="sp"></span>
+    <a class="btn" href="/teacher/assignments">&larr; Back to assignments</a>
+  </div>
+  <iframe id="tsframe" title="Timeslider replay" allowfullscreen></iframe>
+  <div id="err" style="display:none">Could not load timeslider. <a href="/teacher/assignments">Go back</a>.</div>
+
+<script>
+(function(){
+  const params=new URLSearchParams(location.search);
+  const padId=params.get('pad_id');
+  if(!padId){document.getElementById('err').style.display='';document.getElementById('tsframe').style.display='none';return;}
+
+  const iframe=document.getElementById('tsframe');
+
+  // load the API route which sets the Etherpad session cookie then redirects into the iframe
+  iframe.src='/api/pads/'+encodeURIComponent(padId)+'/timeslider';
+
+  // try to set a more useful title from the URL param
+  const title=params.get('title');
+  if(title) document.getElementById('barTitle').textContent='Timeslider — '+title;
+
+  // CSS cleanup: hide "Return to pad" and live-edit chrome once the iframe loads
+  iframe.addEventListener('load',function tryCleanup(){
+    try{
+      var doc=iframe.contentDocument||(iframe.contentWindow&&iframe.contentWindow.document);
+      if(!doc||!doc.head) return;
+      if(doc.getElementById('ih-ts-cleanup')) return;
+      var s=doc.createElement('style');
+      s.id='ih-ts-cleanup';
+      s.textContent=
+        // "Return to pad" button in timeslider toolbar
+        '#returnToPad,.returnToPad,.buttonicon-returnToPad{display:none!important}'+
+        // hide chat, users, settings buttons
+        '#chaticon,#chat,.chat-container,.buttonicon-settings,.buttonicon-showusers{display:none!important}'+
+        '#online_count,#users{display:none!important}';
+      doc.head.appendChild(s);
+    }catch(_){}
+  });
+}());
+</script>
+</body>
+</html>

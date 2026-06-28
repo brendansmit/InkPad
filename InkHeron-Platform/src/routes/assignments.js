@@ -36,6 +36,7 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     base.focus_warning = settings.focus_warning !== false;
     base.timer_minutes = settings.timer_minutes ?? null;
   }
+  if (settings.prompt) base.prompt = String(settings.prompt).slice(0, 4000);
   return JSON.stringify(base);
 }
 

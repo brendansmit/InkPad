@@ -161,7 +161,8 @@
         </section>
       `;
       document.getElementById('replayBtn').addEventListener('click',()=>{
-        window.location.href=`/api/pads/${data.pad.id}/timeslider`;
+        window.location.href=`/teacher/timeslider?pad_id=${data.pad.id}&title=${encodeURIComponent(data.assignment?.title||'')}`;
+
       });
       let coded=false;
       document.getElementById('codesBtn').addEventListener('click',()=>{

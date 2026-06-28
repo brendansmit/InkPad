@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InkHeron — New assignment</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--surface-3:#E8E6DF;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-500:#2E7D52;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--coral-50:#FDF1EE;--coral-100:#F9DDD7;--r-sm:10px;--r-md:14px;--r-lg:20px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);--ease:cubic-bezier(.22,1,.36,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;}
+    .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
+    .appbar .glyph{width:32px;height:32px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;font-weight:600;transform:rotate(-4deg);}
+    .appbar .nm{font-family:var(--serif);font-size:17px;font-weight:600;}
+    .appbar .sp{flex:1;}
+    .container{max-width:640px;margin:0 auto;padding:30px 26px 80px;}
+    h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:-.01em;margin:0 0 8px;}
+    .lead{color:var(--text-2);font-size:15px;margin:0 0 26px;}
+    .back{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
+    .back:hover{color:var(--text);}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 18px;border-radius:var(--r-sm);font-weight:700;font-size:14px;text-decoration:none;transition:transform 160ms var(--ease),box-shadow 160ms var(--ease);cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-family:inherit;}
+    .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
+    .btn.p{background:var(--green-600);color:#fff;border:none;box-shadow:0 4px 14px rgba(36,99,67,0.22);}
+    .btn.p:hover{box-shadow:0 7px 20px rgba(36,99,67,0.30);}
+    .btn:disabled{opacity:.5;cursor:default;transform:none!important;box-shadow:none!important;}
+    .msg{display:none;padding:12px 16px;border-radius:var(--r-sm);font-size:13.5px;margin-bottom:16px;}
+    .msg.on{display:block;background:var(--green-50);border:1px solid rgba(36,99,67,.2);color:var(--green-700);}
+    .msg.on.err{background:var(--coral-50);border-color:var(--coral-100);color:var(--maroon-500);}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:24px;box-shadow:var(--shadow-card);margin-bottom:16px;}
+    .card h2{font-size:14px;font-weight:700;margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    .field{margin-bottom:16px;}
+    .field:last-child{margin-bottom:0;}
+    label{display:block;color:var(--text-2);font-size:11.5px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;}
+    input[type=text],input[type=datetime-local],select,textarea{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green-600);}
+    textarea{resize:vertical;min-height:100px;}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .toggle-group{display:flex;flex-direction:column;gap:10px;}
+    .toggle{display:flex;align-items:center;gap:12px;cursor:pointer;}
+    .toggle input[type=checkbox]{width:38px;height:22px;appearance:none;border-radius:999px;background:var(--surface-3);border:1.5px solid var(--border-2);cursor:pointer;transition:background .2s;flex-shrink:0;position:relative;}
+    .toggle input[type=checkbox]:checked{background:var(--green-600);border-color:var(--green-600);}
+    .toggle input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+    .toggle input[type=checkbox]:checked::after{left:18px;}
+    .toggle-label{font-size:13.5px;}
+    .toggle-label small{display:block;color:var(--text-3);font-size:12px;margin-top:1px;}
+    .hint{font-size:12px;color:var(--text-3);margin-top:5px;}
+    .footer{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;}
+    .radio-group{display:flex;gap:0;}
+    .radio-group label{text-transform:none;font-size:13.5px;font-weight:600;letter-spacing:0;margin:0;cursor:pointer;}
+    .radio-group input[type=radio]{display:none;}
+    .radio-group .opt{padding:8px 16px;border:1.5px solid var(--border-2);background:var(--surface);cursor:pointer;transition:background .15s,color .15s;}
+    .radio-group .opt:first-of-type{border-radius:var(--r-sm) 0 0 var(--r-sm);}
+    .radio-group .opt:last-of-type{border-radius:0 var(--r-sm) var(--r-sm) 0;margin-left:-1.5px;}
+    .radio-group input[type=radio]:checked+.opt{background:var(--green-600);color:#fff;border-color:var(--green-600);z-index:1;position:relative;}
+  </style>
+</head>
+<body>
+  <div class="appbar">
+    <div class="glyph">i</div><div class="nm">InkHeron</div>
+    <span class="sp"></span>
+    <button class="btn" id="logoutBtn" type="button">Sign out</button>
+  </div>
+
+  <main class="container">
+    <a class="back" href="/teacher/assignments">&lt; Back to assignments</a>
+    <h1>New assignment</h1>
+    <p class="lead">Fill in the details below. Students will see this assignment once it opens.</p>
+
+    <div class="msg" id="msg"></div>
+
+    <form id="newForm" autocomplete="off" novalidate>
+
+      <div class="card">
+        <h2>Basics</h2>
+        <div class="field">
+          <label for="fTitle">Title <span style="color:var(--maroon-500)">*</span></label>
+          <input type="text" id="fTitle" placeholder="e.g. Opinion essay: social media" required>
+        </div>
+        <div class="field">
+          <label for="fPrompt">Writing prompt (optional)</label>
+          <textarea id="fPrompt" placeholder="Paste the full question or task description here. Used later for AI marking suggestions."></textarea>
+          <p class="hint">Students do not see this — it is for your reference and AI marking assistance.</p>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="fClass">Class <span style="color:var(--maroon-500)">*</span></label>
+            <select id="fClass" required><option value="">— select a class —</option></select>
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <div class="radio-group">
+              <input type="radio" name="type" id="typeEssay" value="essay" checked>
+              <span class="opt" onclick="document.getElementById('typeEssay').checked=true">Essay</span>
+              <input type="radio" name="type" id="typeTest" value="test">
+              <span class="opt" onclick="document.getElementById('typeTest').checked=true">Test</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Dates</h2>
+        <div class="row2">
+          <div class="field">
+            <label for="fOpens">Opens at (optional)</label>
+            <input type="datetime-local" id="fOpens">
+            <p class="hint">Leave blank to make it available immediately.</p>
+          </div>
+          <div class="field">
+            <label for="fDue">Due at (optional)</label>
+            <input type="datetime-local" id="fDue">
+            <p class="hint">Students can edit until this time passes.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Settings</h2>
+        <div class="field">
+          <label>Submit behaviour</label>
+          <div class="radio-group">
+            <input type="radio" name="submit_behaviour" id="sbDraft" value="draft" checked>
+            <span class="opt" onclick="document.getElementById('sbDraft').checked=true">Draft</span>
+            <input type="radio" name="submit_behaviour" id="sbExam" value="exam">
+            <span class="opt" onclick="document.getElementById('sbExam').checked=true">Exam (terminal)</span>
+          </div>
+          <p class="hint">Draft: students can keep editing until due date. Exam: submitting locks the pad permanently.</p>
+        </div>
+        <div class="toggle-group">
+          <label class="toggle">
+            <input type="checkbox" id="fSpellcheck" checked>
+            <span class="toggle-label">Spellcheck on<small>Browser underlines misspellings in the writing pad.</small></span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="fGreenPen">
+            <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="footer">
+        <a class="btn" href="/teacher/assignments">Cancel</a>
+        <button class="btn p" type="submit" id="submitBtn">Create assignment</button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+  (function(){
+    'use strict';
+    let csrfToken='';
+
+    async function init(){
+      const me=await fetch('/api/me');
+      if(!me.ok){window.location.href='/teacher-login';return;}
+      const data=await me.json();
+      if(data.user.type!=='teacher'){window.location.href='/';return;}
+      csrfToken=data.user.csrf_token;
+      await loadClasses();
+    }
+
+    async function loadClasses(){
+      const r=await fetch('/api/classes');
+      if(!r.ok) return;
+      const data=await r.json();
+      const sel=document.getElementById('fClass');
+      (data.classes||[]).forEach(c=>{
+        const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);
+      });
+    }
+
+    document.getElementById('newForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const title=document.getElementById('fTitle').value.trim();
+      const classId=Number(document.getElementById('fClass').value);
+      if(!title){showMsg('Please enter a title.',true);return;}
+      if(!classId){showMsg('Please select a class.',true);return;}
+
+      const type=document.querySelector('input[name="type"]:checked').value;
+      const submit_behaviour=document.querySelector('input[name="submit_behaviour"]:checked').value;
+      const spellcheck=document.getElementById('fSpellcheck').checked;
+      const green_pen=document.getElementById('fGreenPen').checked;
+      const opens=document.getElementById('fOpens').value;
+      const due=document.getElementById('fDue').value;
+      const prompt=document.getElementById('fPrompt').value.trim();
+
+      const settings={submit_behaviour,spellcheck,green_pen};
+      if(prompt) settings.prompt=prompt;
+      const payload={title,class_id:classId,type,settings,opens_at:opens||null,due_at:due||null};
+
+      const btn=document.getElementById('submitBtn');
+      btn.disabled=true;btn.textContent='Creating...';
+
+      const r=await fetch('/api/assignments',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify(payload),
+      });
+
+      btn.disabled=false;btn.textContent='Create assignment';
+
+      if(!r.ok){
+        const d=await r.json().catch(()=>({}));
+        showMsg(d.error==='class_not_found'?'Class not found.':d.error||'Could not create assignment.',true);
+        return;
+      }
+      const result=await r.json();
+      window.location.href=`/teacher/assignments?highlight=${result.assignment?.id||''}`;
+    });
+
+    function showMsg(text,isError){
+      const el=document.getElementById('msg');
+      el.textContent=text;el.className=isError?'msg on err':'msg on';
+      el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click',async()=>{
+      await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+      window.location.href='/teacher-login';
+    });
+
+    init();
+  }());
+  </script>
+</body>
+</html>
