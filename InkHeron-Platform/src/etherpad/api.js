@@ -101,6 +101,11 @@ export class EtherpadService {
     return result.authorID;
   }
 
+  async ensureTeacherAuthor(teacherId, displayName) {
+    const result = await this.api.createAuthorIfNotExistsFor(`teacher:${teacherId}`, displayName);
+    return result.authorID;
+  }
+
   /**
    * Create a session cookie value for an author in a group.
    * validUntil is a Unix timestamp in seconds (default: 2 hours from now).

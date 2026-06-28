@@ -282,6 +282,29 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
     }
   );
 
+  app.get('/api/pads/:padId/timeslider',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = db.prepare(`
+        SELECT p.id, p.etherpad_pad_id, a.class_id
+        FROM pads p
+        JOIN assignments a ON a.id = p.assignment_id
+        WHERE p.id = ?
+      `).get(padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+
+      const groupId = await service.ensureClassGroup(pad.class_id);
+      const authorId = await service.ensureTeacherAuthor(
+        request.session.user.id,
+        request.session.user.display_name
+      );
+      const session = await service.createSessionCookie(groupId, authorId);
+      reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
+      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}/timeslider`);
+    }
+  );
+
   /**
    * POST /api/pads/:padId/submit
    *

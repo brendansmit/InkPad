@@ -138,7 +138,9 @@
           </div>
         </section>
       `;
-      document.getElementById('replayBtn').addEventListener('click',()=>{});
+      document.getElementById('replayBtn').addEventListener('click',()=>{
+        window.location.href=`/api/pads/${data.pad.id}/timeslider`;
+      });
       document.getElementById('codesBtn').addEventListener('click',()=>{});
     }
 

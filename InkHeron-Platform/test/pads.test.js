@@ -84,6 +84,10 @@ function makeFakeEtherpadService() {
       calls.push({ method: 'ensureStudentAuthor', studentId, displayName });
       return `a.student${studentId}`;
     },
+    async ensureTeacherAuthor(teacherId, displayName) {
+      calls.push({ method: 'ensureTeacherAuthor', teacherId, displayName });
+      return `a.teacher${teacherId}`;
+    },
     async createSessionCookie(groupId, authorId) {
       calls.push({ method: 'createSessionCookie', groupId, authorId });
       return { sessionID: `s.${groupId}.${authorId}`, validUntil: Math.floor(Date.now() / 1000) + 7200 };
@@ -349,6 +353,40 @@ test('teacher can open a student pad review with text and paste evidence', async
   assert.equal(body.paste_events.length, 1);
   assert.equal(body.paste_events[0].length, 33);
   assert.equal(fakeEtherpad.calls.filter(call => call.method === 'getPadText').length, 1);
+
+  await app.close();
+});
+
+test('teacher timeslider route creates an Etherpad session and redirects to the exact pad', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const opened = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  const padId = opened.json().pad.id;
+  const etherpadPadId = opened.json().pad.etherpad_pad_id;
+
+  const replay = await app.inject({
+    method: 'GET',
+    url: `/api/pads/${padId}/timeslider`,
+    headers: { cookie: teacherCookies },
+  });
+
+  assert.equal(replay.statusCode, 302);
+  assert.equal(replay.headers.location, `/p/${encodeURIComponent(etherpadPadId)}/timeslider`);
+  const cookies = Array.isArray(replay.headers['set-cookie'])
+    ? replay.headers['set-cookie']
+    : [replay.headers['set-cookie']];
+  assert.ok(cookies.some(cookie => /sessionID=s\.g\.class\d+\.a\.teacher\d+/.test(cookie)));
+  assert.equal(fakeEtherpad.calls.filter(call => call.method === 'ensureTeacherAuthor').length, 1);
 
   await app.close();
 });

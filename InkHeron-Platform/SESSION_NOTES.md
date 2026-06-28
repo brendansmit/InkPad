@@ -20,6 +20,16 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.3 timeslider replay
+- Phase/Step worked: Phase 6, Step 6.3
+- Built: Added teacher author mapping in Etherpad, `GET /api/pads/:padId/timeslider` to issue
+  an Etherpad session cookie and redirect to the exact pad timeslider, and wired the review
+  page replay button to that route.
+- Decisions: Timeslider access is a server-side authenticated redirect so the browser receives
+  the right Etherpad cookie without exposing API credentials.
+- Open / next: Phase 6 Step 6.4 literacy coding view.
+- Gotchas hit: Fastify returns multiple Set-Cookie headers as an array in tests.
+
 ## 2026-06-28 — Phase 6 Step 6.2 review surface
 - Phase/Step worked: Phase 6, Step 6.2
 - Built: Added teacher review API `GET /api/pads/:padId/review`, Etherpad `getPadText`

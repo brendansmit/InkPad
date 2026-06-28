@@ -50,6 +50,19 @@ test('createAuthorIfNotExistsFor passes mapper and name', async () => {
   assert.equal(server.calls[0].params.name, 'Alice');
 });
 
+test('ensureTeacherAuthor maps teacher identity', async () => {
+  const server = makeMockServer([
+    { json: { code: 0, data: { authorID: 'a.teacher1' } } },
+  ]);
+  const service = new EtherpadService({ baseUrl: 'http://localhost:9001', apiKey: 'secret' });
+  service.api._fetch = server.fetch.bind(server);
+
+  const authorId = await service.ensureTeacherAuthor(7, 'Teacher');
+  assert.equal(authorId, 'a.teacher1');
+  assert.equal(server.calls[0].params.authorMapper, 'teacher:7');
+  assert.equal(server.calls[0].params.name, 'Teacher');
+});
+
 test('createSession returns session id and validUntil', async () => {
   const server = makeMockServer([
     { json: { code: 0, data: { sessionID: 's.sess123' } } },
