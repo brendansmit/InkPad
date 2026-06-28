@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.1 assignment dashboard
+- Phase/Step worked: Phase 6, Step 6.1
+- Built: Added `GET /api/assignments/:id/dashboard` for teacher roster progress with status,
+  submission time, paste counts, paste totals and scores. Added `/teacher/assignments` with an
+  assignment picker, status and paste filters, sort controls, summary counters and roster table.
+- Decisions: Teacher dashboard status is derived server-side so later review, CSV and release
+  steps can reuse one source of truth.
+- Open / next: Phase 6 Step 6.2 review surface.
+- Gotchas hit: Initial dashboard tests accidentally used the real Etherpad client. Switched them
+  to the fake Etherpad service used by existing pad tests.
+
 ## 2026-06-28 — Baseline audit and paste block deploy fix
 - Phase/Step worked: Audit through Phase 5 before Phase 6
 - Built: Re-ran the local suite on Node 24 with 46/46 passing. Re-applied the missing

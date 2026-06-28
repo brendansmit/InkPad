@@ -54,6 +54,43 @@ function deriveStatus(row, now) {
   return 'in_progress';
 }
 
+function deriveTeacherStatus(row) {
+  if (row.grade_released || row.submission_released) return 'released';
+  if (row.grade_id || row.is_graded || row.pad_state === 'marked') return 'marked';
+  if (!row.pad_id) return 'not_started';
+  if (row.pad_state === 'submitted') return 'submitted';
+  return row.pad_state ?? 'writing';
+}
+
+function publicDashboardRow(row) {
+  const status = deriveTeacherStatus(row);
+  return {
+    student_id: row.student_id,
+    display_name: row.display_name,
+    username: row.username,
+    pad_id: row.pad_id ?? null,
+    status,
+    submitted_at: row.submitted_at ?? null,
+    paste_flag: Number(row.paste_count ?? 0) > 0,
+    paste_count: Number(row.paste_count ?? 0),
+    paste_total_length: Number(row.paste_total_length ?? 0),
+    latest_paste_at: row.latest_paste_at ?? null,
+    score: row.score ?? null,
+  };
+}
+
+function sortDashboardRows(rows, sort) {
+  const byName = (a, b) => a.display_name.localeCompare(b.display_name, undefined, { sensitivity: 'base' });
+  const byStatus = (a, b) => a.status.localeCompare(b.status) || byName(a, b);
+  const bySubmitted = (a, b) => (b.submitted_at ?? '').localeCompare(a.submitted_at ?? '') || byName(a, b);
+  const byPaste = (a, b) => Number(b.paste_flag) - Number(a.paste_flag) || b.paste_count - a.paste_count || byName(a, b);
+
+  if (sort === 'status') return rows.sort(byStatus);
+  if (sort === 'submitted_at') return rows.sort(bySubmitted);
+  if (sort === 'paste') return rows.sort(byPaste);
+  return rows.sort(byName);
+}
+
 export async function registerAssignmentRoutes(app, { db }) {
   // ── Teacher routes ──────────────────────────────────────────────────────
 
@@ -99,6 +136,75 @@ export async function registerAssignmentRoutes(app, { db }) {
       const assignment = db.prepare('SELECT * FROM assignments WHERE id = ?').get(id);
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
       return { assignment: publicAssignment(assignment) };
+    }
+  );
+
+  app.get('/api/assignments/:id/dashboard',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const assignment = db.prepare(`
+        SELECT a.*, c.name AS class_name
+        FROM assignments a
+        JOIN classes c ON c.id = a.class_id
+        WHERE a.id = ?
+      `).get(id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      const rows = db.prepare(`
+        SELECT s.id AS student_id,
+               s.display_name,
+               s.username,
+               p.id AS pad_id,
+               p.state AS pad_state,
+               sub.id AS submission_id,
+               sub.submitted_at,
+               sub.is_graded,
+               sub.released AS submission_released,
+               g.id AS grade_id,
+               g.score,
+               g.released AS grade_released,
+               paste.paste_count,
+               paste.paste_total_length,
+               paste.latest_paste_at
+        FROM students s
+        LEFT JOIN pads p ON p.student_id = s.id AND p.assignment_id = ?
+        LEFT JOIN (
+          SELECT sub_inner.*
+          FROM submissions sub_inner
+          JOIN (
+            SELECT pad_id, MAX(id) AS latest_id
+            FROM submissions
+            GROUP BY pad_id
+          ) latest ON latest.latest_id = sub_inner.id
+        ) sub ON sub.pad_id = p.id
+        LEFT JOIN grades g ON g.submission_id = sub.id
+        LEFT JOIN (
+          SELECT pad_id,
+                 COUNT(*) AS paste_count,
+                 COALESCE(SUM(length), 0) AS paste_total_length,
+                 MAX(at) AS latest_paste_at
+          FROM paste_events
+          GROUP BY pad_id
+        ) paste ON paste.pad_id = p.id
+        WHERE s.class_id = ?
+        ORDER BY s.display_name COLLATE NOCASE
+      `).all(id, assignment.class_id);
+
+      const statusFilter = request.query.status;
+      const pasteFilter = request.query.paste;
+      let students = rows.map(publicDashboardRow);
+      if (statusFilter && statusFilter !== 'all') {
+        students = students.filter(student => student.status === statusFilter);
+      }
+      if (pasteFilter === 'flagged') students = students.filter(student => student.paste_flag);
+      if (pasteFilter === 'clear') students = students.filter(student => !student.paste_flag);
+
+      return {
+        assignment: publicAssignment(assignment),
+        class: { id: assignment.class_id, name: assignment.class_name },
+        students: sortDashboardRows(students, request.query.sort),
+      };
     }
   );
 
