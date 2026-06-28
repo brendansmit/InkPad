@@ -20,6 +20,16 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.5 strengths and targets
+- Phase/Step worked: Phase 6, Step 6.5
+- Built: Added `submission_feedback` storage, a small feedback library, selected feedback in the
+  review payload, and `POST /api/submissions/:submissionId/feedback` with CSRF. Review page now
+  loads multi-select strengths/targets and saves selected feedback.
+- Decisions: Feedback options are app-owned seed data for now. Writing Analyzer still owns any
+  future generated suggestions.
+- Open / next: Phase 6 Step 6.6 grade entry and release all.
+- Gotchas hit: none.
+
 ## 2026-06-28 — Phase 6 Step 6.4 literacy coding view
 - Phase/Step worked: Phase 6, Step 6.4
 - Built: Added `submission_codes` storage for analyzer-provided inline codes, returned codes in

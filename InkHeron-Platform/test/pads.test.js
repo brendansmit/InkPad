@@ -347,9 +347,11 @@ test('teacher can open a student pad review with text and paste evidence', async
   });
   assert.equal(submitted.statusCode, 201);
 
+  let submissionId;
   const db = new DatabaseSync(databasePath);
   try {
     const submission = db.prepare('SELECT id FROM submissions WHERE pad_id = ?').get(padId);
+    submissionId = submission.id;
     db.prepare(`
       INSERT INTO submission_codes (submission_id, start_offset, end_offset, code, category, label)
       VALUES (?, 0, 9, 'SENT', 'Sentence control', 'Sentence boundary')
@@ -357,6 +359,15 @@ test('teacher can open a student pad review with text and paste evidence', async
   } finally {
     db.close();
   }
+
+  const savedFeedback = await app.inject({
+    method: 'POST',
+    url: `/api/submissions/${submissionId}/feedback`,
+    payload: { strengths: ['clear_argument'], targets: ['develop_explanation', 'sentence_boundaries'] },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(savedFeedback.statusCode, 200);
+  assert.equal(savedFeedback.json().feedback.length, 3);
 
   const review = await app.inject({
     method: 'GET',
@@ -373,6 +384,9 @@ test('teacher can open a student pad review with text and paste evidence', async
   assert.equal(body.codes.length, 1);
   assert.equal(body.codes[0].code, 'SENT');
   assert.equal(body.codes[0].category, 'Sentence control');
+  assert.equal(body.feedback.length, 3);
+  assert.ok(body.feedback_options.strengths.some(item => item.id === 'clear_argument'));
+  assert.ok(body.feedback.some(item => item.key === 'sentence_boundaries'));
   assert.equal(fakeEtherpad.calls.filter(call => call.method === 'getPadText').length, 1);
 
   await app.close();

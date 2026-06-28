@@ -2,6 +2,7 @@ import { EtherpadService } from '../etherpad/api.js';
 import { renderWriteView } from '../views/write.js';
 import { renderLockedView } from '../views/locked.js';
 import { notifyTeacher } from '../services/serverChan.js';
+import { feedbackLibrary, feedbackOptionMap } from '../feedback/library.js';
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -65,6 +66,68 @@ function applyDueDateLock(db, pad, assignment) {
   db.prepare("INSERT OR IGNORE INTO submissions (pad_id, submitted_at) VALUES (?, ?)").run(pad.id, now);
   pad.state = 'submitted';
   return true;
+}
+
+function publicFeedback(row) {
+  return {
+    id: row.id,
+    kind: row.kind,
+    key: row.feedback_key,
+    title: row.title,
+    explanation: row.explanation,
+  };
+}
+
+function selectedFeedbackRows(db, submissionId) {
+  if (!submissionId) return [];
+  return db.prepare(`
+    SELECT id, kind, feedback_key, title, explanation
+    FROM submission_feedback
+    WHERE submission_id = ?
+    ORDER BY kind ASC, id ASC
+  `).all(submissionId).map(publicFeedback);
+}
+
+function normalizeFeedbackSelection(value) {
+  return Array.isArray(value) ? [...new Set(value.filter(item => typeof item === 'string'))] : [];
+}
+
+function replaceFeedback(db, submissionId, { strengths, targets }) {
+  const strengthMap = feedbackOptionMap('strength');
+  const targetMap = feedbackOptionMap('target');
+  const selectedStrengths = normalizeFeedbackSelection(strengths);
+  const selectedTargets = normalizeFeedbackSelection(targets);
+  const invalid = [
+    ...selectedStrengths.filter(id => !strengthMap.has(id)),
+    ...selectedTargets.filter(id => !targetMap.has(id)),
+  ];
+  if (invalid.length) {
+    const err = new Error('invalid_feedback_key');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const insert = db.prepare(`
+    INSERT INTO submission_feedback (submission_id, kind, feedback_key, title, explanation)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM submission_feedback WHERE submission_id = ?').run(submissionId);
+    for (const id of selectedStrengths) {
+      const item = strengthMap.get(id);
+      insert.run(submissionId, 'strength', item.id, item.title, item.explanation);
+    }
+    for (const id of selectedTargets) {
+      const item = targetMap.get(id);
+      insert.run(submissionId, 'target', item.id, item.title, item.explanation);
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+  return selectedFeedbackRows(db, submissionId);
 }
 
 export async function registerPadRoutes(app, { db, etherpadService }) {
@@ -252,6 +315,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         WHERE submission_id = ?
         ORDER BY start_offset ASC, end_offset ASC, id ASC
       `).all(pad.submission_id) : [];
+      const feedback = selectedFeedbackRows(db, pad.submission_id);
 
       const text = await service.getPadText(pad.etherpad_pad_id);
 
@@ -284,8 +348,25 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         } : null,
         paste_events: pasteEvents,
         codes,
+        feedback,
+        feedback_options: feedbackLibrary,
         text,
       };
+    }
+  );
+
+  app.post('/api/submissions/:submissionId/feedback',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const submissionId = requirePositiveInteger(request.params.submissionId, 'submissionId');
+      const submission = db.prepare('SELECT id FROM submissions WHERE id = ?').get(submissionId);
+      if (!submission) return reply.code(404).send({ error: 'submission_not_found' });
+
+      const feedback = replaceFeedback(db, submissionId, {
+        strengths: request.body?.strengths,
+        targets: request.body?.targets,
+      });
+      return { feedback };
     }
   );
 
