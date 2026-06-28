@@ -20,6 +20,16 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 exit check and deployment
+- Phase/Step worked: Phase 6 exit check and deploy
+- Built: Re-ran full local suite with 52/52 passing, deployed the platform to
+  `/opt/inkheron-platform`, restarted `inkheron-wrapper`, verified public `/healthz`, confirmed
+  migrations `004_submission_codes.sql` and `005_submission_feedback.sql` applied on the droplet,
+  and rechecked the remote `write.js` paste_block patch.
+- Decisions: Phase 6 is deployed on the existing nginx + wrapper + Etherpad split.
+- Open / next: Phase 7 green-pen loop.
+- Gotchas hit: none.
+
 ## 2026-06-28 — Phase 6 Step 6.8 carry-forward targets
 - Phase/Step worked: Phase 6, Step 6.8
 - Built: Review API now returns the most recent previous assignment targets for the same student,
