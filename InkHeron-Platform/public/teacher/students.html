@@ -349,11 +349,26 @@
           const o=document.createElement('option');o.value=i;o.textContent=label;sel.appendChild(o);
         });
       });
-      // auto-guess: pick column whose header contains "english" or "name"
+
+      // auto-guess name column by header text
       const nameGuess=headers.findIndex(h=>/english|first.?name|student.?name/i.test(h));
       if(nameGuess>=0) nameSel.value=nameGuess;
-      const classGuess=headers.findIndex(h=>/admin.*class|class|group/i.test(h));
-      if(classGuess>=0) classSel.value=classGuess;
+
+      // auto-guess class column by scanning data values — pick the column
+      // whose cells match the most existing InkHeron classes
+      if(classes.length&&rawData.length>1){
+        const dataRows=rawData.slice(1);
+        const classNames=new Set(classes.map(c=>c.name.toLowerCase()));
+        let bestCol=-1,bestScore=0;
+        for(let ci=0;ci<headers.length;ci++){
+          const score=dataRows.filter(r=>{
+            const v=(r[ci]??'').toString().trim().toLowerCase();
+            return v&&classNames.has(v);
+          }).length;
+          if(score>bestScore){bestScore=score;bestCol=ci;}
+        }
+        if(bestCol>=0) classSel.value=bestCol;
+      }
     }
 
     function buildPreview(){
