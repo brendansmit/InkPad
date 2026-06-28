@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InkHeron - Settings</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--blue-50:#E8F0F7;--blue-700:#1F5076;--r-sm:10px;--r-md:14px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,'SF Mono',Menlo,monospace;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;}
+    .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
+    .glyph{width:32px;height:32px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;font-weight:600;transform:rotate(-4deg);}
+    .nm{font-family:var(--serif);font-size:17px;font-weight:600;}
+    .sp{flex:1;}
+    .container{max-width:780px;margin:0 auto;padding:30px 26px 80px;}
+    h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:0;margin:0 0 8px;}
+    .lead{color:var(--text-2);font-size:15px;margin:0 0 22px;}
+    .back{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
+    .back:hover{color:var(--text);}
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:20px;margin-bottom:14px;}
+    .row{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:14px;align-items:end;margin-top:18px;}
+    .row:first-child{margin-top:0;}
+    label{display:block;color:var(--text-2);font-size:12px;font-weight:700;margin:0 0 6px;text-transform:uppercase;}
+    input{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:11px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    input:focus{outline:3px solid rgba(36,99,67,0.16);border-color:var(--green-600);}
+    .state{display:flex;align-items:center;gap:8px;min-height:40px;color:var(--text-2);}
+    .mask{font-family:var(--mono);background:var(--surface-2);border-radius:8px;padding:6px 9px;color:var(--text);}
+    .pill{display:inline-flex;align-items:center;min-height:26px;border-radius:999px;padding:0 10px;font-size:12.5px;font-weight:700;background:var(--surface-2);color:var(--text-2);}
+    .pill.on{background:var(--green-50);color:var(--green-700);}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);}
+    .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
+    .btn.p{background:var(--green-600);color:#fff;border:none;}
+    .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+    .msg{display:none;margin-bottom:16px;border-radius:var(--r-sm);padding:12px 14px;font-size:13px;background:var(--green-50);color:var(--green-700);}
+    .msg.on{display:block;}
+    .msg.err{background:var(--maroon-50);color:var(--maroon-500);}
+    @media(max-width:680px){.container{padding:24px 18px 64px;}.row{grid-template-columns:1fr;}.actions{justify-content:stretch;}.actions .btn{flex:1;}}
+  </style>
+</head>
+<body>
+  <div class="appbar">
+    <div class="glyph">i</div><div class="nm">InkHeron</div>
+    <span class="sp"></span>
+    <button class="btn" id="logoutBtn" type="button">Sign out</button>
+  </div>
+
+  <main class="container">
+    <a class="back" href="/teacher">&lt; Back to dashboard</a>
+    <h1>Settings</h1>
+    <p class="lead">Keys are stored server-side and shown here only as masked values.</p>
+
+    <div class="msg" id="msg"></div>
+
+    <form class="panel" id="settingsForm" autocomplete="off">
+      <div class="row">
+        <div>
+          <label for="openrouterKey">OpenRouter API key</label>
+          <input id="openrouterKey" name="openrouter_api_key" type="password" autocomplete="new-password" placeholder="Paste a new key">
+        </div>
+        <div class="state" id="openrouterState"><span class="pill">Loading</span></div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="serverchanKey">ServerChan key</label>
+          <input id="serverchanKey" name="serverchan_key" type="password" autocomplete="new-password" placeholder="Paste a new key">
+        </div>
+        <div class="state" id="serverchanState"><span class="pill">Loading</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="reloadBtn" type="button">Reload</button>
+        <button class="btn p" id="saveBtn" type="submit">Save changes</button>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    let csrfToken='';
+
+    async function init(){
+      const me=await fetch('/api/me');
+      if(!me.ok){ window.location.href='/teacher-login'; return; }
+      const data=await me.json();
+      if(data.user.type!=='teacher'){ window.location.href='/'; return; }
+      csrfToken=data.user.csrf_token;
+      await loadSettings();
+    }
+
+    async function loadSettings(){
+      const r=await fetch('/api/settings');
+      if(!r.ok){ showMessage('Could not load settings.', true); return; }
+      const data=await r.json();
+      renderState('openrouterState', data.settings.openrouter_api_key);
+      renderState('serverchanState', data.settings.serverchan_key);
+    }
+
+    function renderState(id, setting){
+      const el=document.getElementById(id);
+      if(setting && setting.is_set){
+        el.innerHTML=`<span class="pill on">Set</span><span class="mask">${escapeHtml(setting.masked)}</span>`;
+      }else{
+        el.innerHTML='<span class="pill">Not set</span>';
+      }
+    }
+
+    document.getElementById('settingsForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const form=event.currentTarget;
+      const payload={};
+      const openrouter=form.openrouter_api_key.value.trim();
+      const serverchan=form.serverchan_key.value.trim();
+      if(openrouter) payload.openrouter_api_key=openrouter;
+      if(serverchan) payload.serverchan_key=serverchan;
+      if(!Object.keys(payload).length){ showMessage('Nothing changed.', true); return; }
+      const button=document.getElementById('saveBtn');
+      button.disabled=true;
+      button.textContent='Saving...';
+      const r=await fetch('/api/settings',{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify(payload),
+      });
+      button.disabled=false;
+      button.textContent='Save changes';
+      if(!r.ok){ showMessage('Could not save settings.', true); return; }
+      form.reset();
+      const data=await r.json();
+      renderState('openrouterState', data.settings.openrouter_api_key);
+      renderState('serverchanState', data.settings.serverchan_key);
+      showMessage('Settings saved.', false);
+    });
+
+    document.getElementById('reloadBtn').addEventListener('click',loadSettings);
+    document.getElementById('logoutBtn').addEventListener('click',async ()=>{
+      await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+      window.location.href='/teacher-login';
+    });
+
+    function showMessage(text,isError){
+      const msg=document.getElementById('msg');
+      msg.textContent=text;
+      msg.className=isError?'msg on err':'msg on';
+    }
+
+    function escapeHtml(str){const div=document.createElement('div');div.textContent=str;return div.innerHTML;}
+
+    init();
+  </script>
+</body>
+</html>

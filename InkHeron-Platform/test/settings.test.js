@@ -139,3 +139,40 @@ test('settings API rejects students and missing CSRF', async () => {
 
   await app.close();
 });
+
+test('teacher settings screen is teacher-only and linked from dashboard', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await createTeacherSession(app);
+  const student = await createStudentSession(app, teacher);
+
+  const unauth = await app.inject({ method: 'GET', url: '/teacher/settings' });
+  assert.equal(unauth.statusCode, 401);
+
+  const studentPage = await app.inject({
+    method: 'GET',
+    url: '/teacher/settings',
+    headers: { cookie: student.cookies },
+  });
+  assert.equal(studentPage.statusCode, 403);
+
+  const page = await app.inject({
+    method: 'GET',
+    url: '/teacher/settings',
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.body, /id="settingsForm"/);
+  assert.match(page.body, /OpenRouter API key/);
+  assert.match(page.body, /ServerChan key/);
+  assert.doesNotMatch(page.body, /sk-or-12345678904f2a/);
+
+  const dashboard = await app.inject({
+    method: 'GET',
+    url: '/teacher',
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(dashboard.statusCode, 200);
+  assert.match(dashboard.body, /href="\/teacher\/settings"/);
+
+  await app.close();
+});

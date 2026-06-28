@@ -363,3 +363,18 @@ Entry format:
   even temporarily, was blocked as avoidable disruption risk. Local tests prove write and mask
   behavior against isolated databases.
 - Open / next: Phase 8, Step 8.2 teacher settings screen.
+
+## 2026-06-28 — Phase 8 Step 8.2 teacher settings screen
+- Phase/Step worked: Phase 8, Step 8.2
+- Built: Added `/teacher/settings`, guarded by teacher session middleware, and linked it from the
+  teacher dashboard. The page loads masked OpenRouter and ServerChan key state from
+  `/api/settings`, saves new pasted keys through the CSRF-protected settings API, clears password
+  fields after save and never renders raw stored values.
+- Verification: Added coverage to `test/settings.test.js` for teacher-only page access and the
+  dashboard link. Ran focused settings tests, parsed the new page script and ran the full suite:
+  60/60 passing. Deployed the page and route to the droplet, restarted the wrapper, then verified
+  live teacher access, dashboard link and student 403 without modifying production secrets. Live
+  wrapper and nginx log scans showed no new errors.
+- Decisions: Live save was not exercised against production secrets; the isolated local API test
+  remains the proof for write-and-mask behavior.
+- Open / next: Phase 8, Step 8.3 test-key buttons.
