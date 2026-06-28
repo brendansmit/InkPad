@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 7 Step 7.2 green-pen reopen
+- Phase/Step worked: Phase 7, Step 7.2
+- Built: Added `POST /api/submissions/:submissionId/finish-marking` to move green-pen
+  assignments to `green_pen_open` and non-green-pen assignments to `marked`. Marked/resubmitted
+  pads now render a locked view unless explicitly reopened. Deployed and verified live against
+  the audit assignment: finish marking sets `green_pen_open`, student dashboard shows
+  `needs_rewrite`, and `/write/2` reopens the editor.
+- Decisions: Reopen is explicit on finish-marking, not an implicit side effect of saving a grade.
+- Open / next: Phase 7 Step 7.3 student green-pen view.
+- Gotchas hit: First rsync target was too broad; corrected by syncing exact remote paths.
+
 ## 2026-06-28 — Phase 7 Step 7.1 feedback attachment
 - Phase/Step worked: Phase 7, Step 7.1
 - Built: Added `POST /api/submissions/:submissionId/codes` for teacher/analyzer attachment of

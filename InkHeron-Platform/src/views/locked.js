@@ -10,6 +10,7 @@ export function renderLockedView({ title, reason }) {
   const messages = {
     exam: 'This assignment has been submitted and is now locked.',
     due: 'The due date has passed. This assignment is now closed.',
+    marked: 'This assignment has been marked and is no longer editable.',
     default: 'This assignment is closed.',
   };
   const message = messages[reason] ?? messages.default;

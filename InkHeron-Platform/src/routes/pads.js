@@ -68,6 +68,14 @@ function applyDueDateLock(db, pad, assignment) {
   return true;
 }
 
+function parseAssignmentSettings(settingsJson) {
+  try {
+    return JSON.parse(settingsJson ?? '{}');
+  } catch (_) {
+    return {};
+  }
+}
+
 function publicFeedback(row) {
   return {
     id: row.id,
@@ -308,10 +316,12 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       // Step 4.4 — due-date auto-lock
       applyDueDateLock(db, pad, assignment);
 
-      let settings = {};
-      try { settings = JSON.parse(assignment.settings_json ?? '{}'); } catch (_) { /* ignore */ }
+      const settings = parseAssignmentSettings(assignment.settings_json);
 
       // Step 4.3 — locked views
+      if (pad.state === 'marked' || pad.state === 'resubmitted') {
+        return reply.type('text/html').send(renderLockedView({ title: assignment.title, reason: 'marked' }));
+      }
       if (pad.state === 'submitted' && settings.submit_behaviour === 'exam') {
         return reply.type('text/html').send(renderLockedView({ title: assignment.title, reason: 'exam' }));
       }
@@ -532,6 +542,30 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
     }
   );
 
+  app.post('/api/submissions/:submissionId/finish-marking',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const submissionId = requirePositiveInteger(request.params.submissionId, 'submissionId');
+      const submission = db.prepare(`
+        SELECT sub.id,
+               p.id AS pad_id,
+               p.state AS pad_state,
+               a.settings_json
+        FROM submissions sub
+        JOIN pads p ON p.id = sub.pad_id
+        JOIN assignments a ON a.id = p.assignment_id
+        WHERE sub.id = ?
+      `).get(submissionId);
+      if (!submission) return reply.code(404).send({ error: 'submission_not_found' });
+
+      const settings = parseAssignmentSettings(submission.settings_json);
+      const nextState = settings.green_pen === true ? 'green_pen_open' : 'marked';
+      db.prepare('UPDATE submissions SET is_graded = 1 WHERE id = ?').run(submissionId);
+      db.prepare('UPDATE pads SET state = ? WHERE id = ?').run(nextState, submission.pad_id);
+      return { pad: { id: submission.pad_id, state: nextState } };
+    }
+  );
+
   app.get('/api/pads/:padId/timeslider',
     { preValidation: [app.requireTeacherSession] },
     async (request, reply) => {
@@ -581,8 +615,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
       if (pad.state !== 'writing') return reply.code(409).send({ error: 'already_submitted' });
 
-      let settings = {};
-      try { settings = JSON.parse(pad.settings_json ?? '{}'); } catch (_) { /* ignore */ }
+      const settings = parseAssignmentSettings(pad.settings_json);
 
       db.prepare("UPDATE pads SET state = 'submitted' WHERE id = ?").run(padId);
       const result = db.prepare(

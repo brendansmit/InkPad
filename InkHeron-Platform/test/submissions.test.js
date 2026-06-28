@@ -219,3 +219,60 @@ test('student dashboard shows submitted after submitting', async () => {
 
   await app.close();
 });
+
+test('finish marking reopens green-pen assignment for rewrite', async () => {
+  const fakeEtherpad = makeFakeEtherpad();
+  const app = await buildApp({ databasePath: tmpDb(), logger: false, etherpadService: fakeEtherpad });
+  const teacher = await setupTeacher(app);
+  const { classId, student } = await createClassAndStudent(app, teacher);
+  const assignmentId = await createAssignment(app, teacher, classId, { green_pen: true });
+  const padId = await openPad(app, student, assignmentId);
+
+  const submitted = await app.inject({ method: 'POST', url: `/api/pads/${padId}/submit`,
+    headers: { 'X-CSRF-Token': student.csrf, cookie: student.cookies } });
+  const submissionId = submitted.json().submission.id;
+
+  const finished = await app.inject({ method: 'POST', url: `/api/submissions/${submissionId}/finish-marking`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(finished.statusCode, 200);
+  assert.equal(finished.json().pad.state, 'green_pen_open');
+
+  const view = await app.inject({ method: 'GET', url: `/write/${assignmentId}`,
+    headers: { cookie: student.cookies } });
+  assert.equal(view.statusCode, 200);
+  assert.ok(view.body.includes('id="submit-btn"'), 'green-pen work should be editable again');
+  assert.ok(!view.body.includes('Assignment closed'));
+
+  const dashboard = await app.inject({ method: 'GET', url: '/api/student/assignments',
+    headers: { cookie: student.cookies } });
+  const asgn = dashboard.json().assignments.find(a => a.id === assignmentId);
+  assert.equal(asgn.status, 'needs_rewrite');
+
+  await app.close();
+});
+
+test('finish marking keeps non-green-pen assignment locked', async () => {
+  const fakeEtherpad = makeFakeEtherpad();
+  const app = await buildApp({ databasePath: tmpDb(), logger: false, etherpadService: fakeEtherpad });
+  const teacher = await setupTeacher(app);
+  const { classId, student } = await createClassAndStudent(app, teacher);
+  const assignmentId = await createAssignment(app, teacher, classId, { green_pen: false });
+  const padId = await openPad(app, student, assignmentId);
+
+  const submitted = await app.inject({ method: 'POST', url: `/api/pads/${padId}/submit`,
+    headers: { 'X-CSRF-Token': student.csrf, cookie: student.cookies } });
+  const submissionId = submitted.json().submission.id;
+
+  const finished = await app.inject({ method: 'POST', url: `/api/submissions/${submissionId}/finish-marking`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(finished.statusCode, 200);
+  assert.equal(finished.json().pad.state, 'marked');
+
+  const view = await app.inject({ method: 'GET', url: `/write/${assignmentId}`,
+    headers: { cookie: student.cookies } });
+  assert.equal(view.statusCode, 200);
+  assert.ok(view.body.includes('Assignment closed'), 'marked work should stay locked');
+  assert.ok(!view.body.includes('id="submit-btn"'));
+
+  await app.close();
+});
