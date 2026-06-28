@@ -130,7 +130,7 @@ export async function registerIdentityRoutes(app, { db }) {
       try {
         const result = db.prepare(`
           INSERT INTO students (username, display_name, password_hash, class_id, must_change_password)
-          VALUES (?, ?, ?, ?, 0)
+          VALUES (?, ?, ?, ?, 1)
         `).run(username, displayName, passwordHash, classId);
 
         const row = db.prepare(`
