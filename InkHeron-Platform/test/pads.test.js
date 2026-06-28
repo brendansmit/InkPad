@@ -352,10 +352,6 @@ test('teacher can open a student pad review with text and paste evidence', async
   try {
     const submission = db.prepare('SELECT id FROM submissions WHERE pad_id = ?').get(padId);
     submissionId = submission.id;
-    db.prepare(`
-      INSERT INTO submission_codes (submission_id, start_offset, end_offset, code, category, label)
-      VALUES (?, 0, 9, 'SENT', 'Sentence control', 'Sentence boundary')
-    `).run(submission.id);
     const previousAssignment = db.prepare(`
       INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at, created_at)
       VALUES (?, 'Previous essay', 'essay', '{}', '2020-01-01T00:00:00Z', '2020-02-01T00:00:00Z', '2020-01-01T00:00:00Z')
@@ -373,6 +369,27 @@ test('teacher can open a student pad review with text and paste evidence', async
   } finally {
     db.close();
   }
+
+  const savedCodes = await app.inject({
+    method: 'POST',
+    url: `/api/submissions/${submissionId}/codes`,
+    payload: {
+      codes: [
+        { start_offset: 0, end_offset: 9, code: 'SENT', category: 'Sentence control', label: 'Sentence boundary' },
+      ],
+    },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(savedCodes.statusCode, 200);
+  assert.equal(savedCodes.json().codes.length, 1);
+
+  const invalidCodes = await app.inject({
+    method: 'POST',
+    url: `/api/submissions/${submissionId}/codes`,
+    payload: { codes: [{ start_offset: 9, end_offset: 0, code: 'BAD', category: 'Grammar' }] },
+    headers: { 'X-CSRF-Token': teacherCsrf, cookie: teacherCookies },
+  });
+  assert.equal(invalidCodes.statusCode, 400);
 
   const savedFeedback = await app.inject({
     method: 'POST',

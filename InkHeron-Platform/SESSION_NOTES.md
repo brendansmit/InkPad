@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 7 Step 7.1 feedback attachment
+- Phase/Step worked: Phase 7, Step 7.1
+- Built: Added `POST /api/submissions/:submissionId/codes` for teacher/analyzer attachment of
+  inline literacy codes, replacing existing codes with validated spans and metadata. Review API
+  now reads codes through the shared helper. Deployed to droplet and verified live with audit
+  teacher, audit submission, valid code save, invalid span rejection and review retrieval.
+- Decisions: Codes remain answer-free metadata only: span, code, category and optional label.
+  Strengths/targets continue through the existing `submission_feedback` endpoint.
+- Open / next: Phase 7 Step 7.2 marking reopens green-pen assignments.
+- Gotchas hit: none.
+
 ## 2026-06-28 — Phase 6 bug hunt and Etherpad fixes
 - Phase/Step worked: Post-Phase 6 bug hunt
 - Built: Ran deployed HTTP audit across teacher/student login, CSRF, role guards, Etherpad pad

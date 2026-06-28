@@ -88,6 +88,27 @@ function selectedFeedbackRows(db, submissionId) {
   `).all(submissionId).map(publicFeedback);
 }
 
+function publicCode(row) {
+  return {
+    id: row.id,
+    start_offset: row.start_offset,
+    end_offset: row.end_offset,
+    code: row.code,
+    category: row.category,
+    label: row.label ?? null,
+  };
+}
+
+function selectedCodeRows(db, submissionId) {
+  if (!submissionId) return [];
+  return db.prepare(`
+    SELECT id, start_offset, end_offset, code, category, label
+    FROM submission_codes
+    WHERE submission_id = ?
+    ORDER BY start_offset ASC, end_offset ASC, id ASC
+  `).all(submissionId).map(publicCode);
+}
+
 function previousTargetRows(db, pad) {
   const rows = db.prepare(`
     SELECT sf.id,
@@ -166,6 +187,57 @@ function replaceFeedback(db, submissionId, { strengths, targets }) {
     throw error;
   }
   return selectedFeedbackRows(db, submissionId);
+}
+
+function cleanCodeText(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizeSubmissionCodes(value) {
+  if (!Array.isArray(value)) {
+    const err = new Error('codes_required');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  return value.map((item) => {
+    const start = Number(item?.start_offset);
+    const end = Number(item?.end_offset);
+    const code = cleanCodeText(item?.code);
+    const category = cleanCodeText(item?.category);
+    const label = cleanCodeText(item?.label) || null;
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) {
+      const err = new Error('invalid_code_span');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (!code || !category) {
+      const err = new Error('invalid_code_metadata');
+      err.statusCode = 400;
+      throw err;
+    }
+    return { start, end, code, category, label };
+  });
+}
+
+function replaceSubmissionCodes(db, submissionId, codes) {
+  const normalized = normalizeSubmissionCodes(codes);
+  const insert = db.prepare(`
+    INSERT INTO submission_codes (submission_id, start_offset, end_offset, code, category, label)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM submission_codes WHERE submission_id = ?').run(submissionId);
+    for (const item of normalized) {
+      insert.run(submissionId, item.start, item.end, item.code, item.category, item.label);
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+  return selectedCodeRows(db, submissionId);
 }
 
 export async function registerPadRoutes(app, { db, etherpadService }) {
@@ -348,12 +420,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         WHERE pad_id = ?
         ORDER BY at ASC, id ASC
       `).all(padId);
-      const codes = pad.submission_id ? db.prepare(`
-        SELECT id, start_offset, end_offset, code, category, label
-        FROM submission_codes
-        WHERE submission_id = ?
-        ORDER BY start_offset ASC, end_offset ASC, id ASC
-      `).all(pad.submission_id) : [];
+      const codes = selectedCodeRows(db, pad.submission_id);
       const feedback = selectedFeedbackRows(db, pad.submission_id);
       const previousTargets = previousTargetRows(db, pad);
 
@@ -408,6 +475,18 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         targets: request.body?.targets,
       });
       return { feedback };
+    }
+  );
+
+  app.post('/api/submissions/:submissionId/codes',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const submissionId = requirePositiveInteger(request.params.submissionId, 'submissionId');
+      const submission = db.prepare('SELECT id FROM submissions WHERE id = ?').get(submissionId);
+      if (!submission) return reply.code(404).send({ error: 'submission_not_found' });
+
+      const codes = replaceSubmissionCodes(db, submissionId, request.body?.codes);
+      return { codes };
     }
   );
 
