@@ -195,20 +195,9 @@
         </div>
       </div>
 
-      <div class="edit-card">
-        <h3>Dates</h3>
-        <div class="row2">
-          <div class="field">
-            <label for="eOpens">Opens at (optional)</label>
-            <input type="datetime-local" id="eOpens">
-            <p class="hint">Leave blank to make it available immediately.</p>
-          </div>
-          <div class="field">
-            <label for="eDue">Due at (optional)</label>
-            <input type="datetime-local" id="eDue">
-            <p class="hint">Students can edit until this time passes.</p>
-          </div>
-        </div>
+      <div class="edit-card" id="datesCard">
+        <h3 id="datesCardTitle">Dates</h3>
+        <div id="datesRows"></div>
       </div>
 
       <div class="edit-card">
@@ -250,6 +239,7 @@
     let classes=[];
     let currentId=null;
     let editFromDetail=false;
+    let editGroup=[];
 
     async function init(){
       const me=await fetch('/api/me');
@@ -374,27 +364,49 @@
       editFromDetail=fromDetail;
       const a=assignments.find(x=>x.id===id)||{};
       const s=JSON.parse(a.settings_json||'{}');
+
+      // group: all assignments with the same title (same logical assignment, different classes)
+      editGroup=assignments.filter(x=>x.title===a.title);
+
       document.getElementById('editHeading').textContent='Edit: '+a.title;
       document.getElementById('eTitle').value=a.title||'';
       document.getElementById('ePrompt').value=s.prompt||'';
-      document.getElementById('eOpens').value=isoToLocal(a.opens_at);
-      document.getElementById('eDue').value=isoToLocal(a.due_at);
       document.getElementById('eSbDraft').checked=(s.submit_behaviour||'draft')==='draft';
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
       document.getElementById('eGreenPen').checked=s.green_pen===true;
       document.getElementById('editMsg').className='msg';
+
+      // render date rows — one per class in the group
+      const multi=editGroup.length>1;
+      document.getElementById('datesCardTitle').textContent=multi?'Deadlines by class':'Dates';
+      document.getElementById('datesRows').innerHTML=editGroup.map(ga=>{
+        const cls=escapeHtml(classNameFor(ga.class_id));
+        return `<div style="margin-bottom:${multi?'18':'0'}px;">
+          ${multi?`<div style="font-weight:700;font-size:13px;margin-bottom:8px;">${cls}</div>`:''}
+          <div class="row2">
+            <div class="field">
+              <label>Opens at (optional)</label>
+              <input type="datetime-local" id="eOpens-${ga.id}" value="${isoToLocal(ga.opens_at)}">
+              ${!multi?'<p class="hint">Leave blank to make it available immediately.</p>':''}
+            </div>
+            <div class="field">
+              <label>Due at (optional)</label>
+              <input type="datetime-local" id="eDue-${ga.id}" value="${isoToLocal(ga.due_at)}">
+              ${!multi?'<p class="hint">Students can edit until this time passes.</p>':''}
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+
       show('editView');
       document.getElementById('backFromEdit').textContent=fromDetail?'← Back to roster':'← All assignments';
     }
 
     async function saveEdit(){
-      const id=currentId;
       const title=document.getElementById('eTitle').value.trim();
       if(!title){showEditMsg('Title is required.',true);return;}
       const prompt=document.getElementById('ePrompt').value.trim();
-      const opens=document.getElementById('eOpens').value;
-      const due=document.getElementById('eDue').value;
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
@@ -402,27 +414,30 @@
       if(prompt) settings.prompt=prompt;
 
       const btn=document.getElementById('saveEditBtn');
-      btn.disabled=true;btn.textContent='Saving…';
+      btn.disabled=true;
+      btn.textContent=editGroup.length>1?`Saving ${editGroup.length} classes…`:'Saving…';
 
-      const r=await fetch(`/api/assignments/${id}`,{
-        method:'PATCH',
-        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-        body:JSON.stringify({title,opens_at:opens||null,due_at:due||null,settings}),
-      });
+      let failed=0;
+      for(const ga of editGroup){
+        const opens=document.getElementById(`eOpens-${ga.id}`).value;
+        const due=document.getElementById(`eDue-${ga.id}`).value;
+        const r=await fetch(`/api/assignments/${ga.id}`,{
+          method:'PATCH',
+          headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+          body:JSON.stringify({title,opens_at:opens||null,due_at:due||null,settings}),
+        });
+        if(r.ok){
+          const data=await r.json();
+          const idx=assignments.findIndex(a=>a.id===ga.id);
+          if(idx>=0) assignments[idx]=data.assignment;
+        } else failed++;
+      }
 
       btn.disabled=false;btn.textContent='Save changes';
 
-      if(!r.ok){
-        const d=await r.json().catch(()=>({}));
-        showEditMsg(d.error||'Could not save changes.',true);
-        return;
-      }
-      const data=await r.json();
-      // update local cache
-      const idx=assignments.findIndex(a=>a.id===id);
-      if(idx>=0) assignments[idx]=data.assignment;
+      if(failed){showEditMsg(`${failed} class${failed!==1?'es':''} failed to save.`,true);return;}
       showEditMsg('Saved.',false);
-      setTimeout(()=>{editFromDetail?openDetail(id):showList();},700);
+      setTimeout(()=>{editFromDetail?openDetail(currentId):showList();},700);
     }
 
     function showEditMsg(text,isErr){
