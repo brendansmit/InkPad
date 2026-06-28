@@ -271,9 +271,39 @@ ${dueLabel ? `<div class="duebar">
     if (spellRetries < 20) setTimeout(trySpellcheck, 500);
   }
 
+  // ── Pad UI cleanup ───────────────────────────────────────────────────────
+  // Inject CSS into the Etherpad outer document to hide non-essential chrome:
+  // bottom toolbar icons, chat, user count, settings, share, timeslider.
+  function applyPadUiCleanup() {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc || !padDoc.head) return false;
+      if (padDoc.getElementById('ih-ui-cleanup')) return true;
+      var s = padDoc.createElement('style');
+      s.id = 'ih-ui-cleanup';
+      s.textContent =
+        '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
+        '.buttonicon-timeslider,.buttonicon-settings,.buttonicon-embed,' +
+        '.buttonicon-import_export,.buttonicon-showusers,.buttonicon-menu_left_comment{display:none!important}' +
+        '#online_count,#users,#userlist,.popup.users{display:none!important}' +
+        '#toolbar2,.toolbar-bottom,.editbar-bottom{display:none!important}';
+      padDoc.head.appendChild(s);
+      return true;
+    } catch (_) { return false; }
+  }
+
+  var cleanupDone = false;
+  var cleanupAttempts = 0;
+  function tryCleanup() {
+    if (cleanupDone) return;
+    if (applyPadUiCleanup()) { cleanupDone = true; return; }
+    if (++cleanupAttempts < 20) setTimeout(tryCleanup, 400);
+  }
+
   iframe.addEventListener('load', function () {
     setTimeout(trySpellcheck, 200);
     setTimeout(tryAttachPaste, 500);
+    setTimeout(tryCleanup, 300);
     syncWordCount();
   });
 
