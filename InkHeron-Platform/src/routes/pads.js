@@ -1,6 +1,7 @@
 import { EtherpadService } from '../etherpad/api.js';
 import { renderWriteView } from '../views/write.js';
 import { renderLockedView } from '../views/locked.js';
+import { renderGreenPenView } from '../views/greenPen.js';
 import { notifyTeacher } from '../services/serverChan.js';
 import { feedbackLibrary, feedbackOptionMap } from '../feedback/library.js';
 
@@ -248,6 +249,16 @@ function replaceSubmissionCodes(db, submissionId, codes) {
   return selectedCodeRows(db, submissionId);
 }
 
+function latestSubmissionForPad(db, padId) {
+  return db.prepare(`
+    SELECT *
+    FROM submissions
+    WHERE pad_id = ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(padId);
+}
+
 export async function registerPadRoutes(app, { db, etherpadService }) {
   const service = etherpadService ?? new EtherpadService({ apiKey: process.env.ETHERPAD_API_KEY || 'unset' });
 
@@ -334,6 +345,18 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       const session = await service.createSessionCookie(groupId, authorId);
 
       reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
+
+      if (pad.state === 'green_pen_open') {
+        const submission = latestSubmissionForPad(db, pad.id);
+        const text = await service.getPadText(pad.etherpad_pad_id);
+        return reply.type('text/html').send(renderGreenPenView({
+          title: assignment.title,
+          etherpadPadId: pad.etherpad_pad_id,
+          text,
+          codes: selectedCodeRows(db, submission?.id),
+          feedback: selectedFeedbackRows(db, submission?.id),
+        }));
+      }
 
       return reply.type('text/html').send(renderWriteView({
         title: assignment.title,

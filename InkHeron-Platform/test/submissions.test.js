@@ -20,6 +20,9 @@ function makeFakeEtherpad() {
     async createSessionCookie(groupId, authorId) {
       return { sessionID: `sess.${groupId}.${authorId}`, validUntil: Date.now() / 1000 + 7200 };
     },
+    async getPadText() {
+      return 'Alpha beta gamma draft';
+    },
   };
 }
 
@@ -232,6 +235,16 @@ test('finish marking reopens green-pen assignment for rewrite', async () => {
     headers: { 'X-CSRF-Token': student.csrf, cookie: student.cookies } });
   const submissionId = submitted.json().submission.id;
 
+  const codes = await app.inject({ method: 'POST', url: `/api/submissions/${submissionId}/codes`,
+    payload: { codes: [{ start_offset: 0, end_offset: 5, code: 'GRAM', category: 'Grammar', label: 'Grammar' }] },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(codes.statusCode, 200);
+
+  const feedback = await app.inject({ method: 'POST', url: `/api/submissions/${submissionId}/feedback`,
+    payload: { strengths: ['clear_argument'], targets: ['develop_explanation'] },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(feedback.statusCode, 200);
+
   const finished = await app.inject({ method: 'POST', url: `/api/submissions/${submissionId}/finish-marking`,
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
   assert.equal(finished.statusCode, 200);
@@ -240,7 +253,14 @@ test('finish marking reopens green-pen assignment for rewrite', async () => {
   const view = await app.inject({ method: 'GET', url: `/write/${assignmentId}`,
     headers: { cookie: student.cookies } });
   assert.equal(view.statusCode, 200);
-  assert.ok(view.body.includes('id="submit-btn"'), 'green-pen work should be editable again');
+  assert.ok(view.body.includes('Feedback ready'));
+  assert.ok(view.body.includes('Coded version'));
+  assert.ok(view.body.includes('GRAM'));
+  assert.ok(view.body.includes('Grammar'));
+  assert.ok(view.body.includes('Develop explanation'));
+  assert.ok(view.body.includes('Clear argument'));
+  assert.ok(view.body.includes('id="resend-btn"'));
+  assert.ok(view.body.includes('title="Writing pad"'), 'green-pen work should be editable again');
   assert.ok(!view.body.includes('Assignment closed'));
 
   const dashboard = await app.inject({ method: 'GET', url: '/api/student/assignments',

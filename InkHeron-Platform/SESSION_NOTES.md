@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 7 Step 7.3 student green-pen view
+- Phase/Step worked: Phase 7, Step 7.3
+- Built: Added `renderGreenPenView` and wired `/write/:assignmentId` to show it when the pad is
+  `green_pen_open`. The view embeds the real Etherpad pad for editing, shows an answer-free coded
+  snapshot, literacy code legend, expandable coaching targets, expandable strengths and a resend
+  button placeholder for Step 7.5. Deployed and verified live on `/write/2`.
+- Decisions: The green-pen page keeps actual rewriting in Etherpad and presents feedback beside
+  it, so editing remains on the proven pad surface.
+- Open / next: Phase 7 Step 7.4 prominent dashboard surfacing.
+- Gotchas hit: none.
+
 ## 2026-06-28 — Phase 7 Step 7.2 green-pen reopen
 - Phase/Step worked: Phase 7, Step 7.2
 - Built: Added `POST /api/submissions/:submissionId/finish-marking` to move green-pen
