@@ -40,6 +40,9 @@
     .legend{display:grid;gap:8px;margin-top:10px;}
     .legend-item{font-size:12.5px;color:var(--text-2);background:var(--surface-2);border-radius:8px;padding:8px;}
     .legend-item strong{color:var(--maroon-500);}
+    .target-carry{display:grid;gap:8px;margin-bottom:14px;}
+    .target-carry .item{background:var(--blue-50);color:var(--blue-700);border-radius:8px;padding:10px 12px;font-size:13px;}
+    .target-carry strong{display:block;color:var(--text);margin-bottom:2px;}
     .marking{margin-top:18px;padding:18px;}
     .marking-grid{display:grid;grid-template-columns:1fr 1fr 140px;gap:12px;}
     select,input{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
@@ -132,6 +135,9 @@
             <div class="paper-text" id="paperText">${escapeHtml(data.text || 'No text found for this pad.')}</div>
           </article>
           <div class="marking">
+            <div class="target-carry">
+              ${previousTargets(data.previous_targets)}
+            </div>
             <div class="marking-grid">
               <div>
                 <label class="label" for="strengthSelect">Strength</label>
@@ -205,6 +211,11 @@
     function feedbackOptions(options, selected){
       const chosen=new Set(selected);
       return options.map(option=>`<option value="${escapeHtml(option.id)}" ${chosen.has(option.id)?'selected':''}>${escapeHtml(option.title)}</option>`).join('');
+    }
+
+    function previousTargets(targets){
+      if(!targets.length) return '<p class="muted">No previous targets for this student.</p>';
+      return targets.map(target=>`<div class="item"><strong>${escapeHtml(target.assignment_title)}: ${escapeHtml(target.title)}</strong>${escapeHtml(target.explanation)}</div>`).join('');
     }
 
     function codeLegend(codes){

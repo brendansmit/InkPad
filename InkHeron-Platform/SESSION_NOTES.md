@@ -20,6 +20,16 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.8 carry-forward targets
+- Phase/Step worked: Phase 6, Step 6.8
+- Built: Review API now returns the most recent previous assignment targets for the same student,
+  and the review page shows those targets above the current strength/target selectors.
+- Decisions: Carry-forward reads the latest earlier assignment with target feedback by assignment
+  creation time and id, then shows all targets from that assignment.
+- Open / next: Phase 6 exit check and deploy.
+- Gotchas hit: Test fixture initially inserted previous targets without destructuring the seeded
+  class/student ids.
+
 ## 2026-06-28 — Phase 6 Step 6.7 CSV export
 - Phase/Step worked: Phase 6, Step 6.7
 - Built: Added `GET /api/assignments/:id/export.csv` with student name, username, status,

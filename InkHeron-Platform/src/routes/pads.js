@@ -88,6 +88,44 @@ function selectedFeedbackRows(db, submissionId) {
   `).all(submissionId).map(publicFeedback);
 }
 
+function previousTargetRows(db, pad) {
+  const rows = db.prepare(`
+    SELECT sf.id,
+           sf.kind,
+           sf.feedback_key,
+           sf.title,
+           sf.explanation,
+           a.id AS assignment_id,
+           a.title AS assignment_title
+    FROM submission_feedback sf
+    JOIN submissions sub ON sub.id = sf.submission_id
+    JOIN pads p ON p.id = sub.pad_id
+    JOIN assignments a ON a.id = p.assignment_id
+    WHERE p.student_id = ?
+      AND a.class_id = ?
+      AND a.id != ?
+      AND sf.kind = 'target'
+      AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))
+    ORDER BY a.created_at DESC, a.id DESC, sf.id ASC
+  `).all(
+    pad.student_id,
+    pad.class_id,
+    pad.assignment_id,
+    pad.assignment_created_at,
+    pad.assignment_created_at,
+    pad.assignment_id
+  );
+  if (!rows.length) return [];
+  const assignmentId = rows[0].assignment_id;
+  return rows
+    .filter(row => row.assignment_id === assignmentId)
+    .map(row => ({
+      ...publicFeedback(row),
+      assignment_id: row.assignment_id,
+      assignment_title: row.assignment_title,
+    }));
+}
+
 function normalizeFeedbackSelection(value) {
   return Array.isArray(value) ? [...new Set(value.filter(item => typeof item === 'string'))] : [];
 }
@@ -273,6 +311,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
                a.id AS assignment_id,
                a.title AS assignment_title,
                a.type AS assignment_type,
+               a.created_at AS assignment_created_at,
                a.due_at,
                c.id AS class_id,
                c.name AS class_name,
@@ -316,6 +355,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         ORDER BY start_offset ASC, end_offset ASC, id ASC
       `).all(pad.submission_id) : [];
       const feedback = selectedFeedbackRows(db, pad.submission_id);
+      const previousTargets = previousTargetRows(db, pad);
 
       const text = await service.getPadText(pad.etherpad_pad_id);
 
@@ -350,6 +390,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         codes,
         feedback,
         feedback_options: feedbackLibrary,
+        previous_targets: previousTargets,
         text,
       };
     }

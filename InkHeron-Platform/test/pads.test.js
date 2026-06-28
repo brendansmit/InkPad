@@ -225,7 +225,7 @@ test('GET /write/:id renders wrapper shell with iframe and sets sessionID cookie
   const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
 
   const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
-  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { classId, studentId, assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
   const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
 
   const response = await app.inject({
@@ -259,7 +259,7 @@ test('GET /write/:id reuses same pad on repeat visits', async () => {
   const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
 
   const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
-  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { classId, studentId, assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
   const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
 
   const first = await app.inject({ method: 'GET', url: `/write/${assignmentId}`, headers: { cookie: studentCookies } });
@@ -321,7 +321,7 @@ test('teacher can open a student pad review with text and paste evidence', async
   const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
 
   const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
-  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { classId, studentId, assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
   const { cookies: studentCookies, csrfToken: studentCsrf } = await loginStudent(app, 'alice', 'correct horse');
 
   const opened = await app.inject({
@@ -356,6 +356,20 @@ test('teacher can open a student pad review with text and paste evidence', async
       INSERT INTO submission_codes (submission_id, start_offset, end_offset, code, category, label)
       VALUES (?, 0, 9, 'SENT', 'Sentence control', 'Sentence boundary')
     `).run(submission.id);
+    const previousAssignment = db.prepare(`
+      INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at, created_at)
+      VALUES (?, 'Previous essay', 'essay', '{}', '2020-01-01T00:00:00Z', '2020-02-01T00:00:00Z', '2020-01-01T00:00:00Z')
+    `).run(classId);
+    const previousPad = db.prepare(`
+      INSERT INTO pads (student_id, assignment_id, etherpad_pad_id, state)
+      VALUES (?, ?, ?, 'submitted')
+    `).run(studentId, previousAssignment.lastInsertRowid, `g.previous$a${previousAssignment.lastInsertRowid}_s${studentId}`);
+    const previousSubmission = db.prepare('INSERT INTO submissions (pad_id, submitted_at, is_graded) VALUES (?, ?, 1)')
+      .run(previousPad.lastInsertRowid, '2020-02-01T00:00:00Z');
+    db.prepare(`
+      INSERT INTO submission_feedback (submission_id, kind, feedback_key, title, explanation)
+      VALUES (?, 'target', 'paragraph_focus', 'Improve paragraph focus', 'Keep each paragraph centred on one job.')
+    `).run(previousSubmission.lastInsertRowid);
   } finally {
     db.close();
   }
@@ -399,6 +413,9 @@ test('teacher can open a student pad review with text and paste evidence', async
   assert.ok(body.feedback.some(item => item.key === 'sentence_boundaries'));
   assert.equal(body.grade.score, 87.5);
   assert.equal(body.grade.released, false);
+  assert.equal(body.previous_targets.length, 1);
+  assert.equal(body.previous_targets[0].assignment_title, 'Previous essay');
+  assert.equal(body.previous_targets[0].key, 'paragraph_focus');
   assert.equal(fakeEtherpad.calls.filter(call => call.method === 'getPadText').length, 1);
 
   const release = await app.inject({
