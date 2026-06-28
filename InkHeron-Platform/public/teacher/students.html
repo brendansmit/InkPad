@@ -319,10 +319,14 @@
       return name.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').trim().replace(/\s+/g,'.');
     }
 
+    function norm(s){return s.toLowerCase().replace(/[\s\-_.]/g,'');}
     function matchClass(cellValue){
-      const v=(cellValue??'').toString().trim().toLowerCase();
+      const v=norm((cellValue??'').toString().trim());
       if(!v) return null;
-      return classes.find(c=>c.name.toLowerCase()===v) || null;
+      // exact normalized match first, then substring either direction
+      return classes.find(c=>norm(c.name)===v)
+          || classes.find(c=>{const cn=norm(c.name);return v.includes(cn)||cn.includes(v);})
+          || null;
     }
 
     function parseCsv(text){
@@ -358,12 +362,11 @@
       // whose cells match the most existing InkHeron classes
       if(classes.length&&rawData.length>1){
         const dataRows=rawData.slice(1);
-        const classNames=new Set(classes.map(c=>c.name.toLowerCase()));
         let bestCol=-1,bestScore=0;
         for(let ci=0;ci<headers.length;ci++){
           const score=dataRows.filter(r=>{
-            const v=(r[ci]??'').toString().trim().toLowerCase();
-            return v&&classNames.has(v);
+            const v=(r[ci]??'').toString().trim();
+            return v&&matchClass(v)!==null;
           }).length;
           if(score>bestScore){bestScore=score;bestCol=ci;}
         }
