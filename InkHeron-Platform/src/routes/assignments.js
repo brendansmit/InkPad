@@ -170,6 +170,17 @@ export async function registerAssignmentRoutes(app, { db }) {
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(class_id, title.trim(), type, settings_json, opens_at ?? null, due_at ?? null);
 
+      // When a sibling is created for a class, purge any students of that class
+      // that were manually added to other assignments with the same title.
+      // This prevents double-counting when "Manage students" was used to cross-assign.
+      db.prepare(`
+        DELETE FROM assignment_students
+        WHERE student_id IN (SELECT id FROM students WHERE class_id = ?)
+          AND assignment_id IN (
+            SELECT id FROM assignments WHERE title = ? AND id != ?
+          )
+      `).run(class_id, title.trim(), result.lastInsertRowid);
+
       const assignment = db.prepare('SELECT * FROM assignments WHERE id = ?').get(result.lastInsertRowid);
       return reply.code(201).send({ assignment: publicAssignment(assignment) });
     }
@@ -362,12 +373,13 @@ export async function registerAssignmentRoutes(app, { db }) {
       const isCustom = overrideRows.length > 0;
       const includedSet = new Set(overrideRows);
 
-      // All students across all classes for the picker.
+      // Only students in this assignment's class for the picker.
       const allStudents = db.prepare(`
         SELECT s.id, s.display_name, s.username, s.class_id, c.name AS class_name
         FROM students s JOIN classes c ON c.id = s.class_id
-        ORDER BY c.name COLLATE NOCASE, s.display_name COLLATE NOCASE
-      `).all();
+        WHERE s.class_id = ?
+        ORDER BY s.display_name COLLATE NOCASE
+      `).all(assignment.class_id);
 
       return {
         mode: isCustom ? 'custom' : 'class',
@@ -387,10 +399,14 @@ export async function registerAssignmentRoutes(app, { db }) {
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
       const id = requirePositiveInteger(request.params.id, 'id');
-      const assignment = db.prepare('SELECT id FROM assignments WHERE id = ?').get(id);
+      const assignment = db.prepare('SELECT id, class_id FROM assignments WHERE id = ?').get(id);
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
 
       const { student_ids } = request.body ?? {};
+
+      const classStudentIds = new Set(
+        db.prepare('SELECT id FROM students WHERE class_id = ?').all(assignment.class_id).map(s => s.id)
+      );
 
       db.exec('BEGIN');
       try {
@@ -401,7 +417,7 @@ export async function registerAssignmentRoutes(app, { db }) {
           );
           for (const sid of student_ids) {
             const n = Number(sid);
-            if (Number.isInteger(n) && n > 0) insert.run(id, n);
+            if (Number.isInteger(n) && n > 0 && classStudentIds.has(n)) insert.run(id, n);
           }
         }
         db.exec('COMMIT');
