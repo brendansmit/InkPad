@@ -364,6 +364,22 @@ Entry format:
   behavior against isolated databases.
 - Open / next: Phase 8, Step 8.2 teacher settings screen.
 
+## 2026-06-28 — Phase 8 Step 8.3 test-key buttons
+- Phase/Step worked: Phase 8, Step 8.3
+- Built: Added `POST /api/settings/test-openrouter` and `POST /api/settings/test-serverchan`,
+  both teacher+CSRF guarded. OpenRouter test calls `/api/v1/key` + `/api/v1/models` then
+  fuzzy-resolves the cheapest model via `resolveOpenRouterModel` in the new `keyTests.js`
+  service. ServerChan test sends a real push. A Test button appears beside each key on the
+  settings page; result shown inline (success message or error string, no reload). The slash
+  aliases `/api/settings/test/openrouter|serverchan` in `settingsTests.js` call the same
+  service functions. 66/66 tests pass. Deployed to droplet, `/healthz` confirmed healthy.
+- Decisions: Key-test logic lives in `src/services/keyTests.js` (shared by both the dash and
+  slash route files); handlers stay thin. Test button shows even when key is not yet set so
+  the teacher gets a clear "Key not set" message rather than nothing.
+- Open / next: Phase 8, Step 8.4 class and student management.
+- Gotchas hit: Linter auto-created `settingsTests.js` and `keyTests.js` with slash-URL routes;
+  kept both, fixed HTML to use the dash routes that the test suite checks.
+
 ## 2026-06-28 — Phase 8 Step 8.2 teacher settings screen
 - Phase/Step worked: Phase 8, Step 8.2
 - Built: Added `/teacher/settings`, guarded by teacher session middleware, and linked it from the
@@ -378,3 +394,18 @@ Entry format:
 - Decisions: Live save was not exercised against production secrets; the isolated local API test
   remains the proof for write-and-mask behavior.
 - Open / next: Phase 8, Step 8.3 test-key buttons.
+
+## 2026-06-28 — Phase 8 Step 8.3 test-key buttons
+- Phase/Step worked: Phase 8, Step 8.3
+- Built: Added server-side OpenRouter and ServerChan test endpoints, both teacher-only and CSRF
+  protected. OpenRouter validates the stored key with `/api/v1/key`, loads `/api/v1/models` and
+  returns a resolved model without exposing the key. ServerChan sends a test push and returns a
+  clear success or failure. Added Test buttons to the teacher settings screen.
+- Verification: Added mocked-network tests for successful key checks, missing-key checks, access
+  control and OpenRouter model resolution. Ran focused settings tests, parsed the settings page
+  script and ran the full suite: 66/66 passing. Deployed the endpoints and corrected page to the
+  droplet, then verified live page wiring and missing-CSRF rejection without firing real key
+  tests. Live wrapper and nginx log scans showed no new errors.
+- Decisions: Did not trigger live OpenRouter or ServerChan tests because that could consume API
+  quota or send a real notification from production keys.
+- Open / next: Phase 8, Step 8.4 class and student management.
