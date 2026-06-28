@@ -120,6 +120,11 @@ export class EtherpadService {
     await this.api.createGroupPad(groupId, padName, initialText);
     return `${groupId}$${padName}`;
   }
+
+  async getPadText(padId) {
+    const result = await this.api.getText(padId);
+    return result.text ?? '';
+  }
 }
 
 /**

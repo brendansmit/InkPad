@@ -80,6 +80,19 @@ test('createAssignmentPad builds deterministic pad id', async () => {
   assert.equal(server.calls[1].params.text, 'Hello');
 });
 
+test('getPadText returns pad text', async () => {
+  const server = makeMockServer([
+    { json: { code: 0, data: { text: 'Draft body' } } },
+  ]);
+  const service = new EtherpadService({ baseUrl: 'http://localhost:9001', apiKey: 'secret' });
+  service.api._fetch = server.fetch.bind(server);
+
+  const text = await service.getPadText('g.class1$a2_s5');
+  assert.equal(text, 'Draft body');
+  assert.equal(server.calls[0].path, '/api/1/getText');
+  assert.equal(server.calls[0].params.padID, 'g.class1$a2_s5');
+});
+
 test('buildEtherpadSessionCookie formats cookie value', () => {
   assert.equal(buildEtherpadSessionCookie('s.sess123'), 'sessionID=s.sess123');
 });

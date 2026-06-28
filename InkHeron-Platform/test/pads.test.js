@@ -88,6 +88,10 @@ function makeFakeEtherpadService() {
       calls.push({ method: 'createSessionCookie', groupId, authorId });
       return { sessionID: `s.${groupId}.${authorId}`, validUntil: Math.floor(Date.now() / 1000) + 7200 };
     },
+    async getPadText(padId) {
+      calls.push({ method: 'getPadText', padId });
+      return 'Submitted draft text';
+    },
   };
 }
 
@@ -304,5 +308,47 @@ test('GET /write/:id rejects unauthenticated requests', async () => {
   const app = await buildApp({ databasePath: temporaryDatabasePath(), logger: false });
   const response = await app.inject({ method: 'GET', url: '/write/1' });
   assert.equal(response.statusCode, 401);
+  await app.close();
+});
+
+test('teacher can open a student pad review with text and paste evidence', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { cookies: studentCookies, csrfToken: studentCsrf } = await loginStudent(app, 'alice', 'correct horse');
+
+  const opened = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(opened.statusCode, 200);
+  const padId = opened.json().pad.id;
+
+  const paste = await app.inject({
+    method: 'POST',
+    url: `/api/pads/${padId}/paste-event`,
+    payload: { length: 33, input_type: 'insertFromPaste' },
+    headers: { 'X-CSRF-Token': studentCsrf, cookie: studentCookies },
+  });
+  assert.equal(paste.statusCode, 201);
+
+  const review = await app.inject({
+    method: 'GET',
+    url: `/api/pads/${padId}/review`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(review.statusCode, 200);
+  const body = review.json();
+  assert.equal(body.text, 'Submitted draft text');
+  assert.equal(body.student.display_name, 'Alice Chen');
+  assert.equal(body.assignment.title, 'First essay');
+  assert.equal(body.paste_events.length, 1);
+  assert.equal(body.paste_events[0].length, 33);
+  assert.equal(fakeEtherpad.calls.filter(call => call.method === 'getPadText').length, 1);
+
   await app.close();
 });

@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-06-28 — Phase 6 Step 6.2 review surface
+- Phase/Step worked: Phase 6, Step 6.2
+- Built: Added teacher review API `GET /api/pads/:padId/review`, Etherpad `getPadText`
+  helper, `/teacher/review` page, and Review links from the assignment dashboard. Review page
+  shows student metadata, submission state, paste evidence, submitted text, timeslider and codes
+  buttons, strength/target selectors and grade field.
+- Decisions: Text is fetched server-side from Etherpad for review. Saving marks remains deferred
+  to Steps 6.5 and 6.6.
+- Open / next: Phase 6 Step 6.3 timeslider replay button.
+- Gotchas hit: none.
+
 ## 2026-06-28 — Phase 6 Step 6.1 assignment dashboard
 - Phase/Step worked: Phase 6, Step 6.1
 - Built: Added `GET /api/assignments/:id/dashboard` for teacher roster progress with status,

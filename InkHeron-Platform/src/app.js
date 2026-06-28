@@ -59,6 +59,7 @@ export async function buildApp(options = {}) {
   app.get('/teacher', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/index.html', publicDir));
   app.get('/teacher/students', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/students.html', publicDir));
   app.get('/teacher/assignments', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/assignments.html', publicDir));
+  app.get('/teacher/review', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/review.html', publicDir));
   app.get('/', async (_request, reply) => reply.sendFile('index.html', publicDir));
 
   return app;

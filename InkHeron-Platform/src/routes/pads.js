@@ -195,6 +195,93 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
     }
   );
 
+  app.get('/api/pads/:padId/review',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = db.prepare(`
+        SELECT p.id,
+               p.state,
+               p.etherpad_pad_id,
+               p.created_at AS pad_created_at,
+               s.id AS student_id,
+               s.display_name AS student_name,
+               s.username,
+               a.id AS assignment_id,
+               a.title AS assignment_title,
+               a.type AS assignment_type,
+               a.due_at,
+               c.id AS class_id,
+               c.name AS class_name,
+               sub.id AS submission_id,
+               sub.submitted_at,
+               sub.is_graded,
+               sub.released AS submission_released,
+               g.id AS grade_id,
+               g.score,
+               g.released AS grade_released,
+               g.graded_at
+        FROM pads p
+        JOIN students s ON s.id = p.student_id
+        JOIN assignments a ON a.id = p.assignment_id
+        JOIN classes c ON c.id = a.class_id
+        LEFT JOIN (
+          SELECT sub_inner.*
+          FROM submissions sub_inner
+          JOIN (
+            SELECT pad_id, MAX(id) AS latest_id
+            FROM submissions
+            GROUP BY pad_id
+          ) latest ON latest.latest_id = sub_inner.id
+        ) sub ON sub.pad_id = p.id
+        LEFT JOIN grades g ON g.submission_id = sub.id
+        WHERE p.id = ?
+      `).get(padId);
+
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+
+      const pasteEvents = db.prepare(`
+        SELECT id, at, length, input_type
+        FROM paste_events
+        WHERE pad_id = ?
+        ORDER BY at ASC, id ASC
+      `).all(padId);
+
+      const text = await service.getPadText(pad.etherpad_pad_id);
+
+      return {
+        pad: {
+          id: pad.id,
+          state: pad.state,
+          etherpad_pad_id: pad.etherpad_pad_id,
+          created_at: pad.pad_created_at,
+        },
+        assignment: {
+          id: pad.assignment_id,
+          title: pad.assignment_title,
+          type: pad.assignment_type,
+          due_at: pad.due_at ?? null,
+        },
+        class: { id: pad.class_id, name: pad.class_name },
+        student: { id: pad.student_id, display_name: pad.student_name, username: pad.username },
+        submission: pad.submission_id ? {
+          id: pad.submission_id,
+          submitted_at: pad.submitted_at,
+          is_graded: Boolean(pad.is_graded),
+          released: Boolean(pad.submission_released),
+        } : null,
+        grade: pad.grade_id ? {
+          id: pad.grade_id,
+          score: pad.score,
+          released: Boolean(pad.grade_released),
+          graded_at: pad.graded_at,
+        } : null,
+        paste_events: pasteEvents,
+        text,
+      };
+    }
+  );
+
   /**
    * POST /api/pads/:padId/submit
    *
