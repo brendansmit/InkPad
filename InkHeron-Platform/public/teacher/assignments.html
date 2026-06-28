@@ -16,34 +16,46 @@
     .appbar .sp{flex:1;}
     .container{max-width:1120px;margin:0 auto;padding:30px 26px 80px;}
     h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:0;margin:0;}
-    .back{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
-    .back:hover{color:var(--text);}
+    .back-btn{background:none;border:none;cursor:pointer;color:var(--text-2);font-size:13px;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;padding:0;font-family:inherit;}
+    .back-btn:hover{color:var(--text);}
+    .back-link{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
+    .back-link:hover{color:var(--text);}
     .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-family:inherit;font-size:14px;}
     .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
     .btn.p{background:var(--green-600);color:#fff;border:none;box-shadow:0 4px 14px rgba(36,99,67,.22);}
     .btn.p:hover{box-shadow:0 7px 20px rgba(36,99,67,.30);}
     .btn.sm{min-height:32px;padding:0 12px;font-size:13px;}
+    .btn:disabled{opacity:.5;cursor:default;transform:none!important;box-shadow:none!important;}
     /* ── List view ── */
-    .asgn-list{display:flex;flex-direction:column;gap:10px;margin-top:20px;}
-    .asgn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:18px 20px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:16px;cursor:pointer;transition:box-shadow 160ms,transform 160ms;text-decoration:none;color:inherit;}
-    .asgn-card:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
+    .search-row{display:flex;gap:12px;align-items:center;margin:18px 0 12px;}
+    .search-row input{flex:1;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 14px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    .search-row input:focus{outline:none;border-color:var(--green-600);}
+    .asgn-list{display:flex;flex-direction:column;gap:8px;}
+    .asgn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:12px;}
+    .asgn-card .card-click{flex:1;min-width:0;cursor:pointer;display:flex;align-items:center;gap:12px;}
+    .asgn-card .card-click:hover .card-title{color:var(--green-600);}
     .asgn-card .card-body{flex:1;min-width:0;}
-    .asgn-card .card-title{font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-    .asgn-card .card-meta{color:var(--text-3);font-size:12.5px;margin-top:3px;}
+    .asgn-card .card-title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color 120ms;}
+    .asgn-card .card-meta{color:var(--text-3);font-size:12.5px;margin-top:2px;}
     .asgn-card .card-arrow{color:var(--text-3);font-size:18px;flex-shrink:0;}
     .asgn-card .badge{display:inline-flex;align-items:center;height:22px;border-radius:999px;padding:0 9px;font-size:11.5px;font-weight:700;background:var(--surface-3);color:var(--text-2);flex-shrink:0;}
     .asgn-card .badge.essay{background:var(--blue-50);color:var(--blue-700);}
     .asgn-card .badge.test{background:var(--amber-50);color:var(--amber-700);}
+    .asgn-card .card-actions{display:flex;gap:6px;flex-shrink:0;}
     .empty-state{text-align:center;padding:60px 20px;color:var(--text-3);}
     .empty-state p{margin:8px 0 20px;font-size:15px;}
     /* ── Detail view ── */
-    .detail-header{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap;}
-    .detail-header h2{font-family:var(--serif);font-size:22px;font-weight:600;margin:0;flex:1;min-width:0;}
-    .detail-header .class-tag{color:var(--text-2);font-size:13.5px;white-space:nowrap;}
+    .detail-header{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+    .detail-header h2{font-family:var(--serif);font-size:21px;font-weight:600;margin:0;flex:1;min-width:0;}
+    .detail-header .class-tag{color:var(--text-2);font-size:13px;white-space:nowrap;}
     .controls{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:12px;align-items:end;margin-bottom:14px;}
     .toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px;}
     label{display:block;color:var(--text-2);font-size:12px;font-weight:700;margin:0 0 6px;text-transform:uppercase;}
-    select{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    select,input[type=text],input[type=datetime-local],textarea{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    select{width:100%;}
+    input[type=text],input[type=datetime-local],textarea{width:100%;}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green-600);}
+    textarea{resize:vertical;min-height:90px;}
     .summary{display:grid;grid-template-columns:repeat(5,minmax(110px,1fr));gap:10px;margin:0 0 16px;}
     .metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 16px;box-shadow:var(--shadow-card);}
     .metric .n{font-size:24px;font-weight:700;line-height:1;}
@@ -63,7 +75,32 @@
     .pill.held{background:var(--amber-50);color:var(--amber-700);}
     .mono{font-family:var(--mono);font-size:12.5px;color:var(--text-2);}
     .empty{color:var(--text-3);font-size:13.5px;text-align:center;padding:28px;}
-    @media(max-width:760px){.container{padding:24px 18px 64px;}.controls{grid-template-columns:1fr;}.summary{grid-template-columns:repeat(2,minmax(110px,1fr));}}
+    /* ── Edit view ── */
+    .edit-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:22px 24px;box-shadow:var(--shadow-card);margin-bottom:14px;}
+    .edit-card h3{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
+    .field{margin-bottom:16px;}
+    .field:last-child{margin-bottom:0;}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+    .toggle-group{display:flex;flex-direction:column;gap:10px;}
+    .toggle{display:flex;align-items:center;gap:12px;cursor:pointer;}
+    .toggle input[type=checkbox]{width:38px;height:22px;appearance:none;border-radius:999px;background:var(--surface-3);border:1.5px solid var(--border-2);cursor:pointer;transition:background .2s;flex-shrink:0;position:relative;}
+    .toggle input[type=checkbox]:checked{background:var(--green-600);border-color:var(--green-600);}
+    .toggle input[type=checkbox]::after{content:'';position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+    .toggle input[type=checkbox]:checked::after{left:18px;}
+    .toggle-label{font-size:13.5px;}
+    .toggle-label small{display:block;color:var(--text-3);font-size:12px;margin-top:1px;}
+    .radio-group{display:flex;}
+    .radio-group input[type=radio]{display:none;}
+    .radio-group .opt{padding:8px 16px;border:1.5px solid var(--border-2);background:var(--surface);cursor:pointer;font-size:13.5px;font-weight:600;transition:background .15s,color .15s;}
+    .radio-group .opt:first-of-type{border-radius:var(--r-sm) 0 0 var(--r-sm);}
+    .radio-group .opt:last-of-type{border-radius:0 var(--r-sm) var(--r-sm) 0;margin-left:-1.5px;}
+    .radio-group input[type=radio]:checked+.opt{background:var(--green-600);color:#fff;border-color:var(--green-600);z-index:1;position:relative;}
+    .edit-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+    .msg{display:none;padding:11px 15px;border-radius:var(--r-sm);font-size:13.5px;margin-bottom:14px;}
+    .msg.on{display:block;background:var(--green-50);border:1px solid rgba(36,99,67,.2);color:var(--green-700);}
+    .msg.on.err{background:var(--maroon-50);border-color:rgba(140,47,59,.2);color:var(--maroon-500);}
+    .hint{font-size:12px;color:var(--text-3);margin-top:4px;}
+    @media(max-width:760px){.container{padding:24px 18px 64px;}.controls{grid-template-columns:1fr;}.summary{grid-template-columns:repeat(2,minmax(110px,1fr));}.row2{grid-template-columns:1fr;}}
   </style>
 </head>
 <body>
@@ -74,24 +111,27 @@
   </div>
 
   <main class="container">
-    <a class="back" href="/teacher">← Back to dashboard</a>
+    <a class="back-link" href="/teacher">← Back to dashboard</a>
 
     <!-- ── List view ── -->
     <div id="listView">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">
+      <div style="display:flex;align-items:center;gap:12px;">
         <h1>Assignments</h1>
         <a class="btn p sm" href="/teacher/new-assignment" style="margin-left:auto;">+ New assignment</a>
       </div>
-      <p style="color:var(--text-2);font-size:15px;margin:0 0 4px;">Click an assignment to see class progress.</p>
+      <div class="search-row">
+        <input type="text" id="searchInput" placeholder="Search by title or class…" autocomplete="off">
+      </div>
       <div class="asgn-list" id="asgnList"></div>
     </div>
 
     <!-- ── Detail view ── -->
     <div id="detailView" style="display:none;">
-      <button class="back" id="backBtn" type="button" style="background:none;border:none;cursor:pointer;padding:0;">← All assignments</button>
+      <button class="back-btn" id="backFromDetail">← All assignments</button>
       <div class="detail-header">
         <h2 id="detailTitle"></h2>
         <span class="class-tag" id="detailClass"></span>
+        <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
         <button class="btn sm" id="releaseBtn" type="button">Release all grades</button>
       </div>
@@ -128,13 +168,76 @@
       <div class="summary" id="summary"></div>
       <div class="table-wrap">
         <table>
-          <thead>
-            <tr>
-              <th>Student</th><th>Status</th><th>Submitted</th><th>Paste</th><th>Score</th><th>Review</th>
-            </tr>
-          </thead>
+          <thead><tr><th>Student</th><th>Status</th><th>Submitted</th><th>Paste</th><th>Score</th><th>Review</th></tr></thead>
           <tbody id="studentsBody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ── Edit view ── -->
+    <div id="editView" style="display:none;">
+      <button class="back-btn" id="backFromEdit">← Back</button>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <h1 id="editHeading" style="font-size:22px;"></h1>
+      </div>
+      <div class="msg" id="editMsg"></div>
+
+      <div class="edit-card">
+        <h3>Basics</h3>
+        <div class="field">
+          <label for="eTitle">Title</label>
+          <input type="text" id="eTitle">
+        </div>
+        <div class="field">
+          <label for="ePrompt">Writing prompt (optional)</label>
+          <textarea id="ePrompt" placeholder="Paste the full question or task description here."></textarea>
+          <p class="hint">Students do not see this — it is for your reference and AI marking assistance.</p>
+        </div>
+      </div>
+
+      <div class="edit-card">
+        <h3>Dates</h3>
+        <div class="row2">
+          <div class="field">
+            <label for="eOpens">Opens at (optional)</label>
+            <input type="datetime-local" id="eOpens">
+            <p class="hint">Leave blank to make it available immediately.</p>
+          </div>
+          <div class="field">
+            <label for="eDue">Due at (optional)</label>
+            <input type="datetime-local" id="eDue">
+            <p class="hint">Students can edit until this time passes.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="edit-card">
+        <h3>Settings</h3>
+        <div class="field">
+          <label>Submit behaviour</label>
+          <div class="radio-group">
+            <input type="radio" name="eSb" id="eSbDraft" value="draft">
+            <span class="opt" onclick="document.getElementById('eSbDraft').checked=true">Draft</span>
+            <input type="radio" name="eSb" id="eSbExam" value="exam">
+            <span class="opt" onclick="document.getElementById('eSbExam').checked=true">Exam (terminal)</span>
+          </div>
+          <p class="hint">Draft: students can keep editing until due date. Exam: submitting locks the pad permanently.</p>
+        </div>
+        <div class="toggle-group">
+          <label class="toggle">
+            <input type="checkbox" id="eSpellcheck">
+            <span class="toggle-label">Spellcheck on<small>Browser underlines misspellings in the writing pad.</small></span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="eGreenPen">
+            <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="edit-footer">
+        <button class="btn" id="cancelEditBtn" type="button">Cancel</button>
+        <button class="btn p" id="saveEditBtn" type="button">Save changes</button>
       </div>
     </div>
   </main>
@@ -146,6 +249,7 @@
     let assignments=[];
     let classes=[];
     let currentId=null;
+    let editFromDetail=false;
 
     async function init(){
       const me=await fetch('/api/me');
@@ -153,17 +257,13 @@
       const user=await me.json();
       if(user.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=user.user.csrf_token;
-
       const [ar,cr]=await Promise.all([fetch('/api/assignments'),fetch('/api/classes')]);
       const ad=await ar.json(); assignments=ad.assignments||[];
       const cd=await cr.json(); classes=cd.classes||[];
-
       renderList();
-
       const params=new URLSearchParams(window.location.search);
       const openId=Number(params.get('id')||params.get('highlight'));
       if(openId && assignments.find(a=>a.id===openId)) openDetail(openId);
-
       bindControls();
     }
 
@@ -171,61 +271,75 @@
       return (classes.find(c=>c.id===classId)||{}).name||'';
     }
 
-    function renderList(){
+    // ── List ──────────────────────────────────────────────
+    function renderList(filter=''){
       const box=document.getElementById('asgnList');
+      const q=filter.toLowerCase();
+      const visible=assignments.filter(a=>
+        !q || a.title.toLowerCase().includes(q) || classNameFor(a.class_id).toLowerCase().includes(q)
+      );
       if(!assignments.length){
         box.innerHTML=`<div class="empty-state"><p>No assignments yet.</p><a class="btn p" href="/teacher/new-assignment">+ Create your first assignment</a></div>`;
         return;
       }
-      box.innerHTML=assignments.map(a=>{
+      if(!visible.length){
+        box.innerHTML=`<div class="empty-state"><p>No assignments match "${escapeHtml(filter)}".</p></div>`;
+        return;
+      }
+      box.innerHTML=visible.map(a=>{
         const cls=escapeHtml(classNameFor(a.class_id));
         const due=a.due_at?'Due '+formatDate(a.due_at):'No due date';
-        return `<div class="asgn-card" data-id="${a.id}" tabindex="0" role="button" aria-label="Open ${escapeHtml(a.title)}">
-          <div class="card-body">
-            <div class="card-title">${escapeHtml(a.title)}</div>
-            <div class="card-meta">${cls?cls+' · ':''}${due}</div>
+        return `<div class="asgn-card">
+          <div class="card-click" data-id="${a.id}" tabindex="0" role="button">
+            <div class="card-body">
+              <div class="card-title">${escapeHtml(a.title)}</div>
+              <div class="card-meta">${cls?cls+' &middot; ':''}${due}</div>
+            </div>
+            <span class="badge ${a.type}">${a.type==='test'?'Test':'Essay'}</span>
+            <span class="card-arrow">›</span>
           </div>
-          <span class="badge ${a.type}">${a.type==='test'?'Test':'Essay'}</span>
-          <span class="card-arrow">›</span>
+          <div class="card-actions">
+            <button class="btn sm" data-edit="${a.id}">Edit</button>
+          </div>
         </div>`;
       }).join('');
-      box.querySelectorAll('.asgn-card').forEach(card=>{
-        const id=Number(card.dataset.id);
-        card.addEventListener('click',()=>openDetail(id));
-        card.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')openDetail(id);});
+      box.querySelectorAll('.card-click').forEach(el=>{
+        const id=Number(el.dataset.id);
+        el.addEventListener('click',()=>openDetail(id));
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')openDetail(id);});
+      });
+      box.querySelectorAll('[data-edit]').forEach(btn=>{
+        btn.addEventListener('click',()=>openEdit(Number(btn.dataset.edit),false));
       });
     }
 
+    // ── Detail ────────────────────────────────────────────
     async function openDetail(id){
       currentId=id;
-      document.getElementById('listView').style.display='none';
-      document.getElementById('detailView').style.display='';
+      show('detailView');
       const a=assignments.find(x=>x.id===id)||{};
       document.getElementById('detailTitle').textContent=a.title||'';
       document.getElementById('detailClass').textContent=classNameFor(a.class_id);
-      const url=new URL(window.location.href);
-      url.searchParams.set('id',id);
-      url.searchParams.delete('highlight');
-      history.replaceState(null,'',url.toString());
+      setUrl(id);
       await loadDashboard();
     }
 
-    function showList(){
-      currentId=null;
-      document.getElementById('detailView').style.display='none';
-      document.getElementById('listView').style.display='';
-      const url=new URL(window.location.href);
-      url.searchParams.delete('id');
-      history.replaceState(null,'',url.toString());
-    }
-
     function bindControls(){
-      document.getElementById('backBtn').addEventListener('click',showList);
+      document.getElementById('backFromDetail').addEventListener('click',showList);
+      document.getElementById('backFromEdit').addEventListener('click',()=>{
+        editFromDetail?openDetail(currentId):showList();
+      });
+      document.getElementById('editFromDetailBtn').addEventListener('click',()=>openEdit(currentId,true));
+      document.getElementById('cancelEditBtn').addEventListener('click',()=>{
+        editFromDetail?openDetail(currentId):showList();
+      });
+      document.getElementById('saveEditBtn').addEventListener('click',saveEdit);
       document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
       ['statusFilter','pasteFilter','sortSelect'].forEach(id=>{
         document.getElementById(id).addEventListener('change',loadDashboard);
       });
+      document.getElementById('searchInput').addEventListener('input',e=>renderList(e.target.value));
       document.getElementById('logoutBtn').addEventListener('click',async()=>{
         await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
         window.location.href='/teacher-login';
@@ -238,10 +352,7 @@
       const r=await fetch(`/api/assignments/${currentId}/release-grades`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
       if(r.ok) await loadDashboard();
     }
-
-    function exportCsv(){
-      if(currentId) window.location.href=`/api/assignments/${currentId}/export.csv`;
-    }
+    function exportCsv(){if(currentId) window.location.href=`/api/assignments/${currentId}/export.csv`;}
 
     async function loadDashboard(){
       if(!currentId) return;
@@ -250,22 +361,82 @@
         paste:document.getElementById('pasteFilter').value,
         sort:document.getElementById('sortSelect').value,
       });
-      const r=await fetch(`/api/assignments/${currentId}/dashboard?${qs.toString()}`);
+      const r=await fetch(`/api/assignments/${currentId}/dashboard?${qs}`);
       if(!r.ok){renderEmpty('Could not load this assignment.');return;}
       const data=await r.json();
       renderSummary(data.students);
       renderRows(data.students);
     }
 
-    function renderSummary(rows){
-      const counts={total:rows.length,not_started:0,writing:0,submitted:0,marked:0,released:0,paste:0};
-      rows.forEach(row=>{
-        if(counts[row.status]!==undefined) counts[row.status]+=1;
-        if(row.paste_flag) counts.paste+=1;
+    // ── Edit ──────────────────────────────────────────────
+    function openEdit(id,fromDetail){
+      currentId=id;
+      editFromDetail=fromDetail;
+      const a=assignments.find(x=>x.id===id)||{};
+      const s=JSON.parse(a.settings_json||'{}');
+      document.getElementById('editHeading').textContent='Edit: '+a.title;
+      document.getElementById('eTitle').value=a.title||'';
+      document.getElementById('ePrompt').value=s.prompt||'';
+      document.getElementById('eOpens').value=isoToLocal(a.opens_at);
+      document.getElementById('eDue').value=isoToLocal(a.due_at);
+      document.getElementById('eSbDraft').checked=(s.submit_behaviour||'draft')==='draft';
+      document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
+      document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
+      document.getElementById('eGreenPen').checked=s.green_pen===true;
+      document.getElementById('editMsg').className='msg';
+      show('editView');
+      document.getElementById('backFromEdit').textContent=fromDetail?'← Back to roster':'← All assignments';
+    }
+
+    async function saveEdit(){
+      const id=currentId;
+      const title=document.getElementById('eTitle').value.trim();
+      if(!title){showEditMsg('Title is required.',true);return;}
+      const prompt=document.getElementById('ePrompt').value.trim();
+      const opens=document.getElementById('eOpens').value;
+      const due=document.getElementById('eDue').value;
+      const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
+      const spellcheck=document.getElementById('eSpellcheck').checked;
+      const green_pen=document.getElementById('eGreenPen').checked;
+      const settings={submit_behaviour,spellcheck,green_pen};
+      if(prompt) settings.prompt=prompt;
+
+      const btn=document.getElementById('saveEditBtn');
+      btn.disabled=true;btn.textContent='Saving…';
+
+      const r=await fetch(`/api/assignments/${id}`,{
+        method:'PATCH',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({title,opens_at:opens||null,due_at:due||null,settings}),
       });
+
+      btn.disabled=false;btn.textContent='Save changes';
+
+      if(!r.ok){
+        const d=await r.json().catch(()=>({}));
+        showEditMsg(d.error||'Could not save changes.',true);
+        return;
+      }
+      const data=await r.json();
+      // update local cache
+      const idx=assignments.findIndex(a=>a.id===id);
+      if(idx>=0) assignments[idx]=data.assignment;
+      showEditMsg('Saved.',false);
+      setTimeout(()=>{editFromDetail?openDetail(id):showList();},700);
+    }
+
+    function showEditMsg(text,isErr){
+      const el=document.getElementById('editMsg');
+      el.textContent=text;el.className=isErr?'msg on err':'msg on';
+    }
+
+    // ── Render helpers ─────────────────────────────────────
+    function renderSummary(rows){
+      const c={total:rows.length,not_started:0,writing:0,submitted:0,marked:0,released:0,paste:0};
+      rows.forEach(r=>{if(c[r.status]!==undefined)c[r.status]++;if(r.paste_flag)c.paste++;});
       document.getElementById('summary').innerHTML=[
-        ['Total',counts.total],['Not started',counts.not_started],['Writing',counts.writing],
-        ['Submitted',counts.submitted],['Paste flags',counts.paste],
+        ['Total',c.total],['Not started',c.not_started],['Writing',c.writing],
+        ['Submitted',c.submitted],['Paste flags',c.paste],
       ].map(([k,v])=>`<div class="metric"><div class="n">${v}</div><div class="k">${k}</div></div>`).join('');
     }
 
@@ -288,6 +459,30 @@
       document.getElementById('studentsBody').innerHTML=`<tr><td class="empty" colspan="6">${escapeHtml(msg)}</td></tr>`;
     }
 
+    // ── Utilities ──────────────────────────────────────────
+    function show(viewId){
+      ['listView','detailView','editView'].forEach(id=>{
+        document.getElementById(id).style.display=id===viewId?'':'none';
+      });
+    }
+    function showList(){
+      currentId=null;
+      show('listView');
+      setUrl(null);
+    }
+    function setUrl(id){
+      const url=new URL(window.location.href);
+      if(id){url.searchParams.set('id',id);url.searchParams.delete('highlight');}
+      else{url.searchParams.delete('id');url.searchParams.delete('highlight');}
+      history.replaceState(null,'',url.toString());
+    }
+    function isoToLocal(iso){
+      if(!iso) return '';
+      const d=new Date(iso);
+      if(Number.isNaN(d.getTime())) return '';
+      const pad=n=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
     function statusLabel(s){
       return {not_started:'Not started',writing:'Writing',submitted:'Submitted',marked:'Marked',released:'Released',green_pen_open:'Green pen',resubmitted:'Resubmitted'}[s]||s;
     }
