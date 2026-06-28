@@ -99,6 +99,55 @@ function csvCell(value) {
   return `"${text.replaceAll('"', '""')}"`;
 }
 
+// Returns all dashboard rows for an assignment, honouring the assignment_students
+// override table when populated.
+function fetchDashboardRows(db, assignmentId, classId) {
+  const overrideCount = db.prepare(
+    'SELECT COUNT(*) AS n FROM assignment_students WHERE assignment_id = ?'
+  ).get(assignmentId).n;
+
+  const joinClause = overrideCount > 0
+    ? `JOIN assignment_students ast ON ast.student_id = s.id AND ast.assignment_id = ${assignmentId}`
+    : `JOIN students _cls ON _cls.id = s.id AND s.class_id = ${classId}`;
+  // (second branch uses a self-join trick so the SQL shape stays identical)
+
+  return db.prepare(`
+    SELECT s.id AS student_id,
+           s.display_name,
+           s.username,
+           p.id AS pad_id,
+           p.state AS pad_state,
+           sub.id AS submission_id,
+           sub.submitted_at,
+           sub.is_graded,
+           sub.released AS submission_released,
+           g.id AS grade_id,
+           g.score,
+           g.released AS grade_released,
+           paste.paste_count,
+           paste.paste_total_length,
+           paste.latest_paste_at
+    FROM students s
+    ${joinClause}
+    LEFT JOIN pads p ON p.student_id = s.id AND p.assignment_id = ?
+    LEFT JOIN (
+      SELECT sub_inner.*
+      FROM submissions sub_inner
+      JOIN (SELECT pad_id, MAX(id) AS latest_id FROM submissions GROUP BY pad_id) latest
+        ON latest.latest_id = sub_inner.id
+    ) sub ON sub.pad_id = p.id
+    LEFT JOIN grades g ON g.submission_id = sub.id
+    LEFT JOIN (
+      SELECT pad_id,
+             COUNT(*) AS paste_count,
+             COALESCE(SUM(length), 0) AS paste_total_length,
+             MAX(at) AS latest_paste_at
+      FROM paste_events GROUP BY pad_id
+    ) paste ON paste.pad_id = p.id
+    ORDER BY s.display_name COLLATE NOCASE
+  `).all(assignmentId);
+}
+
 export async function registerAssignmentRoutes(app, { db }) {
   // ── Teacher routes ──────────────────────────────────────────────────────
 
@@ -159,45 +208,7 @@ export async function registerAssignmentRoutes(app, { db }) {
       `).get(id);
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
 
-      const rows = db.prepare(`
-        SELECT s.id AS student_id,
-               s.display_name,
-               s.username,
-               p.id AS pad_id,
-               p.state AS pad_state,
-               sub.id AS submission_id,
-               sub.submitted_at,
-               sub.is_graded,
-               sub.released AS submission_released,
-               g.id AS grade_id,
-               g.score,
-               g.released AS grade_released,
-               paste.paste_count,
-               paste.paste_total_length,
-               paste.latest_paste_at
-        FROM students s
-        LEFT JOIN pads p ON p.student_id = s.id AND p.assignment_id = ?
-        LEFT JOIN (
-          SELECT sub_inner.*
-          FROM submissions sub_inner
-          JOIN (
-            SELECT pad_id, MAX(id) AS latest_id
-            FROM submissions
-            GROUP BY pad_id
-          ) latest ON latest.latest_id = sub_inner.id
-        ) sub ON sub.pad_id = p.id
-        LEFT JOIN grades g ON g.submission_id = sub.id
-        LEFT JOIN (
-          SELECT pad_id,
-                 COUNT(*) AS paste_count,
-                 COALESCE(SUM(length), 0) AS paste_total_length,
-                 MAX(at) AS latest_paste_at
-          FROM paste_events
-          GROUP BY pad_id
-        ) paste ON paste.pad_id = p.id
-        WHERE s.class_id = ?
-        ORDER BY s.display_name COLLATE NOCASE
-      `).all(id, assignment.class_id);
+      const rows = fetchDashboardRows(db, id, assignment.class_id);
 
       const statusFilter = request.query.status;
       const pasteFilter = request.query.paste;
@@ -228,45 +239,7 @@ export async function registerAssignmentRoutes(app, { db }) {
       `).get(id);
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
 
-      const rows = db.prepare(`
-        SELECT s.id AS student_id,
-               s.display_name,
-               s.username,
-               p.id AS pad_id,
-               p.state AS pad_state,
-               sub.id AS submission_id,
-               sub.submitted_at,
-               sub.is_graded,
-               sub.released AS submission_released,
-               g.id AS grade_id,
-               g.score,
-               g.released AS grade_released,
-               paste.paste_count,
-               paste.paste_total_length,
-               paste.latest_paste_at
-        FROM students s
-        LEFT JOIN pads p ON p.student_id = s.id AND p.assignment_id = ?
-        LEFT JOIN (
-          SELECT sub_inner.*
-          FROM submissions sub_inner
-          JOIN (
-            SELECT pad_id, MAX(id) AS latest_id
-            FROM submissions
-            GROUP BY pad_id
-          ) latest ON latest.latest_id = sub_inner.id
-        ) sub ON sub.pad_id = p.id
-        LEFT JOIN grades g ON g.submission_id = sub.id
-        LEFT JOIN (
-          SELECT pad_id,
-                 COUNT(*) AS paste_count,
-                 COALESCE(SUM(length), 0) AS paste_total_length,
-                 MAX(at) AS latest_paste_at
-          FROM paste_events
-          GROUP BY pad_id
-        ) paste ON paste.pad_id = p.id
-        WHERE s.class_id = ?
-        ORDER BY s.display_name COLLATE NOCASE
-      `).all(id, assignment.class_id).map(publicDashboardRow);
+      const rows = fetchDashboardRows(db, id, assignment.class_id).map(publicDashboardRow);
 
       const header = ['Student name', 'Username', 'Status', 'Submitted at', 'Grade', 'Grade state', 'Paste flag', 'Paste count'];
       const lines = [
@@ -372,6 +345,78 @@ export async function registerAssignmentRoutes(app, { db }) {
     }
   );
 
+  // ── Per-assignment student management ──────────────────────────────────
+
+  // GET /api/assignments/:id/students
+  // Returns effective student list plus all available students (for the picker).
+  app.get('/api/assignments/:id/students',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const assignment = db.prepare('SELECT id, class_id FROM assignments WHERE id = ?').get(id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      const overrideRows = db.prepare(
+        'SELECT student_id FROM assignment_students WHERE assignment_id = ?'
+      ).all(id).map(r => r.student_id);
+      const isCustom = overrideRows.length > 0;
+      const includedSet = new Set(overrideRows);
+
+      // All students across all classes for the picker.
+      const allStudents = db.prepare(`
+        SELECT s.id, s.display_name, s.username, s.class_id, c.name AS class_name
+        FROM students s JOIN classes c ON c.id = s.class_id
+        ORDER BY c.name COLLATE NOCASE, s.display_name COLLATE NOCASE
+      `).all();
+
+      return {
+        mode: isCustom ? 'custom' : 'class',
+        included: isCustom ? [...includedSet] : null,
+        students: allStudents.map(s => ({
+          ...s,
+          included: isCustom ? includedSet.has(s.id) : s.class_id === assignment.class_id,
+        })),
+      };
+    }
+  );
+
+  // PUT /api/assignments/:id/students
+  // body: { student_ids: [1,2,3] } — replaces override list.
+  // body: { student_ids: null }    — clears back to class-wide default.
+  app.put('/api/assignments/:id/students',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const assignment = db.prepare('SELECT id FROM assignments WHERE id = ?').get(id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      const { student_ids } = request.body ?? {};
+
+      db.exec('BEGIN');
+      try {
+        db.prepare('DELETE FROM assignment_students WHERE assignment_id = ?').run(id);
+        if (Array.isArray(student_ids) && student_ids.length > 0) {
+          const insert = db.prepare(
+            'INSERT OR IGNORE INTO assignment_students (assignment_id, student_id) VALUES (?, ?)'
+          );
+          for (const sid of student_ids) {
+            const n = Number(sid);
+            if (Number.isInteger(n) && n > 0) insert.run(id, n);
+          }
+        }
+        db.exec('COMMIT');
+      } catch (e) {
+        db.exec('ROLLBACK');
+        throw e;
+      }
+
+      const count = db.prepare(
+        'SELECT COUNT(*) AS n FROM assignment_students WHERE assignment_id = ?'
+      ).get(id).n;
+      return { mode: count > 0 ? 'custom' : 'class', count };
+    }
+  );
+
   // ── Student routes ──────────────────────────────────────────────────────
 
   app.get('/api/student/assignments',
@@ -382,18 +427,28 @@ export async function registerAssignmentRoutes(app, { db }) {
       if (!student) return reply.code(404).send({ error: 'student_not_found' });
 
       const now = new Date().toISOString();
+      // Include assignments where:
+      // (a) class default applies (no override rows) and student is in the class, OR
+      // (b) student is explicitly listed in assignment_students.
       const rows = db.prepare(`
-        SELECT a.*,
+        SELECT DISTINCT a.*,
                p.id   AS pad_id,
                p.state AS pad_state,
                sub.id  AS submission_id,
                sub.submitted_at
         FROM assignments a
-        LEFT JOIN pads p   ON p.assignment_id = a.id AND p.student_id = ?
+        LEFT JOIN pads p ON p.assignment_id = a.id AND p.student_id = ?
         LEFT JOIN submissions sub ON sub.pad_id = p.id
-        WHERE a.class_id = ?
+        WHERE (
+          -- class-wide default: no override rows and student is in the class
+          (NOT EXISTS (SELECT 1 FROM assignment_students ast WHERE ast.assignment_id = a.id)
+           AND a.class_id = ?)
+          OR
+          -- explicit inclusion
+          EXISTS (SELECT 1 FROM assignment_students ast WHERE ast.assignment_id = a.id AND ast.student_id = ?)
+        )
         ORDER BY a.due_at ASC, a.opens_at ASC, a.created_at DESC
-      `).all(studentId, student.class_id);
+      `).all(studentId, student.class_id, studentId);
 
       return {
         assignments: rows.map(row => ({

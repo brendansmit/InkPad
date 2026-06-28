@@ -25,10 +25,18 @@ async function resolveAssignmentAndStudent(db, assignmentId, studentId) {
     throw err;
   }
   const student = db.prepare('SELECT id, display_name, class_id FROM students WHERE id = ?').get(studentId);
-  if (!student || student.class_id !== assignment.class_id) {
-    const err = new Error('forbidden');
-    err.statusCode = 403;
-    throw err;
+  if (!student) {
+    const err = new Error('forbidden'); err.statusCode = 403; throw err;
+  }
+  // Check explicit override list first; fall back to class membership.
+  const overrideCount = db.prepare(
+    'SELECT COUNT(*) AS n FROM assignment_students WHERE assignment_id = ?'
+  ).get(assignmentId).n;
+  const allowed = overrideCount > 0
+    ? !!db.prepare('SELECT 1 FROM assignment_students WHERE assignment_id = ? AND student_id = ?').get(assignmentId, studentId)
+    : student.class_id === assignment.class_id;
+  if (!allowed) {
+    const err = new Error('forbidden'); err.statusCode = 403; throw err;
   }
   return { assignment, student };
 }

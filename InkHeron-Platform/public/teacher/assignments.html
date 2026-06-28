@@ -100,6 +100,21 @@
     .msg.on{display:block;background:var(--green-50);border:1px solid rgba(36,99,67,.2);color:var(--green-700);}
     .msg.on.err{background:var(--maroon-50);border-color:rgba(140,47,59,.2);color:var(--maroon-500);}
     .hint{font-size:12px;color:var(--text-3);margin-top:4px;}
+    /* ── Student modal ── */
+    .modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.42);overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;}
+    .modal-box{background:var(--surface);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.22);padding:28px;width:100%;max-width:560px;}
+    .modal-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+    .modal-head h2{font-family:var(--serif);font-size:19px;font-weight:600;margin:0;flex:1;}
+    .modal-desc{color:var(--text-2);font-size:13px;margin:0 0 18px;}
+    .modal-class-group{margin-bottom:20px;}
+    .modal-class-group:last-child{margin-bottom:0;}
+    .modal-class-label{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+    .modal-class-label strong{font-size:13px;font-weight:700;}
+    .modal-student-row{display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;}
+    .modal-student-row input[type=checkbox]{width:16px;height:16px;accent-color:var(--green-600);cursor:pointer;flex-shrink:0;}
+    .modal-student-row .sname{font-size:13.5px;}
+    .modal-student-row .susr{color:var(--text-3);font-size:12px;}
+    .modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
     @media(max-width:760px){.container{padding:24px 18px 64px;}.controls{grid-template-columns:1fr;}.summary{grid-template-columns:repeat(2,minmax(110px,1fr));}.row2{grid-template-columns:1fr;}}
   </style>
 </head>
@@ -131,6 +146,7 @@
       <div class="detail-header">
         <h2 id="detailTitle"></h2>
         <span class="class-tag" id="detailClass"></span>
+        <button class="btn sm" id="manageStudentsBtn" type="button">Manage students</button>
         <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
         <button class="btn sm" id="releaseBtn" type="button">Release all grades</button>
@@ -224,9 +240,35 @@
         </div>
       </div>
 
+      <div class="edit-card">
+        <h3>Add to another class</h3>
+        <p class="hint" style="margin:0 0 12px;">Creates this assignment for an additional class with its own roster and deadline.</p>
+        <div style="display:flex;gap:10px;align-items:flex-end;">
+          <div style="flex:1;"><label>Class</label><select id="eAddClass"><option value="">— pick a class —</option></select></div>
+          <button class="btn sm" id="eAddClassBtn" type="button">Add class</button>
+        </div>
+      </div>
+
       <div class="edit-footer">
         <button class="btn" id="cancelEditBtn" type="button">Cancel</button>
         <button class="btn p" id="saveEditBtn" type="button">Save changes</button>
+      </div>
+    </div>
+
+    <!-- ── Student picker modal ── -->
+    <div class="modal-overlay" id="studentModal" style="display:none;">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h2>Manage students</h2>
+          <button class="btn sm" id="modalResetBtn" type="button">Reset to class default</button>
+          <button class="btn sm" id="modalCloseBtn" type="button" aria-label="Close">✕</button>
+        </div>
+        <p class="modal-desc" id="modalDesc"></p>
+        <div id="modalStudentList"></div>
+        <div class="modal-foot">
+          <button class="btn" id="modalCancelBtn" type="button">Cancel</button>
+          <button class="btn p" id="modalSaveBtn" type="button">Save</button>
+        </div>
       </div>
     </div>
   </main>
@@ -240,6 +282,7 @@
     let currentId=null;
     let editFromDetail=false;
     let editGroup=[];
+    let modalId=null;
 
     async function init(){
       const me=await fetch('/api/me');
@@ -320,10 +363,12 @@
         editFromDetail?openDetail(currentId):showList();
       });
       document.getElementById('editFromDetailBtn').addEventListener('click',()=>openEdit(currentId,true));
+      document.getElementById('manageStudentsBtn').addEventListener('click',()=>openStudentModal(currentId));
       document.getElementById('cancelEditBtn').addEventListener('click',()=>{
         editFromDetail?openDetail(currentId):showList();
       });
       document.getElementById('saveEditBtn').addEventListener('click',saveEdit);
+      document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
       document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
       ['statusFilter','pasteFilter','sortSelect'].forEach(id=>{
@@ -333,6 +378,14 @@
       document.getElementById('logoutBtn').addEventListener('click',async()=>{
         await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
         window.location.href='/teacher-login';
+      });
+      // Modal buttons
+      document.getElementById('modalCloseBtn').addEventListener('click',closeStudentModal);
+      document.getElementById('modalCancelBtn').addEventListener('click',closeStudentModal);
+      document.getElementById('modalSaveBtn').addEventListener('click',saveStudentModal);
+      document.getElementById('modalResetBtn').addEventListener('click',resetStudentModal);
+      document.getElementById('studentModal').addEventListener('click',e=>{
+        if(e.target===document.getElementById('studentModal')) closeStudentModal();
       });
     }
 
@@ -399,6 +452,7 @@
         </div>`;
       }).join('');
 
+      populateAddClassDropdown();
       show('editView');
       document.getElementById('backFromEdit').textContent=fromDetail?'← Back to roster':'← All assignments';
     }
@@ -443,6 +497,126 @@
     function showEditMsg(text,isErr){
       const el=document.getElementById('editMsg');
       el.textContent=text;el.className=isErr?'msg on err':'msg on';
+    }
+
+    // ── Student modal ─────────────────────────────────────
+    async function openStudentModal(id){
+      modalId=id;
+      const modal=document.getElementById('studentModal');
+      modal.style.display='';
+      document.getElementById('modalStudentList').innerHTML='<p style="color:var(--text-3);padding:8px 0">Loading…</p>';
+      const r=await fetch(`/api/assignments/${id}/students`);
+      if(!r.ok){document.getElementById('modalStudentList').innerHTML='<p style="color:var(--maroon-500)">Could not load students.</p>';return;}
+      const data=await r.json();
+      renderModalStudents(data);
+    }
+
+    function renderModalStudents(data){
+      const {mode,students}=data;
+      document.getElementById('modalDesc').textContent=
+        mode==='class'
+          ? 'All students in the assigned class are included by default. Uncheck any to exclude them, or check students from other classes to add them.'
+          : 'Custom list active — only checked students have access.';
+
+      const byClass={};
+      students.forEach(s=>{
+        if(!byClass[s.class_id]) byClass[s.class_id]={name:s.class_name,id:s.class_id,students:[]};
+        byClass[s.class_id].students.push(s);
+      });
+
+      const box=document.getElementById('modalStudentList');
+      box.innerHTML=Object.values(byClass).map(grp=>`
+        <div class="modal-class-group">
+          <div class="modal-class-label">
+            <strong>${escapeHtml(grp.name)}</strong>
+            <button class="btn sm" data-grp="${grp.id}" data-action="all" type="button">All</button>
+            <button class="btn sm" data-grp="${grp.id}" data-action="none" type="button">None</button>
+          </div>
+          ${grp.students.map(s=>`
+            <label class="modal-student-row">
+              <input type="checkbox" data-sid="${s.id}" ${s.included?'checked':''}>
+              <span class="sname">${escapeHtml(s.display_name)}</span>
+              <span class="susr">${escapeHtml(s.username)}</span>
+            </label>`).join('')}
+        </div>`).join('');
+
+      box.querySelectorAll('[data-grp]').forEach(btn=>{
+        const gid=Number(btn.dataset.grp);
+        const action=btn.dataset.action;
+        btn.addEventListener('click',()=>{
+          const grpStudents=students.filter(s=>s.class_id===gid);
+          grpStudents.forEach(s=>{
+            const cb=box.querySelector(`input[data-sid="${s.id}"]`);
+            if(cb) cb.checked=action==='all';
+          });
+        });
+      });
+    }
+
+    async function saveStudentModal(){
+      const checked=[...document.querySelectorAll('#modalStudentList input[type=checkbox]:checked')]
+        .map(cb=>Number(cb.dataset.sid));
+      const btn=document.getElementById('modalSaveBtn');
+      btn.disabled=true;btn.textContent='Saving…';
+      const r=await fetch(`/api/assignments/${modalId}/students`,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({student_ids:checked}),
+      });
+      btn.disabled=false;btn.textContent='Save';
+      if(r.ok) closeStudentModal();
+    }
+
+    async function resetStudentModal(){
+      if(!confirm('Reset to class default? All individual overrides will be cleared.')) return;
+      const r=await fetch(`/api/assignments/${modalId}/students`,{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({student_ids:null}),
+      });
+      if(r.ok) closeStudentModal();
+    }
+
+    function closeStudentModal(){
+      document.getElementById('studentModal').style.display='none';
+      modalId=null;
+    }
+
+    // ── Add class to existing assignment ──────────────────
+    function populateAddClassDropdown(){
+      const sel=document.getElementById('eAddClass');
+      const a=assignments.find(x=>x.id===currentId);
+      const usedClassIds=new Set(editGroup.map(x=>x.class_id));
+      sel.innerHTML='<option value="">— pick a class —</option>';
+      classes.filter(c=>!usedClassIds.has(c.id)).forEach(c=>{
+        const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);
+      });
+    }
+
+    async function addClassToAssignment(){
+      const classId=Number(document.getElementById('eAddClass').value);
+      if(!classId){showEditMsg('Pick a class first.',true);return;}
+      const a=assignments.find(x=>x.id===currentId);
+      if(!a) return;
+      const s=JSON.parse(a.settings_json||'{}');
+      const btn=document.getElementById('eAddClassBtn');
+      btn.disabled=true;btn.textContent='Adding…';
+      const r=await fetch('/api/assignments',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({title:a.title,class_id:classId,type:a.type,settings:s,opens_at:a.opens_at||null,due_at:a.due_at||null}),
+      });
+      btn.disabled=false;btn.textContent='Add class';
+      if(!r.ok){const d=await r.json().catch(()=>({}));showEditMsg(d.error||'Could not add class.',true);return;}
+      const data=await r.json();
+      assignments.push(data.assignment);
+      editGroup=assignments.filter(x=>x.title===a.title);
+      populateAddClassDropdown();
+      // Re-render date rows to include the new class
+      const savedTitle=document.getElementById('eTitle').value;
+      openEdit(currentId,editFromDetail);
+      document.getElementById('eTitle').value=savedTitle;
+      showEditMsg(`Added to ${classNameFor(classId)}.`,false);
     }
 
     // ── Render helpers ─────────────────────────────────────
