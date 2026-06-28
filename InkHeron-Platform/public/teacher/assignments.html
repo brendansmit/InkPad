@@ -145,8 +145,7 @@
       <button class="back-btn" id="backFromDetail">← All assignments</button>
       <div class="detail-header">
         <h2 id="detailTitle"></h2>
-        <span class="class-tag" id="detailClass"></span>
-        <button class="btn sm" id="manageStudentsBtn" type="button">Manage students</button>
+        <select id="detailClassSel" style="min-width:120px;max-width:200px;min-height:32px;padding:6px 10px;font-size:13px;"></select>
         <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
         <button class="btn sm" id="releaseBtn" type="button">Release all grades</button>
@@ -260,10 +259,16 @@
       <div class="modal-box">
         <div class="modal-head">
           <h2>Manage students</h2>
-          <button class="btn sm" id="modalResetBtn" type="button">Reset to class default</button>
           <button class="btn sm" id="modalCloseBtn" type="button" aria-label="Close">✕</button>
         </div>
-        <p class="modal-desc" id="modalDesc"></p>
+        <div id="modalClassRow" style="display:none;margin-bottom:12px;">
+          <label style="text-transform:uppercase;font-size:11px;font-weight:700;color:var(--text-2);margin-bottom:4px;display:block;">Class</label>
+          <select id="modalClassSel" style="width:100%;"></select>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <p class="modal-desc" id="modalDesc" style="flex:1;margin:0;"></p>
+          <button class="btn sm" id="modalResetBtn" type="button">Reset to class default</button>
+        </div>
         <div id="modalStudentList"></div>
         <div class="modal-foot">
           <button class="btn" id="modalCancelBtn" type="button">Cancel</button>
@@ -296,7 +301,11 @@
       renderList();
       const params=new URLSearchParams(window.location.search);
       const openId=Number(params.get('id')||params.get('highlight'));
-      if(openId && assignments.find(a=>a.id===openId)) openDetail(openId);
+      if(openId && assignments.find(a=>a.id===openId)){
+        const a=assignments.find(x=>x.id===openId);
+        const grp=assignments.filter(x=>x.title===a.title).map(x=>x.id);
+        openGroup(grp);
+      }
       bindControls();
     }
 
@@ -305,54 +314,86 @@
     }
 
     // ── List ──────────────────────────────────────────────
+    function groupAssignments(){
+      const map={};
+      assignments.forEach(a=>{
+        if(!map[a.title]) map[a.title]=[];
+        map[a.title].push(a);
+      });
+      return Object.values(map);
+    }
+
     function renderList(filter=''){
       const box=document.getElementById('asgnList');
       const q=filter.toLowerCase();
-      const visible=assignments.filter(a=>
-        !q || a.title.toLowerCase().includes(q) || classNameFor(a.class_id).toLowerCase().includes(q)
-      );
       if(!assignments.length){
         box.innerHTML=`<div class="empty-state"><p>No assignments yet.</p><a class="btn p" href="/teacher/new-assignment">+ Create your first assignment</a></div>`;
         return;
       }
-      if(!visible.length){
+      const groups=groupAssignments().filter(grp=>
+        !q || grp[0].title.toLowerCase().includes(q) ||
+        grp.some(a=>classNameFor(a.class_id).toLowerCase().includes(q))
+      );
+      if(!groups.length){
         box.innerHTML=`<div class="empty-state"><p>No assignments match "${escapeHtml(filter)}".</p></div>`;
         return;
       }
-      box.innerHTML=visible.map(a=>{
-        const cls=escapeHtml(classNameFor(a.class_id));
-        const due=a.due_at?'Due '+formatDate(a.due_at):'No due date';
+      box.innerHTML=groups.map(grp=>{
+        const title=grp[0].title;
+        const type=grp[0].type;
+        const classNames=grp.map(a=>classNameFor(a.class_id)).filter(Boolean);
+        const classMeta=classNames.join(' · ');
+        // If all due dates are the same show once; otherwise omit
+        const dues=[...new Set(grp.map(a=>a.due_at))];
+        const dueMeta=dues.length===1&&dues[0]?'Due '+formatDate(dues[0]):(dues.length>1?'Multiple deadlines':'No due date');
+        const ids=grp.map(a=>a.id).join(',');
         return `<div class="asgn-card">
-          <div class="card-click" data-id="${a.id}" tabindex="0" role="button">
+          <div class="card-click" data-ids="${ids}" tabindex="0" role="button">
             <div class="card-body">
-              <div class="card-title">${escapeHtml(a.title)}</div>
-              <div class="card-meta">${cls?cls+' &middot; ':''}${due}</div>
+              <div class="card-title">${escapeHtml(title)}</div>
+              <div class="card-meta">${classMeta?escapeHtml(classMeta)+' &middot; ':''}${dueMeta}</div>
             </div>
-            <span class="badge ${a.type}">${a.type==='test'?'Test':'Essay'}</span>
+            <span class="badge ${type}">${type==='test'?'Test':'Essay'}</span>
             <span class="card-arrow">›</span>
           </div>
           <div class="card-actions">
-            <button class="btn sm" data-edit="${a.id}">Edit</button>
+            <button class="btn sm" data-students="${ids}">Students</button>
+            <button class="btn sm" data-edit="${grp[0].id}">Edit</button>
           </div>
         </div>`;
       }).join('');
       box.querySelectorAll('.card-click').forEach(el=>{
-        const id=Number(el.dataset.id);
-        el.addEventListener('click',()=>openDetail(id));
-        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')openDetail(id);});
+        const ids=el.dataset.ids.split(',').map(Number);
+        el.addEventListener('click',()=>openGroup(ids));
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')openGroup(ids);});
+      });
+      box.querySelectorAll('[data-students]').forEach(btn=>{
+        const ids=btn.dataset.students.split(',').map(Number);
+        btn.addEventListener('click',e=>{e.stopPropagation();openStudentModal(ids);});
       });
       box.querySelectorAll('[data-edit]').forEach(btn=>{
-        btn.addEventListener('click',()=>openEdit(Number(btn.dataset.edit),false));
+        btn.addEventListener('click',e=>{e.stopPropagation();openEdit(Number(btn.dataset.edit),false);});
       });
     }
 
     // ── Detail ────────────────────────────────────────────
+    let detailGroup=[];
+
+    function openGroup(ids){
+      detailGroup=ids.map(id=>assignments.find(a=>a.id===id)).filter(Boolean);
+      const a=detailGroup[0];
+      if(!a) return;
+      document.getElementById('detailTitle').textContent=a.title;
+      // Populate class selector
+      const sel=document.getElementById('detailClassSel');
+      sel.innerHTML=detailGroup.map(ga=>`<option value="${ga.id}">${escapeHtml(classNameFor(ga.class_id))}</option>`).join('');
+      sel.style.display=detailGroup.length>1?'':'none';
+      show('detailView');
+      openDetail(a.id);
+    }
+
     async function openDetail(id){
       currentId=id;
-      show('detailView');
-      const a=assignments.find(x=>x.id===id)||{};
-      document.getElementById('detailTitle').textContent=a.title||'';
-      document.getElementById('detailClass').textContent=classNameFor(a.class_id);
       setUrl(id);
       await loadDashboard();
     }
@@ -360,17 +401,17 @@
     function bindControls(){
       document.getElementById('backFromDetail').addEventListener('click',showList);
       document.getElementById('backFromEdit').addEventListener('click',()=>{
-        editFromDetail?openDetail(currentId):showList();
+        editFromDetail?openGroup(detailGroup.map(a=>a.id)):showList();
       });
       document.getElementById('editFromDetailBtn').addEventListener('click',()=>openEdit(currentId,true));
-      document.getElementById('manageStudentsBtn').addEventListener('click',()=>openStudentModal(currentId));
       document.getElementById('cancelEditBtn').addEventListener('click',()=>{
-        editFromDetail?openDetail(currentId):showList();
+        editFromDetail?openGroup(detailGroup.map(a=>a.id)):showList();
       });
       document.getElementById('saveEditBtn').addEventListener('click',saveEdit);
       document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
       document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
+      document.getElementById('detailClassSel').addEventListener('change',e=>openDetail(Number(e.target.value)));
       ['statusFilter','pasteFilter','sortSelect'].forEach(id=>{
         document.getElementById(id).addEventListener('change',loadDashboard);
       });
@@ -384,6 +425,7 @@
       document.getElementById('modalCancelBtn').addEventListener('click',closeStudentModal);
       document.getElementById('modalSaveBtn').addEventListener('click',saveStudentModal);
       document.getElementById('modalResetBtn').addEventListener('click',resetStudentModal);
+      document.getElementById('modalClassSel').addEventListener('change',e=>loadModalStudents(Number(e.target.value)));
       document.getElementById('studentModal').addEventListener('click',e=>{
         if(e.target===document.getElementById('studentModal')) closeStudentModal();
       });
@@ -491,7 +533,10 @@
 
       if(failed){showEditMsg(`${failed} class${failed!==1?'es':''} failed to save.`,true);return;}
       showEditMsg('Saved.',false);
-      setTimeout(()=>{editFromDetail?openDetail(currentId):showList();},700);
+      setTimeout(()=>{
+        if(editFromDetail) openGroup(editGroup.map(a=>a.id));
+        else showList();
+      },700);
     }
 
     function showEditMsg(text,isErr){
@@ -500,15 +545,36 @@
     }
 
     // ── Student modal ─────────────────────────────────────
-    async function openStudentModal(id){
+    let modalGroup=[];
+
+    async function openStudentModal(ids){
+      // ids is an array of assignment IDs (one per class in the group)
+      modalGroup=Array.isArray(ids)?ids:[ids];
+      modalId=modalGroup[0];
+      document.getElementById('studentModal').style.display='';
+
+      // Populate class picker
+      const selRow=document.getElementById('modalClassRow');
+      const sel=document.getElementById('modalClassSel');
+      if(modalGroup.length>1){
+        sel.innerHTML=modalGroup.map(id=>{
+          const a=assignments.find(x=>x.id===id)||{};
+          return `<option value="${id}">${escapeHtml(classNameFor(a.class_id))}</option>`;
+        }).join('');
+        selRow.style.display='';
+      } else {
+        selRow.style.display='none';
+      }
+
+      await loadModalStudents(modalId);
+    }
+
+    async function loadModalStudents(id){
       modalId=id;
-      const modal=document.getElementById('studentModal');
-      modal.style.display='';
       document.getElementById('modalStudentList').innerHTML='<p style="color:var(--text-3);padding:8px 0">Loading…</p>';
       const r=await fetch(`/api/assignments/${id}/students`);
       if(!r.ok){document.getElementById('modalStudentList').innerHTML='<p style="color:var(--maroon-500)">Could not load students.</p>';return;}
-      const data=await r.json();
-      renderModalStudents(data);
+      renderModalStudents(await r.json());
     }
 
     function renderModalStudents(data){
