@@ -363,3 +363,18 @@ Entry format:
 - Open / next: Phase 3 writing surface.
 - Gotchas hit: Initial CSRF implementation generated a fresh token for the response that did not
   match the session; fixed by storing one token in `session.csrfToken` and returning it.
+
+## 2026-06-28 — Phase 7 Step 7.4 student dashboard surfacing
+- Phase/Step worked: Phase 7, Step 7.4
+- Built: Replaced the root placeholder with a real student dashboard shell. Logged-in students
+  now see returned green-pen work as a prominent `Feedback ready` card, action cards, status
+  pills and a due-date timeline. Teachers are sent to `/teacher`, password-change students are
+  sent to `/student/change-password`, and unauthenticated visitors see sign-in links.
+- Verification: Ran `node --test test/*.test.js` with 55/55 passing and parsed the inline
+  dashboard script with Node. Deployed `public/index.html`, restarted the wrapper, patched nginx
+  so exact `/` routes to the wrapper while Etherpad routes remain on Etherpad, then verified
+  public HTTPS root, `/p/inkheron-check`, audit student login and assignment status
+  `needs_rewrite`. Wrapper, Etherpad and nginx log scans showed no new errors.
+- Decisions: Kept nginx routing narrow with `location = /` so the Etherpad catch-all still owns
+  pad assets, sockets and `/p/...`.
+- Open / next: Phase 7, Step 7.5 resend revised version.

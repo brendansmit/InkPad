@@ -33,3 +33,17 @@ test('serves self-hosted assets', async () => {
 
   await app.close();
 });
+
+test('serves student dashboard shell at root', async () => {
+  const app = await buildApp({ databasePath: temporaryDatabasePath() });
+  const response = await app.inject({ method: 'GET', url: '/' });
+
+  assert.equal(response.statusCode, 200);
+  assert.match(response.body, /Student sign in/);
+  assert.match(response.body, /Feedback ready/);
+  assert.match(response.body, /What to do/);
+  assert.match(response.body, /needs_rewrite/);
+  assert.match(response.body, /api\/student\/assignments/);
+
+  await app.close();
+});
