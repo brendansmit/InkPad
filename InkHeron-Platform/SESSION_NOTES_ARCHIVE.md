@@ -268,3 +268,242 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
   reads it server-side, not client-side JS.
 - Open / next: Phase 3, Step 3.4 wrapper shell around the pad.
 - Gotchas hit: none.
+
+
+---
+
+## 2026-06-28 — Baseline audit and paste block deploy fix
+- Phase/Step worked: Audit through Phase 5 before Phase 6
+- Built: Re-ran the local suite on Node 24 with 46/46 passing. Re-applied the missing
+  `src/views/write.js` direct-DOM paste detection and `paste_block` intra-pad copy allowance to
+  `/opt/inkheron-platform/src/views/write.js` on the droplet, then restarted
+  `inkheron-wrapper`.
+- Decisions: Paste detection remains direct DOM access in `write.js`; the Etherpad plugin stays
+  abandoned because Etherpad v3 rejects non-npm plugin loading at startup.
+- Open / next: Phase 6 teacher dashboard.
+- Gotchas hit: Droplet does not have `rg`, so deploy verification used `grep`.
+
+## 2026-06-26 — Phase 5 + paste_block deployed to droplet
+- Phase/Step worked: Phase 5 full deployment + paste_block addon
+- Built:
+  - Switched paste detection from Etherpad plugin to direct same-origin DOM access in
+    write.js (parent frame traverses ace_outer -> ace_inner, attaches beforeinput/input).
+    Plugin approach abandoned — Etherpad v3 pnpm workspace rejects non-npm plugins.
+  - paste_block setting (settings_json): blocks external paste via preventDefault;
+    intra-pad paste allowed by tracking copy/cut events inside the pad (lastCopyFromPad flag).
+  - 46/46 tests pass locally.
+- Droplet state:
+  - nginx: inkpad.inkheron.app routes wrapper paths (api/login/write/etc) to :3000,
+    everything else (Etherpad JS/CSS/pads/socket.io) to :9001. WORKING.
+  - Etherpad APIKEY at /opt/etherpad-lite/APIKEY.txt, set in inkheron-wrapper service env.
+  - AUTHENTICATION_METHOD=apikey set in etherpad service drop-in.
+  - ep_inkheron_paste in local_plugins/ but NOT loading (Etherpad v3 ignores it).
+    Detection is handled client-side in write.js instead — plugin is dead code on droplet.
+  - write.js paste_block patch NOT yet applied to droplet (SSH dropped mid-deploy).
+    Next session: re-apply the write.js patch (intra-pad paste allowance).
+  - Test data: class_id=2, student teststudent/test12345, assignment id=1.
+- Gotchas:
+  - Etherpad v3 tries to fetch custom plugins from npm on startup — fails 404, skips them.
+    local_plugins/ directory exists but doesn't bypass this. Direct DOM is the right approach.
+  - ETHERPAD_API_KEY appended outside [Service] block initially — fixed with sed.
+  - Node 20 in PATH — always nvm use before running tests locally.
+
+---
+
+## 2026-06-26 — Phase 5 paste detection — Steps 5.1-5.3 complete
+- Phase/Step worked: Phase 5, Steps 5.1, 5.2, 5.3
+- Built:
+  - ep_inkheron_paste plugin (src/etherpad/ep_inkheron_paste/): package.json, ep.json,
+    static/js/index.js — postAceInit hook, beforeinput+input listener pair on ACE inner
+    document, fires ih_paste_event postMessage to wrapper shell on insertFromPaste events
+    of 5+ chars. Minimum 5 chars prevents false positives from autocomplete.
+  - Write view (src/views/write.js): injects PAD_ID and CSRF_TOKEN JS vars, message
+    listener relays ih_paste_event to POST /api/pads/:padId/paste-event fire-and-forget.
+  - Paste event endpoint (src/routes/pads.js): validates pad ownership, writes paste_events
+    row (at, length, input_type). Requires student session + CSRF.
+  - test/paste.test.js: 4 tests — store event, reject zero length, reject unauthenticated,
+    reject cross-student pad access. 46/46 pass.
+- Decisions: postMessage relay pattern keeps auth out of the plugin entirely. Server-side
+  timestamp (datetime('now')) used, not client-supplied, for reliability.
+- Open / next: Step 5.4 (surface flags on teacher dashboard) deferred to Phase 6.
+  Plugin needs deploying to droplet (copy to Etherpad src/node_modules/ + restart Etherpad).
+  Wrapper code (pads.js, write.js) needs deploying to droplet.
+- Gotchas: Node 20 in PATH fails all tests — must nvm use in InkHeron-Platform/ first.
+
+---
+
+## 2026-06-26 — Tests failing — Node version mismatch diagnosed
+- Built: nothing; diagnosed and resolved test failure
+- Gotcha: `node --test` was running against the shell's default Node 20; project requires
+  Node 24 (uses `node:sqlite`). `.nvmrc` already set to v24.18.0. Fix: `nvm use` inside
+  InkHeron-Platform/ before running tests. 42/42 pass on Node 24.
+- Nginx proxy fix command prepared (inkpad.inkheron.app → proxy_pass 3000/9001 instead of
+  try_files). Pending user running command on droplet.
+
+---
+
+## 2026-06-26 — Phase 4 complete — assignment lifecycle and submission
+- Phase/Step worked: Phase 4, Steps 4.1–4.6
+- Built:
+  - 4.1 `src/routes/assignments.js`: teacher CRUD (POST/GET/PATCH/DELETE /api/assignments),
+    `buildSettingsJson` enforces word_count=true and paste_detection=true always; student
+    `GET /api/student/assignments` returns assignments with derived status.
+  - 4.2 opens_at enforcement in /write/:id and /api/assignments/:id/pad (403 not_open_yet).
+  - 4.3 `POST /api/pads/:padId/submit` in pads.js: writing→submitted transition, submissions
+    row, returns `locked: true` for exam behaviour.
+  - 4.4 `applyDueDateLock` in pads.js: on-open check, auto-transitions writing→submitted +
+    creates submission row when due_at has passed; renders locked view.
+  - 4.5 `src/services/serverChan.js`: reads serverchan_key from settings table, fires
+    Server酱 push on submit; silent no-op if key unset.
+  - 4.6 `deriveStatus` in assignments.js maps pad/submission state to dashboard pills
+    (upcoming/not_started/in_progress/submitted/marked/needs_rewrite/closed/resubmitted).
+  - `src/views/locked.js`: renders the "Assignment closed" locked view.
+  - Registered registerAssignmentRoutes in app.js.
+  - 42/42 tests pass (added assignments.test.js and submissions.test.js).
+- Decisions: due-date lock creates a submission row so the teacher sees the work even if
+  the student never clicked Submit. Server酱 failures are fire-and-forget (`.catch(()=>{})`).
+  CSRF tokens required on all state-changing student routes.
+- Open / next: Phase 5 — paste detection plugin.
+- Gotchas hit: none.
+
+## 2026-06-26 — Phase 3 Step 3.5 Etherpad plugins installed on droplet
+- Phase/Step worked: Phase 3, Step 3.5
+- Built: Installed ep_headings2, ep_align, ep_comments_page, ep_countable, ep_stable_authorid
+  directly into /opt/etherpad-lite/src/node_modules by curling each tarball from npmmirror
+  and extracting with tar --strip-components=1. Etherpad restarted and confirmed active.
+- Decisions: Bypassed pnpm entirely — pnpm's content store was empty so any `pnpm add`
+  triggered a full workspace re-download (hundreds of packages, timed out twice). Direct
+  tarball extraction is safe for production; pnpm lock file not updated but Etherpad loads
+  plugins by scanning node_modules for ep_* packages, not from lock file.
+- Open / next: Phase 3 exit check, then Phase 4 assignment lifecycle.
+- Gotchas hit: `pnpm -w` failed (not a workspace root); `npm install` failed (link: protocol);
+  `pnpm --filter ep_etherpad-lite add` timed out on both npmjs.org and npmmirror due to
+  empty pnpm store. Tarball-direct approach was the fix.
+
+## 2026-06-26 — Phase 3 Steps 3.5–3.7 plugins, spellcheck, save-state
+- Phase/Step worked: Phase 3, Steps 3.5, 3.6, 3.7
+- Built: Added all client-side JS to `src/views/write.js`:
+  - Step 3.6: `SPELLCHECK` boolean injected server-side as a safe literal. Chrome note already
+    reflects the flag (done in 3.4). After iframe loads, JS walks into Etherpad's nested ACE
+    editor iframe to set `spellcheck="true/false"` on the contenteditable surface, with 20 retries
+    at 500 ms intervals (inner frame loads after outer).
+  - Step 3.7: Save-state indicator listens for `change`/`commit` postMessages from the Etherpad
+    iframe and shows "Saving... → Saved ✓". Save button triggers a brief Saving/Saved cycle as
+    psychological confirmation. Word count polls the iframe DOM every 2 s for ep_countable's
+    `.ep_countable_words` element (same-origin, so accessible once the plugin is installed).
+  - Step 3.5: ops step — install 5 plugins on the droplet (see commands above in SESSION_NOTES).
+    Not yet done; plugins required for word count and full spellcheck to function in-browser.
+- Decisions: `spellcheckJs` is emitted as `true`/`false` literal (not string interpolation of
+  user data) so there is no XSS path. Word-count sync does not start until iframe `load` fires.
+- Open / next: Step 3.5 must be completed on the droplet (install plugins, restart etherpad).
+  After that: Phase 3 exit check, then Phase 4 assignment lifecycle and submission.
+- Gotchas hit: none (browser-level verification of 3.6/3.7 requires the droplet with plugins).
+
+## 2026-06-28 — Phase 7 Step 7.4 student dashboard surfacing
+- Phase/Step worked: Phase 7, Step 7.4
+- Built: Replaced the root placeholder with a real student dashboard shell. Logged-in students
+  now see returned green-pen work as a prominent `Feedback ready` card, action cards, status
+  pills and a due-date timeline. Teachers are sent to `/teacher`, password-change students are
+  sent to `/student/change-password`, and unauthenticated visitors see sign-in links.
+- Verification: Ran `node --test test/*.test.js` with 55/55 passing and parsed the inline
+  dashboard script with Node. Deployed `public/index.html`, restarted the wrapper, patched nginx
+  so exact `/` routes to the wrapper while Etherpad routes remain on Etherpad, then verified
+  public HTTPS root, `/p/inkheron-check`, audit student login and assignment status
+  `needs_rewrite`. Wrapper, Etherpad and nginx log scans showed no new errors.
+- Decisions: Kept nginx routing narrow with `location = /` so the Etherpad catch-all still owns
+  pad assets, sockets and `/p/...`.
+- Open / next: Phase 7, Step 7.5 resend revised version.
+
+## 2026-06-28 — Phase 7 Step 7.5 resend revised version
+- Phase/Step worked: Phase 7, Step 7.5
+- Built: Added `POST /api/pads/:padId/resubmit` for student-owned `green_pen_open` pads. Resend
+  now requires CSRF, transitions the pad to `resubmitted`, creates a fresh submission row, locks
+  the pad and sends the ServerChan notification with `resubmitted work` wording. Wired the
+  green-pen `Resend when ready` button to call the endpoint and return students to the dashboard.
+- Verification: Ran focused `test/submissions.test.js`, full `node --test test/*.test.js` with
+  56/56 passing and `node --check` on the changed modules. Deployed the route, view and notifier
+  to the droplet, restarted the wrapper, then verified the audit student moved assignment 2 from
+  `needs_rewrite` to `resubmitted`; `/write/2` locked and hid the resend button. Live wrapper,
+  Etherpad and nginx log scans showed no new errors.
+- Decisions: A revised version is recorded as a new `submissions` row against the same Etherpad
+  pad, relying on Etherpad timeslider history for the text version rather than adding a new
+  snapshot column in this step.
+- Open / next: Phase 7 exit check, then move to the next phase/spec.
+
+## 2026-06-28 — Phase 8 Step 8.1 settings storage
+- Phase/Step worked: Phase 8, Step 8.1
+- Built: Added a server-side settings store over the existing `settings` table with known secret
+  keys `openrouter_api_key` and `serverchan_key`. Added teacher-only `GET /api/settings` and
+  CSRF-protected `PATCH /api/settings`; reads return only `is_set`, `masked` and `updated_at`,
+  never raw values. Unknown-only writes return `settings_required`.
+- Verification: Added `test/settings.test.js` covering masking, raw DB persistence, teacher-only
+  access, missing CSRF and unknown-key rejection. Ran focused settings tests and the full suite:
+  59/59 passing. Deployed the API to the droplet, restarted the wrapper, verified live teacher
+  read access, missing-CSRF rejection and student denial without modifying production secrets.
+  Live wrapper and nginx log scans showed no new errors.
+- Decisions: Did not run a live dummy-key write because overwriting production secret settings,
+  even temporarily, was blocked as avoidable disruption risk. Local tests prove write and mask
+  behavior against isolated databases.
+- Open / next: Phase 8, Step 8.2 teacher settings screen.
+
+## 2026-06-28 — Phase 8 Step 8.2 teacher settings screen
+- Phase/Step worked: Phase 8, Step 8.2
+- Built: Added `/teacher/settings`, guarded by teacher session middleware, and linked it from the
+  teacher dashboard. The page loads masked OpenRouter and ServerChan key state from
+  `/api/settings`, saves new pasted keys through the CSRF-protected settings API, clears password
+  fields after save and never renders raw stored values.
+- Verification: Added coverage to `test/settings.test.js` for teacher-only page access and the
+  dashboard link. Ran focused settings tests, parsed the new page script and ran the full suite:
+  60/60 passing. Deployed the page and route to the droplet, restarted the wrapper, then verified
+  live teacher access, dashboard link and student 403 without modifying production secrets. Live
+  wrapper and nginx log scans showed no new errors.
+- Decisions: Live save was not exercised against production secrets; the isolated local API test
+  remains the proof for write-and-mask behavior.
+- Open / next: Phase 8, Step 8.3 test-key buttons.
+
+## 2026-06-28 — Phase 8 Steps 8.4–8.5 roster UI and OpenRouter module
+- Phase/Step worked: Phase 8, Steps 8.4 and 8.5
+- Built:
+  - 8.4: Rebuilt `public/teacher/students.html` into full roster management. Classes panel:
+    create/rename (prompt)/delete as chips. Students panel: add with name+username+password+class,
+    filter by class, inline edit (name/username/class), reset password (temp pw shown once),
+    delete. All CRUD via existing teacher+CSRF APIs. Route remains `/teacher/students`.
+  - 8.5: `src/services/openRouter.js` — `resolveModel(db, intent)` fetches models list from
+    OpenRouter, fuzzy-resolves via `resolveOpenRouterModel`, caches result in module-level Map.
+    `callChat(db, { intent, messages, maxTokens, temperature })` reads key from DB, resolves
+    model, POSTs to `/chat/completions`; on 404 clears cache and re-resolves once (survives
+    model rename). Both accept `fetchImpl` for unit-test injection. Logs resolved model id.
+    5 unit tests in `test/openRouter.test.js` using `DatabaseSync` + fakeImpl. 72/72 pass.
+- Decisions: `db` passed as a parameter (not Fastify-decorated) so the module works from any
+  context without coupling to the app lifecycle.
+- Open / next: Phase 8 exit check (set/test both keys, manage roster, verify AI call routes
+  through the module); then Phase 9.
+- Gotchas hit: `app.db` not exposed by Fastify app — tests use `DatabaseSync` on the same file.
+
+## 2026-06-28 — Phase 8 Step 8.4 class and student management
+- Phase/Step worked: Phase 8, Step 8.4
+- Built: Rebuilt `public/teacher/students.html` into a full roster management page.
+  Classes panel: list as chips with rename (prompt) and delete. Add class form inline.
+  Students panel: filter by class, add student form (name/username/password/class), per-row
+  inline edit (name/username/class), reset password (shows temp password once), delete.
+  All actions call existing CRUD APIs with CSRF. No backend changes needed.
+  67/67 tests pass. Deployed, healthz confirmed.
+- Decisions: Kept rename as a `prompt()` dialog to avoid extra inline form complexity.
+  Delete class tells teacher to move students first (API returns 400 on FK constraint).
+- Open / next: Phase 8, Step 8.5 OpenRouter call module.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 8 Step 8.3 test-key buttons
+- Phase/Step worked: Phase 8, Step 8.3
+- Built: Added server-side OpenRouter and ServerChan test endpoints, both teacher-only and CSRF
+  protected. OpenRouter validates the stored key with `/api/v1/key`, loads `/api/v1/models` and
+  returns a resolved model without exposing the key. ServerChan sends a test push and returns a
+  clear success or failure. Added Test buttons to the teacher settings screen.
+- Verification: Added mocked-network tests for successful key checks, missing-key checks, access
+  control and OpenRouter model resolution. Ran focused settings tests, parsed the settings page
+  script and ran the full suite: 66/66 passing. Deployed the endpoints and corrected page to the
+  droplet, then verified live page wiring and missing-CSRF rejection without firing real key
+  tests. Live wrapper and nginx log scans showed no new errors.
+- Decisions: Did not trigger live OpenRouter or ServerChan tests because that could consume API
+  quota or send a real notification from production keys.
+- Open / next: Phase 8, Step 8.4 class and student management.
