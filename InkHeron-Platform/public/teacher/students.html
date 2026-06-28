@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InkHeron — Roster</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--r-sm:10px;--r-md:14px;--r-lg:20px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;}
+    .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
+    .appbar .glyph{width:32px;height:32px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;font-weight:600;transform:rotate(-4deg);}
+    .appbar .nm{font-family:var(--serif);font-size:17px;font-weight:600;}
+    .appbar .sp{flex:1;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;transition:transform 160ms,box-shadow 160ms;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);}
+    .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
+    .btn.p{background:var(--green-600);color:#fff;border:none;}
+    .container{max-width:720px;margin:0 auto;padding:30px 26px 80px;}
+    h1{font-family:var(--serif);font-size:27px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px;}
+    .lead{color:var(--text-2);font-size:15px;margin:0 0 22px;}
+    .filter{display:flex;gap:10px;margin-bottom:18px;align-items:center;}
+    select{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:9px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    .row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:14px;box-shadow:var(--shadow-card);}
+    .row .name{font-weight:600;}
+    .row .user{color:var(--text-3);font-size:13px;}
+    .row .meta{display:flex;flex-direction:column;gap:2px;}
+    .row .actions{display:flex;gap:8px;}
+    .btn.sm{min-height:34px;padding:0 12px;font-size:13px;}
+    .temp{font-family:ui-monospace,'SF Mono',Menlo,monospace;background:var(--green-50);color:var(--green-700);padding:2px 8px;border-radius:6px;font-size:13px;}
+    .msg{display:none;margin-bottom:16px;border-radius:var(--r-sm);padding:12px 14px;font-size:13px;background:var(--green-50);color:var(--green-700);}
+    .msg.on{display:block;}
+    .empty{color:var(--text-3);font-size:13.5px;text-align:center;padding:20px;}
+    .back{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;}
+    .back:hover{color:var(--text);}
+  </style>
+</head>
+<body>
+  <div class="appbar">
+    <div class="glyph">i</div><div class="nm">InkHeron</div>
+    <span class="sp"></span>
+    <button class="btn" id="logoutBtn" type="button">Sign out</button>
+  </div>
+
+  <main class="container">
+    <a class="back" href="/teacher">← Back to dashboard</a>
+    <h1>Roster</h1>
+    <p class="lead">Reset a student's password when they have forgotten it.</p>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="filter">
+      <label for="classFilter">Class</label>
+      <select id="classFilter"><option value="">All classes</option></select>
+    </div>
+
+    <div id="roster"></div>
+  </main>
+
+  <script>
+    let csrfToken='';
+    async function init(){
+      const me=await fetch('/api/me');
+      if(!me.ok){ window.location.href='/teacher-login'; return; }
+      const data=await me.json();
+      if(data.user.type!=='teacher'){ window.location.href='/'; return; }
+      csrfToken=data.user.csrf_token;
+      loadClasses();
+      loadStudents();
+    }
+
+    async function loadClasses(){
+      const r=await fetch('/api/classes');
+      const data=await r.json();
+      const sel=document.getElementById('classFilter');
+      data.classes.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);});
+      sel.addEventListener('change',loadStudents);
+    }
+
+    async function loadStudents(){
+      const classId=document.getElementById('classFilter').value;
+      const url=classId?`/api/students?class_id=${classId}`:'/api/students';
+      const r=await fetch(url);
+      const data=await r.json();
+      const box=document.getElementById('roster');
+      box.innerHTML='';
+      if(!data.students.length){box.innerHTML='<div class="empty">No students found.</div>';return;}
+      data.students.forEach(s=>{
+        const row=document.createElement('div');row.className='row';
+        row.innerHTML=`<div class="meta"><span class="name">${escapeHtml(s.display_name)}</span><span class="user">${escapeHtml(s.username)}${s.must_change_password?' · password must be changed':''}</span></div><div class="actions"><button class="btn sm" data-id="${s.id}" data-name="${escapeHtml(s.display_name)}">Reset password</button></div>`;
+        box.appendChild(row);
+      });
+      box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>resetPassword(b.dataset.id,b.dataset.name)));
+    }
+
+    async function resetPassword(id,name){
+      if(!confirm(`Reset password for ${name}? A temporary password will be shown once.`)) return;
+      const r=await fetch(`/api/students/${id}/reset-password`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({})});
+      const msg=document.getElementById('msg');
+      if(!r.ok){
+        msg.textContent='Could not reset password. Please try again.';
+        msg.className='msg on';msg.style.background='var(--maroon-50)';msg.style.color='var(--maroon-500)';
+        return;
+      }
+      const data=await r.json();
+      msg.innerHTML=`Temporary password for <strong>${escapeHtml(data.student.username)}</strong>: <span class="temp">${escapeHtml(data.temp_password)}</span>. Read it to the student — it will not be shown again.`;
+      msg.className='msg on';msg.style.background='';msg.style.color='';
+      loadStudents();
+    }
+
+    function escapeHtml(str){const div=document.createElement('div');div.textContent=str;return div.innerHTML;}
+
+    document.getElementById('logoutBtn').addEventListener('click',async ()=>{await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});window.location.href='/teacher-login';});
+
+    init();
+  </script>
+</body>
+</html>

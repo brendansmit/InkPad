@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InkHeron — Sign in</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    :root{--bg:#F7F6F2;--surface:#FFFFFF;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-500:#8C2F3B;--coral-500:#C96A4E;--r-sm:10px;--r-xl:26px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--ease:cubic-bezier(.22,.61,.36,1);}
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+    .logincard{width:100%;max-width:380px;text-align:center;}
+    .brandmark{display:inline-flex;align-items:center;gap:11px;margin-bottom:30px;}
+    .brandmark .glyph{width:46px;height:46px;border-radius:14px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:24px;font-weight:600;box-shadow:0 6px 18px rgba(36,99,67,0.28);transform:rotate(-4deg);}
+    .brandmark .nm{font-family:var(--serif);font-size:24px;font-weight:600;letter-spacing:-.01em;}
+    .loginbox{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:34px 30px;box-shadow:var(--shadow-card);text-align:left;}
+    .loginbox h1{font-size:20px;margin-bottom:4px;}
+    .loginbox p{color:var(--text-2);font-size:13.5px;margin:0 0 22px;}
+    label.fl{display:block;font-size:12.5px;font-weight:500;color:var(--text-2);margin:0 0 6px;}
+    .field{border:1.5px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);padding:11px 14px;font:inherit;font-size:14px;color:var(--text);width:100%;transition:border-color .2s,box-shadow .2s;}
+    .field:focus{outline:none;border-color:var(--green-600);box-shadow:0 0 0 3px var(--green-50);}
+    .fgroup{margin-bottom:16px;}
+    .btn{font-size:14px;font-weight:600;padding:11px 18px;border-radius:var(--r-sm);border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);transition:transform .12s var(--ease),box-shadow .2s,background .2s;cursor:pointer;}
+    .btn:hover{transform:translateY(-1px);} .btn:active{transform:translateY(0);}
+    .btn.p{background:var(--green-600);color:#fff;border:none;box-shadow:0 4px 14px rgba(36,99,67,0.25);}
+    .btn.p:hover{box-shadow:0 7px 20px rgba(36,99,67,0.32);}
+    .btn.full{width:100%;}
+    .loginhint{text-align:center;color:var(--text-3);font-size:12px;margin-top:18px;}
+    .error{display:none;align-items:center;gap:8px;background:#F6E9EB;color:var(--maroon-500);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;margin-bottom:16px;}
+    .error.on{display:flex;}
+    #forceChange{display:none;}
+    #forceChange.on{display:block;}
+  </style>
+</head>
+<body>
+  <main class="logincard">
+    <div class="brandmark"><div class="glyph">i</div><div class="nm">InkHeron</div></div>
+    <div class="loginbox">
+      <h1>Welcome back</h1>
+      <p>Sign in to see what's waiting for you.</p>
+      <div class="error" id="error">That username or password did not match. Please try again.</div>
+      <form id="loginForm" novalidate>
+        <div class="fgroup"><label class="fl" for="username">Username</label><input class="field" id="username" name="username" required autofocus autocomplete="username"></div>
+        <div class="fgroup"><label class="fl" for="password">Password</label><input class="field" id="password" name="password" type="password" required autocomplete="current-password"></div>
+        <button class="btn p full" type="submit" id="submitBtn">Sign in</button>
+      </form>
+
+      <div id="forceChange">
+        <div class="error on" style="margin-top:18px;margin-bottom:12px;">Your password needs to be changed before you continue.</div>
+        <form id="changeForm" novalidate>
+          <div class="fgroup"><label class="fl" for="newPassword">New password</label><input class="field" id="newPassword" name="new_password" type="password" required minlength="8" autocomplete="new-password"></div>
+          <button class="btn p full" type="submit" id="changeBtn">Set new password</button>
+        </form>
+      </div>
+
+      <div class="loginhint">Forgotten it? Ask your teacher to reset it for you.</div>
+    </div>
+  </main>
+
+    <script>
+    const form=document.getElementById('loginForm');
+    const changeForm=document.getElementById('changeForm');
+    const error=document.getElementById('error');
+    const forceChange=document.getElementById('forceChange');
+    const submitBtn=document.getElementById('submitBtn');
+    const changeBtn=document.getElementById('changeBtn');
+    let pendingUser=null;
+    let csrfToken='';
+
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      error.classList.remove('on');
+      submitBtn.disabled=true;submitBtn.textContent='Signing in...';
+      try{
+        const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:form.username.value.trim(),password:form.password.value})});
+        const data=await r.json().catch(()=>({}));
+        if(!r.ok){
+          error.classList.add('on');
+          submitBtn.disabled=false;submitBtn.textContent='Sign in';
+          return;
+        }
+        pendingUser=data.user;
+        csrfToken=data.user.csrf_token;
+        if(pendingUser.must_change_password){
+          form.style.display='none';
+          forceChange.classList.add('on');
+          document.getElementById('newPassword').focus();
+        }else{
+          window.location.href='/';
+        }
+      }catch(err){
+        error.classList.add('on');
+        submitBtn.disabled=false;submitBtn.textContent='Sign in';
+      }
+    });
+
+    changeForm.addEventListener('submit',async e=>{
+      e.preventDefault();
+      changeBtn.disabled=true;changeBtn.textContent='Updating...';
+      try{
+        const r=await fetch('/api/students/me/password',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({new_password:changeForm.new_password.value})});
+        if(!r.ok){
+          const data=await r.json().catch(()=>({}));
+          alert(data.error||'Could not change password. Please try again.');
+          changeBtn.disabled=false;changeBtn.textContent='Set new password';
+          return;
+        }
+        window.location.href='/';
+      }catch(err){
+        alert('Could not change password. Please try again.');
+        changeBtn.disabled=false;changeBtn.textContent='Set new password';
+      }
+    });
+  </script>
+</body>
+</html>

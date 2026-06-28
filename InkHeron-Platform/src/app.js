@@ -12,6 +12,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, '..', 'public');
 
+function defaultDatabasePath() {
+  return path.join(__dirname, '..', 'data', 'inkheron.db');
+}
+
 export async function buildApp(options = {}) {
   const app = Fastify({
     logger: options.logger ?? false,

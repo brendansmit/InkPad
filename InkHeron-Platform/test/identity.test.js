@@ -12,14 +12,37 @@ function temporaryDatabasePath() {
   return path.join(dir, 'inkheron.db');
 }
 
+async function createTeacherSession(app, { username = 'teacher', password = 'teacherpass123' } = {}) {
+  const setup = await app.inject({
+    method: 'POST',
+    url: '/api/setup/teacher',
+    payload: { username, display_name: 'Teacher', password },
+  });
+  if (setup.statusCode !== 201 && setup.statusCode !== 403) {
+    throw new Error(`Unexpected setup status: ${setup.statusCode}`);
+  }
+
+  const login = await app.inject({
+    method: 'POST',
+    url: '/api/teacher/login',
+    payload: { username, password },
+  });
+  if (login.statusCode !== 200) {
+    throw new Error(`Teacher login failed: ${login.statusCode}`);
+  }
+  return { cookies: login.headers['set-cookie'], csrfToken: login.json().user.csrf_token };
+}
+
 test('classes and students can be created, listed, updated and deleted', async () => {
   const databasePath = temporaryDatabasePath();
   const app = await buildApp({ databasePath });
+  const { cookies, csrfToken } = await createTeacherSession(app);
 
   const createdClass = await app.inject({
     method: 'POST',
     url: '/api/classes',
     payload: { name: 'Grade 9' },
+    headers: { 'X-CSRF-Token': csrfToken, cookie: cookies },
   });
   assert.equal(createdClass.statusCode, 201);
   const classId = createdClass.json().class.id;
@@ -28,6 +51,7 @@ test('classes and students can be created, listed, updated and deleted', async (
     method: 'PATCH',
     url: `/api/classes/${classId}`,
     payload: { name: 'Grade 9 Writing' },
+    headers: { 'X-CSRF-Token': csrfToken, cookie: cookies },
   });
   assert.equal(updatedClass.statusCode, 200);
   assert.equal(updatedClass.json().class.name, 'Grade 9 Writing');
@@ -35,6 +59,7 @@ test('classes and students can be created, listed, updated and deleted', async (
   const createdStudent = await app.inject({
     method: 'POST',
     url: '/api/students',
+    headers: { 'X-CSRF-Token': csrfToken, cookie: cookies },
     payload: {
       username: 'alice',
       display_name: 'Alice Chen',
@@ -48,7 +73,7 @@ test('classes and students can be created, listed, updated and deleted', async (
   assert.equal(student.must_change_password, false);
   assert.equal(student.password_hash, undefined);
 
-  const listedStudents = await app.inject({ method: 'GET', url: '/api/students' });
+  const listedStudents = await app.inject({ method: 'GET', url: '/api/students', headers: { cookie: cookies } });
   assert.equal(listedStudents.statusCode, 200);
   assert.equal(listedStudents.json().students.length, 1);
   assert.equal(listedStudents.json().students[0].password_hash, undefined);
@@ -56,6 +81,7 @@ test('classes and students can be created, listed, updated and deleted', async (
   const updatedStudent = await app.inject({
     method: 'PATCH',
     url: `/api/students/${student.id}`,
+    headers: { 'X-CSRF-Token': csrfToken, cookie: cookies },
     payload: { display_name: 'Alice Zhang', password: 'new correct horse' },
   });
   assert.equal(updatedStudent.statusCode, 200);
@@ -74,10 +100,10 @@ test('classes and students can be created, listed, updated and deleted', async (
     db.close();
   }
 
-  const deletedStudent = await app.inject({ method: 'DELETE', url: `/api/students/${student.id}` });
+  const deletedStudent = await app.inject({ method: 'DELETE', url: `/api/students/${student.id}`, headers: { 'X-CSRF-Token': csrfToken, cookie: cookies } });
   assert.equal(deletedStudent.statusCode, 204);
 
-  const deletedClass = await app.inject({ method: 'DELETE', url: `/api/classes/${classId}` });
+  const deletedClass = await app.inject({ method: 'DELETE', url: `/api/classes/${classId}`, headers: { 'X-CSRF-Token': csrfToken, cookie: cookies } });
   assert.equal(deletedClass.statusCode, 204);
 
   await app.close();
@@ -85,10 +111,12 @@ test('classes and students can be created, listed, updated and deleted', async (
 
 test('student plaintext password is never returned and duplicates fail', async () => {
   const app = await buildApp({ databasePath: temporaryDatabasePath() });
+  const { csrfToken, cookies } = await createTeacherSession(app);
   const classResponse = await app.inject({
     method: 'POST',
     url: '/api/classes',
     payload: { name: 'Grade 10' },
+    headers: { 'X-CSRF-Token': csrfToken, cookie: cookies },
   });
   const classId = classResponse.json().class.id;
 
@@ -99,8 +127,8 @@ test('student plaintext password is never returned and duplicates fail', async (
     class_id: classId,
   };
 
-  const first = await app.inject({ method: 'POST', url: '/api/students', payload });
-  const second = await app.inject({ method: 'POST', url: '/api/students', payload });
+  const first = await app.inject({ method: 'POST', url: '/api/students', payload, headers: { 'X-CSRF-Token': csrfToken, cookie: cookies } });
+  const second = await app.inject({ method: 'POST', url: '/api/students', payload, headers: { 'X-CSRF-Token': csrfToken, cookie: cookies } });
 
   assert.equal(first.statusCode, 201);
   assert.equal(second.statusCode, 409);

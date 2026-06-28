@@ -7,7 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { runMigrations } from '../src/db/migrate.js';
 
 const expectedColumns = {
-  students: ['id', 'username', 'display_name', 'password_hash', 'class_id', 'created_at', 'must_change_password'],
+  students: ['id', 'username', 'display_name', 'password_hash', 'class_id', 'created_at', 'must_change_password', 'is_demo', 'is_ghost'],
   classes: ['id', 'name', 'created_at'],
   assignments: ['id', 'class_id', 'title', 'type', 'settings_json', 'opens_at', 'due_at', 'created_at'],
   pads: ['id', 'student_id', 'assignment_id', 'etherpad_pad_id', 'state', 'created_at'],
@@ -25,9 +25,9 @@ test('migration creates canonical schema and is idempotent', () => {
   const first = runMigrations(dbPath);
   const second = runMigrations(dbPath);
 
-  assert.deepEqual(first.applied, ['001_initial_schema.sql', '002_student_must_change_default.sql']);
+  assert.deepEqual(first.applied, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql']);
   assert.deepEqual(second.applied, []);
-  assert.deepEqual(second.skipped, ['001_initial_schema.sql', '002_student_must_change_default.sql']);
+  assert.deepEqual(second.skipped, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql']);
 
   const db = new DatabaseSync(dbPath);
   try {
