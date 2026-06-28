@@ -190,13 +190,11 @@
       renderClasses();
       const filterSel=document.getElementById('classFilter');
       const newSel=document.getElementById('newClass');
-      const importSel=document.getElementById('importClass');
       const prevFilter=filterSel.value;
       filterSel.innerHTML='<option value="">All classes</option>';
       newSel.innerHTML='<option value="">— pick —</option>';
-      importSel.innerHTML='<option value="">— pick a class —</option>';
       classes.forEach(c=>{
-        [filterSel,newSel,importSel].forEach(sel=>{
+        [filterSel,newSel].forEach(sel=>{
           const o=document.createElement('option');o.value=c.id;o.textContent=c.name;sel.appendChild(o);
         });
       });
@@ -262,13 +260,23 @@
     async function loadStudents(){
       const classId=document.getElementById('classFilter').value;
       const url=classId?`/api/students?class_id=${classId}`:'/api/students';
-      const r=await fetch(url);
-      const data=await r.json();
       const box=document.getElementById('roster');
+      let data;
+      try{
+        const r=await fetch(url,{credentials:'same-origin'});
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        data=await r.json();
+      }catch(err){
+        box.innerHTML=`<div class="empty">Could not load students: ${err.message}. Try refreshing the page.</div>`;
+        return;
+      }
       box.innerHTML='';
       editOpenId=null;
-      if(!data.students||!data.students.length){box.innerHTML='<div class="empty">No students found.</div>';return;}
-      data.students.forEach(s=>{
+      const students=data.students||[];
+      if(!students.length){box.innerHTML='<div class="empty">No students found.</div>';return;}
+      box.innerHTML=`<div class="empty" style="background:var(--green-50)">Found ${students.length} students — rendering…</div>`;
+      try{
+      students.forEach(s=>{
         const cls=classes.find(c=>c.id===s.class_id);
         const row=document.createElement('div');row.className='student-row';row.dataset.id=s.id;
         row.innerHTML=`<div class="meta"><span class="name">${escapeHtml(s.display_name)}</span><span class="info">${escapeHtml(s.username)}${cls?' &middot; '+escapeHtml(cls.name):''}${s.must_change_password?' &middot; <em>must change password</em>':''}</span></div><div class="actions"><button class="btn sm" data-action="edit" data-id="${s.id}">Edit</button><button class="btn sm" data-action="reset" data-id="${s.id}" data-name="${escapeHtml(s.display_name)}">Reset pw</button><button class="btn sm danger" data-action="del" data-id="${s.id}" data-name="${escapeHtml(s.display_name)}">Delete</button></div>`;
@@ -283,6 +291,7 @@
       box.querySelectorAll('[data-action="save"]').forEach(b=>b.addEventListener('click',()=>saveEdit(b.dataset.id)));
       box.querySelectorAll('[data-action="reset"]').forEach(b=>b.addEventListener('click',()=>resetPassword(b.dataset.id,b.dataset.name)));
       box.querySelectorAll('[data-action="del"]').forEach(b=>b.addEventListener('click',()=>deleteStudent(b.dataset.id,b.dataset.name)));
+      }catch(renderErr){box.innerHTML=`<div class="empty">Render error: ${renderErr.message}</div>`;}
     }
 
     function openEdit(id){if(editOpenId) closeEdit(editOpenId);editOpenId=id;document.getElementById(`edit-${id}`).classList.add('open');}
