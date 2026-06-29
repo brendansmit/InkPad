@@ -216,10 +216,7 @@ export async function registerIdentityRoutes(app, { db }) {
       const existing = db.prepare('SELECT id, username FROM students WHERE id = ?').get(id);
       if (!existing) return reply.code(404).send({ error: 'not_found' });
 
-      const tempPassword = typeof request.body?.temp_password === 'string' && request.body.temp_password.length >= 8
-        ? request.body.temp_password
-        : generateTempPassword();
-
+      const tempPassword = 'ChangeMe1';
       const passwordHash = await hashPassword(tempPassword);
       db.prepare(`
         UPDATE students

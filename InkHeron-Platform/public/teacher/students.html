@@ -302,11 +302,10 @@
     }
 
     async function resetPassword(id,name){
-      if(!confirm(`Reset password for ${name}? A temporary password will be shown once.`)) return;
+      if(!confirm(`Reset password for ${name}? Their password will be set back to ChangeMe1 and they will be prompted to choose a new one on next login.`)) return;
       const r=await fetch(`/api/students/${id}/reset-password`,{method:'PATCH',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({})});
       if(!r.ok){showMsg('Could not reset password.',true);return;}
-      const data=await r.json();
-      showMsg(`Temp password for <strong>${escapeHtml(data.student.username)}</strong>: <span class="temp">${escapeHtml(data.temp_password)}</span> — read it to the student now. Will not be shown again.`,false);
+      showMsg(`Password reset for <strong>${escapeHtml(name)}</strong>. They must log in with <strong>ChangeMe1</strong> and will be prompted to set a new password.`,false);
       loadStudents();
     }
 
