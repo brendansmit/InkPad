@@ -104,7 +104,18 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       <button class="clr-btn" data-epcolor="2" title="Green" style="background:#009900" onmousedown="return false"></button>
       <button class="clr-btn" data-epcolor="3" title="Blue" style="background:#0000cc" onmousedown="return false"></button>
       <button class="clr-btn" data-epcolor="5" title="Orange" style="background:#e67300" onmousedown="return false"></button>
-    </div>`;
+    </div>
+    <span class="fmt-sep"></span>
+    <select id="fsize-sel" class="fsize-select" title="Font size">
+      <option value="" disabled selected>Size</option>
+      <option value="2">10</option>
+      <option value="4">12</option>
+      <option value="6">14</option>
+      <option value="8">16</option>
+      <option value="10">18</option>
+      <option value="14">24</option>
+      <option value="19">40</option>
+    </select>`;
 
   const zoomSelect = `<div class="zoom-wrap">
         <label for="zoom-sel">Zoom</label>
@@ -206,6 +217,7 @@ ${writeActions}`;
     .clr-btn:hover{transform:scale(1.25);}
     .clr-btn.active{border-color:var(--text);}
     /* ── Font size + Zoom ──────────────────────────── */
+    .fsize-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;max-width:58px;flex-shrink:0;}
     .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;}
     .zoom-wrap label{font-size:11px;color:var(--text-3);}
     .zoom-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
@@ -368,6 +380,25 @@ ${padContent}
     });
   });
 
+  // ── Font size via ep_font_size ────────────────────────────────────────────
+  // ep_font_size stores a select at #font-size select.size-selection with index values.
+  var fsizeSel = document.getElementById('fsize-sel');
+  if (fsizeSel) {
+    fsizeSel.addEventListener('change', function () {
+      if (!fsizeSel.value) return;
+      try {
+        var padDoc = getPadDoc();
+        if (!padDoc) return;
+        var epSel = padDoc.querySelector('#font-size select.size-selection');
+        if (epSel) {
+          epSel.value = fsizeSel.value;
+          epSel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } catch (_) {}
+      fsizeSel.value = '';
+    });
+  }
+
 
 
   // ── Paste blocking ────────────────────────────────────────────────────────
@@ -505,7 +536,9 @@ ${padContent}
           // Hide ep_colors native UI
           '#color,#color-selection{display:none!important}' +
           // Hide ep_align toolbar buttons
-          '.ep_align_left,.ep_align_center,.ep_align_right,.ep_align_justify{display:none!important}';
+          '.ep_align_left,.ep_align_center,.ep_align_right,.ep_align_justify{display:none!important}' +
+          // Hide ep_font_size native UI
+          '#font-size,li#font-size{display:none!important}';
         padDoc.head.appendChild(s);
       }
 
