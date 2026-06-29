@@ -511,7 +511,9 @@ ${padContent}
     s.id = 'ih-author-suppress';
     // Etherpad injects ".authorColors .author-XXX { background-color }" (2-class specificity).
     // "#innerdocbody span" (id + element) has higher specificity and wins with !important.
+    // color-scheme:light prevents OS dark mode from inverting the writing surface.
     s.textContent =
+      ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
       '#innerdocbody span{background:none!important;background-color:transparent!important;' +
       'border-left:none!important;box-shadow:none!important;}';
     doc.head.appendChild(s);
@@ -526,6 +528,8 @@ ${padContent}
         var s = padDoc.createElement('style');
         s.id = 'ih-ui-cleanup';
         s.textContent =
+          // Force light mode — never follow OS dark mode
+          ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
           // Hide Etherpad's own toolbar — we have our own in padchrome
           '#editbar{display:none!important}' +
           // Hide right-side chrome, chat, user list
