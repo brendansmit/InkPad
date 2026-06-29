@@ -20,6 +20,53 @@ Entry format:
 
 ---
 
+## 2026-06-29 — Write view polish (chrome, zoom, author colors, word count, alignment, color swatch)
+- Phase/Step worked: Phase 8 write view polish
+- Built:
+  - Removed decorative dots and spellcheck label from pad chrome. Bar now shows only: Task button (if prompt exists) + word count + Zoom selector.
+  - Word count moved into chrome bar; reads text directly from `ace_inner` iframe via `innerText` split, not ep_countable (which was never visible in the wrapper).
+  - Zoom now targets `#editorcontainerbox` so formatting toolbar stays fixed; only the writing area scales.
+  - Author color suppression: traverse outer iframe → `ace_outer[name]` → `ace_inner[name]`, inject `background:transparent!important` CSS into both. Previous code tried wrong selectors.
+  - ep_colors color select: injected CSS makes it a 28px swatch; JS updates `backgroundColor` on change (targets `#color-selection`).
+  - ep_align installed via `cd /opt/etherpad-lite/bin && tsx plugins.ts install ep_align`. Permissions on `plugin_packages` were root-owned; fixed with `chown -R inkheron:inkheron`. ep_align now loads and injects alignment buttons (left/center/justify/right) into the toolbar.
+  - Etherpad toolbar config added to settings.json (previously fully commented out). Does NOT include alignLeft/Center/Right so ep_align auto-injects via its `eejsBlock_editbarMenuLeft` hook.
+- Decisions: ep_countable and ep_headings2 are in `src/node_modules` but not loaded; only `plugin_packages` plugins load. Alignment buttons from ep_align auto-inject (don't add to toolbar config or they fail). Case-insensitive login added in previous session.
+- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions.
+- Gotchas hit: ep_align in `src/node_modules` is NOT loaded — only `plugin_packages`. ep_align installed via tsx but permissions were root after install, blocking load. ep_colors template uses `#color-selection` (not `#font-color`).
+
+## 2026-06-29 — Prompt button + reference passage panel
+- Phase/Step worked: Phase 8 student write view polish
+- Built:
+  - "Task" button in pad chrome opens a slide-down panel showing the assignment prompt. Panel closes/reopens on click; button label toggles between "Task" and "Hide task". No prompt = no button.
+  - Reference passage: if an assignment has `passage_text` or a PDF, the write view splits into a left 340px passage panel and a right pad area.
+  - Passage text stored in `settings_json.passage_text` (up to 20k chars).
+  - PDF stored at `data/passages/{id}.pdf` via `PUT/DELETE/GET /api/assignments/:id/passage-pdf`. PDF endpoint accepts student or teacher sessions (no auth = 401).
+  - Content type parser registered for `application/pdf` in assignments plugin.
+  - Teacher edit view: new "Reference passage" card with Text tab (textarea) and PDF tab (file input + remove button). `openEdit` HEAD-checks for existing PDF; `saveEdit` includes `passage_text` in settings PATCH, then separately PUT-uploads PDF if a file is selected.
+  - Prompt hint text updated: students can read it via the Task button (was "Students do not see this").
+- Decisions: PDF uploaded only to the primary assignment in a multi-class group (first in editGroup). passage_text cleared from settings_json if textarea is empty on save — correct, expected behaviour.
+- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions. Also: Server酱 pricing.
+- Gotchas hit: SSH key not loaded in agent; needed `ssh-add` + `-i` flag; root user is the correct login.
+
+## 2026-06-29 — Unread submission badge + password fixes
+- Phase/Step worked: Phase 8 polish
+- Built:
+  - `GET /api/teacher/notifications` counts submissions since `notifications_cleared_at` in settings table (excluding demo/ghost). `POST /api/teacher/notifications/clear` updates the watermark.
+  - Teacher dashboard shows red badge on Assignments tile when count > 0. Clears on assignments page load.
+  - Reset password endpoint now always uses `ChangeMe1` (was `generateTempPassword()`). Frontend message updated accordingly.
+  - `must_change_password` defaulted to 1 on new student creation. 53 existing students patched in DB.
+  - ChangeMe1 shown in purple on roster while `must_change_password = 1`; nothing shown once changed.
+- Decisions: Badge clears on page visit (not on per-submission view). Silent clear — no explicit dismiss button needed at this scale.
+- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking. Also: investigate Server酱 pricing for WeChat notifications.
+- Gotchas hit: All existing students had `must_change_password = 0` — needed one-off DB patch.
+
+## 2026-06-29 — Fix cross-class student modal contamination
+- Phase/Step worked: Phase 8 bug fix
+- Built: `GET /api/assignments/:id/students` scoped to `WHERE s.class_id = assignment.class_id` (was returning all classes). `PUT /api/assignments/:id/students` now builds a `classStudentIds` set and silently skips any student IDs from other classes before inserting. Deployed commit `654a335`.
+- Decisions: Cross-class IDs are silently dropped on PUT rather than errored — the scoped GET means the UI should never send them; error would only confuse a race condition edge case.
+- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions.
+- Gotchas hit: Session resumed from summary after context limit.
+
 ## 2026-06-29 — Multi-class assignment creation
 - Phase/Step worked: Phase 8 teacher UX polish
 - Built: Updated `new-assignment.html` to replace the single class dropdown with a
@@ -221,3 +268,52 @@ Entry format:
 - Open / next: Phase 6 Step 6.2 review surface.
 - Gotchas hit: Initial dashboard tests accidentally used the real Etherpad client. Switched them
   to the fake Etherpad service used by existing pad tests.
+
+## 2026-06-29 — AP Lang dashboard read pass
+- Asked: Inspect and understand sibling project `ap-lang-dashboard`, then report back.
+- Did: Reviewed project tree, package metadata, Express/SQLite server, student library UI,
+  admin UI, database table counts and current content state.
+- Decisions: No code changes made to the AP Lang dashboard. Noted the admin topbar upload
+  button has malformed inline JavaScript and the project currently has no documents or view logs.
+- Open / next: Fix admin button syntax and consider tightening auth/logging if this app is going
+  beyond local classroom use.
+
+## 2026-06-29 — AP Lang PDF uploads and download toggle
+- Asked: Allow AP Lang dashboard library uploads to accept PDFs, add an upload toggle for student
+  downloads versus view-only, let students download when enabled and fix the admin upload button bug.
+- Did: Updated `ap-lang-dashboard` server and front ends for PDF metadata, download routing,
+  upload UI toggle, student viewer download visibility and admin library download toggles. Fixed
+  the malformed admin topbar upload button.
+- Verification: `node --check server.js`, front-end script parse checks, local server smoke test
+  for downloadable PDF `200` and view-only PDF `403`. Test uploads were deleted afterward.
+- Commit: `df29f56` in `/Users/brendansmit/Documents/Claude/ap-lang-dashboard`.
+- Notes: The tracked `ap-lang.db` and local image assets were already dirty or local and were not
+  included in the commit.
+
+## 2026-06-29 — AP Lang deploy clarification
+- Asked: Shared a screenshot where the upload UI still showed the old HTML-only copy.
+- Did: Verified local source already had the PDF upload and student-download toggle changes.
+- Decision: User confirmed the deployed app had not been updated yet, so no further code change
+  was needed.
+
+## 2026-06-29 — AP Lang admin table alignment
+- Asked: Fix the admin library table alignment issue shown after adding the Download column.
+- Did: Changed the Actions table cell back to normal table-cell layout and moved button flex
+  alignment into an inner `.actions-row`. Centered the Download and Visible toggle cells.
+- Verification: Parsed `public/admin.html` script, ran `node --check server.js`, ran
+  `git diff --check`, started a local server and confirmed the updated admin HTML was served.
+  Headless screenshot verification was attempted but blocked by local browser permissions.
+- Commit: `495948b` in `/Users/brendansmit/Documents/Claude/ap-lang-dashboard`.
+
+## 2026-06-29 — EAP landing page and library entry
+- Asked: Add an `eap.inkheron.app` landing page with cards for Grammar Arcade, Inkpad and a file
+  library adapted from the AP Lang dashboard.
+- Did: Replaced root with a three-card EAP chooser, moved the existing student writing dashboard
+  to `/student`, updated student login redirects, added `/library` with an AP Lang-style student
+  library UI and added platform-native EAP library tables and public API routes.
+- Decisions: Kept this pass student-facing only. Did not copy the AP Lang admin upload workflow
+  because that is a larger multipart/admin surface.
+- Verification: Focused route and migration tests passed with bundled Node 24. Local HTTP smoke
+  test on port 3490 returned `200` for `/`, `/library`, `/api/library/docs` and
+  `/api/library/categories`. Full suite still has unrelated pre-existing failures around student
+  password defaults, roster copy and Etherpad wrapper expectations.

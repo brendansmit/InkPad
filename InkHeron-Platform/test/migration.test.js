@@ -18,7 +18,21 @@ const expectedColumns = {
   submission_feedback: ['id', 'submission_id', 'kind', 'feedback_key', 'title', 'explanation', 'created_at'],
   settings: ['key', 'value', 'updated_at'],
   teachers: ['id', 'username', 'display_name', 'password_hash', 'created_at'],
+  assignment_students: ['assignment_id', 'student_id'],
+  eap_library_categories: ['id', 'label', 'icon', 'sort_order'],
+  eap_library_docs: ['id', 'filename', 'title', 'hidden', 'views', 'uploaded_at', 'category_id', 'icon', 'release_at', 'file_type', 'downloadable'],
+  eap_library_view_log: ['id', 'doc_id', 'student_name', 'class_period', 'viewed_at', 'duration_seconds'],
 };
+
+const migrationFiles = [
+  '001_initial_schema.sql',
+  '002_student_must_change_default.sql',
+  '003_student_demo_ghost_flags.sql',
+  '004_submission_codes.sql',
+  '005_submission_feedback.sql',
+  '006_assignment_students.sql',
+  '007_eap_library.sql',
+];
 
 test('migration creates canonical schema and is idempotent', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-db-'));
@@ -27,9 +41,9 @@ test('migration creates canonical schema and is idempotent', () => {
   const first = runMigrations(dbPath);
   const second = runMigrations(dbPath);
 
-  assert.deepEqual(first.applied, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql', '004_submission_codes.sql', '005_submission_feedback.sql']);
+  assert.deepEqual(first.applied, migrationFiles);
   assert.deepEqual(second.applied, []);
-  assert.deepEqual(second.skipped, ['001_initial_schema.sql', '002_student_must_change_default.sql', '003_student_demo_ghost_flags.sql', '004_submission_codes.sql', '005_submission_feedback.sql']);
+  assert.deepEqual(second.skipped, migrationFiles);
 
   const db = new DatabaseSync(dbPath);
   try {

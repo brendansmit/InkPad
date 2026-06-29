@@ -1,4 +1,5 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
@@ -9,10 +10,12 @@ import { registerPadRoutes } from './routes/pads.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerSettingsTestRoutes } from './routes/settingsTests.js';
+import { registerLibraryRoutes } from './routes/library.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.join(__dirname, '..', 'public');
+const defaultLibraryUploadsDir = path.join(__dirname, '..', 'data', 'eap-library', 'uploads');
 
 function defaultDatabasePath() {
   return path.join(__dirname, '..', 'data', 'inkheron.db');
@@ -24,6 +27,7 @@ export async function buildApp(options = {}) {
     trustProxy: options.trustProxy ?? process.env.INKHERON_TRUST_PROXY === 'true',
   });
   const databasePath = options.databasePath ?? process.env.INKHERON_DB_PATH ?? defaultDatabasePath();
+  const libraryUploadsDir = options.libraryUploadsDir ?? process.env.EAP_LIBRARY_UPLOADS_DIR ?? defaultLibraryUploadsDir;
   const db = options.db ?? openDatabase(databasePath);
   app._databasePath = databasePath;
 
@@ -34,6 +38,14 @@ export async function buildApp(options = {}) {
   await app.register(fastifyStatic, {
     root: publicDir,
     prefix: '/assets/',
+    index: false,
+  });
+
+  fs.mkdirSync(libraryUploadsDir, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: libraryUploadsDir,
+    prefix: '/library/uploads/',
+    decorateReply: false,
     index: false,
   });
 
@@ -56,6 +68,7 @@ export async function buildApp(options = {}) {
   await registerAssignmentRoutes(app, { db });
   await registerSettingsRoutes(app, { db });
   await registerSettingsTestRoutes(app, { db });
+  await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });
   await registerPadRoutes(app, { db, etherpadService: options.etherpadService });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
@@ -68,6 +81,8 @@ export async function buildApp(options = {}) {
   app.get('/teacher/timeslider', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/timeslider.html', publicDir));
   app.get('/teacher/new-assignment', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/new-assignment.html', publicDir));
   app.get('/teacher/settings', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/settings.html', publicDir));
+  app.get('/student', async (_request, reply) => reply.sendFile('student-dashboard.html', publicDir));
+  app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));
   app.get('/', async (_request, reply) => reply.sendFile('index.html', publicDir));
 
   return app;

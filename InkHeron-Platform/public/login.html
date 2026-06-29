@@ -87,7 +87,7 @@
           forceChange.classList.add('on');
           document.getElementById('newPassword').focus();
         }else{
-          window.location.href='/';
+          window.location.href='/student';
         }
       }catch(err){
         error.classList.add('on');
@@ -106,7 +106,7 @@
           changeBtn.disabled=false;changeBtn.textContent='Set new password';
           return;
         }
-        window.location.href='/';
+        window.location.href='/student';
       }catch(err){
         alert('Could not change password. Please try again.');
         changeBtn.disabled=false;changeBtn.textContent='Set new password';
