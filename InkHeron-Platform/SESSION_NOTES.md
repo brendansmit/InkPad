@@ -20,6 +20,16 @@ Entry format:
 
 ---
 
+## 2026-06-29 — Fix ep_colors crash; ep_align 0.3.121 installed, alignment persistent
+- Phase/Step worked: Phase 8 write view — plugin crash fixes
+- Built:
+  - Identified the real crash source: **ep_colors@0.0.3** not ep_align. Crash was `TypeError: U2 is not a function` in padbootstrap where `U2` = underscore `_`. ep_colors called `_(doInsertColors).bind(context)` but in EP 3.3.2 underscore is an ES module export (Object), not a callable wrapper. Patched line 89 on the server: `_(doInsertColors).bind(context)` → `doInsertColors.bind(context)`.
+  - ep_align@11.0.40 was also crashing for the same reason (ep_plugin_helpers dependency may have introduced similar patterns). Replaced with ep_align@0.3.121 which has no such issues.
+  - Etherpad now loads 3 plugins cleanly: ep_colors@0.0.3, ep_align@0.3.121, ep_plugin_helpers@0.6.7. No client TypeErrors observed.
+  - **Patch location**: `/opt/etherpad-lite/src/plugin_packages/.versions/ep_colors@0.0.3/static/js/index.js` line 89. Note: this patch is NOT in version control — if ep_colors is reinstalled it will revert. The fix is: remove `_(fn)` wrapper, use `fn.bind(context)` directly.
+- Decisions: Direct server-side patch rather than forking ep_colors. If ep_colors is ever reinstalled, re-apply patch.
+- Open / next: Verify alignment (L/C/R) and color swatches work in pad. Phase 8.6.
+
 ## 2026-06-29 — ep_align 0.3.121 installed, alignment now persistent
 - Phase/Step worked: Phase 8 write view — alignment persistence fix
 - Built:
