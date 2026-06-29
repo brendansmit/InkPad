@@ -687,8 +687,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       // Background literacy coding — runs async, errors are logged not thrown.
       const epPadId = pad.etherpad_pad_id;
       ;(async () => {
-        const textResult = await service.getText(epPadId);
-        const text = textResult?.data?.text ?? '';
+        const text = await service.getPadText(epPadId);
         if (text.trim()) await analyseSubmission(db, { submissionId, text });
       })().catch(e => console.error('[literacyCoder] background analysis failed:', e.message));
 
@@ -764,8 +763,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       `).get(submissionId);
       if (!row) return reply.code(404).send({ error: 'submission_not_found' });
 
-      const textResult = await service.getText(row.etherpad_pad_id);
-      const text = textResult?.data?.text ?? '';
+      const text = await service.getPadText(row.etherpad_pad_id);
       if (!text.trim()) return reply.code(422).send({ error: 'pad_text_empty' });
 
       await analyseSubmission(db, { submissionId, text });
