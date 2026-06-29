@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EAP Library Admin</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    *{box-sizing:border-box;}
+    body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;}
+    .appbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
+    .glyph{width:34px;height:34px;border-radius:10px;background:var(--green-600);color:#fff;display:grid;place-items:center;font-family:var(--serif);font-size:18px;font-weight:600;transform:rotate(-4deg);}
+    .brand{font-family:var(--serif);font-size:18px;font-weight:600;}
+    .sp{flex:1;}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 13px;border-radius:var(--r-sm);font:700 13px/1 var(--font);text-decoration:none;border:1px solid var(--border-2);background:var(--surface);color:var(--text);cursor:pointer;}
+    .btn:hover{box-shadow:var(--shadow-lift);}
+    .btn.primary{background:var(--green-600);border-color:var(--green-600);color:#fff;}
+    .btn.danger{color:var(--maroon-500);border-color:rgba(140,47,59,.45);}
+    .btn.small{min-height:30px;padding:0 9px;font-size:12px;}
+    .wrap{width:min(1180px,100%);margin:0 auto;padding:28px 24px 80px;}
+    h1{margin:0 0 6px;font-family:var(--serif);font-size:32px;line-height:1.08;color:var(--ink);}
+    .lead{margin:0 0 22px;color:var(--text-2);font-size:15px;}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start;}
+    .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:18px;}
+    .panel h2{margin:0 0 14px;font-size:16px;}
+    .stack{display:grid;gap:12px;}
+    label{display:block;margin:0 0 5px;color:var(--text-2);font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:0;}
+    input,select{width:100%;min-height:38px;border:1.5px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);color:var(--text);font:inherit;padding:8px 10px;}
+    input:focus,select:focus{outline:none;border-color:var(--green-600);box-shadow:0 0 0 3px var(--green-50);}
+    .check{display:flex;align-items:center;gap:9px;color:var(--text-2);font-weight:700;}
+    .check input{width:18px;min-height:18px;}
+    .filebox{border:2px dashed var(--border-2);border-radius:var(--r-md);padding:18px;text-align:center;background:var(--surface-2);cursor:pointer;}
+    .filebox strong{display:block;margin-bottom:4px;}
+    .filebox span{color:var(--text-3);font-size:12.5px;}
+    .filebox input{display:none;}
+    .selected{display:none;margin-top:8px;color:var(--green-700);font-size:12.5px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+    .toolbar input{max-width:280px;}
+    .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:var(--r-sm);}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle;}
+    th{background:var(--surface-2);color:var(--text-2);font-size:11px;text-transform:uppercase;letter-spacing:0;font-weight:900;}
+    tr:last-child td{border-bottom:0;}
+    td.actions{min-width:230px;}
+    .actions-row{display:flex;gap:6px;flex-wrap:wrap;}
+    .doc-title{min-width:190px;}
+    .doc-date{min-width:144px;}
+    .doc-category{min-width:150px;}
+    .muted{color:var(--text-3);font-size:12px;}
+    .pill{display:inline-flex;align-items:center;min-height:24px;border-radius:999px;padding:0 8px;background:var(--surface-2);color:var(--text-2);font-size:12px;font-weight:800;}
+    .pill.on{background:var(--green-50);color:var(--green-700);}
+    .pill.off{background:var(--coral-50);color:var(--coral-600);}
+    .category-row{display:grid;grid-template-columns:1fr 92px auto;gap:8px;align-items:end;margin-bottom:8px;}
+    .log-list{display:grid;gap:8px;max-height:260px;overflow:auto;}
+    .log-row{border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;background:var(--surface);}
+    .log-row strong{display:block;margin-bottom:3px;}
+    .toast{position:fixed;right:18px;bottom:18px;z-index:80;background:var(--green-700);color:#fff;border-radius:var(--r-sm);box-shadow:var(--shadow-lift);padding:10px 14px;font-weight:800;}
+    .toast.err{background:var(--maroon-700);}
+    @media(max-width:900px){.grid{grid-template-columns:1fr;}.wrap{padding:22px 16px 70px;}.appbar{padding:12px 16px;}td.actions{min-width:190px;}}
+  </style>
+</head>
+<body>
+  <header class="appbar">
+    <div class="glyph">i</div>
+    <div class="brand">EAP Library Admin</div>
+    <span class="sp"></span>
+    <a class="btn" href="/library">Open library</a>
+    <a class="btn" href="/">Home</a>
+  </header>
+
+  <main class="wrap">
+    <h1>Manage file library</h1>
+    <p class="lead">Upload class files and control what students can see or download.</p>
+
+    <section class="grid">
+      <div class="stack">
+        <section class="panel">
+          <h2>Upload document</h2>
+          <form id="upload-form" class="stack">
+            <label class="filebox">
+              <strong id="file-title">Choose HTML or PDF</strong>
+              <span>Maximum 20 MB</span>
+              <input id="file-input" type="file" accept=".html,.pdf" required>
+              <span class="selected" id="selected-file"></span>
+            </label>
+            <div>
+              <label for="upload-title">Title</label>
+              <input id="upload-title" placeholder="Defaults to filename">
+            </div>
+            <div>
+              <label for="upload-category">Category</label>
+              <select id="upload-category"></select>
+            </div>
+            <div>
+              <label for="upload-icon">Icon label</label>
+              <select id="upload-icon">
+                <option value="file">File</option>
+                <option value="pdf">PDF</option>
+                <option value="document">Document</option>
+                <option value="target">Target</option>
+                <option value="pencil">Pencil</option>
+                <option value="folder">Folder</option>
+              </select>
+            </div>
+            <label class="check"><input id="upload-downloadable" type="checkbox"> Students can download</label>
+            <button class="btn primary" type="submit" id="upload-btn">Upload</button>
+          </form>
+        </section>
+
+        <section class="panel">
+          <h2>Categories</h2>
+          <form class="category-row" id="category-form">
+            <div>
+              <label for="category-label">Label</label>
+              <input id="category-label" required>
+            </div>
+            <div>
+              <label for="category-icon">Icon</label>
+              <input id="category-icon" value="folder">
+            </div>
+            <button class="btn primary" type="submit">Add</button>
+          </form>
+          <div id="category-list"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Activity</h2>
+          <div class="log-list" id="log-list"><div class="muted">No views yet.</div></div>
+        </section>
+      </div>
+
+      <section class="panel">
+        <div class="toolbar">
+          <h2 style="margin:0">Documents</h2>
+          <span class="sp"></span>
+          <input id="doc-search" type="search" placeholder="Filter documents">
+          <button class="btn" type="button" id="refresh-btn">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Release</th>
+                <th>Status</th>
+                <th>Views</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="docs-body">
+              <tr><td colspan="6" class="muted">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    let csrfToken='';
+    let docs=[];
+    let categories=[];
+    let logs=[];
+
+    function esc(value){
+      return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    function iconOptions(selected){
+      return ['file','pdf','document','target','pencil','folder'].map(icon=>`<option value="${icon}" ${icon===selected?'selected':''}>${icon}</option>`).join('');
+    }
+
+    function categoryOptions(selected, includeBlank=true){
+      const blank=includeBlank?'<option value="">Uncategorised</option>':'';
+      return blank+categories.map(category=>`<option value="${category.id}" ${category.id===selected?'selected':''}>${esc(category.label)}</option>`).join('');
+    }
+
+    function toast(message,type='ok'){
+      const old=document.querySelector('.toast');
+      if(old) old.remove();
+      const el=document.createElement('div');
+      el.className=`toast ${type==='err'?'err':''}`;
+      el.textContent=message;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),3200);
+    }
+
+    async function api(url, options={}){
+      const headers=new Headers(options.headers||{});
+      if(options.method&&options.method!=='GET') headers.set('X-CSRF-Token',csrfToken);
+      if(options.body&&!(options.body instanceof FormData)) headers.set('Content-Type','application/json');
+      const response=await fetch(url,{...options,headers});
+      if(response.status===401||response.status===403){
+        if(url==='/api/me') window.location.href='/teacher-login';
+      }
+      if(!response.ok){
+        const data=await response.json().catch(()=>({}));
+        throw new Error(data.error||'Request failed');
+      }
+      return response.status===204?null:response.json();
+    }
+
+    async function init(){
+      const me=await api('/api/me');
+      if(me.user.type!=='teacher'){
+        window.location.href='/teacher-login';
+        return;
+      }
+      csrfToken=me.user.csrf_token;
+      await loadAll();
+    }
+
+    async function loadAll(){
+      const [docData,catData,logData]=await Promise.all([
+        api('/api/library/admin/docs'),
+        api('/api/library/admin/categories'),
+        api('/api/library/admin/view-log'),
+      ]);
+      docs=docData;
+      categories=catData;
+      logs=logData;
+      renderCategories();
+      renderDocs();
+      renderLogs();
+    }
+
+    function renderCategories(){
+      document.getElementById('upload-category').innerHTML=categoryOptions(null);
+      document.getElementById('category-list').innerHTML=categories.map(category=>`
+        <div class="category-row" data-category="${category.id}">
+          <div><label>Label</label><input value="${esc(category.label)}" data-field="label"></div>
+          <div><label>Icon</label><input value="${esc(category.icon)}" data-field="icon"></div>
+          <div class="actions-row">
+            <button class="btn small" type="button" data-action="save-category">Save</button>
+            <button class="btn small danger" type="button" data-action="delete-category">Delete</button>
+          </div>
+        </div>
+      `).join('')||'<div class="muted">No categories yet.</div>';
+    }
+
+    function renderDocs(){
+      const q=document.getElementById('doc-search').value.toLowerCase().trim();
+      const visible=q?docs.filter(doc=>doc.title.toLowerCase().includes(q)):docs;
+      const body=document.getElementById('docs-body');
+      if(!visible.length){
+        body.innerHTML='<tr><td colspan="6" class="muted">No documents found.</td></tr>';
+        return;
+      }
+      body.innerHTML=visible.map(doc=>`
+        <tr data-doc="${doc.id}">
+          <td class="doc-title">
+            <input value="${esc(doc.title)}" data-field="title">
+            <div class="muted">${esc(doc.file_type.toUpperCase())} | ${esc(doc.filename)}</div>
+          </td>
+          <td class="doc-category"><select data-field="category_id">${categoryOptions(doc.category_id)}</select></td>
+          <td class="doc-date"><input type="date" value="${esc(doc.release_at||'')}" data-field="release_at"></td>
+          <td>
+            <div class="stack" style="gap:6px">
+              <span class="pill ${doc.hidden?'off':'on'}">${doc.hidden?'Hidden':'Visible'}</span>
+              <span class="pill ${doc.downloadable?'on':'off'}">${doc.downloadable?'Download':'View only'}</span>
+            </div>
+          </td>
+          <td>${doc.views}</td>
+          <td class="actions">
+            <div class="actions-row">
+              <button class="btn small primary" type="button" data-action="save-doc">Save</button>
+              <button class="btn small" type="button" data-action="toggle-hidden">${doc.hidden?'Show':'Hide'}</button>
+              <button class="btn small" type="button" data-action="toggle-download">${doc.downloadable?'View only':'Download'}</button>
+              <label class="btn small">
+                Replace
+                <input type="file" accept=".html,.pdf" style="display:none" data-action="replace-file">
+              </label>
+              <button class="btn small danger" type="button" data-action="delete-doc">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderLogs(){
+      const list=document.getElementById('log-list');
+      if(!logs.length){
+        list.innerHTML='<div class="muted">No views yet.</div>';
+        return;
+      }
+      list.innerHTML=logs.map(row=>`
+        <div class="log-row">
+          <strong>${esc(row.student_name||'Unknown student')}</strong>
+          <div>${esc(row.doc_title||'Deleted document')}</div>
+          <div class="muted">${row.visit_count} visits | ${row.duration_seconds||0}s | ${esc(row.last_viewed||'')}</div>
+        </div>
+      `).join('');
+    }
+
+    async function uploadDocument(event){
+      event.preventDefault();
+      const file=document.getElementById('file-input').files[0];
+      if(!file){toast('Choose a file first','err');return;}
+      const form=new FormData();
+      form.append('file',file);
+      form.append('title',document.getElementById('upload-title').value);
+      form.append('category_id',document.getElementById('upload-category').value);
+      form.append('icon',document.getElementById('upload-icon').value);
+      form.append('downloadable',document.getElementById('upload-downloadable').checked?'1':'0');
+      document.getElementById('upload-btn').disabled=true;
+      try{
+        await api('/api/library/admin/docs',{method:'POST',body:form});
+        document.getElementById('upload-form').reset();
+        document.getElementById('selected-file').style.display='none';
+        toast('Document uploaded');
+        await loadAll();
+      }catch(error){
+        toast(error.message,'err');
+      }finally{
+        document.getElementById('upload-btn').disabled=false;
+      }
+    }
+
+    function docRow(id){return document.querySelector(`[data-doc="${id}"]`);}
+    function docById(id){return docs.find(doc=>doc.id===id);}
+
+    async function saveDoc(id){
+      const row=docRow(id);
+      await api(`/api/library/admin/docs/${id}`,{
+        method:'PUT',
+        body:JSON.stringify({
+          title:row.querySelector('[data-field="title"]').value,
+          category_id:row.querySelector('[data-field="category_id"]').value,
+          release_at:row.querySelector('[data-field="release_at"]').value,
+        }),
+      });
+      toast('Document saved');
+      await loadAll();
+    }
+
+    async function toggleHidden(id){
+      const doc=docById(id);
+      await api(`/api/library/admin/docs/${id}`,{method:'PUT',body:JSON.stringify({hidden:doc.hidden?0:1})});
+      toast(doc.hidden?'Document visible':'Document hidden');
+      await loadAll();
+    }
+
+    async function toggleDownload(id){
+      const doc=docById(id);
+      await api(`/api/library/admin/docs/${id}`,{method:'PUT',body:JSON.stringify({downloadable:doc.downloadable?0:1})});
+      toast(doc.downloadable?'Set to view only':'Download enabled');
+      await loadAll();
+    }
+
+    async function replaceFile(id,input){
+      const file=input.files[0];
+      if(!file)return;
+      const form=new FormData();
+      form.append('file',file);
+      await api(`/api/library/admin/docs/${id}/replace`,{method:'POST',body:form});
+      toast('File replaced');
+      await loadAll();
+    }
+
+    async function deleteDoc(id){
+      if(!confirm('Delete this document and its file?'))return;
+      await api(`/api/library/admin/docs/${id}`,{method:'DELETE'});
+      toast('Document deleted');
+      await loadAll();
+    }
+
+    async function addCategory(event){
+      event.preventDefault();
+      await api('/api/library/admin/categories',{
+        method:'POST',
+        body:JSON.stringify({
+          label:document.getElementById('category-label').value,
+          icon:document.getElementById('category-icon').value,
+        }),
+      });
+      document.getElementById('category-form').reset();
+      document.getElementById('category-icon').value='folder';
+      toast('Category added');
+      await loadAll();
+    }
+
+    async function saveCategory(id){
+      const row=document.querySelector(`[data-category="${id}"]`);
+      await api(`/api/library/admin/categories/${id}`,{
+        method:'PUT',
+        body:JSON.stringify({
+          label:row.querySelector('[data-field="label"]').value,
+          icon:row.querySelector('[data-field="icon"]').value,
+        }),
+      });
+      toast('Category saved');
+      await loadAll();
+    }
+
+    async function deleteCategory(id){
+      if(!confirm('Delete this category? Documents will stay uncategorised.'))return;
+      await api(`/api/library/admin/categories/${id}`,{method:'DELETE'});
+      toast('Category deleted');
+      await loadAll();
+    }
+
+    document.getElementById('upload-form').addEventListener('submit',uploadDocument);
+    document.getElementById('category-form').addEventListener('submit',addCategory);
+    document.getElementById('refresh-btn').addEventListener('click',loadAll);
+    document.getElementById('doc-search').addEventListener('input',renderDocs);
+    document.getElementById('file-input').addEventListener('change',event=>{
+      const file=event.target.files[0];
+      if(!file)return;
+      const selected=document.getElementById('selected-file');
+      selected.textContent=file.name;
+      selected.style.display='block';
+      if(file.name.toLowerCase().endsWith('.pdf')) document.getElementById('upload-icon').value='pdf';
+    });
+
+    document.getElementById('docs-body').addEventListener('click',event=>{
+      const action=event.target.dataset.action;
+      if(!action)return;
+      const id=Number(event.target.closest('[data-doc]').dataset.doc);
+      if(action==='save-doc') saveDoc(id).catch(error=>toast(error.message,'err'));
+      if(action==='toggle-hidden') toggleHidden(id).catch(error=>toast(error.message,'err'));
+      if(action==='toggle-download') toggleDownload(id).catch(error=>toast(error.message,'err'));
+      if(action==='delete-doc') deleteDoc(id).catch(error=>toast(error.message,'err'));
+    });
+
+    document.getElementById('docs-body').addEventListener('change',event=>{
+      if(event.target.dataset.action==='replace-file'){
+        const id=Number(event.target.closest('[data-doc]').dataset.doc);
+        replaceFile(id,event.target).catch(error=>toast(error.message,'err'));
+      }
+    });
+
+    document.getElementById('category-list').addEventListener('click',event=>{
+      const action=event.target.dataset.action;
+      if(!action)return;
+      const id=Number(event.target.closest('[data-category]').dataset.category);
+      if(action==='save-category') saveCategory(id).catch(error=>toast(error.message,'err'));
+      if(action==='delete-category') deleteCategory(id).catch(error=>toast(error.message,'err'));
+    });
+
+    init().catch(error=>toast(error.message,'err'));
+  </script>
+</body>
+</html>

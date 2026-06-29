@@ -317,3 +317,15 @@ Entry format:
   test on port 3490 returned `200` for `/`, `/library`, `/api/library/docs` and
   `/api/library/categories`. Full suite still has unrelated pre-existing failures around student
   password defaults, roster copy and Etherpad wrapper expectations.
+
+## 2026-06-29 — EAP library admin backend
+- Asked: Add the obvious missing admin backend so files can actually be added to the EAP library.
+- Did: Added `@fastify/multipart`, teacher-protected `/library/admin`, admin APIs for document
+  upload, replace, edit, hide/show, download toggle, delete, categories and view logs. Linked the
+  student library to the admin page.
+- Decisions: Admin uses the existing InkHeron teacher session and CSRF token, not a separate
+  library password.
+- Verification: `node --check` for app and library routes passed. Focused route/admin tests passed
+  with bundled Node 24, including real multipart upload/replace/delete. Local HTTP smoke test on
+  port 3491 created a teacher, loaded `/library/admin`, uploaded an HTML file and downloaded it.
+  Full suite still has the same unrelated six failures noted above.

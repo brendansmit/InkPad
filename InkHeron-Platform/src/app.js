@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
+import fastifyMultipart from '@fastify/multipart';
 import { openDatabase } from './db/database.js';
 import { registerIdentityRoutes } from './routes/identity.js';
 import { registerAuth } from './routes/auth.js';
@@ -39,6 +40,13 @@ export async function buildApp(options = {}) {
     root: publicDir,
     prefix: '/assets/',
     index: false,
+  });
+
+  await app.register(fastifyMultipart, {
+    limits: {
+      fileSize: 20 * 1024 * 1024,
+      files: 1,
+    },
   });
 
   fs.mkdirSync(libraryUploadsDir, { recursive: true });
@@ -83,6 +91,7 @@ export async function buildApp(options = {}) {
   app.get('/teacher/settings', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/settings.html', publicDir));
   app.get('/student', async (_request, reply) => reply.sendFile('student-dashboard.html', publicDir));
   app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));
+  app.get('/library/admin', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
   app.get('/', async (_request, reply) => reply.sendFile('index.html', publicDir));
 
   return app;

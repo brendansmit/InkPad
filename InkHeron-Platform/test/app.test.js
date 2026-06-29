@@ -18,6 +18,48 @@ function buildTemporaryApp() {
   return buildApp(temporaryPaths());
 }
 
+async function createTeacherSession(app) {
+  const setup = await app.inject({
+    method: 'POST',
+    url: '/api/setup/teacher',
+    payload: { username: 'teacher', display_name: 'Teacher', password: 'teacherpass123' },
+  });
+  assert.equal(setup.statusCode, 201);
+
+  const login = await app.inject({
+    method: 'POST',
+    url: '/api/teacher/login',
+    payload: { username: 'teacher', password: 'teacherpass123' },
+  });
+  assert.equal(login.statusCode, 200);
+  return { cookies: login.headers['set-cookie'], csrfToken: login.json().user.csrf_token };
+}
+
+function multipartPayload({ fields = {}, file }) {
+  const boundary = `----inkheron-${Date.now()}`;
+  const chunks = [];
+
+  for (const [name, value] of Object.entries(fields)) {
+    chunks.push(Buffer.from(`--${boundary}\r\n`));
+    chunks.push(Buffer.from(`Content-Disposition: form-data; name="${name}"\r\n\r\n`));
+    chunks.push(Buffer.from(`${value}\r\n`));
+  }
+
+  if (file) {
+    chunks.push(Buffer.from(`--${boundary}\r\n`));
+    chunks.push(Buffer.from(`Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.filename}"\r\n`));
+    chunks.push(Buffer.from(`Content-Type: ${file.contentType}\r\n\r\n`));
+    chunks.push(Buffer.isBuffer(file.body) ? file.body : Buffer.from(file.body));
+    chunks.push(Buffer.from('\r\n'));
+  }
+
+  chunks.push(Buffer.from(`--${boundary}--\r\n`));
+  return {
+    payload: Buffer.concat(chunks),
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
 test('healthz returns ok', async () => {
   const app = await buildTemporaryApp();
   const response = await app.inject({ method: 'GET', url: '/healthz' });
@@ -135,6 +177,143 @@ test('EAP library logs views and gates downloads', async () => {
   } finally {
     db3.close();
   }
+
+  await app.close();
+});
+
+test('EAP library admin manages uploads, visibility, downloads and categories', async () => {
+  const paths = temporaryPaths();
+  const app = await buildApp(paths);
+
+  const blockedAdminPage = await app.inject({ method: 'GET', url: '/library/admin' });
+  assert.equal(blockedAdminPage.statusCode, 401);
+
+  const teacher = await createTeacherSession(app);
+  const adminPage = await app.inject({
+    method: 'GET',
+    url: '/library/admin',
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(adminPage.statusCode, 200);
+  assert.match(adminPage.body, /Manage file library/);
+
+  const createdCategory = await app.inject({
+    method: 'POST',
+    url: '/api/library/admin/categories',
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrfToken },
+    payload: { label: 'Unit 1', icon: 'target' },
+  });
+  assert.equal(createdCategory.statusCode, 201);
+  const categoryId = createdCategory.json().category.id;
+
+  const updatedCategory = await app.inject({
+    method: 'PUT',
+    url: `/api/library/admin/categories/${categoryId}`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrfToken },
+    payload: { label: 'Unit One', icon: 'folder' },
+  });
+  assert.equal(updatedCategory.statusCode, 200);
+  assert.equal(updatedCategory.json().category.label, 'Unit One');
+
+  const uploadBody = multipartPayload({
+    fields: { title: 'Admin Upload', category_id: categoryId, icon: 'document', downloadable: '1' },
+    file: { fieldName: 'file', filename: 'sample.html', contentType: 'text/html', body: '<h1>Admin Upload</h1>' },
+  });
+  const uploaded = await app.inject({
+    method: 'POST',
+    url: '/api/library/admin/docs',
+    headers: {
+      cookie: teacher.cookies,
+      'X-CSRF-Token': teacher.csrfToken,
+      'Content-Type': uploadBody.contentType,
+    },
+    payload: uploadBody.payload,
+  });
+  assert.equal(uploaded.statusCode, 201);
+  const doc = uploaded.json().doc;
+  assert.equal(doc.title, 'Admin Upload');
+  assert.equal(doc.downloadable, true);
+  assert.equal(doc.file_type, 'html');
+  assert.ok(fs.existsSync(path.join(paths.libraryUploadsDir, doc.filename)));
+
+  const publicDocs = await app.inject({ method: 'GET', url: '/api/library/docs' });
+  assert.equal(publicDocs.json().length, 1);
+
+  const download = await app.inject({ method: 'GET', url: `/api/library/docs/${doc.id}/download` });
+  assert.equal(download.statusCode, 200);
+  assert.match(download.body, /Admin Upload/);
+
+  const hidden = await app.inject({
+    method: 'PUT',
+    url: `/api/library/admin/docs/${doc.id}`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrfToken },
+    payload: { hidden: 1, downloadable: 0, release_at: '2026-07-01' },
+  });
+  assert.equal(hidden.statusCode, 200);
+  assert.equal(hidden.json().doc.hidden, 1);
+  assert.equal(hidden.json().doc.downloadable, false);
+
+  const publicHidden = await app.inject({ method: 'GET', url: '/api/library/docs' });
+  assert.deepEqual(publicHidden.json(), []);
+
+  const shown = await app.inject({
+    method: 'PUT',
+    url: `/api/library/admin/docs/${doc.id}`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrfToken },
+    payload: { hidden: 0, release_at: '' },
+  });
+  assert.equal(shown.statusCode, 200);
+
+  const blockedDownload = await app.inject({ method: 'GET', url: `/api/library/docs/${doc.id}/download` });
+  assert.equal(blockedDownload.statusCode, 403);
+
+  const replaceBody = multipartPayload({
+    file: { fieldName: 'file', filename: 'replacement.pdf', contentType: 'application/pdf', body: '%PDF-1.4 replacement' },
+  });
+  const replaced = await app.inject({
+    method: 'POST',
+    url: `/api/library/admin/docs/${doc.id}/replace`,
+    headers: {
+      cookie: teacher.cookies,
+      'X-CSRF-Token': teacher.csrfToken,
+      'Content-Type': replaceBody.contentType,
+    },
+    payload: replaceBody.payload,
+  });
+  assert.equal(replaced.statusCode, 200);
+  assert.equal(replaced.json().doc.file_type, 'pdf');
+  assert.equal(fs.existsSync(path.join(paths.libraryUploadsDir, doc.filename)), false);
+  assert.ok(fs.existsSync(path.join(paths.libraryUploadsDir, replaced.json().doc.filename)));
+
+  const view = await app.inject({
+    method: 'POST',
+    url: `/api/library/docs/${doc.id}/view`,
+    payload: { student_name: 'Alice', duration_seconds: 7 },
+  });
+  assert.equal(view.statusCode, 200);
+
+  const log = await app.inject({
+    method: 'GET',
+    url: '/api/library/admin/view-log',
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(log.statusCode, 200);
+  assert.equal(log.json()[0].student_name, 'Alice');
+
+  const deletedCategory = await app.inject({
+    method: 'DELETE',
+    url: `/api/library/admin/categories/${categoryId}`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrfToken },
+  });
+  assert.equal(deletedCategory.statusCode, 200);
+
+  const deletedDoc = await app.inject({
+    method: 'DELETE',
+    url: `/api/library/admin/docs/${doc.id}`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrfToken },
+  });
+  assert.equal(deletedDoc.statusCode, 200);
+  assert.equal(fs.existsSync(path.join(paths.libraryUploadsDir, replaced.json().doc.filename)), false);
 
   await app.close();
 });
