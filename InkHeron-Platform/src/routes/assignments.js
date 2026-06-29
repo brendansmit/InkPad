@@ -1,3 +1,11 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __routesDir = path.dirname(__filename);
+const PASSAGES_DIR = path.join(__routesDir, '..', '..', 'data', 'passages');
+
 function requirePositiveInteger(value, field) {
   const n = Number(value);
   if (!Number.isInteger(n) || n <= 0) {
@@ -37,6 +45,7 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     base.timer_minutes = settings.timer_minutes ?? null;
   }
   if (settings.prompt) base.prompt = String(settings.prompt).slice(0, 4000);
+  if (settings.passage_text) base.passage_text = String(settings.passage_text).slice(0, 20000);
   return JSON.stringify(base);
 }
 
@@ -149,6 +158,10 @@ function fetchDashboardRows(db, assignmentId, classId) {
 }
 
 export async function registerAssignmentRoutes(app, { db }) {
+  app.addContentTypeParser('application/pdf', { parseAs: 'buffer' }, function (req, body, done) {
+    done(null, body);
+  });
+
   // ── Teacher routes ──────────────────────────────────────────────────────
 
   app.post('/api/assignments',
@@ -461,6 +474,42 @@ export async function registerAssignmentRoutes(app, { db }) {
         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
       `).run(now, now);
       return { cleared_at: now };
+    }
+  );
+
+  // ── Passage PDF routes ─────────────────────────────────────────────────
+
+  app.put('/api/assignments/:id/passage-pdf',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const buf = request.body;
+      if (!Buffer.isBuffer(buf) || buf.length === 0) return reply.code(400).send({ error: 'empty_body' });
+      if (buf.length > 10 * 1024 * 1024) return reply.code(413).send({ error: 'file_too_large' });
+      await fs.promises.mkdir(PASSAGES_DIR, { recursive: true });
+      await fs.promises.writeFile(path.join(PASSAGES_DIR, `${id}.pdf`), buf);
+      return { ok: true };
+    }
+  );
+
+  app.delete('/api/assignments/:id/passage-pdf',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      try { await fs.promises.unlink(path.join(PASSAGES_DIR, `${id}.pdf`)); } catch (_) {}
+      return { ok: true };
+    }
+  );
+
+  app.get('/api/assignments/:id/passage-pdf',
+    async (request, reply) => {
+      if (!request.session?.user) return reply.code(401).send({ error: 'unauthorized' });
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const filepath = path.join(PASSAGES_DIR, `${id}.pdf`);
+      try { await fs.promises.access(filepath); } catch (_) {
+        return reply.code(404).send({ error: 'not_found' });
+      }
+      return reply.type('application/pdf').send(fs.createReadStream(filepath));
     }
   );
 

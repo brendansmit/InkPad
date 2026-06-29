@@ -1,5 +1,12 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { EtherpadService } from '../etherpad/api.js';
 import { renderWriteView } from '../views/write.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __padsRouteDir = path.dirname(__filename);
+const PASSAGES_DIR = path.join(__padsRouteDir, '..', '..', 'data', 'passages');
 import { renderLockedView } from '../views/locked.js';
 import { renderGreenPenView } from '../views/greenPen.js';
 import { notifyTeacher } from '../services/serverChan.js';
@@ -368,6 +375,12 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         }));
       }
 
+      let passagePdf = false;
+      try {
+        await fs.promises.access(path.join(PASSAGES_DIR, `${assignmentId}.pdf`));
+        passagePdf = true;
+      } catch (_) {}
+
       return reply.type('text/html').send(renderWriteView({
         title: assignment.title,
         dueAt: assignment.due_at,
@@ -377,6 +390,10 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         padId: pad.id,
         padState: pad.state,
         csrfToken: request.session.csrfToken ?? '',
+        prompt: settings.prompt || '',
+        passageText: settings.passage_text || '',
+        passagePdf,
+        assignmentId,
       }));
     }
   );

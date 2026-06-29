@@ -20,16 +20,87 @@ function formatDue(dueAt) {
   });
 }
 
-export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpadPadId, padId, csrfToken }) {
+export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpadPadId, padId, csrfToken, prompt, passageText, passagePdf, assignmentId }) {
   const dueLabel = formatDue(dueAt);
   const spellLabel = spellcheck ? 'Spellcheck on for this draft' : 'Spellcheck off for this draft';
   const padUrl = `/p/${encodeURIComponent(etherpadPadId)}`;
-  // Emit a safe JS boolean literal for inline scripts
   const spellcheckJs = spellcheck ? 'true' : 'false';
   const pasteBlockJs = pasteBlock ? 'true' : 'false';
-  // Safe injection: padId is a positive integer from the DB; csrfToken is a 64-char hex string
   const padIdJs = JSON.stringify(Number(padId) || 0);
   const csrfTokenJs = JSON.stringify(String(csrfToken ?? ''));
+  const hasPrompt = !!(prompt && prompt.trim());
+  const hasPassage = !!(passageText || passagePdf);
+  const assignmentIdSafe = Number(assignmentId) || 0;
+
+  const promptBtn = hasPrompt
+    ? `<button class="prompt-btn" id="prompt-btn" type="button">Task</button>`
+    : '';
+
+  const promptPanel = hasPrompt ? `
+    <div class="prompt-panel" id="prompt-panel">
+      <div class="prompt-panel-inner">
+        <div class="prompt-label">Assignment task</div>
+        <div class="prompt-text">${esc(prompt)}</div>
+      </div>
+    </div>` : '';
+
+  const passagePanel = hasPassage ? `
+    <div class="split-left">
+      <div class="passage-head">Reference passage</div>
+      ${passagePdf
+        ? `<iframe class="passage-pdf-frame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe>`
+        : `<div class="passage-text-content">${esc(passageText)}</div>`
+      }
+    </div>` : '';
+
+  const padchrome = `
+    <div class="padchrome">
+      <span class="pdot" style="background:#E2685C"></span>
+      <span class="pdot" style="background:#E8B14C"></span>
+      <span class="pdot" style="background:var(--green-500)"></span>
+      <span class="scnote">${spellcheck ? '&#10003; ' : ''}${esc(spellLabel)}</span>
+      ${promptBtn}
+      <div class="zoom-wrap">
+        <label for="zoom-sel">Zoom</label>
+        <select id="zoom-sel" class="zoom-select">
+          <option value="0.75">75%</option>
+          <option value="0.9">90%</option>
+          <option value="1" selected>100%</option>
+          <option value="1.1">110%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+        </select>
+      </div>
+    </div>`;
+
+  const writeActions = `
+    <div class="writeactions">
+      <span class="wordcount" id="wc"></span>
+      <span class="sp"></span>
+      <button class="btn ghost" id="save-btn">Save</button>
+      <button class="btn p" id="submit-btn">Submit for grading</button>
+    </div>`;
+
+  const padContent = hasPassage ? `
+<div class="padwrap has-passage">
+  ${passagePanel}
+  <div class="split-right">
+    <div class="padframe">
+      ${padchrome}
+      ${promptPanel}
+      <iframe class="padiframe" id="padiframe" src="${padUrl}" title="Writing pad"></iframe>
+    </div>
+    ${writeActions}
+  </div>
+</div>` : `
+<div class="padwrap">
+  <div class="padframe">
+    ${padchrome}
+    ${promptPanel}
+    <iframe class="padiframe" id="padiframe" src="${padUrl}" title="Writing pad"></iframe>
+  </div>
+</div>
+${writeActions}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -40,13 +111,10 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
   <link rel="icon" href="/assets/InkHeron%20Logo.png">
   <link rel="stylesheet" href="/assets/styles.css">
   <style>
-    /* write-view layout — matches inkheron_student_v2.html */
     body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh;}
     *{box-sizing:border-box;}
-    .writetop{position:sticky;top:0;z-index:50;background:rgba(247,246,242,0.9);backdrop-filter:blur(10px);
-      border-bottom:1px solid var(--border);padding:12px 26px;display:flex;align-items:center;gap:14px;}
-    .backbtn{background:none;border:none;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text-2);
-      font-size:13.5px;font-weight:500;transition:background .2s;}
+    .writetop{position:sticky;top:0;z-index:50;background:rgba(247,246,242,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:12px 26px;display:flex;align-items:center;gap:14px;}
+    .backbtn{background:none;border:none;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text-2);font-size:13.5px;font-weight:500;transition:background .2s;}
     .backbtn:hover{background:var(--surface-3);}
     .writetop .ttl{font-weight:600;font-size:14.5px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50vw;}
     .writetop .sp{flex:1;}
@@ -55,29 +123,46 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .savestate.saving{color:var(--amber-700);}
     .savestate.saving .tick{color:var(--amber-700);}
     .duebar{padding:10px 20px 0;}
-    .duenote{background:var(--surface);border:1px solid var(--border);
-      border-radius:var(--r-sm);padding:11px 15px;font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px;}
+    .duenote{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 15px;font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px;}
     .duenote .ic{font-size:14px;}
-    .padwrap{margin:0;padding:0;flex:1;display:flex;flex-direction:column;}
-    .padframe{background:var(--surface);border-top:1px solid var(--border);
-      overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
+    /* ── Pad layout ──────────────────────────────────── */
+    .padwrap{margin:0;padding:0;flex:1;display:flex;flex-direction:column;min-height:0;}
+    .padwrap.has-passage{flex-direction:row;}
+    .split-left{width:340px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
+    .split-right{flex:1;min-width:0;display:flex;flex-direction:column;}
+    .passage-head{padding:9px 14px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);border-bottom:1px solid var(--border);flex-shrink:0;}
+    .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
+    .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
+    /* ── Padframe ──────────────────────────────────────── */
+    .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
     .pdot{width:9px;height:9px;border-radius:50%;}
     .scnote{font-size:11.5px;color:var(--text-3);}
+    .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;margin-left:6px;}
+    .prompt-btn:hover{background:var(--green-100,#dcfce7);}
+    .prompt-btn.active{background:var(--green-100,#dcfce7);border-color:var(--primary);}
     .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:6px;}
     .zoom-wrap label{font-size:11.5px;color:var(--text-3);}
     .zoom-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
+    /* ── Prompt panel ──────────────────────────────────── */
+    .prompt-panel{display:none;border-bottom:1px solid var(--border);background:var(--surface-2,#f9f8f5);max-height:180px;overflow-y:auto;flex-shrink:0;}
+    .prompt-panel.open{display:block;}
+    .prompt-panel-inner{padding:12px 18px;}
+    .prompt-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:6px;}
+    .prompt-text{font-size:14px;line-height:1.65;color:var(--text);white-space:pre-wrap;}
+    /* ── Pad iframe ──────────────────────────────────────── */
     .padiframe{flex:1;width:100%;border:none;min-height:0;display:block;}
-    .writeactions{padding:12px 20px;display:flex;align-items:center;gap:12px;}
+    /* ── Write actions ───────────────────────────────────── */
+    .writeactions{padding:12px 20px;display:flex;align-items:center;gap:12px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;}
     .writeactions .sp{flex:1;}
     .wordcount{font-size:13px;color:var(--text-3);}
-    .btn{font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:var(--r-sm);cursor:pointer;
-      transition:transform .12s var(--ease),box-shadow .2s;}
+    .btn{font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:var(--r-sm);cursor:pointer;transition:transform .12s var(--ease),box-shadow .2s;}
     .btn:hover{transform:translateY(-1px);}
     .btn:active{transform:translateY(0);}
     .btn.ghost{background:var(--surface);border:1.5px solid var(--border-2);color:var(--text);}
     .btn.p{background:var(--primary);color:#fff;border:none;box-shadow:0 4px 14px rgba(36,99,67,0.22);}
     .btn.p:hover{box-shadow:0 7px 20px rgba(36,99,67,0.30);}
+    @media(max-width:700px){.padwrap.has-passage{flex-direction:column;}.split-left{width:100%;height:45vh;border-right:none;border-bottom:1px solid var(--border);}}
   </style>
 </head>
 <body>
@@ -93,40 +178,7 @@ ${dueLabel ? `<div class="duebar">
   <div class="duenote"><span class="ic">&#9711;</span> Due ${esc(dueLabel)}. You can keep editing until then.</div>
 </div>` : ''}
 
-<div class="padwrap">
-  <div class="padframe">
-    <div class="padchrome">
-      <span class="pdot" style="background:#E2685C"></span>
-      <span class="pdot" style="background:#E8B14C"></span>
-      <span class="pdot" style="background:var(--green-500)"></span>
-      <span class="scnote">${spellcheck ? '&#10003; ' : ''}${esc(spellLabel)}</span>
-      <div class="zoom-wrap">
-        <label for="zoom-sel">Zoom</label>
-        <select id="zoom-sel" class="zoom-select">
-          <option value="0.75">75%</option>
-          <option value="0.9">90%</option>
-          <option value="1" selected>100%</option>
-          <option value="1.1">110%</option>
-          <option value="1.25">125%</option>
-          <option value="1.5">150%</option>
-        </select>
-      </div>
-    </div>
-    <iframe
-      class="padiframe"
-      id="padiframe"
-      src="${padUrl}"
-      title="Writing pad"
-    ></iframe>
-  </div>
-</div>
-
-<div class="writeactions">
-  <span class="wordcount" id="wc"></span>
-  <span class="sp"></span>
-  <button class="btn ghost" id="save-btn">Save</button>
-  <button class="btn p" id="submit-btn">Submit for grading</button>
-</div>
+${padContent}
 
 <script>
 (function () {
@@ -140,6 +192,17 @@ ${dueLabel ? `<div class="duebar">
   var wcEl = document.getElementById('wc');
   var saveBtn = document.getElementById('save-btn');
   var iframe = document.getElementById('padiframe');
+
+  // ── Prompt panel toggle ───────────────────────────────────────────────────
+  var promptBtn = document.getElementById('prompt-btn');
+  var promptPanel = document.getElementById('prompt-panel');
+  if (promptBtn && promptPanel) {
+    promptBtn.addEventListener('click', function () {
+      var open = promptPanel.classList.toggle('open');
+      promptBtn.classList.toggle('active', open);
+      promptBtn.textContent = open ? 'Hide task' : 'Task';
+    });
+  }
 
   // ── Save-state UI (Step 3.7) ─────────────────────────────────────────────
   // Etherpad autosaves on every keystroke. We show "Saving…" briefly

@@ -100,6 +100,9 @@
     .msg.on{display:block;background:var(--green-50);border:1px solid rgba(36,99,67,.2);color:var(--green-700);}
     .msg.on.err{background:var(--maroon-50);border-color:rgba(140,47,59,.2);color:var(--maroon-500);}
     .hint{font-size:12px;color:var(--text-3);margin-top:4px;}
+    .passage-tabs{display:flex;gap:4px;margin-bottom:14px;}
+    .ptab{padding:5px 14px;font-size:13px;font-weight:600;border:1.5px solid var(--border-2);border-radius:6px;background:var(--surface);color:var(--text-2);cursor:pointer;}
+    .ptab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
     /* ── Student modal ── */
     .modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.42);overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;}
     .modal-box{background:var(--surface);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.22);padding:28px;width:100%;max-width:560px;}
@@ -206,7 +209,24 @@
         <div class="field">
           <label for="ePrompt">Writing prompt (optional)</label>
           <textarea id="ePrompt" placeholder="Paste the full question or task description here."></textarea>
-          <p class="hint">Students do not see this — it is for your reference and AI marking assistance.</p>
+          <p class="hint">Students can read this by clicking the "Task" button in their writing pad.</p>
+        </div>
+      </div>
+
+      <div class="edit-card" id="passageCard">
+        <h3>Reference passage (optional)</h3>
+        <p class="hint" style="margin:0 0 16px;">Students see the passage alongside their writing pad, on the left side of the screen. Useful for AP Lang prompts, articles, and any text they need to quote or respond to.</p>
+        <div id="passageTabs" class="passage-tabs">
+          <button class="ptab active" id="ptabText" type="button" onclick="setPassageTab('text')">Paste text</button>
+          <button class="ptab" id="ptabPdf" type="button" onclick="setPassageTab('pdf')">Upload PDF</button>
+        </div>
+        <div id="passageTextPane" class="field">
+          <textarea id="ePassageText" rows="8" placeholder="Paste the passage or article text here."></textarea>
+        </div>
+        <div id="passagePdfPane" class="field" style="display:none;">
+          <div id="passagePdfStatus" class="hint"></div>
+          <input type="file" id="ePassagePdf" accept="application/pdf">
+          <button class="btn sm" id="removePdfBtn" type="button" style="display:none;margin-top:8px;" onclick="removePassagePdf()">Remove PDF</button>
         </div>
       </div>
 
@@ -288,6 +308,27 @@
     let editFromDetail=false;
     let editGroup=[];
     let modalId=null;
+    let currentPassagePdfExists=false;
+
+    function setPassageTab(tab){
+      document.getElementById('ptabText').classList.toggle('active',tab==='text');
+      document.getElementById('ptabPdf').classList.toggle('active',tab==='pdf');
+      document.getElementById('passageTextPane').style.display=tab==='text'?'':'none';
+      document.getElementById('passagePdfPane').style.display=tab==='pdf'?'':'none';
+    }
+
+    async function removePassagePdf(){
+      if(!currentId) return;
+      if(!confirm('Remove the uploaded PDF for this assignment?')) return;
+      const r=await fetch(`/api/assignments/${currentId}/passage-pdf`,{
+        method:'DELETE',headers:{'X-CSRF-Token':csrfToken}
+      });
+      if(r.ok){
+        currentPassagePdfExists=false;
+        document.getElementById('passagePdfStatus').textContent='No PDF uploaded.';
+        document.getElementById('removePdfBtn').style.display='none';
+      }
+    }
 
     async function init(){
       const me=await fetch('/api/me');
@@ -493,6 +534,18 @@
       document.getElementById('editHeading').textContent='Edit: '+a.title;
       document.getElementById('eTitle').value=a.title||'';
       document.getElementById('ePrompt').value=s.prompt||'';
+      document.getElementById('ePassageText').value=s.passage_text||'';
+
+      // PDF status
+      currentPassagePdfExists=false;
+      fetch(`/api/assignments/${id}/passage-pdf`,{method:'HEAD'}).then(r=>{
+        currentPassagePdfExists=r.ok;
+        document.getElementById('passagePdfStatus').textContent=r.ok?'PDF uploaded.':'No PDF uploaded.';
+        document.getElementById('removePdfBtn').style.display=r.ok?'':'none';
+      }).catch(()=>{});
+      document.getElementById('ePassagePdf').value='';
+      setPassageTab('text');
+
       document.getElementById('eSbDraft').checked=(s.submit_behaviour||'draft')==='draft';
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
@@ -530,11 +583,14 @@
       const title=document.getElementById('eTitle').value.trim();
       if(!title){showEditMsg('Title is required.',true);return;}
       const prompt=document.getElementById('ePrompt').value.trim();
+      const passageText=document.getElementById('ePassageText').value.trim();
+      const passagePdfFile=document.getElementById('ePassagePdf').files[0];
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
       const settings={submit_behaviour,spellcheck,green_pen};
       if(prompt) settings.prompt=prompt;
+      if(passageText) settings.passage_text=passageText;
 
       const btn=document.getElementById('saveEditBtn');
       btn.disabled=true;
@@ -556,9 +612,22 @@
         } else failed++;
       }
 
+      // Upload PDF to the primary assignment (first in group)
+      if(!failed && passagePdfFile && currentId) {
+        btn.textContent='Uploading PDF…';
+        try {
+          const pr=await fetch(`/api/assignments/${currentId}/passage-pdf`,{
+            method:'PUT',
+            headers:{'Content-Type':'application/pdf','X-CSRF-Token':csrfToken},
+            body:passagePdfFile,
+          });
+          if(!pr.ok) failed++;
+        } catch(_){ failed++; }
+      }
+
       btn.disabled=false;btn.textContent='Save changes';
 
-      if(failed){showEditMsg(`${failed} class${failed!==1?'es':''} failed to save.`,true);return;}
+      if(failed){showEditMsg(`${failed} save${failed!==1?'s':''} failed.`,true);return;}
       showEditMsg('Saved.',false);
       setTimeout(()=>{
         if(editFromDetail) openGroup(editGroup.map(a=>a.id));
