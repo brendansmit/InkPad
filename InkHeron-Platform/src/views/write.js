@@ -94,8 +94,12 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     </div>
     <span class="fmt-sep"></span>
     <div class="fmt-group">
-      <button class="fmt-btn" data-key="undo" title="Undo" onmousedown="return false" style="font-size:22px;line-height:1">&#8630;</button>
-      <button class="fmt-btn" data-key="redo" title="Redo" onmousedown="return false" style="font-size:22px;line-height:1">&#8631;</button>
+      <button class="fmt-btn" data-key="undo" title="Undo" onmousedown="return false">
+        <svg width="20" height="18" viewBox="0 0 20 18" fill="none"><path d="M3 6h9a5 5 0 0 1 0 10H8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><polyline points="7,2 3,6 7,10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="fmt-btn" data-key="redo" title="Redo" onmousedown="return false">
+        <svg width="20" height="18" viewBox="0 0 20 18" fill="none"><path d="M17 6H8a5 5 0 0 0 0 10h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><polyline points="13,2 17,6 13,10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
     </div>
     <span class="fmt-sep"></span>
     <div class="clr-palette">
@@ -311,7 +315,7 @@ ${padContent}
       submitBtn.textContent = 'Submitting…';
       fetch('/api/pads/' + PAD_ID + '/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        headers: { 'X-CSRF-Token': CSRF_TOKEN },
         credentials: 'same-origin',
       }).then(function (r) {
         if (r.ok) {
@@ -518,14 +522,18 @@ ${padContent}
   }
 
   // ── Zoom ───────────────────────────────────────────────────────────────────
+  // #editorcontainerbox lives inside ace_outer, not padDoc — must target that frame.
   var zoomSel = document.getElementById('zoom-sel');
   function applyZoom(level) {
     try {
       var padDoc = getPadDoc();
-      if (!padDoc || !padDoc.head) return;
-      var zs = padDoc.getElementById('ih-zoom');
-      if (!zs) { zs = padDoc.createElement('style'); zs.id = 'ih-zoom'; padDoc.head.appendChild(zs); }
-      zs.textContent = '#editorcontainerbox{zoom:' + level + '!important}';
+      if (!padDoc) return;
+      var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
+      if (!aceOuter || !aceOuter.contentDocument || !aceOuter.contentDocument.head) return;
+      var outerDoc = aceOuter.contentDocument;
+      var zs = outerDoc.getElementById('ih-zoom');
+      if (!zs) { zs = outerDoc.createElement('style'); zs.id = 'ih-zoom'; outerDoc.head.appendChild(zs); }
+      zs.textContent = '#editorcontainerbox{zoom:' + level + '!important;transform-origin:top left;}';
     } catch (_) {}
   }
   zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
@@ -578,9 +586,18 @@ ${padContent}
 
       var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
       if (!aceOuter || !aceOuter.contentDocument) return false;
-      injectInnerFrameStyles(aceOuter.contentDocument);
+      var aoDoc = aceOuter.contentDocument;
+      injectInnerFrameStyles(aoDoc);
+      // EP may set body background via inline JS which beats stylesheet !important.
+      // Override with setProperty which wins over both stylesheet rules and inline styles.
+      if (aoDoc.body) {
+        aoDoc.body.style.setProperty('background', '#fff', 'important');
+        aoDoc.body.style.setProperty('background-color', '#fff', 'important');
+      }
+      var edBox = aoDoc.getElementById('editorcontainerbox');
+      if (edBox) edBox.style.setProperty('background', '#fff', 'important');
 
-      var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
+      var aceInner = aoDoc.querySelector('iframe[name="ace_inner"]');
       // Don't mark done until aceInner is also injected — it loads slightly later.
       if (!aceInner || !aceInner.contentDocument) return false;
       injectInnerFrameStyles(aceInner.contentDocument);

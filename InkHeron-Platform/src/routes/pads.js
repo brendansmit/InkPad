@@ -11,6 +11,7 @@ import { renderLockedView } from '../views/locked.js';
 import { renderGreenPenView } from '../views/greenPen.js';
 import { notifyTeacher } from '../services/serverChan.js';
 import { feedbackLibrary, feedbackOptionMap } from '../feedback/library.js';
+import { analyseSubmission } from '../services/literacyCoder.js';
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -657,7 +658,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       const studentId = request.session.user.id;
 
       const pad = db.prepare(`
-        SELECT p.id, p.state, p.assignment_id,
+        SELECT p.id, p.state, p.assignment_id, p.etherpad_pad_id,
                a.settings_json, a.title AS assignment_title,
                st.display_name AS student_name
         FROM pads p
@@ -676,14 +677,24 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         "INSERT INTO submissions (pad_id, submitted_at) VALUES (?, datetime('now'))"
       ).run(padId);
 
+      const submissionId = result.lastInsertRowid;
+
       notifyTeacher(db, {
         studentName: pad.student_name,
         assignmentTitle: pad.assignment_title,
       }).catch(() => {});
 
+      // Background literacy coding — runs async, errors are logged not thrown.
+      const epPadId = pad.etherpad_pad_id;
+      ;(async () => {
+        const textResult = await service.getText(epPadId);
+        const text = textResult?.data?.text ?? '';
+        if (text.trim()) await analyseSubmission(db, { submissionId, text });
+      })().catch(e => console.error('[literacyCoder] background analysis failed:', e.message));
+
       return reply.code(201).send({
         pad: { id: padId, state: 'submitted' },
-        submission: { id: result.lastInsertRowid },
+        submission: { id: submissionId },
         locked: settings.submit_behaviour === 'exam',
       });
     }
