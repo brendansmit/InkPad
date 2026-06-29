@@ -26,6 +26,9 @@
     .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px);}
     .btn.p{background:var(--green-600);color:#fff;border:none;}
     .muted{color:var(--text-3);font-size:13px;}
+    .tile-head{display:flex;align-items:center;gap:8px;margin:0 0 6px;}
+    .tile-head h3{margin:0;}
+    .notif-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:700;line-height:1;}
   </style>
 </head>
 <body>
@@ -52,7 +55,7 @@
         <a class="btn p" href="/teacher/students">Manage students</a>
       </div>
       <div class="tile">
-        <h3>Assignments</h3>
+        <div class="tile-head"><h3>Assignments</h3><span class="notif-badge" id="notifBadge" style="display:none"></span></div>
         <p>Create essays and tests, set due dates and settings.</p>
         <a class="btn p" href="/teacher/assignments">Manage assignments</a>
       </div>
@@ -75,6 +78,15 @@
       if(data.user.type!=='teacher'){ window.location.href='/'; return; }
       csrfToken=data.user.csrf_token;
       document.getElementById('whoName').textContent=data.user.display_name;
+      const nr=await fetch('/api/teacher/notifications');
+      if(nr.ok){
+        const nd=await nr.json();
+        if(nd.count>0){
+          const badge=document.getElementById('notifBadge');
+          badge.textContent=nd.count;
+          badge.style.display='';
+        }
+      }
     }
     init();
 

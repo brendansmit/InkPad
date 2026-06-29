@@ -433,6 +433,37 @@ export async function registerAssignmentRoutes(app, { db }) {
     }
   );
 
+  // ── Submission notifications ────────────────────────────────────────────
+
+  app.get('/api/teacher/notifications',
+    { preValidation: [app.requireTeacherSession] },
+    async () => {
+      const row = db.prepare("SELECT value FROM settings WHERE key = 'notifications_cleared_at'").get();
+      const since = row?.value ?? '1970-01-01T00:00:00.000Z';
+      const { count } = db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM submissions sub
+        JOIN pads p ON p.id = sub.pad_id
+        JOIN students s ON s.id = p.student_id
+        WHERE sub.submitted_at > ?
+          AND s.is_demo = 0 AND s.is_ghost = 0
+      `).get(since);
+      return { count };
+    }
+  );
+
+  app.post('/api/teacher/notifications/clear',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async () => {
+      const now = new Date().toISOString();
+      db.prepare(`
+        INSERT INTO settings (key, value, updated_at) VALUES ('notifications_cleared_at', ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+      `).run(now, now);
+      return { cleared_at: now };
+    }
+  );
+
   // ── Student routes ──────────────────────────────────────────────────────
 
   app.get('/api/student/assignments',

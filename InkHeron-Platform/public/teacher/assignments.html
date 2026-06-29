@@ -295,6 +295,7 @@
       const user=await me.json();
       if(user.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=user.user.csrf_token;
+      fetch('/api/teacher/notifications/clear',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
       const [ar,cr]=await Promise.all([fetch('/api/assignments'),fetch('/api/classes')]);
       const ad=await ar.json(); assignments=ad.assignments||[];
       const cd=await cr.json(); classes=cd.classes||[];
