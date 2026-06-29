@@ -119,6 +119,7 @@
           <div class="section">
             <span class="label">Codes</span>
             ${data.codes.length?`<div class="legend">${codeLegend(data.codes)}</div>`:'<span class="sub">No literacy codes attached</span>'}
+            ${data.submission?`<button class="btn sm" type="button" id="analyseBtn" style="margin-top:6px;">Run analysis</button><span class="sub" id="analyseMsg"></span>`:''}
           </div>
           <div class="section">
             <span class="label">Evidence</span>
@@ -174,6 +175,31 @@
       });
       document.getElementById('saveFeedbackBtn').addEventListener('click',()=>saveFeedback(data.submission?.id));
       document.getElementById('saveGradeBtn').addEventListener('click',()=>saveGrade(data.submission?.id));
+      const analyseBtn=document.getElementById('analyseBtn');
+      if(analyseBtn){
+        analyseBtn.addEventListener('click',async()=>{
+          analyseBtn.disabled=true;
+          analyseBtn.textContent='Analysing...';
+          document.getElementById('analyseMsg').textContent='';
+          try{
+            const r=await fetch(`/api/submissions/${data.submission.id}/analyse`,{
+              method:'POST',
+              headers:{'X-CSRF-Token':csrfToken},
+              credentials:'same-origin',
+            });
+            if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||r.status);}
+            const result=await r.json();
+            document.getElementById('analyseMsg').textContent=`Done — ${result.codes.length} code${result.codes.length===1?'':'s'} found.`;
+            analyseBtn.textContent='Run analysis';
+            analyseBtn.disabled=false;
+            setTimeout(()=>location.reload(),1000);
+          }catch(e){
+            document.getElementById('analyseMsg').textContent='Error: '+e.message;
+            analyseBtn.textContent='Run analysis';
+            analyseBtn.disabled=false;
+          }
+        });
+      }
     }
 
     async function saveFeedback(submissionId){

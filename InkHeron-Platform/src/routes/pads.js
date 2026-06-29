@@ -745,4 +745,36 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       });
     }
   );
+
+  /**
+   * POST /api/submissions/:submissionId/analyse
+   *
+   * Teacher-triggered manual literacy analysis for an existing submission.
+   * Useful for submissions that predated the auto-coding feature.
+   */
+  app.post('/api/submissions/:submissionId/analyse',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const submissionId = requirePositiveInteger(request.params.submissionId, 'submissionId');
+      const row = db.prepare(`
+        SELECT s.id, p.etherpad_pad_id
+        FROM submissions s
+        JOIN pads p ON p.id = s.pad_id
+        WHERE s.id = ?
+      `).get(submissionId);
+      if (!row) return reply.code(404).send({ error: 'submission_not_found' });
+
+      const textResult = await service.getText(row.etherpad_pad_id);
+      const text = textResult?.data?.text ?? '';
+      if (!text.trim()) return reply.code(422).send({ error: 'pad_text_empty' });
+
+      await analyseSubmission(db, { submissionId, text });
+
+      const codes = db.prepare(
+        'SELECT start_offset, end_offset, code, category FROM submission_codes WHERE submission_id = ? ORDER BY start_offset'
+      ).all(submissionId);
+
+      return reply.send({ codes });
+    }
+  );
 }

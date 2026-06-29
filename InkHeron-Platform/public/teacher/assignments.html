@@ -412,6 +412,8 @@
           <div class="card-actions">
             <button class="btn sm" data-students="${ids}">Students</button>
             <button class="btn sm" data-edit="${grp[0].id}">Edit</button>
+            <button class="btn sm" data-archive-ids="${ids}" data-archived="${grp[0].is_archived?'1':'0'}" data-title="${escapeHtml(title)}">${grp[0].is_archived?'Unarchive':'Archive'}</button>
+            <button class="btn sm" data-delete-ids="${ids}" data-title="${escapeHtml(title)}" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
           </div>
         </div>`;
       }).join('');
@@ -426,6 +428,28 @@
       });
       box.querySelectorAll('[data-edit]').forEach(btn=>{
         btn.addEventListener('click',e=>{e.stopPropagation();openEdit(Number(btn.dataset.edit),false);});
+      });
+      box.querySelectorAll('[data-archive-ids]').forEach(btn=>{
+        btn.addEventListener('click',async e=>{
+          e.stopPropagation();
+          const ids=btn.dataset.archiveIds.split(',').map(Number);
+          const isArchived=btn.dataset.archived==='1';
+          const label=isArchived?'Unarchive':'Archive';
+          if(!confirm(`${label} "${btn.dataset.title}"?`)) return;
+          await Promise.all(ids.map(id=>fetch(`/api/assignments/${id}/archive`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}})));
+          await fetchAssignments();
+          renderList(document.getElementById('searchInput').value);
+        });
+      });
+      box.querySelectorAll('[data-delete-ids]').forEach(btn=>{
+        btn.addEventListener('click',async e=>{
+          e.stopPropagation();
+          const ids=btn.dataset.deleteIds.split(',').map(Number);
+          if(!confirm(`Permanently delete "${btn.dataset.title}"? This cannot be undone and will erase all student work.`)) return;
+          await Promise.all(ids.map(id=>fetch(`/api/assignments/${id}`,{method:'DELETE',headers:{'X-CSRF-Token':csrfToken}})));
+          await fetchAssignments();
+          renderList(document.getElementById('searchInput').value);
+        });
       });
     }
 
