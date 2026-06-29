@@ -22,7 +22,6 @@ function formatDue(dueAt) {
 
 export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpadPadId, padId, csrfToken, prompt, passageText, passagePdf, assignmentId }) {
   const dueLabel = formatDue(dueAt);
-  const spellLabel = spellcheck ? 'Spellcheck on for this draft' : 'Spellcheck off for this draft';
   const padUrl = `/p/${encodeURIComponent(etherpadPadId)}`;
   const spellcheckJs = spellcheck ? 'true' : 'false';
   const pasteBlockJs = pasteBlock ? 'true' : 'false';
@@ -53,6 +52,38 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       }
     </div>` : '';
 
+  // ep_colors values: 0=Black 1=Red 2=Green 3=Blue 5=Orange
+  const colorSwatches = `
+    <div class="clr-palette">
+      <button class="clr-btn" data-epcolor="0" title="Black" style="background:#111111" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="1" title="Red" style="background:#cc0000" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="2" title="Green" style="background:#009900" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="3" title="Blue" style="background:#0000cc" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="5" title="Orange" style="background:#e67300" onmousedown="return false"></button>
+    </div>`;
+
+  const alignButtons = `
+    <div class="fmt-group">
+      <button class="fmt-btn" data-cmd="justifyLeft" title="Align left" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="0" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fmt-btn" data-cmd="justifyCenter" title="Center" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="2" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="1" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fmt-btn" data-cmd="justifyRight" title="Align right" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="2" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+    </div>`;
+
+  const fontSizeSelect = `
+    <select id="fsize-sel" class="fsize-select" title="Font size">
+      <option value="" disabled selected>Size</option>
+      <option value="2">Small</option>
+      <option value="3">Normal</option>
+      <option value="5">Large</option>
+      <option value="6">X-Large</option>
+    </select>`;
+
   const zoomSelect = `<div class="zoom-wrap">
         <label for="zoom-sel">Zoom</label>
         <select id="zoom-sel" class="zoom-select">
@@ -69,6 +100,12 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     <div class="padchrome">
       ${hasPrompt ? promptBtn : ''}
       <span class="wordcount" id="wc"></span>
+      <span class="fmt-sep"></span>
+      ${alignButtons}
+      <span class="fmt-sep"></span>
+      ${colorSwatches}
+      <span class="fmt-sep"></span>
+      ${fontSizeSelect}
       ${zoomSelect}
     </div>`;
 
@@ -133,14 +170,28 @@ ${writeActions}`;
     .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
     /* ── Padframe ──────────────────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
-    .padchrome{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:36px;}
+    .padchrome{display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:38px;flex-wrap:wrap;}
     .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;}
     .prompt-btn:hover{background:var(--green-100,#dcfce7);}
     .prompt-btn.active{background:var(--green-100,#dcfce7);border-color:var(--primary);}
-    .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:6px;}
+    .wordcount{font-size:11.5px;color:var(--text-3);}
+    .fmt-sep{width:1px;height:18px;background:var(--border);flex-shrink:0;margin:0 2px;}
+    /* ── Alignment buttons ─────────────────────────────── */
+    .fmt-group{display:flex;align-items:center;gap:2px;}
+    .fmt-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:1px solid transparent;border-radius:5px;background:none;cursor:pointer;color:var(--text-2);transition:background .15s,color .15s;}
+    .fmt-btn:hover{background:var(--surface-3);color:var(--text);}
+    .fmt-btn.active{background:var(--surface-3);color:var(--primary);border-color:var(--border);}
+    /* ── Color swatches ──────────────────────────────────── */
+    .clr-palette{display:flex;align-items:center;gap:4px;}
+    .clr-btn{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s,border-color .15s;outline:none;}
+    .clr-btn:hover{transform:scale(1.2);}
+    .clr-btn.active{border-color:var(--text);}
+    /* ── Font size ───────────────────────────────────────── */
+    .fsize-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;max-width:68px;}
+    /* ── Zoom ────────────────────────────────────────────── */
+    .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;}
     .zoom-wrap label{font-size:11.5px;color:var(--text-3);}
     .zoom-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
-    .wordcount{font-size:12px;color:var(--text-3);}
     /* ── Prompt panel ──────────────────────────────────── */
     .prompt-panel{display:none;border-bottom:1px solid var(--border);background:var(--surface-2,#f9f8f5);max-height:180px;overflow-y:auto;flex-shrink:0;}
     .prompt-panel.open{display:block;}
@@ -200,39 +251,94 @@ ${padContent}
     });
   }
 
-  // ── Save-state UI (Step 3.7) ─────────────────────────────────────────────
-  // Etherpad autosaves on every keystroke. We show "Saving…" briefly
-  // whenever the iframe fires a message indicating a change, then settle to
-  // "Saved ✓" after 1.5 s of silence.
+  // ── Save-state UI ─────────────────────────────────────────────
   var saveTimer = null;
-
   function setSaving() {
     clearTimeout(saveTimer);
     saveEl.className = 'savestate saving';
     saveEl.innerHTML = '<span class="tick">&#8230;</span> Saving';
     saveTimer = setTimeout(setSaved, 1500);
   }
-
   function setSaved() {
     saveEl.className = 'savestate';
     saveEl.innerHTML = '<span class="tick">&#10003;</span> Saved';
   }
-
-  // Etherpad emits postMessages for various events; "padInitialized" means
-  // it finished loading, "message" type with action "change" means a revision
-  // was committed. We listen broadly and use any revision-related message.
   window.addEventListener('message', function (event) {
-    if (!event.data) return;
-    var data = event.data;
-    if (event.source === iframe.contentWindow) {
-      var action = typeof data === 'object' ? data.action : '';
-      if (action === 'change' || action === 'commit') setSaving();
-    }
+    if (!event.data || event.source !== iframe.contentWindow) return;
+    var action = typeof event.data === 'object' ? event.data.action : '';
+    if (action === 'change' || action === 'commit') setSaving();
+  });
+  saveBtn.addEventListener('click', function () {
+    setSaving();
+    setTimeout(setSaved, 800);
   });
 
-  // ── Paste detection (Step 5.2 / 5.3) ─────────────────────────────────────
-  // Direct DOM approach — same-origin access through nginx means we can reach
-  // inside Etherpad's nested iframes without a plugin.
+  // ── Shared ace_inner accessor ─────────────────────────────────────────────
+  function getAceInner() {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc) return null;
+      var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
+      if (!aceOuter || !aceOuter.contentDocument) return null;
+      var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
+      return aceInner ? aceInner.contentDocument : aceOuter.contentDocument;
+    } catch (_) { return null; }
+  }
+
+  // ── Formatting commands (alignment, font size) ────────────────────────────
+  // Note: execCommand applies formatting visually for the current session.
+  // Alignment may not persist across reloads without ep_align.
+  function applyFmt(cmd, val) {
+    var doc = getAceInner();
+    if (!doc) return;
+    try { doc.execCommand(cmd, false, val !== undefined ? val : null); } catch (_) {}
+  }
+
+  // Wire alignment buttons (onmousedown=return false in HTML preserves iframe selection)
+  document.querySelectorAll('.fmt-btn[data-cmd]').forEach(function (btn) {
+    btn.addEventListener('click', function () { applyFmt(btn.dataset.cmd); });
+  });
+
+  // ── Color via ep_colors ───────────────────────────────────────────────────
+  // ep_colors is loaded; trigger it programmatically so color persists in changesets.
+  function applyEpColor(colorIndex) {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc) return;
+      var sel = padDoc.getElementById('color-selection');
+      if (sel) {
+        sel.value = String(colorIndex);
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    } catch (_) {}
+  }
+
+  var activeClrBtn = null;
+  document.querySelectorAll('.clr-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      applyEpColor(btn.dataset.epcolor);
+      if (activeClrBtn) activeClrBtn.classList.remove('active');
+      btn.classList.add('active');
+      activeClrBtn = btn;
+    });
+  });
+
+  // ── Font size ─────────────────────────────────────────────────────────────
+  var fsizeSel = document.getElementById('fsize-sel');
+  if (fsizeSel) {
+    fsizeSel.addEventListener('change', function () {
+      if (fsizeSel.value) applyFmt('fontSize', fsizeSel.value);
+    });
+  }
+
+  // ── Paste detection and blocking ──────────────────────────────────────────
+  // Allow paste from: (1) within the writing pad, (2) passage panel on this page.
+  // Block everything else when PASTE_BLOCK is true.
+  var lastCopyFromPage = false; // tracks copy from passage panel / parent frame
+
+  window.addEventListener('copy', function () { lastCopyFromPage = true; });
+  window.addEventListener('cut', function () { lastCopyFromPage = true; });
+
   var pendingPasteLength = 0;
 
   function recordPaste(len) {
@@ -245,31 +351,22 @@ ${padContent}
     }).catch(function () {});
   }
 
-  function getAceInnerDoc() {
-    try {
-      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-      if (!padDoc) return null;
-      var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
-      if (!aceOuter || !aceOuter.contentDocument) return null;
-      var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
-      if (aceInner && aceInner.contentDocument) return aceInner.contentDocument;
-      // Some builds have a flatter structure
-      return aceOuter.contentDocument;
-    } catch (_) { return null; }
-  }
-
   function attachPasteListeners(innerDoc) {
     var lastCopyFromPad = false;
 
-    // Track copies from within the pad so we can allow intra-pad paste
     innerDoc.addEventListener('copy', function () { lastCopyFromPad = true; });
     innerDoc.addEventListener('cut', function () { lastCopyFromPad = true; });
 
     innerDoc.addEventListener('beforeinput', function (evt) {
       if (evt.inputType !== 'insertFromPaste') return;
       if (PASTE_BLOCK) {
-        if (!lastCopyFromPad) { evt.preventDefault(); return; }
-        lastCopyFromPad = false; // consume — next paste must come from a fresh in-pad copy
+        if (!lastCopyFromPad && !lastCopyFromPage) {
+          evt.preventDefault();
+          return;
+        }
+        // Consume flags — next paste must originate from a fresh in-page copy
+        lastCopyFromPad = false;
+        lastCopyFromPage = false;
       }
       try {
         var text = evt.dataTransfer ? evt.dataTransfer.getData('text/plain') : '';
@@ -289,74 +386,46 @@ ${padContent}
   var pasteAttempts = 0;
   function tryAttachPaste() {
     if (pasteAttached) return;
-    var doc = getAceInnerDoc();
+    var doc = getAceInner();
     if (doc) { attachPasteListeners(doc); pasteAttached = true; return; }
     if (++pasteAttempts < 30) setTimeout(tryAttachPaste, 500);
   }
 
-  // Manually clicking Save just confirms/flushes the indicator.
-  saveBtn.addEventListener('click', function () {
-    setSaving();
-    // Force a brief "Saving..." then Saved to give psychological confirmation.
-    setTimeout(setSaved, 800);
-  });
-
   // ── Word count ────────────────────────────────────────────────────────────
-  // Read text directly from ace_inner (the innermost editor iframe).
-  function getAceInnerDocForCount() {
-    try {
-      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-      if (!padDoc) return null;
-      var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
-      if (!aceOuter || !aceOuter.contentDocument) return null;
-      var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
-      return aceInner ? aceInner.contentDocument : aceOuter.contentDocument;
-    } catch (_) { return null; }
-  }
-
   function syncWordCount() {
     try {
-      var doc = getAceInnerDocForCount();
+      var doc = getAceInner();
       if (!doc) return;
       var body = doc.querySelector('#innerdocbody, .innerdocbody, [contenteditable="true"]');
       if (!body) return;
       var text = body.innerText || body.textContent || '';
-      var words = text.trim() ? text.trim().split(/\s+/).filter(function(w){return w.length > 0;}).length : 0;
+      var words = text.trim() ? text.trim().split(/\s+/).filter(function (w) { return w.length > 0; }).length : 0;
       var chars = text.replace(/[\s​]/g, '').length;
       wcEl.textContent = words + ' words · ' + chars + ' chars';
     } catch (_) {}
   }
-
   var wcInterval = setInterval(syncWordCount, 1500);
 
-  // ── Spellcheck flag (Step 3.6) ────────────────────────────────────────────
-  // The padchrome note already shows the state. Here we attempt to set the
-  // spellcheck attribute on Etherpad's contenteditable surface once the iframe
-  // and its inner ACE editor iframe have finished loading.
+  // ── Spellcheck ────────────────────────────────────────────────────────────
   function applySpellcheck() {
     try {
       var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
       if (!padDoc) return false;
-      // Etherpad nests the editor in a second iframe (ace_outer / ace_inner)
-      var innerFrame = padDoc.querySelector('iframe[name="ace_outer"], iframe.ace_outer, #editorcontainerbox iframe');
-      if (!innerFrame || !innerFrame.contentDocument) return false;
-      var editable = innerFrame.contentDocument.querySelector('#innerdocbody, [contenteditable="true"]');
+      var outerFrame = padDoc.querySelector('iframe[name="ace_outer"], #editorcontainerbox iframe');
+      if (!outerFrame || !outerFrame.contentDocument) return false;
+      var editable = outerFrame.contentDocument.querySelector('#innerdocbody, [contenteditable="true"]');
       if (!editable) return false;
       editable.setAttribute('spellcheck', SPELLCHECK ? 'true' : 'false');
       return true;
     } catch (_) { return false; }
   }
-
-  // Retry until the inner frame is accessible (it loads after the outer frame).
   var spellRetries = 0;
   function trySpellcheck() {
     if (applySpellcheck()) return;
-    spellRetries++;
-    if (spellRetries < 20) setTimeout(trySpellcheck, 500);
+    if (++spellRetries < 20) setTimeout(trySpellcheck, 500);
   }
 
   // ── Zoom ─────────────────────────────────────────────────────────────────
-  // Zoom only the editor content area, not Etherpad's formatting toolbar.
   var zoomSel = document.getElementById('zoom-sel');
   function applyZoom(level) {
     try {
@@ -386,37 +455,24 @@ ${padContent}
       var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
       if (!padDoc || !padDoc.head) return false;
 
-      // Outer-doc cleanup: hide right-side toolbar chrome, chat, etc.
       if (!padDoc.getElementById('ih-ui-cleanup')) {
         var s = padDoc.createElement('style');
         s.id = 'ih-ui-cleanup';
         s.textContent =
+          // Hide right-side chrome, chat, user list
           'ul.menu_right,ul.menu_right *{display:none!important}' +
           '#history-controls,.history-controls{display:none!important}' +
           '.buttonicon-clearauthorship,.buttonicon-import_export{display:none!important}' +
           '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
           '#online_count,#users,#userlist,.popup.users{display:none!important}' +
-          // ep_colors: style the color select as a visual swatch
-          '#color-selection{width:28px;height:28px;padding:0;border-radius:5px;' +
-          'cursor:pointer;border:1.5px solid rgba(0,0,0,.18);font-size:0;text-indent:-9999px;' +
-          'appearance:none;-webkit-appearance:none;background-color:#999;}';
+          // Hide ep_colors native UI — we drive it from padchrome swatches
+          '#color,#color-selection{display:none!important}';
         padDoc.head.appendChild(s);
-
-        // JS: update select background to show active color as swatch
-        var sc = padDoc.createElement('script');
-        sc.textContent = '(function(){' +
-          'var cm={"0":"#111","1":"#cc0000","2":"#009900","3":"#0000cc","4":"#e8d000","5":"#e67300"};' +
-          'function refresh(sel){sel.style.backgroundColor=cm[sel.value]||"#999";}' +
-          'function init(){var sel=document.getElementById("color-selection");' +
-          'if(!sel){setTimeout(init,1000);return;}' +
-          'sel.addEventListener("change",function(){refresh(sel);});refresh(sel);}' +
-          'init();})();';
-        padDoc.body.appendChild(sc);
       }
 
-      // ace_outer iframe — must be loaded before we can suppress author colors
+      // ace_outer — must be loaded before suppressing author colors
       var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
-      if (!aceOuter || !aceOuter.contentDocument) return false; // not ready yet
+      if (!aceOuter || !aceOuter.contentDocument) return false;
 
       injectAuthorColorSuppression(aceOuter.contentDocument);
 
@@ -425,7 +481,7 @@ ${padContent}
         injectAuthorColorSuppression(aceInner.contentDocument);
       }
 
-      return true; // ace_outer found — stop retrying
+      return true;
     } catch (_) { return false; }
   }
 
@@ -444,7 +500,6 @@ ${padContent}
     syncWordCount();
   });
 
-  // Also clean up interval if the user navigates away.
   window.addEventListener('beforeunload', function () { clearInterval(wcInterval); });
 }());
 </script>
