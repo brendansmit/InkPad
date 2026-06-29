@@ -89,7 +89,7 @@ export async function registerAuth(app, { db }) {
     const student = db.prepare(`
       SELECT id, username, display_name, password_hash, must_change_password
       FROM students
-      WHERE username = ?
+      WHERE LOWER(username) = LOWER(?)
     `).get(username);
 
     if (!student || !(await verifyPassword(password, student.password_hash))) {
