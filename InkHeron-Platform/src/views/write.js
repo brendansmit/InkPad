@@ -68,34 +68,34 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     <span class="fmt-sep"></span>
     <div class="fmt-group">
       <button class="fmt-btn" data-cmd="justifyLeft" title="Align left" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="0" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
+        <svg width="20" height="18" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="0" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
       </button>
       <button class="fmt-btn" data-cmd="justifyCenter" title="Center" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="2" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="1" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
+        <svg width="20" height="18" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="2" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="1" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
       </button>
       <button class="fmt-btn" data-cmd="justifyRight" title="Align right" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="2" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
+        <svg width="20" height="18" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="2" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
       </button>
     </div>
     <span class="fmt-sep"></span>
     <div class="fmt-group">
       <button class="fmt-btn" data-key="insertorderedlist" title="Numbered list" onmousedown="return false">
-        <svg width="14" height="12" viewBox="0 0 14 12"><text x="0" y="10" font-size="10" fill="currentColor" font-family="monospace">1.</text><rect x="7" y="1" width="7" height="2" rx="1" fill="currentColor"/><rect x="7" y="5" width="7" height="2" rx="1" fill="currentColor"/><rect x="7" y="9" width="7" height="2" rx="1" fill="currentColor"/></svg>
+        <svg width="21" height="18" viewBox="0 0 14 12"><text x="0" y="10" font-size="10" fill="currentColor" font-family="monospace">1.</text><rect x="7" y="1" width="7" height="2" rx="1" fill="currentColor"/><rect x="7" y="5" width="7" height="2" rx="1" fill="currentColor"/><rect x="7" y="9" width="7" height="2" rx="1" fill="currentColor"/></svg>
       </button>
       <button class="fmt-btn" data-key="insertunorderedlist" title="Bullet list" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><circle cx="1.5" cy="2" r="1.5" fill="currentColor"/><rect x="4" y="1" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="6" r="1.5" fill="currentColor"/><rect x="4" y="5" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="10" r="1.5" fill="currentColor"/><rect x="4" y="9" width="9" height="2" rx="1" fill="currentColor"/></svg>
+        <svg width="20" height="18" viewBox="0 0 13 12"><circle cx="1.5" cy="2" r="1.5" fill="currentColor"/><rect x="4" y="1" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="6" r="1.5" fill="currentColor"/><rect x="4" y="5" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="10" r="1.5" fill="currentColor"/><rect x="4" y="9" width="9" height="2" rx="1" fill="currentColor"/></svg>
       </button>
       <button class="fmt-btn" data-key="indent" title="Indent" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="4" y="8" width="9" height="2" rx="1" fill="currentColor"/><path d="M0 5 L3 6.5 L0 8Z" fill="currentColor"/></svg>
+        <svg width="20" height="18" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="4" y="8" width="9" height="2" rx="1" fill="currentColor"/><path d="M0 5 L3 6.5 L0 8Z" fill="currentColor"/></svg>
       </button>
       <button class="fmt-btn" data-key="outdent" title="Outdent" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="4" y="8" width="9" height="2" rx="1" fill="currentColor"/><path d="M3 5 L0 6.5 L3 8Z" fill="currentColor"/></svg>
+        <svg width="20" height="18" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="4" y="8" width="9" height="2" rx="1" fill="currentColor"/><path d="M3 5 L0 6.5 L3 8Z" fill="currentColor"/></svg>
       </button>
     </div>
     <span class="fmt-sep"></span>
     <div class="fmt-group">
-      <button class="fmt-btn" data-key="undo" title="Undo" onmousedown="return false" style="font-size:15px;line-height:1">&#8630;</button>
-      <button class="fmt-btn" data-key="redo" title="Redo" onmousedown="return false" style="font-size:15px;line-height:1">&#8631;</button>
+      <button class="fmt-btn" data-key="undo" title="Undo" onmousedown="return false" style="font-size:22px;line-height:1">&#8630;</button>
+      <button class="fmt-btn" data-key="redo" title="Redo" onmousedown="return false" style="font-size:22px;line-height:1">&#8631;</button>
     </div>
     <span class="fmt-sep"></span>
     <div class="clr-palette">
@@ -199,21 +199,21 @@ ${writeActions}`;
     .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
-    .padchrome{display:flex;align-items:center;gap:4px;padding:4px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:36px;overflow-x:auto;}
+    .padchrome{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:54px;overflow-x:auto;}
     .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
     .prompt-btn:hover{background:var(--green-100,#dcfce7);}
     .prompt-btn.active{background:var(--green-100,#dcfce7);border-color:var(--primary);}
     .wordcount{font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;}
-    .fmt-sep{width:1px;height:16px;background:var(--border);flex-shrink:0;margin:0 2px;}
+    .fmt-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 3px;}
     /* ── Toolbar buttons ────────────────────────────── */
-    .fmt-group{display:flex;align-items:center;gap:1px;flex-shrink:0;}
-    .fmt-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:1px solid transparent;border-radius:5px;background:none;cursor:pointer;color:var(--text-2);transition:background .15s,color .15s;font-size:13px;line-height:1;flex-shrink:0;}
-    .fmt-btn b,.fmt-btn i,.fmt-btn u,.fmt-btn s{font-size:13px;pointer-events:none;}
+    .fmt-group{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+    .fmt-btn{display:flex;align-items:center;justify-content:center;width:39px;height:39px;padding:0;border:1px solid transparent;border-radius:7px;background:none;cursor:pointer;color:var(--text-2);transition:background .15s,color .15s;font-size:19px;line-height:1;flex-shrink:0;}
+    .fmt-btn b,.fmt-btn i,.fmt-btn u,.fmt-btn s{font-size:19px;pointer-events:none;}
     .fmt-btn:hover{background:var(--surface-3);color:var(--text);}
     .fmt-btn.active{background:var(--surface-3);color:var(--primary);border-color:var(--border);}
     /* ── Color swatches ─────────────────────────────── */
-    .clr-palette{display:flex;align-items:center;gap:4px;flex-shrink:0;}
-    .clr-btn{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s,border-color .15s;outline:none;flex-shrink:0;}
+    .clr-palette{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+    .clr-btn{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s,border-color .15s;outline:none;flex-shrink:0;}
     .clr-btn:hover{transform:scale(1.25);}
     .clr-btn.active{border-color:var(--text);}
     /* ── Font size + Zoom ──────────────────────────── */
@@ -301,6 +301,32 @@ ${padContent}
     setSaving();
     setTimeout(setSaved, 800);
   });
+
+  // ── Submit for grading ────────────────────────────────────────────────────
+  var submitBtn = document.getElementById('submit-btn');
+  if (submitBtn && PAD_ID) {
+    submitBtn.addEventListener('click', function () {
+      if (!confirm('Submit for grading? You can keep editing until the due date, but this marks your current version for your teacher.')) return;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting…';
+      fetch('/api/pads/' + PAD_ID + '/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        credentials: 'same-origin',
+      }).then(function (r) {
+        if (r.ok) {
+          submitBtn.textContent = '✓ Submitted';
+          setSaved();
+        } else {
+          return r.json().then(function (d) { throw new Error(d.error || 'submit failed'); });
+        }
+      }).catch(function (e) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit for grading';
+        alert('Could not submit: ' + e.message);
+      });
+    });
+  }
 
   // ── ace_inner accessor ─────────────────────────────────────────────────────
   function getAceInner() {
@@ -505,18 +531,22 @@ ${padContent}
   zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
 
   // ── Pad UI cleanup + author color suppression ─────────────────────────────
-  function injectAuthorColorSuppression(doc) {
-    if (!doc || !doc.head || doc.getElementById('ih-author-suppress')) return;
-    var s = doc.createElement('style');
-    s.id = 'ih-author-suppress';
-    // Etherpad injects ".authorColors .author-XXX { background-color }" (2-class specificity).
-    // "#innerdocbody span" (id + element) has higher specificity and wins with !important.
-    // color-scheme:light prevents OS dark mode from inverting the writing surface.
-    s.textContent =
-      ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
-      '#innerdocbody span{background:none!important;background-color:transparent!important;' +
-      'border-left:none!important;box-shadow:none!important;}';
-    doc.head.appendChild(s);
+  function injectInnerFrameStyles(doc) {
+    if (!doc || !doc.head) return false;
+    if (!doc.getElementById('ih-author-suppress')) {
+      var s = doc.createElement('style');
+      s.id = 'ih-author-suppress';
+      // Force white bg on the writing surface and kill author highlight colours.
+      // #innerdocbody span beats .authorColors .author-XXX on specificity (id+el > class+class).
+      s.textContent =
+        ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
+        '#innerdocbody,#outerdocbody{background:#fff!important;color:#000!important;}' +
+        '#editorcontainerbox{background:#fff!important;}' +
+        '#innerdocbody span{background:none!important;background-color:transparent!important;' +
+        'border-left:none!important;box-shadow:none!important;}';
+      doc.head.appendChild(s);
+    }
+    return true;
   }
 
   function applyPadUiCleanup() {
@@ -528,32 +558,32 @@ ${padContent}
         var s = padDoc.createElement('style');
         s.id = 'ih-ui-cleanup';
         s.textContent =
-          // Force light mode — never follow OS dark mode
+          // Force light mode on the outer pad iframe
           ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
-          // Hide Etherpad's own toolbar — we have our own in padchrome
+          // Hide Etherpad's own toolbar
           '#editbar{display:none!important}' +
-          // Hide right-side chrome, chat, user list
+          // Hide ALL chat elements — EP 3.x uses several different selectors
+          '#chaticon,#chat,#chatbutton,#chatAndUsers,.chat-container,.buttonicon-chat,' +
+          '.chatbuttons,#chatcounter,.chat,.stick-to-bottom{display:none!important}' +
+          // Hide user list, right-side chrome
           'ul.menu_right,ul.menu_right *{display:none!important}' +
           '#history-controls,.history-controls{display:none!important}' +
-          '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
           '#online_count,#users,#userlist,.popup.users{display:none!important}' +
-          // Hide ep_colors native UI
+          // Hide ep_colors, ep_align, ep_font_size native UIs
           '#color,#color-selection{display:none!important}' +
-          // Hide ep_align toolbar buttons
           '.ep_align_left,.ep_align_center,.ep_align_right,.ep_align_justify{display:none!important}' +
-          // Hide ep_font_size native UI
           '#font-size,li#font-size{display:none!important}';
         padDoc.head.appendChild(s);
       }
 
       var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
       if (!aceOuter || !aceOuter.contentDocument) return false;
-      injectAuthorColorSuppression(aceOuter.contentDocument);
+      injectInnerFrameStyles(aceOuter.contentDocument);
 
       var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
-      if (aceInner && aceInner.contentDocument) {
-        injectAuthorColorSuppression(aceInner.contentDocument);
-      }
+      // Don't mark done until aceInner is also injected — it loads slightly later.
+      if (!aceInner || !aceInner.contentDocument) return false;
+      injectInnerFrameStyles(aceInner.contentDocument);
 
       return true;
     } catch (_) { return false; }
@@ -564,7 +594,7 @@ ${padContent}
   function tryCleanup() {
     if (cleanupDone) return;
     if (applyPadUiCleanup()) { cleanupDone = true; return; }
-    if (++cleanupAttempts < 30) setTimeout(tryCleanup, 400);
+    if (++cleanupAttempts < 40) setTimeout(tryCleanup, 300);
   }
 
   iframe.addEventListener('load', function () {
