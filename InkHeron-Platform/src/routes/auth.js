@@ -17,6 +17,42 @@ function publicUser(row, type) {
   };
 }
 
+const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function makeSqliteStore(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS sessions (
+    sid TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    expires_at INTEGER NOT NULL
+  )`);
+  // Prune expired rows on startup.
+  db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now());
+
+  return {
+    get(sid, cb) {
+      try {
+        const row = db.prepare('SELECT data, expires_at FROM sessions WHERE sid = ?').get(sid);
+        if (!row || row.expires_at < Date.now()) return cb(null, null);
+        cb(null, JSON.parse(row.data));
+      } catch (e) { cb(e); }
+    },
+    set(sid, session, cb) {
+      try {
+        const expires = Date.now() + SESSION_MAX_AGE_MS;
+        db.prepare('INSERT OR REPLACE INTO sessions (sid, data, expires_at) VALUES (?, ?, ?)')
+          .run(sid, JSON.stringify(session), expires);
+        cb(null);
+      } catch (e) { cb(e); }
+    },
+    destroy(sid, cb) {
+      try {
+        db.prepare('DELETE FROM sessions WHERE sid = ?').run(sid);
+        cb(null);
+      } catch (e) { cb(e); }
+    },
+  };
+}
+
 export async function registerAuth(app, { db }) {
   const secret = process.env.INKHERON_SESSION_SECRET;
   if (!secret) {
@@ -26,11 +62,12 @@ export async function registerAuth(app, { db }) {
   await app.register(fastifyCookie);
   await app.register(fastifySession, {
     secret: secret ?? 'inkheron-dev-secret-replace-before-deployment',
+    store: makeSqliteStore(db),
     cookie: {
       secure: process.env.INKHERON_SESSION_SECURE === 'true',
       httpOnly: true,
       sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+      maxAge: SESSION_MAX_AGE_MS,
     },
     saveUninitialized: false,
   });
