@@ -94,12 +94,8 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     </div>
     <span class="fmt-sep"></span>
     <div class="fmt-group">
-      <button class="fmt-btn" data-key="undo" title="Undo" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><path d="M5 2 C3 2 1.5 3.5 1.5 5.5 C1.5 7.5 3 9 5 9 L9 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M1.5 2 L5 5.5 L1.5 5.5Z" fill="currentColor"/></svg>
-      </button>
-      <button class="fmt-btn" data-key="redo" title="Redo" onmousedown="return false">
-        <svg width="13" height="12" viewBox="0 0 13 12"><path d="M8 2 C10 2 11.5 3.5 11.5 5.5 C11.5 7.5 10 9 8 9 L4 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M11.5 2 L8 5.5 L11.5 5.5Z" fill="currentColor"/></svg>
-      </button>
+      <button class="fmt-btn" data-key="undo" title="Undo" onmousedown="return false" style="font-size:15px;line-height:1">&#8630;</button>
+      <button class="fmt-btn" data-key="redo" title="Redo" onmousedown="return false" style="font-size:15px;line-height:1">&#8631;</button>
     </div>
     <span class="fmt-sep"></span>
     <div class="clr-palette">
@@ -108,15 +104,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       <button class="clr-btn" data-epcolor="2" title="Green" style="background:#009900" onmousedown="return false"></button>
       <button class="clr-btn" data-epcolor="3" title="Blue" style="background:#0000cc" onmousedown="return false"></button>
       <button class="clr-btn" data-epcolor="5" title="Orange" style="background:#e67300" onmousedown="return false"></button>
-    </div>
-    <span class="fmt-sep"></span>
-    <select id="fsize-sel" class="fsize-select" title="Font size">
-      <option value="" disabled selected>Size</option>
-      <option value="2">Small</option>
-      <option value="3">Normal</option>
-      <option value="5">Large</option>
-      <option value="6">X-Large</option>
-    </select>`;
+    </div>`;
 
   const zoomSelect = `<div class="zoom-wrap">
         <label for="zoom-sel">Zoom</label>
@@ -218,7 +206,6 @@ ${writeActions}`;
     .clr-btn:hover{transform:scale(1.25);}
     .clr-btn.active{border-color:var(--text);}
     /* ── Font size + Zoom ──────────────────────────── */
-    .fsize-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;max-width:62px;flex-shrink:0;}
     .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;}
     .zoom-wrap label{font-size:11px;color:var(--text-3);}
     .zoom-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
@@ -381,14 +368,7 @@ ${padContent}
     });
   });
 
-  // ── Font size ─────────────────────────────────────────────────────────────
-  var fsizeSel = document.getElementById('fsize-sel');
-  if (fsizeSel) {
-    fsizeSel.addEventListener('change', function () {
-      var doc = getAceInner();
-      if (doc && fsizeSel.value) try { doc.execCommand('fontSize', false, fsizeSel.value); } catch (_) {}
-    });
-  }
+
 
   // ── Paste blocking ────────────────────────────────────────────────────────
   // Allow paste from: (1) within ace_inner, (2) passage panel / parent frame.
