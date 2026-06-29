@@ -42,7 +42,7 @@ SERVERS = {
         'deploy_mode': 'rsync',
         'rsync_excludes': ['.git', 'node_modules', 'data', '.env', '.teacher-password'],
         'local_build': {
-            'cmd':       'PATH=/Users/brendansmit/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH PORT=3465 BASE_PATH=/grammar-arcade/ NODE_ENV=production ./artifacts/grammar-case-lab/node_modules/.bin/vite build --config vite.config.ts',
+            'cmd':       'PATH=/Users/brendansmit/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH PORT=3465 BASE_PATH=/grammar-arcade/ NODE_ENV=production ./artifacts/grammar-case-lab/node_modules/.bin/vite build --config ./artifacts/grammar-case-lab/vite.config.ts',
             'env':       {'PORT': '3465', 'BASE_PATH': '/grammar-arcade/', 'NODE_ENV': 'production'},
         },
         'npm_restart': 'cd /var/www/grammar-arcade && pm2 reload ecosystem.config.cjs --update-env',
@@ -166,40 +166,14 @@ def deploy():
     lines.append('$ git push origin main')
     lines.append((push.stdout + push.stderr).strip() or '(no output)')
 
-    # If the server config has a local_build command, run it here and rsync
-    local_build = srv.get('local_build')
-    if local_build:
-        if not run_local_build(srv, lines):
-            return jsonify({'output': '\n'.join(lines), 'success': False})
-
-        rsync_src = local_build['rsync_src']
-        rsync_dst = f"{SSH_HOST}:{local_build['rsync_dst']}"
-        lines.append(f'\n$ rsync {rsync_src} → {rsync_dst}')
-        rsync = subprocess.run(
-            ['rsync', '-az', '--delete', '-e',
-             f'ssh -i {SSH_KEY} -o StrictHostKeyChecking=no',
-             rsync_src, rsync_dst],
-            capture_output=True, text=True
-        )
-        lines.append((rsync.stdout + rsync.stderr).strip() or '(no output)')
-        if rsync.returncode != 0:
-            lines.append('Rsync failed — aborting deploy.')
-            return jsonify({'output': '\n'.join(lines), 'success': False})
-
-        remote_cmd = f"cd {srv['remote_path']} && git pull && {srv['npm_restart']}"
-        lines.append(f'\n$ ssh: git pull && {srv["npm_restart"]}')
-        out, ok = ssh(remote_cmd, timeout=60)
-        lines.append(out.strip() or '(no output)')
-    else:
-        npm_install = srv.get('npm_install', 'npm install --omit=dev')
-        remote_cmd = (
-            f"cd {srv['remote_path']} && "
-            f"git pull && {npm_install} && {srv['npm_restart']}"
-        )
-        lines.append(f'\n$ ssh: git pull && {npm_install} && {srv["npm_restart"]}')
-        out, ok = ssh(remote_cmd, timeout=90)
-        lines.append(out.strip() or '(no output)')
-        ok = True
+    npm_install = srv.get('npm_install', 'npm install --omit=dev')
+    remote_cmd = (
+        f"cd {srv['remote_path']} && "
+        f"git pull && {npm_install} && {srv['npm_restart']}"
+    )
+    lines.append(f'\n$ ssh: git pull && {npm_install} && {srv["npm_restart"]}')
+    out, ok = ssh(remote_cmd, timeout=90)
+    lines.append(out.strip() or '(no output)')
 
     return jsonify({'output': '\n'.join(lines), 'success': ok})
 
