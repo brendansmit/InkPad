@@ -92,12 +92,12 @@ def _deepseek_match(csv_name: str, students: list[dict], api_key: str) -> dict |
     return None
 
 
-def match_csv_rows(rows: list[dict], students: list[dict]) -> dict:
+def match_csv_rows(rows: list[dict], students: list[dict], score_key: str = "score") -> dict:
     """
-    rows: list of {"name": str, "score": float}
+    rows: list of {"name": str, score_key: float}
     Returns: {
-        "matched": [{"student": ..., "score": ..., "confidence": ..., "method": ..., "csv_name": ...}],
-        "unmatched": [{"csv_name": ..., "score": ...}]
+        "matched": [{"student": ..., score_key: ..., "confidence": ..., "method": ..., "csv_name": ...}],
+        "unmatched": [{"csv_name": ..., score_key: ...}]
     }
     """
     matched = []
@@ -109,13 +109,13 @@ def match_csv_rows(rows: list[dict], students: list[dict]) -> dict:
         if student and student["student_id"] not in used_ids:
             matched.append({
                 "student": student,
-                "score": row["score"],
+                score_key: row[score_key],
                 "confidence": round(confidence, 3),
                 "method": method,
                 "csv_name": row["name"],
             })
             used_ids.add(student["student_id"])
         else:
-            unmatched.append({"csv_name": row["name"], "score": row["score"]})
+            unmatched.append({"csv_name": row["name"], score_key: row[score_key]})
 
     return {"matched": matched, "unmatched": unmatched}

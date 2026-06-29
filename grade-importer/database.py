@@ -78,6 +78,7 @@ def init_db():
                 pass
         for col, definition in [
             ("section_scores", "TEXT DEFAULT '{}'"),
+            ("extra_credit",   "REAL"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE scores ADD COLUMN {col} {definition}")
@@ -146,15 +147,26 @@ def get_all_assignments():
         return rows
 
 
-def upsert_score(assignment_id, student_id, score, section_scores=None):
+def upsert_score(assignment_id, student_id, score, section_scores=None, extra_credit=None):
     with get_conn() as conn:
         conn.execute("""
-            INSERT INTO scores (assignment_id, student_id, score, section_scores)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO scores (assignment_id, student_id, score, section_scores, extra_credit)
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(assignment_id, student_id) DO UPDATE SET
                 score=excluded.score,
-                section_scores=excluded.section_scores
-        """, (assignment_id, student_id, score, json.dumps(section_scores or {})))
+                section_scores=excluded.section_scores,
+                extra_credit=excluded.extra_credit
+        """, (assignment_id, student_id, score, json.dumps(section_scores or {}), extra_credit))
+
+def upsert_extra_credit(assignment_id, student_id, extra_credit):
+    """Update only the extra_credit field, leaving score/section_scores untouched."""
+    with get_conn() as conn:
+        conn.execute("""
+            INSERT INTO scores (assignment_id, student_id, score, section_scores, extra_credit)
+            VALUES (?, ?, NULL, '{}', ?)
+            ON CONFLICT(assignment_id, student_id) DO UPDATE SET
+                extra_credit=excluded.extra_credit
+        """, (assignment_id, student_id, extra_credit))
 
 
 def get_scores_for_assignment(assignment_id, class_filter=None):

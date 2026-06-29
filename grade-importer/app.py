@@ -5,6 +5,7 @@ import io
 import database as db
 import matcher
 import csv_parser
+import extracredit_parser
 import xls_writer
 from pypinyin import lazy_pinyin, Style
 
@@ -183,17 +184,46 @@ def import_csv(aid):
     return jsonify(result)
 
 
+@app.route("/api/assignments/<int:aid>/import-extracredit", methods=["POST"])
+def import_extracredit(aid):
+    f = request.files.get("file")
+    if not f:
+        return jsonify({"error": "No file"}), 400
+
+    class_filter = request.form.get("class_filter", "").strip()
+    if class_filter and class_filter != "All":
+        if class_filter == "EAP":
+            students = [s for s in db.get_all_students() if "EAP" in (s.get("task_class") or "")]
+        else:
+            students = [s for s in db.get_all_students() if class_filter in (s.get("task_class") or "")]
+    else:
+        students = db.get_all_students()
+
+    try:
+        rows = extracredit_parser.parse_extracredit_csv(f.read())
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    result = matcher.match_csv_rows(rows, students, score_key="extra_credit")
+    return jsonify(result)
+
+
 @app.route("/api/assignments/<int:aid>/scores", methods=["POST"])
 def save_scores(aid):
     body = request.json or {}
     entries = body.get("scores", [])
     for entry in entries:
-        db.upsert_score(
-            aid,
-            entry["student_id"],
-            entry.get("score"),
-            entry.get("section_scores", {}),
-        )
+        if "extra_credit" in entry and "score" not in entry and "section_scores" not in entry:
+            # Extra-credit-only upsert — don't overwrite score/section_scores
+            db.upsert_extra_credit(aid, entry["student_id"], entry["extra_credit"])
+        else:
+            db.upsert_score(
+                aid,
+                entry["student_id"],
+                entry.get("score"),
+                entry.get("section_scores", {}),
+                entry.get("extra_credit"),
+            )
     return jsonify({"saved": len(entries)})
 
 

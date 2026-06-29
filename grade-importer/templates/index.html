@@ -356,6 +356,20 @@
           Rows named <em>Test</em>, <em>Demo</em>, <em>Sample</em> etc. are automatically skipped.
         </p>
         <div id="import-result" style="margin-top:10px"></div>
+
+        <div style="margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0">
+          <h3 style="font-size:0.88rem;font-weight:700;color:#334155;margin:0 0 10px">Extra Credit</h3>
+          <div class="drop-zone" id="ec-drop" onclick="document.getElementById('ec-file').click()">
+            <div class="icon">⭐</div>
+            <div>Drop extra credit CSV here or click to browse</div>
+            <input type="file" id="ec-file" accept=".csv" onchange="importExtraCredit(this.files[0])">
+          </div>
+          <p style="font-size:0.75rem;color:#94a3b8;margin:8px 0 0">
+            Detects <em>officialExtraCredit</em>, <em>extra credit</em>, <em>bonus</em> columns automatically.
+            Only rows with a completed attempt are imported.
+          </p>
+          <div id="ec-import-result" style="margin-top:10px"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -559,6 +573,7 @@ function setupDrop(zoneId, handler) {
 setupDrop('roster-drop', uploadRoster);
 setupDrop('template-drop', uploadTemplate);
 setupDrop('csv-drop', importCsv);
+setupDrop('ec-drop', importExtraCredit);
 setupDrop('lib-template-drop', uploadLibraryTemplate);
 
 // ── classes helpers ───────────────────────────────────────────────────────────
@@ -939,6 +954,55 @@ async function importCsv(file) {
   resultEl.innerHTML = html;
 }
 
+// ── extra credit import ───────────────────────────────────────────────────────
+async function importExtraCredit(file) {
+  if (!currentAid) { alert('Select an assignment first'); return; }
+  const classFilter = document.getElementById('csv-class-filter').value;
+  const fd = new FormData();
+  fd.append('file', file);
+  if (classFilter) fd.append('class_filter', classFilter);
+
+  const resultEl = document.getElementById('ec-import-result');
+  resultEl.innerHTML = '<span class="spinner"></span> Matching names…';
+
+  const res = await fetch(`/api/assignments/${currentAid}/import-extracredit`, { method: 'POST', body: fd });
+  const data = await res.json();
+  if (data.error) {
+    resultEl.innerHTML = `<div class="alert alert-error">${data.error}</div>`;
+    return;
+  }
+
+  const matched = data.matched || [];
+  const unmatched = data.unmatched || [];
+
+  // Merge EC into pendingScores without touching score/section_scores
+  matched.forEach(m => {
+    const sid = m.student.student_id;
+    if (!pendingScores[sid]) pendingScores[sid] = {};
+    pendingScores[sid].extra_credit = m.extra_credit;
+  });
+
+  await refreshDetailScores();
+
+  let html = `<div class="alert alert-success">Extra credit matched for <b>${matched.length}</b> student${matched.length !== 1 ? 's' : ''}.`;
+  if (unmatched.length) html += ` <b>${unmatched.length}</b> unmatched.`;
+  html += '</div>';
+
+  const fuzzy = matched.filter(m => m.method !== 'exact');
+  if (fuzzy.length) {
+    html += `<div class="alert alert-warn">Fuzzy-matched: ${fuzzy.map(m => `<b>${m.csv_name}</b> → ${m.student.english_name} (${m.method}, ${Math.round(m.confidence*100)}%)`).join(', ')}</div>`;
+  }
+
+  if (unmatched.length) {
+    html += `<div style="margin-top:10px;font-size:0.82rem;font-weight:600;color:#991b1b">Unmatched:</div>
+    <table style="margin-top:6px"><thead><tr><th>CSV Name</th><th>EC</th></tr></thead><tbody>`;
+    unmatched.forEach(u => { html += `<tr><td>${u.csv_name}</td><td>${u.extra_credit ?? '—'}</td></tr>`; });
+    html += '</tbody></table>';
+  }
+
+  resultEl.innerHTML = html;
+}
+
 async function refreshDetailScores() {
   if (!currentAid) return;
   const res = await fetch(`/api/assignments/${currentAid}`);
@@ -950,6 +1014,7 @@ async function refreshDetailScores() {
       // Deep-merge section_scores so MC import doesn't wipe existing SRQ entries
       merged.section_scores = { ...(s.section_scores || {}), ...(pending.section_scores || {}) };
       if (pending.score !== null && pending.score !== undefined) merged.score = pending.score;
+      if (pending.extra_credit !== undefined) merged.extra_credit = pending.extra_credit;
       return merged;
     }
     return s;
@@ -974,8 +1039,15 @@ function renderScoreTable(scores, assignmentSections) {
     classBuckets[k].push(s);
   });
 
+  const showEc = scores.some(s => {
+    const p = pendingScores[s.student_id];
+    return (p && p.extra_credit !== undefined && p.extra_credit !== null) ||
+           (s.extra_credit !== null && s.extra_credit !== undefined);
+  });
+
   let colSpan = hasSections ? assignmentSections.length + 3 : 4;
   if (showPct) colSpan++;
+  if (showEc) colSpan++;
 
   let html = `<table><thead><tr>
     <th>English Name</th><th>Chinese Name</th><th>Class</th>`;
@@ -986,6 +1058,7 @@ function renderScoreTable(scores, assignmentSections) {
     html += `<th>Score</th>`;
   }
   if (showPct) html += `<th style="color:#3b82f6">%</th>`;
+  if (showEc)  html += `<th style="color:#f59e0b">EC</th>`;
   html += `</tr></thead><tbody>`;
 
   for (const [cls, studs] of Object.entries(classBuckets)) {
@@ -1023,6 +1096,11 @@ function renderScoreTable(scores, assignmentSections) {
           oninput="markPending('${s.student_id}',this.value);scheduleAutosave()"
           placeholder="—" style="width:90px"></td>`;
         if (showPct) html += `<td style="font-weight:600;color:#3b82f6">${pct(scoreVal !== '' ? parseFloat(scoreVal) : null)}</td>`;
+      }
+      if (showEc) {
+        const ec = pending?.extra_credit !== undefined ? pending.extra_credit : s.extra_credit;
+        const ecVal = ec !== null && ec !== undefined ? ec : '—';
+        html += `<td style="font-weight:600;color:#f59e0b">${ecVal}</td>`;
       }
       html += `</tr>`;
     });
@@ -1104,6 +1182,12 @@ async function saveAllScores(silent = false) {
       const vals = Object.values(entry.section_scores).filter(v => v !== null && v !== undefined);
       entry.score = vals.length ? vals.reduce((a, b) => a + b, 0) : null;
     }
+  });
+
+  // Carry extra_credit from pendingScores (not captured by DOM inputs)
+  Object.values(sidMap).forEach(entry => {
+    const p = pendingScores[entry.student_id];
+    if (p && p.extra_credit !== undefined) entry.extra_credit = p.extra_credit;
   });
 
   const entries = Object.values(sidMap);
