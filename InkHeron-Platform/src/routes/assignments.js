@@ -26,6 +26,7 @@ function publicAssignment(row) {
     opens_at: row.opens_at ?? null,
     due_at: row.due_at ?? null,
     created_at: row.created_at,
+    is_archived: row.is_archived === 1,
   };
 }
 
@@ -202,10 +203,12 @@ export async function registerAssignmentRoutes(app, { db }) {
   app.get('/api/assignments',
     { preValidation: [app.requireTeacherSession] },
     async (request) => {
-      const { class_id } = request.query;
+      const { class_id, archived } = request.query;
+      const showArchived = archived === '1';
+      const archivedClause = showArchived ? 'is_archived = 1' : 'is_archived = 0';
       const rows = class_id
-        ? db.prepare('SELECT * FROM assignments WHERE class_id = ? ORDER BY due_at ASC, created_at DESC').all(class_id)
-        : db.prepare('SELECT * FROM assignments ORDER BY due_at ASC, created_at DESC').all();
+        ? db.prepare(`SELECT * FROM assignments WHERE class_id = ? AND ${archivedClause} ORDER BY due_at ASC, created_at DESC`).all(class_id)
+        : db.prepare(`SELECT * FROM assignments WHERE ${archivedClause} ORDER BY due_at ASC, created_at DESC`).all();
       return { assignments: rows.map(publicAssignment) };
     }
   );
@@ -359,12 +362,55 @@ export async function registerAssignmentRoutes(app, { db }) {
   );
 
   app.delete('/api/assignments/:id',
-    { preValidation: [app.requireTeacherSession] },
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
       const id = requirePositiveInteger(request.params.id, 'id');
       const existing = db.prepare('SELECT id FROM assignments WHERE id = ?').get(id);
       if (!existing) return reply.code(404).send({ error: 'assignment_not_found' });
       db.prepare('DELETE FROM assignments WHERE id = ?').run(id);
+      return reply.code(204).send();
+    }
+  );
+
+  app.post('/api/assignments/:id/archive',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const existing = db.prepare('SELECT id, is_archived FROM assignments WHERE id = ?').get(id);
+      if (!existing) return reply.code(404).send({ error: 'assignment_not_found' });
+      const newState = existing.is_archived ? 0 : 1;
+      db.prepare('UPDATE assignments SET is_archived = ? WHERE id = ?').run(newState, id);
+      return { is_archived: newState === 1 };
+    }
+  );
+
+  // POST /api/assignments/:id/unassign-student
+  // body: { student_id } — removes a single student from the assignment's effective roster.
+  // If the assignment is class-wide (no override list), first creates an override list
+  // of all class members minus this student.
+  app.post('/api/assignments/:id/unassign-student',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const studentId = requirePositiveInteger(request.body?.student_id, 'student_id');
+
+      const assignment = db.prepare('SELECT id, class_id FROM assignments WHERE id = ?').get(id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      const overrideCount = db.prepare(
+        'SELECT COUNT(*) AS n FROM assignment_students WHERE assignment_id = ?'
+      ).get(id).n;
+
+      if (overrideCount === 0) {
+        // Class-wide — seed override list with all class members
+        const classStudents = db.prepare(
+          'SELECT id FROM students WHERE class_id = ? AND is_demo = 0 AND is_ghost = 0'
+        ).all(assignment.class_id);
+        const insert = db.prepare('INSERT OR IGNORE INTO assignment_students (assignment_id, student_id) VALUES (?, ?)');
+        for (const s of classStudents) insert.run(id, s.id);
+      }
+
+      db.prepare('DELETE FROM assignment_students WHERE assignment_id = ? AND student_id = ?').run(id, studentId);
       return reply.code(204).send();
     }
   );

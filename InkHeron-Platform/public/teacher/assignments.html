@@ -134,8 +134,9 @@
     <!-- ── List view ── -->
     <div id="listView">
       <div style="display:flex;align-items:center;gap:12px;">
-        <h1>Assignments</h1>
-        <a class="btn p sm" href="/teacher/new-assignment" style="margin-left:auto;">+ New assignment</a>
+        <h1 id="listHeading">Assignments</h1>
+        <button class="btn sm" id="toggleArchiveBtn" type="button" style="margin-left:auto;">Show archived</button>
+        <a class="btn p sm" href="/teacher/new-assignment">+ New assignment</a>
       </div>
       <div class="search-row">
         <input type="text" id="searchInput" placeholder="Search by title or class…" autocomplete="off">
@@ -152,6 +153,8 @@
         <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
         <button class="btn sm" id="releaseBtn" type="button">Release all grades</button>
+        <button class="btn sm" id="archiveBtn" type="button">Archive</button>
+        <button class="btn sm" id="deleteBtn" type="button" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
       </div>
       <div class="controls">
         <div>
@@ -186,7 +189,7 @@
       <div class="summary" id="summary"></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Student</th><th>Status</th><th>Submitted</th><th>Paste</th><th>Score</th><th>Review</th></tr></thead>
+          <thead><tr><th>Student</th><th>Status</th><th>Submitted</th><th>Paste</th><th>Score</th><th>Review</th><th></th></tr></thead>
           <tbody id="studentsBody"></tbody>
         </table>
       </div>
@@ -305,6 +308,7 @@
     let assignments=[];
     let classes=[];
     let currentId=null;
+    let showingArchived=false;
     let editFromDetail=false;
     let editGroup=[];
     let modalId=null;
@@ -330,6 +334,14 @@
       }
     }
 
+    async function fetchAssignments(){
+      const url=showingArchived?'/api/assignments?archived=1':'/api/assignments';
+      const ar=await fetch(url);
+      const ad=await ar.json(); assignments=ad.assignments||[];
+      document.getElementById('listHeading').textContent=showingArchived?'Archived assignments':'Assignments';
+      document.getElementById('toggleArchiveBtn').textContent=showingArchived?'Active assignments':'Show archived';
+    }
+
     async function init(){
       const me=await fetch('/api/me');
       if(!me.ok){window.location.href='/teacher-login';return;}
@@ -337,8 +349,7 @@
       if(user.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=user.user.csrf_token;
       fetch('/api/teacher/notifications/clear',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-      const [ar,cr]=await Promise.all([fetch('/api/assignments'),fetch('/api/classes')]);
-      const ad=await ar.json(); assignments=ad.assignments||[];
+      const [,cr]=await Promise.all([fetchAssignments(),fetch('/api/classes')]);
       const cd=await cr.json(); classes=cd.classes||[];
       renderList();
       const params=new URLSearchParams(window.location.search);
@@ -435,6 +446,7 @@
         sel.innerHTML=`<option value="${a.id}">${escapeHtml(classNameFor(a.class_id))}</option>`;
         sel.style.display='none';
       }
+      document.getElementById('archiveBtn').textContent = a.is_archived ? 'Unarchive' : 'Archive';
       show('detailView');
       openDetail('all');
     }
@@ -458,6 +470,13 @@
       document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
       document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
+      document.getElementById('archiveBtn').addEventListener('click',archiveAssignment);
+      document.getElementById('deleteBtn').addEventListener('click',deleteAssignment);
+      document.getElementById('toggleArchiveBtn').addEventListener('click',async()=>{
+        showingArchived=!showingArchived;
+        await fetchAssignments();
+        renderList(document.getElementById('searchInput').value);
+      });
       document.getElementById('detailClassSel').addEventListener('change',e=>{
         const v=e.target.value;openDetail(v==='all'?'all':Number(v));
       });
@@ -478,6 +497,40 @@
       document.getElementById('studentModal').addEventListener('click',e=>{
         if(e.target===document.getElementById('studentModal')) closeStudentModal();
       });
+    }
+
+    async function archiveAssignment(){
+      const ids=currentId==='all'?detailGroup.map(a=>a.id):[currentId];
+      if(!ids.length) return;
+      const a=detailGroup[0];
+      const willArchive=!a.is_archived;
+      const label=willArchive?'Archive':'Unarchive';
+      if(!confirm(`${label} "${a.title}"?`)) return;
+      await Promise.all(ids.map(id=>fetch(`/api/assignments/${id}/archive`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}})));
+      await fetchAssignments();
+      renderList(document.getElementById('searchInput').value);
+      showList();
+    }
+
+    async function deleteAssignment(){
+      const ids=currentId==='all'?detailGroup.map(a=>a.id):[currentId];
+      if(!ids.length) return;
+      const a=detailGroup[0];
+      if(!confirm(`Permanently delete "${a.title}"? This cannot be undone and will erase all student work.`)) return;
+      await Promise.all(ids.map(id=>fetch(`/api/assignments/${id}`,{method:'DELETE',headers:{'X-CSRF-Token':csrfToken}})));
+      await fetchAssignments();
+      renderList(document.getElementById('searchInput').value);
+      showList();
+    }
+
+    async function unassignStudent(assignmentId, studentId, studentName){
+      if(!confirm(`Remove ${studentName} from this assignment?`)) return;
+      const r=await fetch(`/api/assignments/${assignmentId}/unassign-student`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({student_id:studentId}),
+      });
+      if(r.ok) await loadDashboard();
     }
 
     async function releaseGrades(){
@@ -504,9 +557,9 @@
       if(currentId==='all'){
         // Fetch all classes in parallel and merge
         const results=await Promise.all(
-          detailGroup.map(a=>fetch(`/api/assignments/${a.id}/dashboard?${qs}`).then(r=>r.ok?r.json():null))
+          detailGroup.map(a=>fetch(`/api/assignments/${a.id}/dashboard?${qs}`).then(r=>r.ok?r.json().then(d=>({id:a.id,d})):null))
         );
-        const allStudents=results.flatMap(d=>d?d.students:[]);
+        const allStudents=results.flatMap(item=>item?item.d.students.map(s=>({...s,assignment_id:item.id})):[]);
         // Sort merged list by display_name
         allStudents.sort((a,b)=>a.display_name.localeCompare(b.display_name,undefined,{sensitivity:'base'}));
         renderSummary(allStudents);
@@ -802,12 +855,16 @@
           <td>${row.paste_flag?`<span class="pill flag">${row.paste_count} event${row.paste_count===1?'':'s'}</span>`:'-'}</td>
           <td>${row.score===null?'-':`${escapeHtml(String(row.score))} <span class="pill ${row.grade_state==='released'?'released':'held'}">${row.grade_state==='released'?'Released':'Held'}</span>`}</td>
           <td>${row.pad_id?`<a class="btn sm" href="/teacher/review?pad_id=${row.pad_id}">Review</a>`:'-'}</td>
+          <td><button class="btn sm" style="color:#8C2F3B;border-color:#8C2F3B;" data-unassign="${row.student_id}" data-assignment="${row.assignment_id||currentId}" data-name="${escapeHtml(row.display_name)}">Unassign</button></td>
         </tr>`).join('');
+      body.querySelectorAll('[data-unassign]').forEach(btn=>{
+        btn.addEventListener('click',()=>unassignStudent(Number(btn.dataset.assignment),Number(btn.dataset.unassign),btn.dataset.name));
+      });
     }
 
     function renderEmpty(msg){
       document.getElementById('summary').innerHTML='';
-      document.getElementById('studentsBody').innerHTML=`<tr><td class="empty" colspan="6">${escapeHtml(msg)}</td></tr>`;
+      document.getElementById('studentsBody').innerHTML=`<tr><td class="empty" colspan="7">${escapeHtml(msg)}</td></tr>`;
     }
 
     // ── Utilities ──────────────────────────────────────────
