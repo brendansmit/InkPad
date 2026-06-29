@@ -63,7 +63,10 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
     .pdot{width:9px;height:9px;border-radius:50%;}
-    .scnote{margin-left:auto;font-size:11.5px;color:var(--text-3);}
+    .scnote{font-size:11.5px;color:var(--text-3);}
+    .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:6px;}
+    .zoom-wrap label{font-size:11.5px;color:var(--text-3);}
+    .zoom-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
     .padiframe{flex:1;width:100%;border:none;min-height:0;display:block;}
     .writeactions{max-width:1200px;margin:16px auto;padding:0 20px;display:flex;align-items:center;gap:12px;width:100%;}
     .writeactions .sp{flex:1;}
@@ -97,6 +100,17 @@ ${dueLabel ? `<div class="duebar">
       <span class="pdot" style="background:#E8B14C"></span>
       <span class="pdot" style="background:var(--green-500)"></span>
       <span class="scnote">${spellcheck ? '&#10003; ' : ''}${esc(spellLabel)}</span>
+      <div class="zoom-wrap">
+        <label for="zoom-sel">Zoom</label>
+        <select id="zoom-sel" class="zoom-select">
+          <option value="0.75">75%</option>
+          <option value="0.9">90%</option>
+          <option value="1" selected>100%</option>
+          <option value="1.1">110%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+        </select>
+      </div>
     </div>
     <iframe
       class="padiframe"
@@ -271,6 +285,19 @@ ${dueLabel ? `<div class="duebar">
     if (spellRetries < 20) setTimeout(trySpellcheck, 500);
   }
 
+  // ── Zoom ─────────────────────────────────────────────────────────────────
+  var zoomSel = document.getElementById('zoom-sel');
+  function applyZoom(level) {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc || !padDoc.head) return;
+      var zs = padDoc.getElementById('ih-zoom');
+      if (!zs) { zs = padDoc.createElement('style'); zs.id = 'ih-zoom'; padDoc.head.appendChild(zs); }
+      zs.textContent = 'body{zoom:' + level + '!important}';
+    } catch (_) {}
+  }
+  zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
+
   // ── Pad UI cleanup ───────────────────────────────────────────────────────
   // Inject CSS into the Etherpad outer document to hide non-essential chrome:
   // bottom toolbar icons, chat, user count, settings, share, timeslider.
@@ -288,6 +315,19 @@ ${dueLabel ? `<div class="duebar">
         '#online_count,#users,#userlist,.popup.users{display:none!important}' +
         '#toolbar2,.toolbar-bottom,.editbar-bottom{display:none!important}';
       padDoc.head.appendChild(s);
+
+      // Suppress author highlight colours in the inner editor iframe.
+      try {
+        var inner = padDoc.getElementById('editorcontainerIframe') ||
+                    padDoc.querySelector('#editorcontainer iframe') ||
+                    padDoc.querySelector('iframe.inner');
+        if (inner && inner.contentDocument && inner.contentDocument.head) {
+          var si = inner.contentDocument.createElement('style');
+          si.textContent = 'span[class^="author-"],span[class*=" author-"]{background:transparent!important;border-left:none!important;}';
+          inner.contentDocument.head.appendChild(si);
+        }
+      } catch (_) {}
+
       return true;
     } catch (_) { return false; }
   }
