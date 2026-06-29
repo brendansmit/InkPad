@@ -20,6 +20,32 @@ Entry format:
 
 ---
 
+## 2026-06-29 — ep_align 0.3.121 installed, alignment now persistent
+- Phase/Step worked: Phase 8 write view — alignment persistence fix
+- Built:
+  - Diagnosed why ep_align@11.0.40 crashed Etherpad 3.3.2: `postToolbarInit` hook uses `editbar.registerCommand()` which exists, but the combination with `ep_plugin_helpers` and some internal interaction triggered `TypeError: U2 is not a function` in padbootstrap.min.js.
+  - Installed ep_align@0.3.121 (no `ep_plugin_helpers` dep, uses `padInitToolbar` + `eejsBlock_editbarMenuLeft`). Loads cleanly, no crash.
+  - Updated write.js: padchrome L/C/R buttons now click ep_align's (hidden) `.ep_align_left/.ep_align_center/.ep_align_right` buttons programmatically. This routes through ep_align's changeset system so alignment PERSISTS across reloads.
+  - Fallback to execCommand if ep_align buttons aren't injected yet.
+  - ep_align's toolbar buttons hidden via CSS; padchrome is the only visible alignment UI.
+- Decisions: Route through ep_align's DOM buttons rather than execCommand; same result for user, but changeset-based persistence.
+- Open / next: Verify alignment works (student opens pad, selects text, clicks L/C/R). Phase 8.6 — Strengths + Targets.
+
+## 2026-06-29 — Write view: ep_align removal, custom formatting toolbar, paste fix
+- Phase/Step worked: Phase 8 write view fixes (session resumed from context summary)
+- Built:
+  - Removed ep_align@11.0.40 from plugin_packages (symlink + .versions folder). It was incompatible with EP 3.3.2 and caused `TypeError: U2 is not a function` crash for all students. Uninstall via tsx plugins.ts failed ("Expected at least one argument") — fixed by direct symlink removal.
+  - Replaced ep_align with 3 custom alignment buttons (L/C/R SVG icons) in padchrome. Use `execCommand('justifyLeft/Center/Right')` on ace_inner. Visual-only in current session (no changeset persistence without ep_align).
+  - Replaced ep_colors dropdown UI with 5 color swatches in padchrome (Black/Red/Green/Blue/Orange). Clicks programmatically set ep_colors' `#color-selection` select and dispatch `change` event, so color persists in Etherpad changesets.
+  - Added font size selector (Small/Normal/Large/X-Large) using `execCommand('fontSize')`.
+  - Fixed paste blocking: `lastCopyFromPage` flag tracks copy/cut in parent frame (passage panel). Both `lastCopyFromPad` (ace_inner) and `lastCopyFromPage` (parent) are accepted; everything else is blocked when `PASTE_BLOCK=true`.
+  - Consolidated two duplicate `getAceInnerDoc` functions into one `getAceInner()`.
+  - `onmousedown="return false"` on alignment/color buttons preserves ace_inner selection when buttons are clicked.
+  - ep_colors native UI hidden via `#color,#color-selection{display:none!important}`.
+- Decisions: ep_align was causing a total Etherpad crash (all pads broken). Alignment persistence sacrificed temporarily; acceptable. ep_colors' changeset mechanism used for color so it persists properly.
+- Open / next: Try a compatible ep_align version for persistent alignment. Phase 8.6 — Strengths + Targets upload + AI marking suggestions.
+- Gotchas hit: ep_align was a symlink to .versions/ep_align@11.0.40 — needed to remove both symlink and .versions folder. The `grep` returning empty on ep_align caused exit code 1 but was actually success. The changeset null error in logs is a different pre-existing Etherpad bug, not ep_align.
+
 ## 2026-06-29 — Write view polish (chrome, zoom, author colors, word count, alignment, color swatch)
 - Phase/Step worked: Phase 8 write view polish
 - Built:
