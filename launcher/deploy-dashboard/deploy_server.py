@@ -24,20 +24,36 @@ SERVERS = {
         'label':       'lang.inkheron.app',
         'health_url':  'https://lang.inkheron.app',
     },
+    'eap-platform': {
+        'pm2_name':    'eap-platform',
+        'local_repo':  os.path.expanduser('~/Documents/Claude/InkHeron-Platform'),
+        'remote_path': '/opt/eap-platform',
+        'deploy_mode': 'rsync',
+        'rsync_excludes': ['.git', 'node_modules', 'data', '.env'],
+        'npm_install': 'npm install --omit=dev && INKHERON_DB_PATH=/opt/eap-platform/data/inkheron.db node src/db/migrate.js',
+        'npm_restart': 'cd /opt/eap-platform && set -a && . /etc/eap-platform.env && set +a && (pm2 describe eap-platform >/dev/null 2>&1 && pm2 restart eap-platform --update-env || pm2 start src/server.js --name eap-platform --update-env)',
+        'label':       'eap.inkheron.app',
+        'health_url':  'https://eap.inkheron.app/healthz',
+    },
     'grammar-arcade': {
         'pm2_name':    'grammar-arcade',
         'local_repo':  os.path.expanduser('~/Documents/Claude/Grammar Arcade/Gramm-Builder'),
         'remote_path': '/var/www/grammar-arcade',
-        'npm_install': 'pnpm install --frozen-lockfile && PORT=3465 BASE_PATH=/ pnpm --filter @workspace/grammar-case-lab run build',
+        'deploy_mode': 'rsync',
+        'rsync_excludes': ['.git', 'node_modules', 'data', '.env', '.teacher-password'],
+        'local_build': {
+            'cmd':       'PATH=/Users/brendansmit/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH PORT=3465 BASE_PATH=/grammar-arcade/ NODE_ENV=production ./artifacts/grammar-case-lab/node_modules/.bin/vite build --config vite.config.ts',
+            'env':       {'PORT': '3465', 'BASE_PATH': '/grammar-arcade/', 'NODE_ENV': 'production'},
+        },
         'npm_restart': 'cd /var/www/grammar-arcade && pm2 reload ecosystem.config.cjs --update-env',
-        'label':       'eap.inkheron.app',
-        'health_url':  'https://eap.inkheron.app/api/health',
+        'label':       'eap.inkheron.app/grammar-arcade/',
+        'health_url':  'https://eap.inkheron.app/grammar-arcade/api/health',
     },
 }
 
 def get_server():
-    key = request.args.get('server', 'speed-dating')
-    return SERVERS.get(key) or SERVERS['speed-dating']
+    key = request.args.get('server', 'eap-platform')
+    return SERVERS.get(key) or SERVERS['eap-platform']
 
 def ssh(cmd, timeout=20):
     result = subprocess.run(
@@ -46,6 +62,35 @@ def ssh(cmd, timeout=20):
         capture_output=True, text=True, timeout=timeout
     )
     return result.stdout + result.stderr, result.returncode == 0
+
+def run_local_build(srv, lines):
+    local_build = srv.get('local_build')
+    if not local_build:
+        return True
+
+    lines.append(f'\n$ local: {local_build["cmd"]}')
+    build = subprocess.run(
+        local_build['cmd'], shell=True, capture_output=True, text=True,
+        cwd=srv['local_repo'], env={**os.environ, **local_build.get('env', {})}
+    )
+    lines.append((build.stdout + build.stderr).strip() or '(no output)')
+    if build.returncode != 0:
+        lines.append('Build failed. Aborting deploy.')
+        return False
+    return True
+
+def rsync_repo(srv, lines):
+    src = os.path.join(srv['local_repo'], '')
+    dst = f"{SSH_HOST}:{srv['remote_path'].rstrip('/')}/"
+    cmd = ['rsync', '-az', '--delete']
+    for pattern in srv.get('rsync_excludes', []):
+        cmd.append(f'--exclude={pattern}')
+    cmd.extend(['-e', f'ssh -i {SSH_KEY} -o StrictHostKeyChecking=no', src, dst])
+
+    lines.append(f'\n$ rsync {src} -> {dst}')
+    rsync = subprocess.run(cmd, capture_output=True, text=True)
+    lines.append((rsync.stdout + rsync.stderr).strip() or '(no output)')
+    return rsync.returncode == 0
 
 @app.route('/')
 def index():
@@ -94,6 +139,26 @@ def deploy():
     srv = get_server()
     lines = []
 
+    if srv.get('deploy_mode') == 'rsync':
+        if not run_local_build(srv, lines):
+            return jsonify({'output': '\n'.join(lines), 'success': False})
+
+        if not rsync_repo(srv, lines):
+            lines.append('Rsync failed. Aborting deploy.')
+            return jsonify({'output': '\n'.join(lines), 'success': False})
+
+        npm_install = srv.get('npm_install')
+        remote_steps = []
+        if npm_install:
+            remote_steps.append(npm_install)
+        remote_steps.append(srv['npm_restart'])
+        remote_cmd = f"cd {srv['remote_path']} && " + " && ".join(remote_steps)
+
+        lines.append(f'\n$ ssh: {" && ".join(remote_steps)}')
+        out, ok = ssh(remote_cmd, timeout=120)
+        lines.append(out.strip() or '(no output)')
+        return jsonify({'output': '\n'.join(lines), 'success': ok})
+
     push = subprocess.run(
         ['git', 'push', 'origin', 'main'],
         capture_output=True, text=True, cwd=srv['local_repo']
@@ -101,14 +166,41 @@ def deploy():
     lines.append('$ git push origin main')
     lines.append((push.stdout + push.stderr).strip() or '(no output)')
 
-    npm_install = srv.get('npm_install', 'npm install --omit=dev')
-    remote_cmd = (
-        f"cd {srv['remote_path']} && "
-        f"git pull && {npm_install} && {srv['npm_restart']}"
-    )
-    lines.append(f'\n$ ssh: git pull && {npm_install} && {srv["npm_restart"]}')
-    out, ok = ssh(remote_cmd, timeout=90)
-    lines.append(out.strip() or '(no output)')
+    # If the server config has a local_build command, run it here and rsync
+    local_build = srv.get('local_build')
+    if local_build:
+        if not run_local_build(srv, lines):
+            return jsonify({'output': '\n'.join(lines), 'success': False})
+
+        rsync_src = local_build['rsync_src']
+        rsync_dst = f"{SSH_HOST}:{local_build['rsync_dst']}"
+        lines.append(f'\n$ rsync {rsync_src} → {rsync_dst}')
+        rsync = subprocess.run(
+            ['rsync', '-az', '--delete', '-e',
+             f'ssh -i {SSH_KEY} -o StrictHostKeyChecking=no',
+             rsync_src, rsync_dst],
+            capture_output=True, text=True
+        )
+        lines.append((rsync.stdout + rsync.stderr).strip() or '(no output)')
+        if rsync.returncode != 0:
+            lines.append('Rsync failed — aborting deploy.')
+            return jsonify({'output': '\n'.join(lines), 'success': False})
+
+        remote_cmd = f"cd {srv['remote_path']} && git pull && {srv['npm_restart']}"
+        lines.append(f'\n$ ssh: git pull && {srv["npm_restart"]}')
+        out, ok = ssh(remote_cmd, timeout=60)
+        lines.append(out.strip() or '(no output)')
+    else:
+        npm_install = srv.get('npm_install', 'npm install --omit=dev')
+        remote_cmd = (
+            f"cd {srv['remote_path']} && "
+            f"git pull && {npm_install} && {srv['npm_restart']}"
+        )
+        lines.append(f'\n$ ssh: git pull && {npm_install} && {srv["npm_restart"]}')
+        out, ok = ssh(remote_cmd, timeout=90)
+        lines.append(out.strip() or '(no output)')
+        ok = True
+
     return jsonify({'output': '\n'.join(lines), 'success': ok})
 
 @app.route('/api/logs')

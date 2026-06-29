@@ -362,8 +362,10 @@
   <div class="page-header">
     <h1 class="page-title">Server <em>Dashboard</em></h1>
     <div class="server-switcher">
-      <button class="srv-btn active" data-srv="speed-dating" onclick="switchServer('speed-dating')">Speed Dating</button>
-      <button class="srv-btn"        data-srv="ap-lang"      onclick="switchServer('ap-lang')">AP Lang</button>
+      <button class="srv-btn active" data-srv="eap-platform"    onclick="switchServer('eap-platform')">EAP</button>
+      <button class="srv-btn"        data-srv="ap-lang"        onclick="switchServer('ap-lang')">AP Lang</button>
+      <button class="srv-btn"        data-srv="speed-dating"    onclick="switchServer('speed-dating')">Speed Dating</button>
+      <button class="srv-btn"        data-srv="grammar-arcade" onclick="switchServer('grammar-arcade')">Grammar Arcade</button>
     </div>
   </div>
 
@@ -385,9 +387,9 @@
       <div class="card-icon">↑</div>
       <div>
         <div class="card-title">Deploy Update</div>
-        <div class="card-desc">Push your latest commits from this Mac, pull them on the server and restart the app — all in one click. Takes about 15 seconds.</div>
+        <div class="card-desc">Sync the latest local code to the server and restart the selected app. Takes about 15 seconds.</div>
       </div>
-      <div class="card-action">Push &amp; restart →</div>
+      <div class="card-action">Sync &amp; restart →</div>
     </div>
 
     <div class="card" id="cardLogs" data-icon="≡" onclick="runLogs()">
@@ -453,11 +455,13 @@
   const statusStats = document.getElementById('statusStats');
 
   const SERVER_LABELS = {
-    'speed-dating': 'speeddating.inkheron.app',
-    'ap-lang':      'lang.inkheron.app',
+    'eap-platform':    'eap.inkheron.app',
+    'speed-dating':    'speeddating.inkheron.app',
+    'ap-lang':         'lang.inkheron.app',
+    'grammar-arcade':  'eap.inkheron.app/grammar-arcade/',
   };
 
-  let currentServer = 'speed-dating';
+  let currentServer = 'eap-platform';
 
   function switchServer(key) {
     currentServer = key;
@@ -554,7 +558,7 @@
 
   // ── actions ─────────────────────────────────
   async function runDeploy() {
-    setRunning('cardDeploy', 'Pushing to GitHub, then pulling on server and restarting… this takes ~15 seconds.');
+    setRunning('cardDeploy', 'Syncing code to the server and restarting. This takes about 15 seconds.');
     try {
       const r = await fetch('/api/deploy' + qs(), { method: 'POST' });
       const d = await r.json();

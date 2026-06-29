@@ -329,3 +329,16 @@ Entry format:
   with bundled Node 24, including real multipart upload/replace/delete. Local HTTP smoke test on
   port 3491 created a teacher, loaded `/library/admin`, uploaded an HTML file and downloaded it.
   Full suite still has the same unrelated six failures noted above.
+
+## 2026-06-29 — EAP live deployment split
+- Asked: Update the live droplet so `eap.inkheron.app` shows the new three-card EAP landing page
+  and make deploy-dashboard updates hit the correct app.
+- Did: Deployed `InkHeron-Platform` to `/opt/eap-platform` as PM2 app `eap-platform` on port
+  `3466`, created a remote-only EAP env file, migrated the separate EAP SQLite database and updated
+  nginx so `/` serves EAP while `/grammar-arcade/` serves the existing Grammar Arcade app. Patched
+  Grammar Arcade for subpath-aware API and teacher links.
+- Did: Updated the local deploy dashboard to default to EAP, use rsync deploys for EAP and keep
+  Grammar Arcade deployable as `eap.inkheron.app/grammar-arcade/`.
+- Verification: Live checks returned `200` for `https://eap.inkheron.app/`, `/library`,
+  `/api/library/docs`, `/grammar-arcade/`, `/grammar-arcade/api/health` and
+  `https://inkpad.inkheron.app/`. `/library/admin` correctly returned `401` when unauthenticated.
