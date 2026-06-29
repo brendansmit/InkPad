@@ -54,12 +54,12 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .savestate .tick{color:var(--sage-500);}
     .savestate.saving{color:var(--amber-700);}
     .savestate.saving .tick{color:var(--amber-700);}
-    .duebar{max-width:1200px;margin:14px auto 0;padding:0 20px;}
+    .duebar{padding:10px 20px 0;}
     .duenote{background:var(--surface);border:1px solid var(--border);
       border-radius:var(--r-sm);padding:11px 15px;font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px;}
     .duenote .ic{font-size:14px;}
-    .padwrap{max-width:1200px;margin:14px auto 0;padding:0 20px;flex:1;display:flex;flex-direction:column;}
-    .padframe{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);
+    .padwrap{margin:0;padding:0;flex:1;display:flex;flex-direction:column;}
+    .padframe{background:var(--surface);border-top:1px solid var(--border);
       overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
     .pdot{width:9px;height:9px;border-radius:50%;}
@@ -68,7 +68,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .zoom-wrap label{font-size:11.5px;color:var(--text-3);}
     .zoom-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
     .padiframe{flex:1;width:100%;border:none;min-height:0;display:block;}
-    .writeactions{max-width:1200px;margin:16px auto;padding:0 20px;display:flex;align-items:center;gap:12px;width:100%;}
+    .writeactions{padding:12px 20px;display:flex;align-items:center;gap:12px;}
     .writeactions .sp{flex:1;}
     .wordcount{font-size:13px;color:var(--text-3);}
     .btn{font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:var(--r-sm);cursor:pointer;
@@ -309,11 +309,11 @@ ${dueLabel ? `<div class="duebar">
       var s = padDoc.createElement('style');
       s.id = 'ih-ui-cleanup';
       s.textContent =
+        'ul.menu_right,ul.menu_right *{display:none!important}' +
+        '#history-controls,.history-controls{display:none!important}' +
+        '.buttonicon-clearauthorship,.buttonicon-import_export{display:none!important}' +
         '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
-        '.buttonicon-timeslider,.buttonicon-settings,.buttonicon-embed,' +
-        '.buttonicon-import_export,.buttonicon-showusers,.buttonicon-menu_left_comment{display:none!important}' +
-        '#online_count,#users,#userlist,.popup.users{display:none!important}' +
-        '#toolbar2,.toolbar-bottom,.editbar-bottom{display:none!important}';
+        '#online_count,#users,#userlist,.popup.users{display:none!important}';
       padDoc.head.appendChild(s);
 
       // Suppress author highlight colours in the inner editor iframe.
