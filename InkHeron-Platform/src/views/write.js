@@ -498,9 +498,10 @@ ${padContent}
     if (!doc || !doc.head || doc.getElementById('ih-author-suppress')) return;
     var s = doc.createElement('style');
     s.id = 'ih-author-suppress';
+    // Etherpad injects ".authorColors .author-XXX { background-color }" (2-class specificity).
+    // "#innerdocbody span" (id + element) has higher specificity and wins with !important.
     s.textContent =
-      'span[class^="author-"],span[class*=" author-"]{' +
-      'background:transparent!important;background-color:transparent!important;' +
+      '#innerdocbody span{background:none!important;background-color:transparent!important;' +
       'border-left:none!important;box-shadow:none!important;}';
     doc.head.appendChild(s);
   }

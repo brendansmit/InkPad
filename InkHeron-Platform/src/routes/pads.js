@@ -635,7 +635,9 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       );
       const session = await service.createSessionCookie(groupId, authorId);
       reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
-      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}/timeslider`);
+      // EP 3.3.2: /timeslider without ?embed=1 redirects back to the pad.
+      // ?embed=1 renders the full timeslider HTML for use in an iframe.
+      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}/timeslider?embed=1`);
     }
   );
 
