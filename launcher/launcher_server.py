@@ -72,7 +72,8 @@ def _dispatch(cfg):
     runtime = cfg.get("runtime")
 
     if runtime == "open":
-        _open(os.path.join(ROOT, cfg["path"]))
+        path = cfg["path"]
+        _open(path if path.startswith("http://") or path.startswith("https://") else os.path.join(ROOT, path))
         return
 
     if runtime == "python_venv":

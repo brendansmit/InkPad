@@ -58,10 +58,23 @@
     "port": 3000,
     "url": "http://localhost:3000"
   },
+  "inkheron-platform": {
+    "runtime": "node",
+    "entry": "src/server.js",
+    "cwd": "InkHeron-Platform",
+    "port": 3472,
+    "url": "http://localhost:3472",
+    "env": { "PORT": "3472" }
+  },
+  "inkpad": {
+    "runtime": "open",
+    "path": "https://inkpad.inkheron.app"
+  },
   "_aliases": {
     "bug-detector": "bugsmash",
     "debugger": "bugsmash",
     "model-router": "model-router-coder",
-    "prototype": "prototype-coder"
+    "prototype": "prototype-coder",
+    "inkheron": "inkheron-platform"
   }
 }
