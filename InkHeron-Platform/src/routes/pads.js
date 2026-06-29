@@ -635,9 +635,11 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
       );
       const session = await service.createSessionCookie(groupId, authorId);
       reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
-      // EP 3.3.2: /timeslider without ?embed=1 redirects back to the pad.
-      // ?embed=1 renders the full timeslider HTML for use in an iframe.
-      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}/timeslider?embed=1`);
+      // EP 3.3.2 history mode: loading the pad with #rev/latest triggers
+      // padMode.bootstrapFromHash() which auto-enters the in-pad history UI.
+      // The /timeslider?embed=1 route is designed for use *inside* the pad page
+      // iframe and fails when loaded standalone.
+      return reply.redirect(`/p/${encodeURIComponent(pad.etherpad_pad_id)}#rev/latest`);
     }
   );
 
