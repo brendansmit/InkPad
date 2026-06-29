@@ -285,18 +285,37 @@ ${padContent}
     } catch (_) { return null; }
   }
 
-  // ── Formatting commands (alignment, font size) ────────────────────────────
-  // Note: execCommand applies formatting visually for the current session.
-  // Alignment may not persist across reloads without ep_align.
+  // ── Formatting commands ───────────────────────────────────────────────────
+  // Font size via execCommand (visual formatting).
   function applyFmt(cmd, val) {
     var doc = getAceInner();
     if (!doc) return;
     try { doc.execCommand(cmd, false, val !== undefined ? val : null); } catch (_) {}
   }
 
+  // Alignment via ep_align buttons (persists in changesets).
+  // Our padchrome L/C/R buttons click ep_align's hidden toolbar buttons.
+  var alignCmdMap = {
+    'justifyLeft': '.ep_align_left',
+    'justifyCenter': '.ep_align_center',
+    'justifyRight': '.ep_align_right',
+  };
+
+  function applyEpAlign(cmd) {
+    try {
+      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      if (!padDoc) return;
+      var sel = alignCmdMap[cmd];
+      var btn = sel && padDoc.querySelector(sel);
+      if (btn) { btn.click(); return; }
+    } catch (_) {}
+    // Fallback: execCommand if ep_align buttons not yet injected
+    applyFmt(cmd);
+  }
+
   // Wire alignment buttons (onmousedown=return false in HTML preserves iframe selection)
   document.querySelectorAll('.fmt-btn[data-cmd]').forEach(function (btn) {
-    btn.addEventListener('click', function () { applyFmt(btn.dataset.cmd); });
+    btn.addEventListener('click', function () { applyEpAlign(btn.dataset.cmd); });
   });
 
   // ── Color via ep_colors ───────────────────────────────────────────────────
@@ -466,7 +485,9 @@ ${padContent}
           '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
           '#online_count,#users,#userlist,.popup.users{display:none!important}' +
           // Hide ep_colors native UI — we drive it from padchrome swatches
-          '#color,#color-selection{display:none!important}';
+          '#color,#color-selection{display:none!important}' +
+          // Hide ep_align toolbar buttons — we drive them from padchrome L/C/R buttons
+          '.ep_align_left,.ep_align_center,.ep_align_right,.ep_align_justify{display:none!important}';
         padDoc.head.appendChild(s);
       }
 
