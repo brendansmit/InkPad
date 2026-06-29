@@ -52,17 +52,20 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       }
     </div>` : '';
 
-  // ep_colors values: 0=Black 1=Red 2=Green 3=Blue 5=Orange
-  const colorSwatches = `
-    <div class="clr-palette">
-      <button class="clr-btn" data-epcolor="0" title="Black" style="background:#111111" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="1" title="Red" style="background:#cc0000" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="2" title="Green" style="background:#009900" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="3" title="Blue" style="background:#0000cc" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="5" title="Orange" style="background:#e67300" onmousedown="return false"></button>
-    </div>`;
+  // ── Padchrome toolbar ─────────────────────────────────────────────────────
+  // All formatting controls in a single row; Etherpad's own toolbar is hidden.
+  // data-key buttons click the corresponding hidden Etherpad [data-key] buttons.
+  // data-cmd buttons use execCommand on ace_inner.
+  // data-epcolor buttons trigger ep_colors programmatically.
 
-  const alignButtons = `
+  const fmtBtns = `
+    <div class="fmt-group">
+      <button class="fmt-btn" data-key="bold" title="Bold" onmousedown="return false"><b>B</b></button>
+      <button class="fmt-btn" data-key="italic" title="Italic" onmousedown="return false"><i>I</i></button>
+      <button class="fmt-btn" data-key="underline" title="Underline" onmousedown="return false"><u>U</u></button>
+      <button class="fmt-btn" data-key="strikethrough" title="Strikethrough" onmousedown="return false"><s>S</s></button>
+    </div>
+    <span class="fmt-sep"></span>
     <div class="fmt-group">
       <button class="fmt-btn" data-cmd="justifyLeft" title="Align left" onmousedown="return false">
         <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="0" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="0" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
@@ -73,9 +76,40 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       <button class="fmt-btn" data-cmd="justifyRight" title="Align right" onmousedown="return false">
         <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="2" y="8" width="11" height="2" rx="1" fill="currentColor"/></svg>
       </button>
-    </div>`;
-
-  const fontSizeSelect = `
+    </div>
+    <span class="fmt-sep"></span>
+    <div class="fmt-group">
+      <button class="fmt-btn" data-key="insertorderedlist" title="Numbered list" onmousedown="return false">
+        <svg width="14" height="12" viewBox="0 0 14 12"><text x="0" y="10" font-size="10" fill="currentColor" font-family="monospace">1.</text><rect x="7" y="1" width="7" height="2" rx="1" fill="currentColor"/><rect x="7" y="5" width="7" height="2" rx="1" fill="currentColor"/><rect x="7" y="9" width="7" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fmt-btn" data-key="insertunorderedlist" title="Bullet list" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><circle cx="1.5" cy="2" r="1.5" fill="currentColor"/><rect x="4" y="1" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="6" r="1.5" fill="currentColor"/><rect x="4" y="5" width="9" height="2" rx="1" fill="currentColor"/><circle cx="1.5" cy="10" r="1.5" fill="currentColor"/><rect x="4" y="9" width="9" height="2" rx="1" fill="currentColor"/></svg>
+      </button>
+      <button class="fmt-btn" data-key="indent" title="Indent" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="4" y="8" width="9" height="2" rx="1" fill="currentColor"/><path d="M0 5 L3 6.5 L0 8Z" fill="currentColor"/></svg>
+      </button>
+      <button class="fmt-btn" data-key="outdent" title="Outdent" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><rect x="0" y="0" width="13" height="2" rx="1" fill="currentColor"/><rect x="4" y="4" width="9" height="2" rx="1" fill="currentColor"/><rect x="4" y="8" width="9" height="2" rx="1" fill="currentColor"/><path d="M3 5 L0 6.5 L3 8Z" fill="currentColor"/></svg>
+      </button>
+    </div>
+    <span class="fmt-sep"></span>
+    <div class="fmt-group">
+      <button class="fmt-btn" data-key="undo" title="Undo" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><path d="M5 2 C3 2 1.5 3.5 1.5 5.5 C1.5 7.5 3 9 5 9 L9 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M1.5 2 L5 5.5 L1.5 5.5Z" fill="currentColor"/></svg>
+      </button>
+      <button class="fmt-btn" data-key="redo" title="Redo" onmousedown="return false">
+        <svg width="13" height="12" viewBox="0 0 13 12"><path d="M8 2 C10 2 11.5 3.5 11.5 5.5 C11.5 7.5 10 9 8 9 L4 9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M11.5 2 L8 5.5 L11.5 5.5Z" fill="currentColor"/></svg>
+      </button>
+    </div>
+    <span class="fmt-sep"></span>
+    <div class="clr-palette">
+      <button class="clr-btn" data-epcolor="0" title="Black" style="background:#111111" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="1" title="Red" style="background:#cc0000" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="2" title="Green" style="background:#009900" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="3" title="Blue" style="background:#0000cc" onmousedown="return false"></button>
+      <button class="clr-btn" data-epcolor="5" title="Orange" style="background:#e67300" onmousedown="return false"></button>
+    </div>
+    <span class="fmt-sep"></span>
     <select id="fsize-sel" class="fsize-select" title="Font size">
       <option value="" disabled selected>Size</option>
       <option value="2">Small</option>
@@ -101,11 +135,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       ${hasPrompt ? promptBtn : ''}
       <span class="wordcount" id="wc"></span>
       <span class="fmt-sep"></span>
-      ${alignButtons}
-      <span class="fmt-sep"></span>
-      ${colorSwatches}
-      <span class="fmt-sep"></span>
-      ${fontSizeSelect}
+      ${fmtBtns}
       ${zoomSelect}
     </div>`;
 
@@ -160,7 +190,7 @@ ${writeActions}`;
     .duebar{padding:10px 20px 0;}
     .duenote{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:11px 15px;font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:8px;}
     .duenote .ic{font-size:14px;}
-    /* ── Pad layout ──────────────────────────────────── */
+    /* ── Pad layout ─────────────────────────────────── */
     .padwrap{margin:0;padding:0;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padwrap.has-passage{flex-direction:row;}
     .split-left{width:340px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
@@ -168,39 +198,39 @@ ${writeActions}`;
     .passage-head{padding:9px 14px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);border-bottom:1px solid var(--border);flex-shrink:0;}
     .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
     .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
-    /* ── Padframe ──────────────────────────────────────── */
+    /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
-    .padchrome{display:flex;align-items:center;gap:6px;padding:5px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:38px;flex-wrap:wrap;}
-    .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;}
+    .padchrome{display:flex;align-items:center;gap:4px;padding:4px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:36px;overflow-x:auto;}
+    .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
     .prompt-btn:hover{background:var(--green-100,#dcfce7);}
     .prompt-btn.active{background:var(--green-100,#dcfce7);border-color:var(--primary);}
-    .wordcount{font-size:11.5px;color:var(--text-3);}
-    .fmt-sep{width:1px;height:18px;background:var(--border);flex-shrink:0;margin:0 2px;}
-    /* ── Alignment buttons ─────────────────────────────── */
-    .fmt-group{display:flex;align-items:center;gap:2px;}
-    .fmt-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:1px solid transparent;border-radius:5px;background:none;cursor:pointer;color:var(--text-2);transition:background .15s,color .15s;}
+    .wordcount{font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;}
+    .fmt-sep{width:1px;height:16px;background:var(--border);flex-shrink:0;margin:0 2px;}
+    /* ── Toolbar buttons ────────────────────────────── */
+    .fmt-group{display:flex;align-items:center;gap:1px;flex-shrink:0;}
+    .fmt-btn{display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:1px solid transparent;border-radius:5px;background:none;cursor:pointer;color:var(--text-2);transition:background .15s,color .15s;font-size:13px;line-height:1;flex-shrink:0;}
+    .fmt-btn b,.fmt-btn i,.fmt-btn u,.fmt-btn s{font-size:13px;pointer-events:none;}
     .fmt-btn:hover{background:var(--surface-3);color:var(--text);}
     .fmt-btn.active{background:var(--surface-3);color:var(--primary);border-color:var(--border);}
-    /* ── Color swatches ──────────────────────────────────── */
-    .clr-palette{display:flex;align-items:center;gap:4px;}
-    .clr-btn{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s,border-color .15s;outline:none;}
-    .clr-btn:hover{transform:scale(1.2);}
+    /* ── Color swatches ─────────────────────────────── */
+    .clr-palette{display:flex;align-items:center;gap:4px;flex-shrink:0;}
+    .clr-btn{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s,border-color .15s;outline:none;flex-shrink:0;}
+    .clr-btn:hover{transform:scale(1.25);}
     .clr-btn.active{border-color:var(--text);}
-    /* ── Font size ───────────────────────────────────────── */
-    .fsize-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;max-width:68px;}
-    /* ── Zoom ────────────────────────────────────────────── */
-    .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;}
-    .zoom-wrap label{font-size:11.5px;color:var(--text-3);}
-    .zoom-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
-    /* ── Prompt panel ──────────────────────────────────── */
+    /* ── Font size + Zoom ──────────────────────────── */
+    .fsize-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;max-width:62px;flex-shrink:0;}
+    .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;}
+    .zoom-wrap label{font-size:11px;color:var(--text-3);}
+    .zoom-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
+    /* ── Prompt panel ───────────────────────────────── */
     .prompt-panel{display:none;border-bottom:1px solid var(--border);background:var(--surface-2,#f9f8f5);max-height:180px;overflow-y:auto;flex-shrink:0;}
     .prompt-panel.open{display:block;}
     .prompt-panel-inner{padding:12px 18px;}
     .prompt-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:6px;}
     .prompt-text{font-size:14px;line-height:1.65;color:var(--text);white-space:pre-wrap;}
-    /* ── Pad iframe ──────────────────────────────────────── */
+    /* ── Pad iframe ─────────────────────────────────── */
     .padiframe{flex:1;width:100%;border:none;min-height:0;display:block;}
-    /* ── Write actions ───────────────────────────────────── */
+    /* ── Write actions ──────────────────────────────── */
     .writeactions{padding:12px 20px;display:flex;align-items:center;gap:12px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;}
     .writeactions .sp{flex:1;}
     .btn{font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:var(--r-sm);cursor:pointer;transition:transform .12s var(--ease),box-shadow .2s;}
@@ -251,7 +281,7 @@ ${padContent}
     });
   }
 
-  // ── Save-state UI ─────────────────────────────────────────────
+  // ── Save-state UI ─────────────────────────────────────────────────────────
   var saveTimer = null;
   function setSaving() {
     clearTimeout(saveTimer);
@@ -273,7 +303,7 @@ ${padContent}
     setTimeout(setSaved, 800);
   });
 
-  // ── Shared ace_inner accessor ─────────────────────────────────────────────
+  // ── ace_inner accessor ─────────────────────────────────────────────────────
   function getAceInner() {
     try {
       var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
@@ -285,44 +315,54 @@ ${padContent}
     } catch (_) { return null; }
   }
 
-  // ── Formatting commands ───────────────────────────────────────────────────
-  // Font size via execCommand (visual formatting).
-  function applyFmt(cmd, val) {
-    var doc = getAceInner();
-    if (!doc) return;
-    try { doc.execCommand(cmd, false, val !== undefined ? val : null); } catch (_) {}
+  // ── padDoc accessor (Etherpad outer iframe document) ─────────────────────
+  function getPadDoc() {
+    try { return iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document); }
+    catch (_) { return null; }
   }
 
-  // Alignment via ep_align buttons (persists in changesets).
-  // Our padchrome L/C/R buttons click ep_align's hidden toolbar buttons.
+  // ── Click a hidden Etherpad toolbar button by data-key ───────────────────
+  // Bold/italic/underline etc. go through Etherpad's changeset system this way.
+  function clickEditbarBtn(key) {
+    var padDoc = getPadDoc();
+    if (!padDoc) return;
+    try {
+      var btn = padDoc.querySelector('[data-key="' + key + '"]');
+      if (btn) { btn.click(); return; }
+    } catch (_) {}
+  }
+
+  // Wire data-key buttons (text formatting + lists + undo/redo)
+  document.querySelectorAll('.fmt-btn[data-key]').forEach(function (btn) {
+    btn.addEventListener('click', function () { clickEditbarBtn(btn.dataset.key); });
+  });
+
+  // ── Alignment via ep_align hidden buttons ─────────────────────────────────
   var alignCmdMap = {
     'justifyLeft': '.ep_align_left',
     'justifyCenter': '.ep_align_center',
     'justifyRight': '.ep_align_right',
   };
-
   function applyEpAlign(cmd) {
     try {
-      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      var padDoc = getPadDoc();
       if (!padDoc) return;
       var sel = alignCmdMap[cmd];
       var btn = sel && padDoc.querySelector(sel);
       if (btn) { btn.click(); return; }
     } catch (_) {}
-    // Fallback: execCommand if ep_align buttons not yet injected
-    applyFmt(cmd);
+    // Fallback: execCommand
+    var doc = getAceInner();
+    if (doc) try { doc.execCommand(cmd, false, null); } catch (_) {}
   }
-
-  // Wire alignment buttons (onmousedown=return false in HTML preserves iframe selection)
   document.querySelectorAll('.fmt-btn[data-cmd]').forEach(function (btn) {
     btn.addEventListener('click', function () { applyEpAlign(btn.dataset.cmd); });
   });
 
   // ── Color via ep_colors ───────────────────────────────────────────────────
-  // ep_colors is loaded; trigger it programmatically so color persists in changesets.
   function applyEpColor(colorIndex) {
     try {
-      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      var padDoc = getPadDoc();
       if (!padDoc) return;
       var sel = padDoc.getElementById('color-selection');
       if (sel) {
@@ -331,7 +371,6 @@ ${padContent}
       }
     } catch (_) {}
   }
-
   var activeClrBtn = null;
   document.querySelectorAll('.clr-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -346,15 +385,14 @@ ${padContent}
   var fsizeSel = document.getElementById('fsize-sel');
   if (fsizeSel) {
     fsizeSel.addEventListener('change', function () {
-      if (fsizeSel.value) applyFmt('fontSize', fsizeSel.value);
+      var doc = getAceInner();
+      if (doc && fsizeSel.value) try { doc.execCommand('fontSize', false, fsizeSel.value); } catch (_) {}
     });
   }
 
-  // ── Paste detection and blocking ──────────────────────────────────────────
-  // Allow paste from: (1) within the writing pad, (2) passage panel on this page.
-  // Block everything else when PASTE_BLOCK is true.
-  var lastCopyFromPage = false; // tracks copy from passage panel / parent frame
-
+  // ── Paste blocking ────────────────────────────────────────────────────────
+  // Allow paste from: (1) within ace_inner, (2) passage panel / parent frame.
+  var lastCopyFromPage = false;
   window.addEventListener('copy', function () { lastCopyFromPage = true; });
   window.addEventListener('cut', function () { lastCopyFromPage = true; });
 
@@ -372,7 +410,6 @@ ${padContent}
 
   function attachPasteListeners(innerDoc) {
     var lastCopyFromPad = false;
-
     innerDoc.addEventListener('copy', function () { lastCopyFromPad = true; });
     innerDoc.addEventListener('cut', function () { lastCopyFromPad = true; });
 
@@ -383,7 +420,6 @@ ${padContent}
           evt.preventDefault();
           return;
         }
-        // Consume flags — next paste must originate from a fresh in-page copy
         lastCopyFromPad = false;
         lastCopyFromPage = false;
       }
@@ -410,7 +446,7 @@ ${padContent}
     if (++pasteAttempts < 30) setTimeout(tryAttachPaste, 500);
   }
 
-  // ── Word count ────────────────────────────────────────────────────────────
+  // ── Word count ─────────────────────────────────────────────────────────────
   function syncWordCount() {
     try {
       var doc = getAceInner();
@@ -425,10 +461,10 @@ ${padContent}
   }
   var wcInterval = setInterval(syncWordCount, 1500);
 
-  // ── Spellcheck ────────────────────────────────────────────────────────────
+  // ── Spellcheck ─────────────────────────────────────────────────────────────
   function applySpellcheck() {
     try {
-      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      var padDoc = getPadDoc();
       if (!padDoc) return false;
       var outerFrame = padDoc.querySelector('iframe[name="ace_outer"], #editorcontainerbox iframe');
       if (!outerFrame || !outerFrame.contentDocument) return false;
@@ -444,11 +480,11 @@ ${padContent}
     if (++spellRetries < 20) setTimeout(trySpellcheck, 500);
   }
 
-  // ── Zoom ─────────────────────────────────────────────────────────────────
+  // ── Zoom ───────────────────────────────────────────────────────────────────
   var zoomSel = document.getElementById('zoom-sel');
   function applyZoom(level) {
     try {
-      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      var padDoc = getPadDoc();
       if (!padDoc || !padDoc.head) return;
       var zs = padDoc.getElementById('ih-zoom');
       if (!zs) { zs = padDoc.createElement('style'); zs.id = 'ih-zoom'; padDoc.head.appendChild(zs); }
@@ -457,7 +493,7 @@ ${padContent}
   }
   zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
 
-  // ── Pad UI cleanup + author color suppression ────────────────────────────
+  // ── Pad UI cleanup + author color suppression ─────────────────────────────
   function injectAuthorColorSuppression(doc) {
     if (!doc || !doc.head || doc.getElementById('ih-author-suppress')) return;
     var s = doc.createElement('style');
@@ -471,30 +507,29 @@ ${padContent}
 
   function applyPadUiCleanup() {
     try {
-      var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+      var padDoc = getPadDoc();
       if (!padDoc || !padDoc.head) return false;
 
       if (!padDoc.getElementById('ih-ui-cleanup')) {
         var s = padDoc.createElement('style');
         s.id = 'ih-ui-cleanup';
         s.textContent =
+          // Hide Etherpad's own toolbar — we have our own in padchrome
+          '#editbar{display:none!important}' +
           // Hide right-side chrome, chat, user list
           'ul.menu_right,ul.menu_right *{display:none!important}' +
           '#history-controls,.history-controls{display:none!important}' +
-          '.buttonicon-clearauthorship,.buttonicon-import_export{display:none!important}' +
           '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
           '#online_count,#users,#userlist,.popup.users{display:none!important}' +
-          // Hide ep_colors native UI — we drive it from padchrome swatches
+          // Hide ep_colors native UI
           '#color,#color-selection{display:none!important}' +
-          // Hide ep_align toolbar buttons — we drive them from padchrome L/C/R buttons
+          // Hide ep_align toolbar buttons
           '.ep_align_left,.ep_align_center,.ep_align_right,.ep_align_justify{display:none!important}';
         padDoc.head.appendChild(s);
       }
 
-      // ace_outer — must be loaded before suppressing author colors
       var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
       if (!aceOuter || !aceOuter.contentDocument) return false;
-
       injectAuthorColorSuppression(aceOuter.contentDocument);
 
       var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
