@@ -53,14 +53,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       }
     </div>` : '';
 
-  const padchrome = `
-    <div class="padchrome">
-      <span class="pdot" style="background:#E2685C"></span>
-      <span class="pdot" style="background:#E8B14C"></span>
-      <span class="pdot" style="background:var(--green-500)"></span>
-      <span class="scnote">${spellcheck ? '&#10003; ' : ''}${esc(spellLabel)}</span>
-      ${promptBtn}
-      <div class="zoom-wrap">
+  const zoomSelect = `<div class="zoom-wrap">
         <label for="zoom-sel">Zoom</label>
         <select id="zoom-sel" class="zoom-select">
           <option value="0.75">75%</option>
@@ -70,12 +63,17 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
           <option value="1.25">125%</option>
           <option value="1.5">150%</option>
         </select>
-      </div>
+      </div>`;
+
+  const padchrome = `
+    <div class="padchrome">
+      ${hasPrompt ? promptBtn : ''}
+      <span class="wordcount" id="wc"></span>
+      ${zoomSelect}
     </div>`;
 
   const writeActions = `
     <div class="writeactions">
-      <span class="wordcount" id="wc"></span>
       <span class="sp"></span>
       <button class="btn ghost" id="save-btn">Save</button>
       <button class="btn p" id="submit-btn">Submit for grading</button>
@@ -135,15 +133,14 @@ ${writeActions}`;
     .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
     /* ── Padframe ──────────────────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
-    .padchrome{display:flex;align-items:center;gap:6px;padding:9px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
-    .pdot{width:9px;height:9px;border-radius:50%;}
-    .scnote{font-size:11.5px;color:var(--text-3);}
-    .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;margin-left:6px;}
+    .padchrome{display:flex;align-items:center;gap:8px;padding:6px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:36px;}
+    .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;}
     .prompt-btn:hover{background:var(--green-100,#dcfce7);}
     .prompt-btn.active{background:var(--green-100,#dcfce7);border-color:var(--primary);}
     .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:6px;}
     .zoom-wrap label{font-size:11.5px;color:var(--text-3);}
     .zoom-select{font-size:12px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
+    .wordcount{font-size:12px;color:var(--text-3);}
     /* ── Prompt panel ──────────────────────────────────── */
     .prompt-panel{display:none;border-bottom:1px solid var(--border);background:var(--surface-2,#f9f8f5);max-height:180px;overflow-y:auto;flex-shrink:0;}
     .prompt-panel.open{display:block;}
@@ -155,7 +152,6 @@ ${writeActions}`;
     /* ── Write actions ───────────────────────────────────── */
     .writeactions{padding:12px 20px;display:flex;align-items:center;gap:12px;background:var(--bg);border-top:1px solid var(--border);flex-shrink:0;}
     .writeactions .sp{flex:1;}
-    .wordcount{font-size:13px;color:var(--text-3);}
     .btn{font-size:13.5px;font-weight:600;padding:9px 18px;border-radius:var(--r-sm);cursor:pointer;transition:transform .12s var(--ease),box-shadow .2s;}
     .btn:hover{transform:translateY(-1px);}
     .btn:active{transform:translateY(0);}
@@ -305,22 +301,33 @@ ${padContent}
     setTimeout(setSaved, 800);
   });
 
-  // ── Word count (Step 3.7 / ep_countable) ─────────────────────────────────
-  // ep_countable renders a count element inside the Etherpad iframe.
-  // Since we are same-origin, poll for it after the iframe loads.
-  function syncWordCount() {
+  // ── Word count ────────────────────────────────────────────────────────────
+  // Read text directly from ace_inner (the innermost editor iframe).
+  function getAceInnerDocForCount() {
     try {
       var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-      if (!padDoc) return;
-      var el = padDoc.querySelector('.ep_countable_words, .word-count, [data-word-count]');
-      if (el) {
-        var txt = el.textContent.trim();
-        if (txt) wcEl.textContent = txt + (txt.match(/word/i) ? '' : ' words');
-      }
-    } catch (_) { /* cross-origin guard */ }
+      if (!padDoc) return null;
+      var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
+      if (!aceOuter || !aceOuter.contentDocument) return null;
+      var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
+      return aceInner ? aceInner.contentDocument : aceOuter.contentDocument;
+    } catch (_) { return null; }
   }
 
-  var wcInterval = setInterval(syncWordCount, 2000);
+  function syncWordCount() {
+    try {
+      var doc = getAceInnerDocForCount();
+      if (!doc) return;
+      var body = doc.querySelector('#innerdocbody, .innerdocbody, [contenteditable="true"]');
+      if (!body) return;
+      var text = body.innerText || body.textContent || '';
+      var words = text.trim() ? text.trim().split(/\s+/).filter(function(w){return w.length > 0;}).length : 0;
+      var chars = text.replace(/[\s​]/g, '').length;
+      wcEl.textContent = words + ' words · ' + chars + ' chars';
+    } catch (_) {}
+  }
+
+  var wcInterval = setInterval(syncWordCount, 1500);
 
   // ── Spellcheck flag (Step 3.6) ────────────────────────────────────────────
   // The padchrome note already shows the state. Here we attempt to set the
@@ -349,6 +356,7 @@ ${padContent}
   }
 
   // ── Zoom ─────────────────────────────────────────────────────────────────
+  // Zoom only the editor content area, not Etherpad's formatting toolbar.
   var zoomSel = document.getElementById('zoom-sel');
   function applyZoom(level) {
     try {
@@ -356,42 +364,68 @@ ${padContent}
       if (!padDoc || !padDoc.head) return;
       var zs = padDoc.getElementById('ih-zoom');
       if (!zs) { zs = padDoc.createElement('style'); zs.id = 'ih-zoom'; padDoc.head.appendChild(zs); }
-      zs.textContent = 'body{zoom:' + level + '!important}';
+      zs.textContent = '#editorcontainerbox{zoom:' + level + '!important}';
     } catch (_) {}
   }
-  zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
+  zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
 
-  // ── Pad UI cleanup ───────────────────────────────────────────────────────
-  // Inject CSS into the Etherpad outer document to hide non-essential chrome:
-  // bottom toolbar icons, chat, user count, settings, share, timeslider.
+  // ── Pad UI cleanup + author color suppression ────────────────────────────
+  function injectAuthorColorSuppression(doc) {
+    if (!doc || !doc.head || doc.getElementById('ih-author-suppress')) return;
+    var s = doc.createElement('style');
+    s.id = 'ih-author-suppress';
+    s.textContent =
+      'span[class^="author-"],span[class*=" author-"]{' +
+      'background:transparent!important;background-color:transparent!important;' +
+      'border-left:none!important;box-shadow:none!important;}';
+    doc.head.appendChild(s);
+  }
+
   function applyPadUiCleanup() {
     try {
       var padDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
       if (!padDoc || !padDoc.head) return false;
-      if (padDoc.getElementById('ih-ui-cleanup')) return true;
-      var s = padDoc.createElement('style');
-      s.id = 'ih-ui-cleanup';
-      s.textContent =
-        'ul.menu_right,ul.menu_right *{display:none!important}' +
-        '#history-controls,.history-controls{display:none!important}' +
-        '.buttonicon-clearauthorship,.buttonicon-import_export{display:none!important}' +
-        '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
-        '#online_count,#users,#userlist,.popup.users{display:none!important}';
-      padDoc.head.appendChild(s);
 
-      // Suppress author highlight colours in the inner editor iframe.
-      try {
-        var inner = padDoc.getElementById('editorcontainerIframe') ||
-                    padDoc.querySelector('#editorcontainer iframe') ||
-                    padDoc.querySelector('iframe.inner');
-        if (inner && inner.contentDocument && inner.contentDocument.head) {
-          var si = inner.contentDocument.createElement('style');
-          si.textContent = 'span[class^="author-"],span[class*=" author-"]{background:transparent!important;border-left:none!important;}';
-          inner.contentDocument.head.appendChild(si);
-        }
-      } catch (_) {}
+      // Outer-doc cleanup: hide right-side toolbar chrome, chat, etc.
+      if (!padDoc.getElementById('ih-ui-cleanup')) {
+        var s = padDoc.createElement('style');
+        s.id = 'ih-ui-cleanup';
+        s.textContent =
+          'ul.menu_right,ul.menu_right *{display:none!important}' +
+          '#history-controls,.history-controls{display:none!important}' +
+          '.buttonicon-clearauthorship,.buttonicon-import_export{display:none!important}' +
+          '#chaticon,#chat,.chat-container,#chatbutton{display:none!important}' +
+          '#online_count,#users,#userlist,.popup.users{display:none!important}' +
+          // ep_colors: style the color select as a visual swatch
+          '#color-selection{width:28px;height:28px;padding:0;border-radius:5px;' +
+          'cursor:pointer;border:1.5px solid rgba(0,0,0,.18);font-size:0;text-indent:-9999px;' +
+          'appearance:none;-webkit-appearance:none;background-color:#999;}';
+        padDoc.head.appendChild(s);
 
-      return true;
+        // JS: update select background to show active color as swatch
+        var sc = padDoc.createElement('script');
+        sc.textContent = '(function(){' +
+          'var cm={"0":"#111","1":"#cc0000","2":"#009900","3":"#0000cc","4":"#e8d000","5":"#e67300"};' +
+          'function refresh(sel){sel.style.backgroundColor=cm[sel.value]||"#999";}' +
+          'function init(){var sel=document.getElementById("color-selection");' +
+          'if(!sel){setTimeout(init,1000);return;}' +
+          'sel.addEventListener("change",function(){refresh(sel);});refresh(sel);}' +
+          'init();})();';
+        padDoc.body.appendChild(sc);
+      }
+
+      // ace_outer iframe — must be loaded before we can suppress author colors
+      var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
+      if (!aceOuter || !aceOuter.contentDocument) return false; // not ready yet
+
+      injectAuthorColorSuppression(aceOuter.contentDocument);
+
+      var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
+      if (aceInner && aceInner.contentDocument) {
+        injectAuthorColorSuppression(aceInner.contentDocument);
+      }
+
+      return true; // ace_outer found — stop retrying
     } catch (_) { return false; }
   }
 
@@ -400,7 +434,7 @@ ${padContent}
   function tryCleanup() {
     if (cleanupDone) return;
     if (applyPadUiCleanup()) { cleanupDone = true; return; }
-    if (++cleanupAttempts < 20) setTimeout(tryCleanup, 400);
+    if (++cleanupAttempts < 30) setTimeout(tryCleanup, 400);
   }
 
   iframe.addEventListener('load', function () {
