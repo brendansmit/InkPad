@@ -6,6 +6,7 @@
   <title>EAP File Library</title>
   <link rel="icon" href="/assets/InkHeron%20Logo.png">
   <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <style>
     *{box-sizing:border-box;}
     body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;}
@@ -32,7 +33,7 @@
     .doc:hover{transform:translateY(-2px);box-shadow:var(--shadow-lift);border-color:rgba(36,99,67,.26);}
     .doc.locked{opacity:.56;cursor:default;}
     .doc.locked:hover{transform:none;box-shadow:var(--shadow-card);border-color:var(--border);}
-    .doc-icon{width:38px;height:38px;border-radius:10px;background:var(--green-50);color:var(--green-700);display:grid;place-items:center;font-weight:900;}
+    .doc-icon{width:38px;height:38px;border-radius:10px;background:var(--green-50);color:var(--green-700);display:grid;place-items:center;font-size:16px;}
     .doc-title{font-weight:800;line-height:1.35;flex:1;}
     .doc-meta{border-top:1px solid var(--border);padding-top:9px;color:var(--text-3);font-size:12px;}
     .empty{display:none;min-height:360px;align-items:center;justify-content:center;flex-direction:column;text-align:center;color:var(--text-3);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);}
@@ -102,7 +103,8 @@
     let viewingDocId=null;
     let viewOpenTime=null;
 
-    function iconLabel(icon){return ({folder:'F',target:'T',document:'D',pencil:'P',pdf:'P',file:'F'})[icon]||'F';}
+    const ICON_LEGACY={'folder':'fas fa-folder','target':'fas fa-bullseye','document':'fas fa-scroll','pencil':'fas fa-pen','pdf':'fas fa-file-pdf','file':'fas fa-file-alt'};
+    function iconClass(icon){if(!icon)return 'fas fa-file-alt';if(icon.startsWith('fas ')||icon.startsWith('far ')||icon.startsWith('fab '))return icon;return ICON_LEGACY[icon]||'fas fa-file-alt';}
     function esc(value){return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
     function formatDate(value){if(!value)return '';return new Date(value.replace(' ','T')+'Z').toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'});}
     function releaseDate(value){if(!value)return '';const date=new Date(value+'T00:00:00');return date.toLocaleDateString([], {month:'long',day:'numeric'});}
@@ -134,7 +136,7 @@
     function renderCategories(categories){
       document.getElementById('nav-categories').innerHTML=categories.map(category=>`
         <a class="nav-item" href="#" data-category="${category.id}">
-          <span>${iconLabel(category.icon)}</span>${esc(category.label)}
+          <i class="${iconClass(category.icon)}" style="width:16px;text-align:center"></i>${esc(category.label)}
         </a>
       `).join('');
     }
@@ -153,10 +155,10 @@
       const today=new Date().toISOString().slice(0,10);
       grid.innerHTML=docs.map(doc=>{
         const locked=doc.release_at&&doc.release_at>today;
-        const icon=locked?'L':iconLabel(doc.file_type==='pdf'?'pdf':doc.icon);
+        const iconCls=locked?'fas fa-lock':iconClass(doc.file_type==='pdf'?'fas fa-file-pdf':doc.icon);
         const meta=locked?`Available ${releaseDate(doc.release_at)}`:formatDate(doc.uploaded_at);
         return `<article class="doc${locked?' locked':''}" data-id="${doc.id}" data-filename="${esc(doc.filename)}" data-title="${esc(doc.title)}" data-release="${esc(doc.release_at||'')}" data-downloadable="${doc.downloadable?1:0}" data-type="${esc(doc.file_type||'html')}">
-          <div class="doc-icon">${icon}</div>
+          <div class="doc-icon"><i class="${iconCls}"></i></div>
           <div class="doc-title">${esc(doc.title)}</div>
           <div class="doc-meta">${esc(meta)}</div>
         </article>`;

@@ -49,10 +49,12 @@ function cleanNullableDate(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : null;
 }
 
-function cleanIcon(value, fallback = 'file') {
-  const text = cleanText(value);
+function cleanIcon(value, fallback = 'fas fa-file-alt') {
+  if (typeof value !== 'string') return fallback;
+  const text = value.trim();
   if (!text) return fallback;
-  return text.replace(/[^a-z0-9_-]/gi, '').slice(0, 32) || fallback;
+  if (!/^[a-z][a-z0-9 -]*$/i.test(text) || text.length > 64) return fallback;
+  return text;
 }
 
 async function readMultipartUpload(request, reply, uploadsDir, { requireFile }) {
