@@ -588,14 +588,6 @@ ${padContent}
       if (!aceOuter || !aceOuter.contentDocument) return false;
       var aoDoc = aceOuter.contentDocument;
       injectInnerFrameStyles(aoDoc);
-      // EP may set body background via inline JS which beats stylesheet !important.
-      // Override with setProperty which wins over both stylesheet rules and inline styles.
-      if (aoDoc.body) {
-        aoDoc.body.style.setProperty('background', '#fff', 'important');
-        aoDoc.body.style.setProperty('background-color', '#fff', 'important');
-      }
-      var edBox = aoDoc.getElementById('editorcontainerbox');
-      if (edBox) edBox.style.setProperty('background', '#fff', 'important');
 
       var aceInner = aoDoc.querySelector('iframe[name="ace_inner"]');
       // Don't mark done until aceInner is also injected — it loads slightly later.
