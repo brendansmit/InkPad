@@ -128,6 +128,7 @@
           </div>
           <div class="section stack">
             <button class="btn primary" type="button" id="replayBtn">Timeslider replay</button>
+            <button class="btn" type="button" id="previewPadBtn">Preview pad</button>
             <button class="btn" type="button" id="codesBtn">Literacy codes</button>
           </div>
         </aside>
@@ -163,7 +164,9 @@
       `;
       document.getElementById('replayBtn').addEventListener('click',()=>{
         window.location.href=`/teacher/timeslider?pad_id=${data.pad.id}&title=${encodeURIComponent(data.assignment?.title||'')}`;
-
+      });
+      document.getElementById('previewPadBtn').addEventListener('click',()=>{
+        window.open(`/teacher/preview-pad/${data.pad.id}`,'_blank');
       });
       let coded=false;
       document.getElementById('codesBtn').addEventListener('click',()=>{

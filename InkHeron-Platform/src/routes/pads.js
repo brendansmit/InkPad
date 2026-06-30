@@ -746,6 +746,63 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
   );
 
   /**
+   * GET /teacher/preview-pad/:padId
+   *
+   * Teacher-only write-view preview. Opens the student's pad in the full
+   * write shell (same UI as the student sees) so the teacher can test
+   * word count, line numbers, toolbar etc. without needing a student login.
+   * Uses a teacher Etherpad author identity so edits are attributed to the
+   * teacher, not the student.
+   */
+  app.get('/teacher/preview-pad/:padId',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = db.prepare(`
+        SELECT p.id,
+               p.state,
+               p.etherpad_pad_id,
+               a.id AS assignment_id,
+               a.title AS assignment_title,
+               a.due_at,
+               a.settings_json,
+               a.class_id,
+               s.display_name AS student_name
+        FROM pads p
+        JOIN assignments a ON a.id = p.assignment_id
+        JOIN students s ON s.id = p.student_id
+        WHERE p.id = ?
+      `).get(padId);
+
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+
+      const groupId = await service.ensureClassGroup(pad.class_id);
+      const authorId = await service.ensureTeacherAuthor(
+        request.session.user.id,
+        request.session.user.display_name ?? 'Teacher'
+      );
+      const session = await service.createSessionCookie(groupId, authorId);
+      reply.header('Set-Cookie', `sessionID=${session.sessionID}; Path=/; SameSite=Lax; HttpOnly`);
+
+      const settings = parseAssignmentSettings(pad.settings_json);
+      return reply.type('text/html').send(renderWriteView({
+        title: `[Preview] ${pad.student_name} — ${pad.assignment_title}`,
+        dueAt: pad.due_at,
+        spellcheck: settings.spellcheck !== false,
+        pasteBlock: false,
+        etherpadPadId: pad.etherpad_pad_id,
+        padId: pad.id,
+        padState: pad.state,
+        csrfToken: '',
+        prompt: settings.prompt || '',
+        passageText: settings.passage_text || '',
+        passagePdf: false,
+        assignmentId: pad.assignment_id,
+      }));
+    }
+  );
+
+  /**
    * POST /api/submissions/:submissionId/analyse
    *
    * Teacher-triggered manual literacy analysis for an existing submission.
