@@ -484,13 +484,10 @@ ${padContent}
 
   function countFromBody(body) {
     try {
-      var lines = body.querySelectorAll('.ace-line');
-      var text = lines.length
-        ? Array.prototype.map.call(lines, function (l) { return l.textContent; }).join(' ')
-        : (body.textContent || '');
+      var text = (typeof body.innerText === 'string' ? body.innerText : body.textContent) || '';
       var trimmed = text.trim();
       var words = trimmed ? trimmed.split(/\s+/).filter(function (w) { return w.length > 0; }).length : 0;
-      var chars = text.replace(/\s/g, '').length;
+      var chars = trimmed.replace(/\s/g, '').length;
       wcEl.textContent = words + ' words · ' + chars + ' chars';
     } catch (_) {}
   }
@@ -670,8 +667,8 @@ ${padContent}
     pdfZoomRange.addEventListener('change', function () {
       var pct = this.value;
       if (pdfZoomPct) pdfZoomPct.textContent = pct + '%';
-      var base = passagePdfFrame.src.split('#')[0];
-      passagePdfFrame.src = base + '#zoom=' + pct;
+      var base = passagePdfFrame.src.split('?')[0].split('#')[0];
+      passagePdfFrame.src = base + '?_z=' + Date.now() + '#zoom=' + pct;
     });
   }
 
