@@ -46,6 +46,12 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
         ${passagePdf ? `<div class="pdf-zoom-ctrl">
           <input type="range" id="pdf-zoom-range" class="pdf-zoom-range" min="50" max="200" step="5" value="100" aria-label="PDF zoom">
           <span class="pdf-zoom-pct" id="pdf-zoom-pct">100%</span>
+          <span class="pdf-hl-sep"></span>
+          <span class="pdf-hl-label">Highlight:</span>
+          <button class="pdf-hl-btn" data-phlcolor="rgba(255,220,0,0.4)" style="background:#ffdc00" onmousedown="return false" title="Yellow"></button>
+          <button class="pdf-hl-btn" data-phlcolor="rgba(100,220,100,0.4)" style="background:#64dc64" onmousedown="return false" title="Green"></button>
+          <button class="pdf-hl-btn" data-phlcolor="rgba(100,160,255,0.4)" style="background:#64a0ff" onmousedown="return false" title="Blue"></button>
+          <button class="pdf-hl-btn" data-phlcolor="rgba(255,100,160,0.4)" style="background:#ff64a0" onmousedown="return false" title="Pink"></button>
         </div>` : ''}
       </div>
       ${passagePdf
@@ -233,7 +239,16 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .passage-text-content{flex:1;overflow-y:auto;min-height:0;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
     .passage-pdf-outer{flex:1;overflow:auto;min-height:0;}
     .passage-pdf-pages{padding:8px;display:flex;flex-direction:column;gap:8px;align-items:center;}
-    .pdf-page-canvas{display:block;box-shadow:0 1px 4px rgba(0,0,0,.18);background:#fff;}
+    .pdf-page{position:relative;box-shadow:0 1px 4px rgba(0,0,0,.18);background:#fff;line-height:1;flex-shrink:0;}
+    .pdf-page-canvas{display:block;}
+    .pdf-hl-canvas{position:absolute;top:0;left:0;pointer-events:none;mix-blend-mode:multiply;}
+    .textLayer{position:absolute;top:0;left:0;overflow:hidden;opacity:1;line-height:1;text-size-adjust:none;user-select:text;pointer-events:auto;}
+    .textLayer span,.textLayer br{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0% 0%;}
+    .textLayer span::selection,.textLayer br::selection{background:rgba(0,100,255,.25);}
+    .pdf-hl-sep{width:1px;height:14px;background:var(--border);flex-shrink:0;margin:0 4px;}
+    .pdf-hl-label{font-size:10px;color:var(--text-3);white-space:nowrap;flex-shrink:0;}
+    .pdf-hl-btn{width:16px;height:16px;border-radius:50%;border:1.5px solid rgba(0,0,0,.15);cursor:pointer;padding:0;flex-shrink:0;transition:transform .12s;}
+    .pdf-hl-btn:hover{transform:scale(1.25);}
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:54px;overflow-x:auto;}
@@ -796,20 +811,57 @@ ${padContent}
 </script>
 
 ${passagePdf ? `<script type="module">
-import * as pdfjsLib from '/assets/static/pdfjs/pdf.min.mjs';
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/static/pdfjs/pdf.worker.min.mjs';
+import { getDocument, GlobalWorkerOptions, TextLayer } from '/assets/static/pdfjs/pdf.min.mjs';
+GlobalWorkerOptions.workerSrc = '/assets/static/pdfjs/pdf.worker.min.mjs';
 
 var pdfContainer = document.getElementById('passagePdfPages');
-var pdfSlider = document.getElementById('pdf-zoom-range');
-var pdfPctEl = document.getElementById('pdf-zoom-pct');
+var pdfSlider    = document.getElementById('pdf-zoom-range');
+var pdfPctEl     = document.getElementById('pdf-zoom-pct');
 
 if (pdfContainer) {
-  var pdfDoc = null;
-  var fitScale = 1;
+  var pdfDoc    = null;
+  var fitScale  = 1;
   var rendering = false;
 
   function getScale() {
     return fitScale * ((pdfSlider ? Number(pdfSlider.value) : 100) / 100);
+  }
+
+  async function renderPage(pageNum, scale) {
+    var page = await pdfDoc.getPage(pageNum);
+    var vp   = page.getViewport({ scale });
+
+    // Wrapper keeps canvas, highlight canvas, and text layer aligned
+    var wrap = document.createElement('div');
+    wrap.className = 'pdf-page';
+    wrap.style.width  = vp.width  + 'px';
+    wrap.style.height = vp.height + 'px';
+    pdfContainer.appendChild(wrap);
+
+    // PDF render canvas
+    var canvas = document.createElement('canvas');
+    canvas.className = 'pdf-page-canvas';
+    canvas.width  = vp.width;
+    canvas.height = vp.height;
+    wrap.appendChild(canvas);
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+    // Highlight canvas (drawn over PDF, under text layer)
+    var hlCanvas = document.createElement('canvas');
+    hlCanvas.className = 'pdf-hl-canvas';
+    hlCanvas.width  = vp.width;
+    hlCanvas.height = vp.height;
+    wrap.appendChild(hlCanvas);
+
+    // Selectable text layer
+    var textDiv = document.createElement('div');
+    textDiv.className = 'textLayer';
+    textDiv.style.width  = vp.width  + 'px';
+    textDiv.style.height = vp.height + 'px';
+    wrap.appendChild(textDiv);
+
+    var tl = new TextLayer({ textContentSource: await page.getTextContent(), container: textDiv, viewport: vp });
+    await tl.render();
   }
 
   async function renderAll(scale) {
@@ -817,28 +869,42 @@ if (pdfContainer) {
     rendering = true;
     pdfContainer.innerHTML = '';
     for (var i = 1; i <= pdfDoc.numPages; i++) {
-      var page = await pdfDoc.getPage(i);
-      var vp = page.getViewport({ scale: scale });
-      var canvas = document.createElement('canvas');
-      canvas.className = 'pdf-page-canvas';
-      canvas.width = vp.width;
-      canvas.height = vp.height;
-      pdfContainer.appendChild(canvas);
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      await renderPage(i, scale);
     }
     rendering = false;
   }
 
-  pdfjsLib.getDocument('/api/assignments/${assignmentIdSafe}/passage-pdf').promise.then(async function(doc) {
+  // Paint current selection onto each page's highlight canvas
+  function applyPdfHighlight(color) {
+    var sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    var rects = Array.from(sel.getRangeAt(0).getClientRects());
+    pdfContainer.querySelectorAll('.pdf-page').forEach(function(pg) {
+      var pr  = pg.getBoundingClientRect();
+      var ctx = pg.querySelector('.pdf-hl-canvas').getContext('2d');
+      ctx.fillStyle = color;
+      rects.forEach(function(r) {
+        if (r.right > pr.left && r.left < pr.right && r.bottom > pr.top && r.top < pr.bottom) {
+          ctx.fillRect(r.left - pr.left, r.top - pr.top, r.width, r.height);
+        }
+      });
+    });
+    sel.removeAllRanges();
+  }
+
+  // Highlight buttons in passage header
+  document.querySelectorAll('.pdf-hl-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { applyPdfHighlight(btn.dataset.phlcolor); });
+  });
+
+  getDocument('/api/assignments/${assignmentIdSafe}/passage-pdf').promise.then(async function(doc) {
     pdfDoc = doc;
     var firstPage = await doc.getPage(1);
-    var baseVp = firstPage.getViewport({ scale: 1 });
-    var w = pdfContainer.offsetWidth || 400;
-    fitScale = (w - 16) / baseVp.width;
+    var baseVp    = firstPage.getViewport({ scale: 1 });
+    fitScale = (pdfContainer.offsetWidth - 16) / baseVp.width;
     await renderAll(getScale());
-  }).catch(function(e) {
+  }).catch(function() {
     pdfContainer.innerHTML = '<p style="padding:16px;color:var(--text-3)">Could not load PDF.</p>';
-    console.error('PDF load error', e);
   });
 
   if (pdfSlider) {
@@ -849,9 +915,7 @@ if (pdfContainer) {
     pdfSlider.addEventListener('change', function() {
       if (pdfPctEl) pdfPctEl.textContent = this.value + '%';
       clearTimeout(renderTimer);
-      renderTimer = setTimeout(function() {
-        if (pdfDoc) renderAll(getScale());
-      }, 50);
+      renderTimer = setTimeout(function() { if (pdfDoc) renderAll(getScale()); }, 80);
     });
   }
 }
