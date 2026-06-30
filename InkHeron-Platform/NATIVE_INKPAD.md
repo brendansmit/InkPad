@@ -15,6 +15,14 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Autosaves store structured JSON plus plain text for review, search and recovery.
 - Revisions are snapshots, not real-time collaboration history.
 
+## Phase 2 Review Foundation
+
+- `native_pads.version` increments on save so comments and codes can attach to a document version.
+- `native_pad_policies` stores live per-pad controls, starting with paste mode and spellcheck.
+- `native_annotations` stores general comments, inline comments, literacy code marks and highlights with text ranges.
+- `native_teacher_events` records teacher actions for later debugging.
+- Student editor polls policy and can allow, log or block paste without a page reload.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:

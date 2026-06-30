@@ -109,6 +109,8 @@ test('student can create, autosave and submit a native pad', async () => {
   assert.equal(created.statusCode, 200);
   assert.equal(created.json().pad.state, 'writing');
   assert.equal(created.json().pad.word_count, 0);
+  assert.equal(created.json().pad.version, 1);
+  assert.equal(created.json().policy.paste_mode, 'log');
   const padId = created.json().pad.id;
 
   const saved = await app.inject({
@@ -123,6 +125,7 @@ test('student can create, autosave and submit a native pad', async () => {
   assert.equal(saved.statusCode, 200);
   assert.equal(saved.json().pad.word_count, 3);
   assert.equal(saved.json().pad.plain_text, 'Hello native pad');
+  assert.equal(saved.json().pad.version, 2);
 
   const submitted = await app.inject({
     method: 'POST',
@@ -148,6 +151,107 @@ test('student can create, autosave and submit a native pad', async () => {
   });
   assert.equal(revisions.statusCode, 200);
   assert.deepEqual(revisions.json().revisions.map(revision => revision.reason), ['create', 'autosave', 'submit']);
+
+  await app.close();
+});
+
+test('teacher can review native pad, add comments and change live paste policy', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app);
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const saved = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Sentence one. Sentence two.' }] },
+      plain_text: 'Sentence one. Sentence two.',
+    },
+  });
+  assert.equal(saved.statusCode, 200);
+
+  const policy = await app.inject({
+    method: 'PUT',
+    url: `/api/native/pads/${padId}/policy`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { paste_mode: 'block', spellcheck_enabled: false },
+  });
+  assert.equal(policy.statusCode, 200);
+  assert.equal(policy.json().policy.paste_mode, 'block');
+  assert.equal(policy.json().policy.spellcheck_enabled, false);
+
+  const studentPolicy = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/policy`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(studentPolicy.statusCode, 200);
+  assert.equal(studentPolicy.json().policy.paste_mode, 'block');
+
+  const pasteEvent = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/paste-event`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: { length: 24, input_type: 'paste' },
+  });
+  assert.equal(pasteEvent.statusCode, 201);
+
+  const general = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/annotations`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { type: 'general_comment', body: 'Good control overall.' },
+  });
+  assert.equal(general.statusCode, 201);
+  assert.equal(general.json().annotation.type, 'general_comment');
+  assert.equal(general.json().annotation.body, 'Good control overall.');
+
+  const inline = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/annotations`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      type: 'inline_comment',
+      start_offset: 0,
+      end_offset: 12,
+      selected_text: 'Sentence one',
+      body: 'Make this opening more specific.',
+      metadata: { tone: 'teacher' },
+    },
+  });
+  assert.equal(inline.statusCode, 201);
+  assert.equal(inline.json().annotation.type, 'inline_comment');
+  assert.equal(inline.json().annotation.document_version, 2);
+
+  const updatedInline = await app.inject({
+    method: 'PATCH',
+    url: `/api/native/annotations/${inline.json().annotation.id}`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { resolved: true },
+  });
+  assert.equal(updatedInline.statusCode, 200);
+  assert.equal(updatedInline.json().annotation.resolved, true);
+
+  const review = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/review`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(review.statusCode, 200);
+  assert.equal(review.json().pad.plain_text, 'Sentence one. Sentence two.');
+  assert.equal(review.json().policy.paste_mode, 'block');
+  assert.equal(review.json().paste_events.length, 1);
+  assert.deepEqual(review.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment']);
 
   await app.close();
 });

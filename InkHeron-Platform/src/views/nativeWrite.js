@@ -15,6 +15,7 @@ export function renderNativeWriteView({
   title,
   assignmentId,
   pad,
+  policy,
   csrfToken,
   dueAt,
   spellcheck,
@@ -39,6 +40,7 @@ export function renderNativeWriteView({
     .title{font-family:var(--serif);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .spacer{flex:1}
     .stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums}
+    .stat.warn{color:#a75432;font-weight:800}
     .btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 12px;font-weight:800;cursor:pointer}
     .btn.primary{background:#2f6f4e;color:#fff;border-color:#2f6f4e}
     .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -60,6 +62,7 @@ export function renderNativeWriteView({
     <div class="brand">InkPad</div>
     <div class="title">${escapeHtml(title)}</div>
     <div class="spacer"></div>
+    <div class="stat" id="pastePolicy">Paste ${escapeHtml(policy?.paste_mode ?? 'log')}</div>
     <div class="stat" id="saveState">Saved</div>
     <div class="stat"><span id="wordCount">${pad.word_count}</span> words</div>
     <button class="btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>Submit</button>
@@ -86,8 +89,10 @@ export function renderNativeWriteView({
   </main>
   <script>
     const initialPad = ${jsonScript(pad)};
+    let currentPolicy = ${jsonScript(policy ?? { paste_mode: 'log', spellcheck_enabled: spellcheck !== false })};
     const csrfToken = ${jsonScript(csrfToken)};
     const editor = document.getElementById('nativeEditor');
+    const pastePolicy = document.getElementById('pastePolicy');
     const saveState = document.getElementById('saveState');
     const wordCount = document.getElementById('wordCount');
     const submitBtn = document.getElementById('submitBtn');
@@ -96,6 +101,7 @@ export function renderNativeWriteView({
     let lastSavedText = initialPad.plain_text || '';
 
     editor.innerText = initialPad.plain_text || '';
+    applyPolicy(currentPolicy);
     updateCount();
 
     function currentText(){ return editor.innerText.replace(/\\u00a0/g, ' '); }
@@ -105,6 +111,31 @@ export function renderNativeWriteView({
     }
     function updateCount(){ wordCount.textContent = countWords(currentText()); }
     function documentPayload(){ return { type:'doc', content:[{ type:'text', text:currentText() }] }; }
+    function applyPolicy(policy){
+      currentPolicy = policy || currentPolicy;
+      editor.spellcheck = currentPolicy.spellcheck_enabled !== false;
+      pastePolicy.textContent = 'Paste ' + currentPolicy.paste_mode;
+      pastePolicy.classList.toggle('warn', currentPolicy.paste_mode === 'block');
+    }
+
+    async function refreshPolicy(){
+      try{
+        const response = await fetch('/api/native/pads/' + initialPad.id + '/policy');
+        if(!response.ok) return;
+        const data = await response.json();
+        applyPolicy(data.policy);
+      }catch(_){}
+    }
+
+    async function recordPaste(length, inputType){
+      try{
+        await fetch('/api/native/pads/' + initialPad.id + '/paste-event', {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'X-CSRF-Token':csrfToken },
+          body:JSON.stringify({ length, input_type:inputType || 'paste' })
+        });
+      }catch(_){}
+    }
 
     async function saveNow(){
       if(saving || !dirty || editor.getAttribute('contenteditable') === 'false') return;
@@ -137,6 +168,17 @@ export function renderNativeWriteView({
     });
     editor.addEventListener('blur', saveNow);
     setInterval(saveNow, 5000);
+    setInterval(refreshPolicy, 5000);
+
+    editor.addEventListener('paste', event => {
+      const text = event.clipboardData ? event.clipboardData.getData('text/plain') : '';
+      if(currentPolicy.paste_mode === 'allow') return;
+      recordPaste(text.length || 1, 'paste');
+      if(currentPolicy.paste_mode === 'block'){
+        event.preventDefault();
+        saveState.textContent = 'Paste blocked';
+      }
+    });
 
     document.querySelectorAll('[data-command]').forEach(button => {
       button.addEventListener('mousedown', event => event.preventDefault());

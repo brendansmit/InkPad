@@ -7,8 +7,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
 const PASSAGES_DIR = path.join(__routesDir, '..', '..', 'data', 'passages');
 const EMPTY_DOC = '{"type":"doc","content":[]}';
+const EMPTY_META = '{}';
 const MAX_PLAIN_TEXT_LENGTH = 200000;
 const MAX_DOCUMENT_JSON_LENGTH = 1000000;
+const MAX_COMMENT_LENGTH = 8000;
+const ANNOTATION_TYPES = new Set(['general_comment', 'inline_comment', 'literacy_code', 'highlight']);
+const PASTE_MODES = new Set(['allow', 'log', 'block']);
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -63,6 +67,21 @@ function normalizePlainText(value) {
   return text;
 }
 
+function normalizeComment(value) {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (text.length > MAX_COMMENT_LENGTH) {
+    const error = new Error('comment_too_large');
+    error.statusCode = 413;
+    throw error;
+  }
+  return text;
+}
+
+function normalizeMetadata(value) {
+  const metadata = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return JSON.stringify(metadata);
+}
+
 function publicNativePad(row) {
   return {
     id: row.id,
@@ -72,9 +91,37 @@ function publicNativePad(row) {
     document: JSON.parse(row.document_json || EMPTY_DOC),
     plain_text: row.plain_text ?? '',
     word_count: Number(row.word_count ?? 0),
+    version: Number(row.version ?? 1),
     created_at: row.created_at,
     updated_at: row.updated_at,
     submitted_at: row.submitted_at ?? null,
+  };
+}
+
+function publicPolicy(row) {
+  return {
+    paste_mode: row.paste_mode,
+    spellcheck_enabled: row.spellcheck_enabled === 1,
+    updated_at: row.updated_at,
+    updated_by_teacher_id: row.updated_by_teacher_id ?? null,
+  };
+}
+
+function publicAnnotation(row) {
+  return {
+    id: row.id,
+    native_pad_id: row.native_pad_id,
+    teacher_id: row.teacher_id ?? null,
+    type: row.type,
+    start_offset: row.start_offset ?? null,
+    end_offset: row.end_offset ?? null,
+    selected_text: row.selected_text ?? '',
+    body: row.body ?? '',
+    metadata: JSON.parse(row.metadata_json || EMPTY_META),
+    resolved: row.resolved === 1,
+    document_version: Number(row.document_version ?? 1),
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -117,9 +164,21 @@ async function resolveNativeAssignmentAndStudent(db, assignmentId, studentId) {
 
 function insertRevision(db, padId, reason, row) {
   db.prepare(`
-    INSERT INTO native_pad_revisions (native_pad_id, reason, document_json, plain_text, word_count)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(padId, reason, row.document_json, row.plain_text ?? '', Number(row.word_count ?? 0));
+    INSERT INTO native_pad_revisions (native_pad_id, reason, document_json, plain_text, word_count, document_version)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(padId, reason, row.document_json, row.plain_text ?? '', Number(row.word_count ?? 0), Number(row.version ?? 1));
+}
+
+function ensurePolicy(db, padId, settings = {}, teacherId = null) {
+  const existing = db.prepare('SELECT * FROM native_pad_policies WHERE native_pad_id = ?').get(padId);
+  if (existing) return existing;
+  const pasteMode = settings.paste_detection === false ? 'allow' : 'log';
+  const spellcheck = settings.spellcheck === false ? 0 : 1;
+  db.prepare(`
+    INSERT INTO native_pad_policies (native_pad_id, paste_mode, spellcheck_enabled, updated_by_teacher_id)
+    VALUES (?, ?, ?, ?)
+  `).run(padId, pasteMode, spellcheck, teacherId);
+  return db.prepare('SELECT * FROM native_pad_policies WHERE native_pad_id = ?').get(padId);
 }
 
 function provisionNativePad(db, { assignment, student }) {
@@ -134,6 +193,7 @@ function provisionNativePad(db, { assignment, student }) {
   `).run(student.id, assignment.id, EMPTY_DOC);
   pad = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(result.lastInsertRowid);
   insertRevision(db, pad.id, 'create', pad);
+  ensurePolicy(db, pad.id, parseSettings(assignment.settings_json));
   return pad;
 }
 
@@ -151,6 +211,58 @@ function loadOwnedNativePad(db, padId, studentId) {
   return db.prepare('SELECT * FROM native_pads WHERE id = ? AND student_id = ?').get(padId, studentId);
 }
 
+function loadTeacherNativePad(db, padId) {
+  return db.prepare(`
+    SELECT np.*,
+           s.display_name AS student_name,
+           s.username AS student_username,
+           a.title AS assignment_title,
+           a.type AS assignment_type,
+           a.settings_json,
+           a.due_at,
+           c.id AS class_id,
+           c.name AS class_name
+    FROM native_pads np
+    JOIN students s ON s.id = np.student_id
+    JOIN assignments a ON a.id = np.assignment_id
+    JOIN classes c ON c.id = a.class_id
+    WHERE np.id = ?
+  `).get(padId);
+}
+
+function logTeacherEvent(db, padId, teacherId, action, metadata = {}) {
+  db.prepare(`
+    INSERT INTO native_teacher_events (native_pad_id, teacher_id, action, metadata_json)
+    VALUES (?, ?, ?, ?)
+  `).run(padId, teacherId, action, normalizeMetadata(metadata));
+}
+
+function normalizeAnnotationInput(body, pad) {
+  const type = String(body?.type ?? '');
+  if (!ANNOTATION_TYPES.has(type)) {
+    const error = new Error('invalid_annotation_type');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const start = body?.start_offset === null || body?.start_offset === undefined ? null : Number(body.start_offset);
+  const end = body?.end_offset === null || body?.end_offset === undefined ? null : Number(body.end_offset);
+  if (type !== 'general_comment' && (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start)) {
+    const error = new Error('invalid_annotation_range');
+    error.statusCode = 400;
+    throw error;
+  }
+  return {
+    type,
+    start: type === 'general_comment' ? null : start,
+    end: type === 'general_comment' ? null : end,
+    selectedText: normalizePlainText(body?.selected_text).slice(0, 2000),
+    body: normalizeComment(body?.body),
+    metadataJson: normalizeMetadata(body?.metadata),
+    documentVersion: Number.isInteger(Number(body?.document_version)) ? Number(body.document_version) : Number(pad.version ?? 1),
+  };
+}
+
 export async function registerNativePadRoutes(app, { db }) {
   app.get('/api/native/assignments/:id/pad',
     { preValidation: [app.requireStudentSession] },
@@ -166,8 +278,9 @@ export async function registerNativePadRoutes(app, { db }) {
 
       const pad = provisionNativePad(db, { assignment, student });
       applyDueDateLock(db, pad, assignment);
+      const policy = ensurePolicy(db, pad.id, parseSettings(assignment.settings_json));
 
-      return { pad: publicNativePad(pad) };
+      return { pad: publicNativePad(pad), policy: publicPolicy(policy) };
     }
   );
 
@@ -188,7 +301,7 @@ export async function registerNativePadRoutes(app, { db }) {
 
       db.prepare(`
         UPDATE native_pads
-        SET document_json = ?, plain_text = ?, word_count = ?, updated_at = datetime('now')
+        SET document_json = ?, plain_text = ?, word_count = ?, version = version + 1, updated_at = datetime('now')
         WHERE id = ?
       `).run(documentJson, plainText, wordCount, padId);
 
@@ -225,12 +338,152 @@ export async function registerNativePadRoutes(app, { db }) {
       const pad = db.prepare('SELECT id FROM native_pads WHERE id = ?').get(padId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
       const revisions = db.prepare(`
-        SELECT id, reason, plain_text, word_count, created_at
+        SELECT id, reason, plain_text, word_count, document_version, created_at
         FROM native_pad_revisions
         WHERE native_pad_id = ?
         ORDER BY id ASC
       `).all(padId);
       return { revisions };
+    }
+  );
+
+  app.get('/api/native/pads/:padId/policy',
+    { preValidation: [app.requireStudentSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadOwnedNativePad(db, padId, request.session.user.id);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const policy = ensurePolicy(db, padId);
+      return { policy: publicPolicy(policy) };
+    }
+  );
+
+  app.put('/api/native/pads/:padId/policy',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const pasteMode = String(request.body?.paste_mode ?? '');
+      if (!PASTE_MODES.has(pasteMode)) return reply.code(400).send({ error: 'invalid_paste_mode' });
+      const spellcheck = request.body?.spellcheck_enabled === false ? 0 : 1;
+      ensurePolicy(db, padId, parseSettings(pad.settings_json), request.session.user.id);
+      db.prepare(`
+        UPDATE native_pad_policies
+        SET paste_mode = ?, spellcheck_enabled = ?, updated_by_teacher_id = ?, updated_at = datetime('now')
+        WHERE native_pad_id = ?
+      `).run(pasteMode, spellcheck, request.session.user.id, padId);
+      logTeacherEvent(db, padId, request.session.user.id, 'policy_changed', { paste_mode: pasteMode, spellcheck_enabled: spellcheck === 1 });
+      const policy = db.prepare('SELECT * FROM native_pad_policies WHERE native_pad_id = ?').get(padId);
+      return { policy: publicPolicy(policy) };
+    }
+  );
+
+  app.post('/api/native/pads/:padId/paste-event',
+    { preValidation: [app.requireStudentSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadOwnedNativePad(db, padId, request.session.user.id);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const length = Number(request.body?.length);
+      if (!Number.isFinite(length) || length < 1) return reply.code(400).send({ error: 'length_required' });
+      const inputType = typeof request.body?.input_type === 'string' ? request.body.input_type : 'paste';
+      db.prepare(`
+        INSERT INTO native_paste_events (native_pad_id, length, input_type)
+        VALUES (?, ?, ?)
+      `).run(padId, Math.round(length), inputType);
+      return reply.code(201).send({ ok: true });
+    }
+  );
+
+  app.get('/api/native/pads/:padId/review',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const policy = ensurePolicy(db, padId, parseSettings(pad.settings_json));
+      const annotations = db.prepare(`
+        SELECT *
+        FROM native_annotations
+        WHERE native_pad_id = ?
+        ORDER BY created_at ASC, id ASC
+      `).all(padId).map(publicAnnotation);
+      const pasteEvents = db.prepare(`
+        SELECT id, at, length, input_type
+        FROM native_paste_events
+        WHERE native_pad_id = ?
+        ORDER BY at ASC, id ASC
+      `).all(padId);
+      const revisions = db.prepare(`
+        SELECT id, reason, plain_text, word_count, document_version, created_at
+        FROM native_pad_revisions
+        WHERE native_pad_id = ?
+        ORDER BY id ASC
+      `).all(padId);
+      return {
+        pad: publicNativePad(pad),
+        assignment: {
+          id: pad.assignment_id,
+          title: pad.assignment_title,
+          type: pad.assignment_type,
+          due_at: pad.due_at ?? null,
+        },
+        class: { id: pad.class_id, name: pad.class_name },
+        student: { id: pad.student_id, display_name: pad.student_name, username: pad.student_username },
+        policy: publicPolicy(policy),
+        annotations,
+        paste_events: pasteEvents,
+        revisions,
+      };
+    }
+  );
+
+  app.post('/api/native/pads/:padId/annotations',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const annotation = normalizeAnnotationInput(request.body, pad);
+      const result = db.prepare(`
+        INSERT INTO native_annotations (
+          native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, document_version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        padId,
+        request.session.user.id,
+        annotation.type,
+        annotation.start,
+        annotation.end,
+        annotation.selectedText,
+        annotation.body,
+        annotation.metadataJson,
+        annotation.documentVersion
+      );
+      logTeacherEvent(db, padId, request.session.user.id, 'annotation_created', { type: annotation.type });
+      const row = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(result.lastInsertRowid);
+      return reply.code(201).send({ annotation: publicAnnotation(row) });
+    }
+  );
+
+  app.patch('/api/native/annotations/:annotationId',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const annotationId = requirePositiveInteger(request.params.annotationId, 'annotationId');
+      const existing = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annotationId);
+      if (!existing) return reply.code(404).send({ error: 'annotation_not_found' });
+      const body = request.body?.body !== undefined ? normalizeComment(request.body.body) : existing.body;
+      const resolved = request.body?.resolved !== undefined ? (request.body.resolved ? 1 : 0) : existing.resolved;
+      const metadataJson = request.body?.metadata !== undefined ? normalizeMetadata(request.body.metadata) : existing.metadata_json;
+      db.prepare(`
+        UPDATE native_annotations
+        SET body = ?, resolved = ?, metadata_json = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(body, resolved, metadataJson, annotationId);
+      logTeacherEvent(db, existing.native_pad_id, request.session.user.id, 'annotation_updated', { annotation_id: annotationId });
+      const row = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annotationId);
+      return { annotation: publicAnnotation(row) };
     }
   );
 
@@ -248,6 +501,7 @@ export async function registerNativePadRoutes(app, { db }) {
 
       const pad = provisionNativePad(db, { assignment, student });
       applyDueDateLock(db, pad, assignment);
+      const policy = ensurePolicy(db, pad.id, settings);
 
       let passagePdf = false;
       try {
@@ -259,6 +513,7 @@ export async function registerNativePadRoutes(app, { db }) {
         title: assignment.title,
         assignmentId,
         pad: publicNativePad(pad),
+        policy: publicPolicy(policy),
         csrfToken: request.session.csrfToken ?? '',
         dueAt: assignment.due_at,
         spellcheck: settings.spellcheck !== false,
