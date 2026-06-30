@@ -254,7 +254,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .clr-picker{position:relative;display:flex;align-items:center;}
     .clr-trigger-ic{display:flex;flex-direction:column;align-items:center;line-height:1;font-weight:700;font-size:13px;gap:1px;pointer-events:none;}
     .clr-bar{display:block;width:16px;height:3px;border-radius:2px;}
-    .clr-popup{display:none;position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;gap:4px;flex-wrap:wrap;width:116px;}
+    .clr-popup{display:none;position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:9999;gap:4px;flex-wrap:wrap;width:116px;}
     .clr-popup.open{display:flex;}
     .clr-swatch{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;outline:none;transition:transform .12s,border-color .12s;flex-shrink:0;}
     .clr-swatch:hover{transform:scale(1.2);}
@@ -423,57 +423,6 @@ ${padContent}
       }
     } catch (_) {}
   }
-  // ── Color + highlight pickers ─────────────────────────────────────────────
-  var clrTrigger = document.getElementById('clrTrigger');
-  var clrPopup   = document.getElementById('clrPopup');
-  var hlTrigger  = document.getElementById('hlTrigger');
-  var hlPopup    = document.getElementById('hlPopup');
-  function closeAllPickers() {
-    if (clrPopup) clrPopup.classList.remove('open');
-    if (hlPopup)  hlPopup.classList.remove('open');
-  }
-  document.addEventListener('click', closeAllPickers);
-  if (clrTrigger) {
-    clrTrigger.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var was = clrPopup.classList.contains('open');
-      closeAllPickers();
-      if (!was) clrPopup.classList.add('open');
-    });
-  }
-  document.querySelectorAll('.clr-swatch[data-epcolor]').forEach(function (sw) {
-    sw.addEventListener('click', function (e) {
-      e.stopPropagation();
-      applyEpColor(sw.dataset.epcolor);
-      var bar = document.getElementById('clrBar');
-      if (bar) bar.style.background = sw.style.background;
-      document.querySelectorAll('.clr-swatch[data-epcolor]').forEach(function (s) { s.classList.remove('active'); });
-      sw.classList.add('active');
-      closeAllPickers();
-    });
-  });
-  if (hlTrigger) {
-    hlTrigger.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var was = hlPopup.classList.contains('open');
-      closeAllPickers();
-      if (!was) hlPopup.classList.add('open');
-    });
-  }
-  document.querySelectorAll('.clr-swatch[data-hlcolor]').forEach(function (sw) {
-    sw.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var color = sw.dataset.hlcolor;
-      try {
-        var iDoc = getAceInner();
-        if (iDoc) iDoc.execCommand('hiliteColor', false, color === 'transparent' ? 'transparent' : color);
-      } catch (_) {}
-      var bar = document.getElementById('hlBar');
-      if (bar) bar.style.background = color === 'transparent' ? '' : color;
-      closeAllPickers();
-    });
-  });
-
   // ── Font size via ep_font_size ────────────────────────────────────────────
   // ep_font_size stores a select at #font-size select.size-selection with index values.
   var fsizeSel = document.getElementById('fsize-sel');
@@ -776,6 +725,73 @@ ${padContent}
   }
 
   window.addEventListener('beforeunload', function () { clearInterval(wcInterval); });
+
+  // ── Color + highlight pickers (after critical setup so errors here are safe) ──
+  try {
+    var clrTrigger = document.getElementById('clrTrigger');
+    var clrPopup   = document.getElementById('clrPopup');
+    var hlTrigger  = document.getElementById('hlTrigger');
+    var hlPopup    = document.getElementById('hlPopup');
+
+    function closeAllPickers() {
+      if (clrPopup) clrPopup.classList.remove('open');
+      if (hlPopup)  hlPopup.classList.remove('open');
+    }
+    document.addEventListener('click', closeAllPickers);
+
+    if (clrTrigger && clrPopup) {
+      clrTrigger.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var was = clrPopup.classList.contains('open');
+        closeAllPickers();
+        if (!was) {
+          var r = clrTrigger.getBoundingClientRect();
+          clrPopup.style.left = r.left + 'px';
+          clrPopup.style.top  = (r.bottom + 4) + 'px';
+          clrPopup.classList.add('open');
+        }
+      });
+    }
+    document.querySelectorAll('.clr-swatch[data-epcolor]').forEach(function (sw) {
+      sw.addEventListener('click', function (e) {
+        e.stopPropagation();
+        applyEpColor(sw.dataset.epcolor);
+        var bar = document.getElementById('clrBar');
+        if (bar) bar.style.background = sw.style.background;
+        document.querySelectorAll('.clr-swatch[data-epcolor]').forEach(function (s) { s.classList.remove('active'); });
+        sw.classList.add('active');
+        closeAllPickers();
+      });
+    });
+
+    if (hlTrigger && hlPopup) {
+      hlTrigger.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var was = hlPopup.classList.contains('open');
+        closeAllPickers();
+        if (!was) {
+          var r = hlTrigger.getBoundingClientRect();
+          hlPopup.style.left = r.left + 'px';
+          hlPopup.style.top  = (r.bottom + 4) + 'px';
+          hlPopup.classList.add('open');
+        }
+      });
+    }
+    document.querySelectorAll('.clr-swatch[data-hlcolor]').forEach(function (sw) {
+      sw.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var color = sw.dataset.hlcolor;
+        try {
+          var iDoc = getAceInner();
+          if (iDoc) iDoc.execCommand('hiliteColor', false, color === 'transparent' ? 'transparent' : color);
+        } catch (_) {}
+        var bar = document.getElementById('hlBar');
+        if (bar) bar.style.background = color === 'transparent' ? '' : color;
+        closeAllPickers();
+      });
+    });
+  } catch (_) {}
+
 }());
 </script>
 
