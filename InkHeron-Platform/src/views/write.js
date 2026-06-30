@@ -153,8 +153,9 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
   const padContent = `
 <div class="padwrap">
   ${taskBar}
-  ${hasPassage ? `<div class="padcols">
+  ${hasPassage ? `<div class="padcols" id="padcols">
     ${passagePanel}
+    <div class="split-divider" id="splitDivider"></div>
     <div class="split-right">
       <div class="padframe">
         ${padchrome}
@@ -178,7 +179,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
   <link rel="icon" href="/assets/InkHeron%20Logo.png">
   <link rel="stylesheet" href="/assets/styles.css">
   <style>
-    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;min-height:100vh;}
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;height:100vh;overflow:hidden;}
     *{box-sizing:border-box;}
     .writetop{position:sticky;top:0;z-index:50;background:rgba(247,246,242,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:12px 26px;display:flex;align-items:center;gap:14px;}
     .backbtn{background:none;border:none;padding:6px 8px;border-radius:8px;cursor:pointer;color:var(--text-2);font-size:13.5px;font-weight:500;transition:background .2s;}
@@ -200,14 +201,16 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .task-bar-text{font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;}
     /* Two-column split: passage left, pad right */
     .padcols{flex:1;display:flex;flex-direction:row;min-height:0;}
-    .split-left{width:42%;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
+    .split-left{width:42%;flex-shrink:0;display:flex;flex-direction:column;background:var(--surface);min-height:0;overflow:hidden;}
+    .split-divider{width:5px;flex-shrink:0;cursor:col-resize;background:var(--border);position:relative;transition:background .15s;user-select:none;}
+    .split-divider:hover,.split-divider.dragging{background:var(--primary,#246343);}
     .split-right{flex:1;min-width:0;display:flex;flex-direction:column;}
     .passage-head{padding:7px 14px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;}
     .pdf-zoom-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0;}
     .pdf-zoom-range{width:72px;cursor:pointer;accent-color:var(--primary,#246343);}
     .pdf-zoom-pct{font-size:10px;color:var(--text-3);font-weight:600;min-width:30px;text-align:right;}
-    .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
-    .passage-pdf-outer{flex:1;overflow:auto;}
+    .passage-text-content{flex:1;overflow-y:auto;min-height:0;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
+    .passage-pdf-outer{flex:1;overflow:auto;min-height:0;}
     .passage-pdf-pages{padding:8px;display:flex;flex-direction:column;gap:8px;align-items:center;}
     .pdf-page-canvas{display:block;box-shadow:0 1px 4px rgba(0,0,0,.18);background:#fff;}
     /* ── Padframe + chrome ─────────────────────────── */
@@ -242,7 +245,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .btn.ghost{background:var(--surface);border:1.5px solid var(--border-2);color:var(--text);}
     .btn.p{background:var(--primary);color:#fff;border:none;box-shadow:0 4px 14px rgba(36,99,67,0.22);}
     .btn.p:hover{box-shadow:0 7px 20px rgba(36,99,67,0.30);}
-    @media(max-width:700px){.task-bar{max-height:80px;padding:8px 14px;}.padcols{flex-direction:column;}.split-left{width:100%;height:40vh;border-right:none;border-bottom:1px solid var(--border);}}
+    @media(max-width:700px){.task-bar{max-height:80px;padding:8px 14px;}.padcols{flex-direction:column;}.split-left{width:100%!important;height:40vh;border-bottom:1px solid var(--border);}.split-divider{width:100%;height:5px;cursor:row-resize;}}
   </style>
 </head>
 <body>
@@ -654,6 +657,34 @@ ${padContent}
     setTimeout(tryCleanup, 300);
     syncWordCount();
   });
+
+  // ── Split-panel resize ─────────────────────────────────────────────────────
+  var splitDivider = document.getElementById('splitDivider');
+  var splitLeft = splitDivider && splitDivider.previousElementSibling;
+  var padColsEl = document.getElementById('padcols');
+  if (splitDivider && splitLeft && padColsEl) {
+    splitDivider.addEventListener('mousedown', function (e) {
+      e.preventDefault();
+      splitDivider.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      function onMove(e) {
+        var rect = padColsEl.getBoundingClientRect();
+        var pct = (e.clientX - rect.left) / rect.width * 100;
+        pct = Math.max(35, Math.min(65, pct));
+        splitLeft.style.width = pct + '%';
+      }
+      function onUp() {
+        splitDivider.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+  }
 
   window.addEventListener('beforeunload', function () { clearInterval(wcInterval); });
 }());
