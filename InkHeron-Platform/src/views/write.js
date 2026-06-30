@@ -488,21 +488,50 @@ ${padContent}
   }
 
   // ── Word count ─────────────────────────────────────────────────────────────
-  // Word count is handled by the postMessage listener above (injected script in ace_inner).
-  // Keep a light fallback poll only to handle cases where the script injection was delayed.
+  // MutationObserver runs in the parent frame, observing aceInner's innerdocbody
+  // directly via cross-frame DOM access (same-origin). No script injection needed.
+  // Each Etherpad line is a separate <div class="ace-line"> — joining them with a
+  // space prevents "endofline1startofline2" from being counted as one word.
+  var wcObserver = null;
+
+  function countFromBody(body) {
+    try {
+      var lines = body.querySelectorAll('.ace-line');
+      var text = lines.length
+        ? Array.prototype.map.call(lines, function (l) { return l.textContent; }).join(' ')
+        : (body.textContent || '');
+      var trimmed = text.trim();
+      var words = trimmed ? trimmed.split(/\s+/).filter(function (w) { return w.length > 0; }).length : 0;
+      var chars = text.replace(/\s/g, '').length;
+      wcEl.textContent = words + ' words · ' + chars + ' chars';
+    } catch (_) {}
+  }
+
+  function attachWordCountObserver() {
+    try {
+      var doc = getAceInner();
+      if (!doc) return false;
+      var body = doc.getElementById('innerdocbody');
+      if (!body) return false;
+      if (wcObserver) wcObserver.disconnect();
+      wcObserver = new MutationObserver(function () { countFromBody(body); });
+      wcObserver.observe(body, { childList: true, subtree: true, characterData: true });
+      countFromBody(body);
+      return true;
+    } catch (_) { return false; }
+  }
+
+  // Fallback poll — catches cases where observer attachment was delayed.
   function syncWordCount() {
     try {
       var doc = getAceInner();
       if (!doc) return;
       var body = doc.getElementById('innerdocbody');
       if (!body) return;
-      var text = body.textContent || '';
-      var words = text.trim() ? text.trim().split(/\s+/).filter(function (w) { return w.length > 0; }).length : 0;
-      var chars = text.replace(/\s/g, '').length;
-      wcEl.textContent = words + ' words · ' + chars + ' chars';
+      countFromBody(body);
     } catch (_) {}
   }
-  var wcInterval = setInterval(syncWordCount, 2000);
+  var wcInterval = setInterval(syncWordCount, 500);
 
   // ── Spellcheck ─────────────────────────────────────────────────────────────
   function applySpellcheck() {
@@ -541,37 +570,7 @@ ${padContent}
   zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
 
   // ── Pad UI cleanup + author color suppression ─────────────────────────────
-  // ── Word count via postMessage from injected script ──────────────────────
-  // Cross-iframe document access (getAceInner) is unreliable — textContent
-  // reads from a foreign frame can silently fail. Instead we inject a tiny
-  // script into ace_inner that observes #innerdocbody with MutationObserver
-  // and sends counts up to the top window via postMessage.
-  window.addEventListener('message', function (e) {
-    if (e.data && e.data.__ih_wc) {
-      wcEl.textContent = e.data.words + ' words · ' + e.data.chars + ' chars';
-    }
-  });
-
-  function injectWordCountScript(doc) {
-    if (!doc || !doc.head) return;
-    if (doc.getElementById('ih-wc-script')) return;
-    var sc = doc.createElement('script');
-    sc.id = 'ih-wc-script';
-    sc.textContent = '(function(){'
-      + 'var b=document.getElementById("innerdocbody");if(!b)return;'
-      + 'function send(){'
-      +   'var t=b.textContent||"";'
-      +   'var w=t.trim()?t.trim().split(/\\s+/).filter(function(x){return x.length>0;}).length:0;'
-      +   'var c=t.replace(/\\s/g,"").length;'
-      +   'try{window.top.postMessage({__ih_wc:true,words:w,chars:c},"*");}catch(e){}'
-      + '}'
-      + 'new MutationObserver(send).observe(b,{childList:true,subtree:true,characterData:true});'
-      + 'send();'
-      + '})();';
-    doc.head.appendChild(sc);
-  }
-
-  function injectInnerFrameStyles(doc, isAceInner) {
+  function injectInnerFrameStyles(doc) {
     if (!doc || !doc.head) return false;
     if (!doc.getElementById('ih-author-suppress')) {
       var s = doc.createElement('style');
@@ -584,7 +583,6 @@ ${padContent}
         'border-left:none!important;box-shadow:none!important;}';
       doc.head.appendChild(s);
     }
-    if (isAceInner) injectWordCountScript(doc);
     return true;
   }
 
@@ -623,7 +621,8 @@ ${padContent}
       var aceInner = aoDoc.querySelector('iframe[name="ace_inner"]');
       // Don't mark done until aceInner is also injected — it loads slightly later.
       if (!aceInner || !aceInner.contentDocument) return false;
-      injectInnerFrameStyles(aceInner.contentDocument, true);
+      injectInnerFrameStyles(aceInner.contentDocument);
+      attachWordCountObserver();
 
       return true;
     } catch (_) { return false; }
@@ -656,6 +655,7 @@ ${padContent}
     pasteAttached = false;
     pasteAttempts = 0;
     spellRetries = 0;
+    if (wcObserver) { wcObserver.disconnect(); wcObserver = null; }
     setTimeout(trySpellcheck, 200);
     setTimeout(tryAttachPaste, 500);
     setTimeout(tryCleanup, 300);
