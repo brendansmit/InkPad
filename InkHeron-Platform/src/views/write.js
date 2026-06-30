@@ -41,9 +41,15 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
 
   const passagePanel = hasPassage ? `
     <div class="split-left">
-      <div class="passage-head">Reference passage</div>
+      <div class="passage-head">
+        <span>Reference passage</span>
+        ${passagePdf ? `<div class="pdf-zoom-ctrl">
+          <input type="range" id="pdf-zoom-range" class="pdf-zoom-range" min="70" max="200" step="5" value="120" aria-label="PDF zoom">
+          <span class="pdf-zoom-pct" id="pdf-zoom-pct">120%</span>
+        </div>` : ''}
+      </div>
       ${passagePdf
-        ? `<iframe class="passage-pdf-frame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe>`
+        ? `<div class="passage-pdf-outer"><iframe class="passage-pdf-frame" id="passagePdfFrame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe></div>`
         : `<div class="passage-text-content">${esc(passageText)}</div>`
       }
     </div>` : '';
@@ -196,9 +202,13 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .padcols{flex:1;display:flex;flex-direction:row;min-height:0;}
     .split-left{width:42%;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
     .split-right{flex:1;min-width:0;display:flex;flex-direction:column;}
-    .passage-head{padding:9px 14px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);border-bottom:1px solid var(--border);flex-shrink:0;}
+    .passage-head{padding:7px 14px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:10px;}
+    .pdf-zoom-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+    .pdf-zoom-range{width:72px;cursor:pointer;accent-color:var(--primary,#246343);}
+    .pdf-zoom-pct{font-size:10px;color:var(--text-3);font-weight:600;min-width:30px;text-align:right;}
     .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
-    .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
+    .passage-pdf-outer{flex:1;overflow:hidden;position:relative;}
+    .passage-pdf-frame{position:absolute;top:0;left:0;border:none;display:block;}
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:54px;overflow-x:auto;}
@@ -646,6 +656,28 @@ ${padContent}
     setTimeout(tryCleanup, 300);
     syncWordCount();
   });
+
+  // ── PDF passage zoom ───────────────────────────────────────────────────────
+  // Applies CSS zoom + compensating dimensions so the iframe visually fills
+  // the container at the chosen scale without overflowing it.
+  var passagePdfFrame = document.getElementById('passagePdfFrame');
+  var pdfZoomRange = document.getElementById('pdf-zoom-range');
+  var pdfZoomPct = document.getElementById('pdf-zoom-pct');
+  function setPdfZoom(pct) {
+    if (!passagePdfFrame) return;
+    var z = pct / 100;
+    var inv = (100 / z).toFixed(3) + '%';
+    passagePdfFrame.style.zoom = String(z);
+    passagePdfFrame.style.width = inv;
+    passagePdfFrame.style.height = inv;
+    if (pdfZoomPct) pdfZoomPct.textContent = pct + '%';
+  }
+  if (passagePdfFrame) {
+    setPdfZoom(120);
+    if (pdfZoomRange) {
+      pdfZoomRange.addEventListener('input', function () { setPdfZoom(Number(this.value)); });
+    }
+  }
 
   window.addEventListener('beforeunload', function () { clearInterval(wcInterval); });
 }());
