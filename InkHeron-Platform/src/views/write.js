@@ -44,12 +44,12 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       <div class="passage-head">
         <span>Reference passage</span>
         ${passagePdf ? `<div class="pdf-zoom-ctrl">
-          <input type="range" id="pdf-zoom-range" class="pdf-zoom-range" min="70" max="200" step="5" value="120" aria-label="PDF zoom">
-          <span class="pdf-zoom-pct" id="pdf-zoom-pct">120%</span>
+          <input type="range" id="pdf-zoom-range" class="pdf-zoom-range" min="50" max="200" step="5" value="100" aria-label="PDF zoom">
+          <span class="pdf-zoom-pct" id="pdf-zoom-pct">100%</span>
         </div>` : ''}
       </div>
       ${passagePdf
-        ? `<div class="passage-pdf-outer"><iframe class="passage-pdf-frame" id="passagePdfFrame" src="/api/assignments/${assignmentIdSafe}/passage-pdf#zoom=120" title="Reference passage"></iframe></div>`
+        ? `<div class="passage-pdf-outer"><div class="passage-pdf-pages" id="passagePdfPages"></div></div>`
         : `<div class="passage-text-content">${esc(passageText)}</div>`
       }
     </div>` : '';
@@ -207,8 +207,9 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .pdf-zoom-range{width:72px;cursor:pointer;accent-color:var(--primary,#246343);}
     .pdf-zoom-pct{font-size:10px;color:var(--text-3);font-weight:600;min-width:30px;text-align:right;}
     .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
-    .passage-pdf-outer{flex:1;overflow:hidden;}
-    .passage-pdf-frame{width:100%;height:100%;border:none;display:block;}
+    .passage-pdf-outer{flex:1;overflow:auto;}
+    .passage-pdf-pages{padding:8px;display:flex;flex-direction:column;gap:8px;align-items:center;}
+    .pdf-page-canvas{display:block;box-shadow:0 1px 4px rgba(0,0,0,.18);background:#fff;}
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:54px;overflow-x:auto;}
@@ -654,27 +655,71 @@ ${padContent}
     syncWordCount();
   });
 
-  // ── PDF passage zoom ───────────────────────────────────────────────────────
-  // Uses the browser PDF viewer's own #zoom= fragment (Chrome/Edge/Safari).
-  // Percentage label updates live on drag; the PDF reloads on release.
-  var passagePdfFrame = document.getElementById('passagePdfFrame');
-  var pdfZoomRange = document.getElementById('pdf-zoom-range');
-  var pdfZoomPct = document.getElementById('pdf-zoom-pct');
-  if (passagePdfFrame && pdfZoomRange) {
-    pdfZoomRange.addEventListener('input', function () {
-      if (pdfZoomPct) pdfZoomPct.textContent = this.value + '%';
-    });
-    pdfZoomRange.addEventListener('change', function () {
-      var pct = this.value;
-      if (pdfZoomPct) pdfZoomPct.textContent = pct + '%';
-      var base = passagePdfFrame.src.split('?')[0].split('#')[0];
-      passagePdfFrame.src = base + '?_z=' + Date.now() + '#zoom=' + pct;
-    });
-  }
-
   window.addEventListener('beforeunload', function () { clearInterval(wcInterval); });
 }());
 </script>
+
+${passagePdf ? `<script type="module">
+import * as pdfjsLib from '/assets/static/pdfjs/pdf.min.mjs';
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/static/pdfjs/pdf.worker.min.mjs';
+
+var pdfContainer = document.getElementById('passagePdfPages');
+var pdfSlider = document.getElementById('pdf-zoom-range');
+var pdfPctEl = document.getElementById('pdf-zoom-pct');
+
+if (pdfContainer) {
+  var pdfDoc = null;
+  var fitScale = 1;
+  var rendering = false;
+
+  function getScale() {
+    return fitScale * ((pdfSlider ? Number(pdfSlider.value) : 100) / 100);
+  }
+
+  async function renderAll(scale) {
+    if (rendering) return;
+    rendering = true;
+    pdfContainer.innerHTML = '';
+    for (var i = 1; i <= pdfDoc.numPages; i++) {
+      var page = await pdfDoc.getPage(i);
+      var vp = page.getViewport({ scale: scale });
+      var canvas = document.createElement('canvas');
+      canvas.className = 'pdf-page-canvas';
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      pdfContainer.appendChild(canvas);
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    }
+    rendering = false;
+  }
+
+  pdfjsLib.getDocument('/api/assignments/${assignmentIdSafe}/passage-pdf').promise.then(async function(doc) {
+    pdfDoc = doc;
+    var firstPage = await doc.getPage(1);
+    var baseVp = firstPage.getViewport({ scale: 1 });
+    var w = pdfContainer.offsetWidth || 400;
+    fitScale = (w - 16) / baseVp.width;
+    await renderAll(getScale());
+  }).catch(function(e) {
+    pdfContainer.innerHTML = '<p style="padding:16px;color:var(--text-3)">Could not load PDF.</p>';
+    console.error('PDF load error', e);
+  });
+
+  if (pdfSlider) {
+    pdfSlider.addEventListener('input', function() {
+      if (pdfPctEl) pdfPctEl.textContent = this.value + '%';
+    });
+    var renderTimer;
+    pdfSlider.addEventListener('change', function() {
+      if (pdfPctEl) pdfPctEl.textContent = this.value + '%';
+      clearTimeout(renderTimer);
+      renderTimer = setTimeout(function() {
+        if (pdfDoc) renderAll(getScale());
+      }, 50);
+    });
+  }
+}
+</script>` : ''}
 
 </body>
 </html>`;
