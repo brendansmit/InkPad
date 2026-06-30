@@ -99,6 +99,7 @@ export function renderNativeWriteView({
     let dirty = false;
     let saving = false;
     let lastSavedText = initialPad.plain_text || '';
+    let currentVersion = initialPad.version || 1;
 
     editor.innerText = initialPad.plain_text || '';
     applyPolicy(currentPolicy);
@@ -147,11 +148,19 @@ export function renderNativeWriteView({
         const response = await fetch('/api/native/pads/' + initialPad.id + '/save', {
           method:'POST',
           headers:{ 'Content-Type':'application/json', 'X-CSRF-Token':csrfToken },
-          body:JSON.stringify({ document:documentPayload(), plain_text:text })
+          body:JSON.stringify({ document:documentPayload(), plain_text:text, expected_version:currentVersion })
         });
+        if(response.status === 409){
+          const data = await response.json().catch(() => ({}));
+          if(data.error === 'version_conflict'){
+            saveState.textContent = 'Newer version open';
+            return;
+          }
+        }
         if(!response.ok) throw new Error('save_failed');
         const data = await response.json();
         lastSavedText = data.pad.plain_text || '';
+        currentVersion = data.pad.version || currentVersion;
         dirty = false;
         saveState.textContent = 'Saved';
       }catch(_){

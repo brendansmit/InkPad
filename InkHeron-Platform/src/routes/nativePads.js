@@ -294,6 +294,10 @@ export async function registerNativePadRoutes(app, { db }) {
       if (pad.state !== 'writing' && pad.state !== 'green_pen_open') {
         return reply.code(409).send({ error: 'pad_locked' });
       }
+      const expectedVersion = request.body?.expected_version === undefined ? null : Number(request.body.expected_version);
+      if (expectedVersion !== null && (!Number.isInteger(expectedVersion) || expectedVersion !== Number(pad.version ?? 1))) {
+        return reply.code(409).send({ error: 'version_conflict', pad: publicNativePad(pad) });
+      }
 
       const documentJson = normalizeDocumentJson(request.body?.document);
       const plainText = normalizePlainText(request.body?.plain_text);

@@ -120,6 +120,7 @@ test('student can create, autosave and submit a native pad', async () => {
     payload: {
       document: { type: 'doc', content: [{ type: 'text', text: 'Hello native pad' }] },
       plain_text: 'Hello native pad',
+      expected_version: 1,
     },
   });
   assert.equal(saved.statusCode, 200);
@@ -151,6 +152,51 @@ test('student can create, autosave and submit a native pad', async () => {
   });
   assert.equal(revisions.statusCode, 200);
   assert.deepEqual(revisions.json().revisions.map(revision => revision.reason), ['create', 'autosave', 'submit']);
+
+  await app.close();
+});
+
+test('native autosave rejects stale document versions', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId } = await seedNativeAssignment(app);
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const firstSave = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'First save' }] },
+      plain_text: 'First save',
+      expected_version: 1,
+    },
+  });
+  assert.equal(firstSave.statusCode, 200);
+  assert.equal(firstSave.json().pad.version, 2);
+
+  const staleSave = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Stale overwrite' }] },
+      plain_text: 'Stale overwrite',
+      expected_version: 1,
+    },
+  });
+  assert.equal(staleSave.statusCode, 409);
+  assert.equal(staleSave.json().error, 'version_conflict');
+  assert.equal(staleSave.json().pad.plain_text, 'First save');
+  assert.equal(staleSave.json().pad.version, 2);
 
   await app.close();
 });

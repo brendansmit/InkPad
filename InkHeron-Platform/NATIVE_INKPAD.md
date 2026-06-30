@@ -31,6 +31,12 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Teacher dashboard review buttons use `review_url`, so native pads open `/teacher/native-review?pad_id=...`.
 - Teacher new/edit assignment screens include an experimental Native InkPad toggle.
 
+## Phase 4 Save Safety
+
+- Native autosave accepts `expected_version`.
+- Stale saves return `409 version_conflict` with the current pad instead of overwriting newer text.
+- Student editor tracks the saved version and shows a conflict message if another tab has newer work.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:
