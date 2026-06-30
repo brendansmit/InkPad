@@ -163,7 +163,7 @@
         </section>
       `;
       document.getElementById('replayBtn').addEventListener('click',()=>{
-        window.location.href=`/teacher/timeslider?pad_id=${data.pad.id}&title=${encodeURIComponent(data.assignment?.title||'')}`;
+        window.open(`/teacher/timeslider?pad_id=${data.pad.id}&title=${encodeURIComponent(data.assignment?.title||'')}`, '_blank');
       });
       document.getElementById('previewPadBtn').addEventListener('click',()=>{
         window.open(`/teacher/preview-pad/${data.pad.id}`,'_blank');

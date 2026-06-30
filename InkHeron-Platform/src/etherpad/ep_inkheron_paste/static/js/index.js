@@ -1,35 +1,25 @@
 'use strict';
 
 // Runs in the Etherpad pad page after ACE initialises.
-// Attaches a beforeinput/input listener pair to the ACE inner document
-// and sends a postMessage to the wrapper shell (window.parent) when a
-// paste event is detected. The shell handles the API call — the plugin
-// deliberately has no knowledge of auth or pad IDs.
+// Attaches a paste listener to the ACE inner document and sends a postMessage
+// to the wrapper shell (window.parent) when a real paste gesture is detected.
+// Uses the `paste` DOM event rather than beforeinput/input so that Chinese IME
+// insertions (which some browsers report as insertFromPaste) are not flagged.
 exports.postAceInit = function (hookName, context, callback) {
   var MIN_PASTE_CHARS = 5; // ignore tiny inserts (autocomplete, emoji pickers)
-  var pendingLength = 0;
 
   function attachListeners(innerDoc) {
-    // beforeinput fires before the DOM changes — dataTransfer has the paste text
-    innerDoc.addEventListener('beforeinput', function (evt) {
-      if (evt.inputType !== 'insertFromPaste') return;
+    innerDoc.addEventListener('paste', function (evt) {
+      var text = '';
       try {
-        var text = evt.dataTransfer ? evt.dataTransfer.getData('text/plain') : '';
-        pendingLength = text ? text.length : 0;
-      } catch (_) {
-        pendingLength = 0;
-      }
-    }, { passive: true });
-
-    // input fires after the DOM changes — confirm the paste went through
-    innerDoc.addEventListener('input', function (evt) {
-      if (evt.inputType !== 'insertFromPaste') return;
-      var len = pendingLength;
-      pendingLength = 0;
+        var cd = evt.clipboardData || (typeof window !== 'undefined' && window.clipboardData);
+        if (cd) text = cd.getData('text/plain') || '';
+      } catch (_) {}
+      var len = text.length;
       if (len < MIN_PASTE_CHARS) return;
       window.parent.postMessage({
         type: 'ih_paste_event',
-        inputType: evt.inputType,
+        inputType: 'insertFromPaste',
         length: len,
         at: Date.now(),
       }, window.location.origin || '*');
