@@ -45,6 +45,9 @@
     .toggle-label{font-size:13.5px;}
     .toggle-label small{display:block;color:var(--text-3);font-size:12px;margin-top:1px;}
     .hint{font-size:12px;color:var(--text-3);margin-top:5px;}
+    .passage-tabs{display:flex;gap:4px;margin-bottom:14px;}
+    .ptab{padding:5px 14px;font-size:13px;font-weight:600;border:1.5px solid var(--border-2);border-radius:6px;background:var(--surface);color:var(--text-2);cursor:pointer;}
+    .ptab.active{background:var(--green-600);color:#fff;border-color:var(--green-600);}
     .footer{display:flex;justify-content:flex-end;gap:10px;margin-top:24px;}
     .radio-group{display:flex;gap:0;}
     .radio-group label{text-transform:none;font-size:13.5px;font-weight:600;letter-spacing:0;margin:0;cursor:pointer;}
@@ -77,11 +80,6 @@
           <label for="fTitle">Title <span style="color:var(--maroon-500)">*</span></label>
           <input type="text" id="fTitle" placeholder="e.g. Opinion essay: social media" required>
         </div>
-        <div class="field">
-          <label for="fPrompt">Writing prompt (optional)</label>
-          <textarea id="fPrompt" placeholder="Paste the full question or task description here. Used later for AI marking suggestions."></textarea>
-          <p class="hint">Students do not see this — it is for your reference and AI marking assistance.</p>
-        </div>
         <div class="row2">
           <div class="field">
             <label>Classes <span style="color:var(--maroon-500)">*</span></label>
@@ -98,6 +96,30 @@
               <span class="opt" onclick="document.getElementById('typeTest').checked=true">Test</span>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Writing prompt (optional)</h2>
+        <p class="hint" style="margin:0 0 12px;">Students see this in the left panel alongside their writing pad.</p>
+        <div class="field">
+          <textarea id="fPrompt" rows="5" placeholder="Paste the full question or task description here."></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Reference passage (optional)</h2>
+        <p class="hint" style="margin:0 0 16px;">Students see the passage on the left side of their writing screen. Useful for AP Lang prompts, articles, and any text they need to quote or respond to.</p>
+        <div class="passage-tabs">
+          <button class="ptab active" id="ptabText" type="button" onclick="setPassageTab('text')">Paste text</button>
+          <button class="ptab" id="ptabPdf" type="button" onclick="setPassageTab('pdf')">Upload PDF</button>
+        </div>
+        <div id="passageTextPane" class="field">
+          <textarea id="fPassageText" rows="8" placeholder="Paste the passage or article text here."></textarea>
+        </div>
+        <div id="passagePdfPane" class="field" style="display:none;">
+          <input type="file" id="fPassagePdf" accept="application/pdf">
+          <p class="hint" style="margin-top:6px;">PDF is uploaded after the assignment is created.</p>
         </div>
       </div>
 
@@ -181,6 +203,13 @@
       if(!data.classes?.length) box.innerHTML='<span style="color:var(--text-3);font-size:13px">No classes yet. <a href="/teacher/students">Create one first.</a></span>';
     }
 
+    function setPassageTab(tab){
+      document.getElementById('ptabText').classList.toggle('active',tab==='text');
+      document.getElementById('ptabPdf').classList.toggle('active',tab==='pdf');
+      document.getElementById('passageTextPane').style.display=tab==='text'?'':'none';
+      document.getElementById('passagePdfPane').style.display=tab==='pdf'?'':'none';
+    }
+
     document.getElementById('newForm').addEventListener('submit',async e=>{
       e.preventDefault();
       const title=document.getElementById('fTitle').value.trim();
@@ -195,8 +224,11 @@
       const opens=document.getElementById('fOpens').value;
       const due=document.getElementById('fDue').value;
       const prompt=document.getElementById('fPrompt').value.trim();
+      const passageText=document.getElementById('fPassageText').value.trim();
+      const passagePdfFile=document.getElementById('fPassagePdf').files[0];
       const settings={submit_behaviour,spellcheck,green_pen};
       if(prompt) settings.prompt=prompt;
+      if(passageText) settings.passage_text=passageText;
 
       const btn=document.getElementById('submitBtn');
       btn.disabled=true;btn.textContent=`Creating${selectedClasses.length>1?' ('+selectedClasses.length+' classes)':''}…`;
@@ -213,9 +245,18 @@
         else failed++;
       }
 
-      btn.disabled=false;btn.textContent='Create assignment';
+      if(failed){btn.disabled=false;btn.textContent='Create assignment';showMsg(`${failed} class${failed!==1?'es':''} failed to create.`,true);return;}
 
-      if(failed){showMsg(`${failed} class${failed!==1?'es':''} failed to create.`,true);return;}
+      if(passagePdfFile&&lastId){
+        btn.textContent='Uploading PDF…';
+        const fd=new FormData();fd.append('pdf',passagePdfFile);
+        await fetch(`/api/assignments/${lastId}/passage-pdf`,{
+          method:'POST',
+          headers:{'X-CSRF-Token':csrfToken},
+          body:fd,
+        });
+      }
+
       window.location.href=`/teacher/assignments?highlight=${lastId}`;
     });
 
