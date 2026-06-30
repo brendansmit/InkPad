@@ -31,25 +31,21 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
   const hasPassage = !!(passageText || passagePdf);
   const assignmentIdSafe = Number(assignmentId) || 0;
 
-  // Sidebar: shown when there is a prompt, a passage, or both.
-  // The old collapsible prompt-panel above the pad is replaced by this sidebar.
-  const hasSidebar = hasPrompt || hasPassage;
+  // Prompt: thin full-width task bar above the split columns.
+  // Passage: left panel at ~42% width alongside the writing pad.
+  const taskBar = hasPrompt ? `
+    <div class="task-bar">
+      <span class="task-bar-label">Task</span>
+      <div class="task-bar-text">${esc(prompt)}</div>
+    </div>` : '';
 
-  const sidebarLeft = hasSidebar ? `
+  const passagePanel = hasPassage ? `
     <div class="split-left">
-      ${hasPrompt ? `
-        <div class="side-section ${hasPassage ? 'side-sect-top' : 'side-sect-fill'}">
-          <div class="passage-head">Task</div>
-          <div class="side-prompt-inner"><div class="prompt-text">${esc(prompt)}</div></div>
-        </div>` : ''}
-      ${hasPassage ? `
-        <div class="side-section side-sect-fill">
-          <div class="passage-head">Reference passage</div>
-          ${passagePdf
-            ? `<iframe class="passage-pdf-frame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe>`
-            : `<div class="passage-text-content">${esc(passageText)}</div>`
-          }
-        </div>` : ''}
+      <div class="passage-head">Reference passage</div>
+      ${passagePdf
+        ? `<iframe class="passage-pdf-frame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe>`
+        : `<div class="passage-text-content">${esc(passageText)}</div>`
+      }
     </div>` : '';
 
   // ── Padchrome toolbar ─────────────────────────────────────────────────────
@@ -148,24 +144,24 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       <button class="btn p" id="submit-btn">Submit for grading</button>
     </div>`;
 
-  const padContent = hasSidebar ? `
-<div class="padwrap has-passage">
-  ${sidebarLeft}
-  <div class="split-right">
-    <div class="padframe">
-      ${padchrome}
-      <iframe class="padiframe" id="padiframe" src="${padUrl}" title="Writing pad"></iframe>
-    </div>
-    ${writeActions}
-  </div>
-</div>` : `
+  const padContent = `
 <div class="padwrap">
-  <div class="padframe">
+  ${taskBar}
+  ${hasPassage ? `<div class="padcols">
+    ${passagePanel}
+    <div class="split-right">
+      <div class="padframe">
+        ${padchrome}
+        <iframe class="padiframe" id="padiframe" src="${padUrl}" title="Writing pad"></iframe>
+      </div>
+      ${writeActions}
+    </div>
+  </div>` : `<div class="padframe">
     ${padchrome}
     <iframe class="padiframe" id="padiframe" src="${padUrl}" title="Writing pad"></iframe>
   </div>
-</div>
-${writeActions}`;
+  ${writeActions}`}
+</div>`;
 
   return `<!doctype html>
 <html lang="en">
@@ -192,15 +188,16 @@ ${writeActions}`;
     .duenote .ic{font-size:14px;}
     /* ── Pad layout ─────────────────────────────────── */
     .padwrap{margin:0;padding:0;flex:1;display:flex;flex-direction:column;min-height:0;}
-    .padwrap.has-passage{flex-direction:row;}
-    .split-left{width:340px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
+    /* Task bar: full-width thin strip showing the writing prompt */
+    .task-bar{display:flex;gap:14px;align-items:flex-start;padding:10px 20px;background:var(--surface-2,#f1efe9);border-bottom:1px solid var(--border);flex-shrink:0;max-height:130px;overflow-y:auto;}
+    .task-bar-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);white-space:nowrap;padding-top:3px;flex-shrink:0;}
+    .task-bar-text{font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;}
+    /* Two-column split: passage left, pad right */
+    .padcols{flex:1;display:flex;flex-direction:row;min-height:0;}
+    .split-left{width:42%;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
     .split-right{flex:1;min-width:0;display:flex;flex-direction:column;}
-    .side-section{display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid var(--border);}
-    .side-section:last-child{border-bottom:none;}
-    .side-sect-fill{flex:1;}
-    .side-sect-top{flex-shrink:0;max-height:40%;}
     .passage-head{padding:9px 14px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);border-bottom:1px solid var(--border);flex-shrink:0;}
-    .passage-text-content,.side-prompt-inner{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
+    .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
     .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
@@ -223,8 +220,6 @@ ${writeActions}`;
     .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;}
     .zoom-wrap label{font-size:11px;color:var(--text-3);}
     .zoom-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
-    /* ── Prompt panel ───────────────────────────────── */
-    .prompt-text{font-size:14px;line-height:1.65;color:var(--text);white-space:pre-wrap;}
     /* ── Pad iframe ─────────────────────────────────── */
     .padiframe{flex:1;width:100%;border:none;min-height:0;display:block;}
     /* ── Write actions ──────────────────────────────── */
@@ -236,7 +231,7 @@ ${writeActions}`;
     .btn.ghost{background:var(--surface);border:1.5px solid var(--border-2);color:var(--text);}
     .btn.p{background:var(--primary);color:#fff;border:none;box-shadow:0 4px 14px rgba(36,99,67,0.22);}
     .btn.p:hover{box-shadow:0 7px 20px rgba(36,99,67,0.30);}
-    @media(max-width:700px){.padwrap.has-passage{flex-direction:column;}.split-left{width:100%;height:45vh;border-right:none;border-bottom:1px solid var(--border);}}
+    @media(max-width:700px){.task-bar{max-height:80px;padding:8px 14px;}.padcols{flex-direction:column;}.split-left{width:100%;height:40vh;border-right:none;border-bottom:1px solid var(--border);}}
   </style>
 </head>
 <body>
