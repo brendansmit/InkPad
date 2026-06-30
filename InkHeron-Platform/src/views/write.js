@@ -49,7 +49,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
         </div>` : ''}
       </div>
       ${passagePdf
-        ? `<div class="passage-pdf-outer"><iframe class="passage-pdf-frame" id="passagePdfFrame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe></div>`
+        ? `<div class="passage-pdf-outer"><iframe class="passage-pdf-frame" id="passagePdfFrame" src="/api/assignments/${assignmentIdSafe}/passage-pdf#zoom=120" title="Reference passage"></iframe></div>`
         : `<div class="passage-text-content">${esc(passageText)}</div>`
       }
     </div>` : '';
@@ -207,8 +207,8 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .pdf-zoom-range{width:72px;cursor:pointer;accent-color:var(--primary,#246343);}
     .pdf-zoom-pct{font-size:10px;color:var(--text-3);font-weight:600;min-width:30px;text-align:right;}
     .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
-    .passage-pdf-outer{flex:1;overflow:hidden;position:relative;}
-    .passage-pdf-frame{position:absolute;top:0;left:0;border:none;display:block;}
+    .passage-pdf-outer{flex:1;overflow:hidden;}
+    .passage-pdf-frame{width:100%;height:100%;border:none;display:block;}
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:54px;overflow-x:auto;}
@@ -658,25 +658,21 @@ ${padContent}
   });
 
   // ── PDF passage zoom ───────────────────────────────────────────────────────
-  // Applies CSS zoom + compensating dimensions so the iframe visually fills
-  // the container at the chosen scale without overflowing it.
+  // Uses the browser PDF viewer's own #zoom= fragment (Chrome/Edge/Safari).
+  // Percentage label updates live on drag; the PDF reloads on release.
   var passagePdfFrame = document.getElementById('passagePdfFrame');
   var pdfZoomRange = document.getElementById('pdf-zoom-range');
   var pdfZoomPct = document.getElementById('pdf-zoom-pct');
-  function setPdfZoom(pct) {
-    if (!passagePdfFrame) return;
-    var z = pct / 100;
-    var inv = (100 / z).toFixed(3) + '%';
-    passagePdfFrame.style.zoom = String(z);
-    passagePdfFrame.style.width = inv;
-    passagePdfFrame.style.height = inv;
-    if (pdfZoomPct) pdfZoomPct.textContent = pct + '%';
-  }
-  if (passagePdfFrame) {
-    setPdfZoom(120);
-    if (pdfZoomRange) {
-      pdfZoomRange.addEventListener('input', function () { setPdfZoom(Number(this.value)); });
-    }
+  if (passagePdfFrame && pdfZoomRange) {
+    pdfZoomRange.addEventListener('input', function () {
+      if (pdfZoomPct) pdfZoomPct.textContent = this.value + '%';
+    });
+    pdfZoomRange.addEventListener('change', function () {
+      var pct = this.value;
+      if (pdfZoomPct) pdfZoomPct.textContent = pct + '%';
+      var base = passagePdfFrame.src.split('#')[0];
+      passagePdfFrame.src = base + '#zoom=' + pct;
+    });
   }
 
   window.addEventListener('beforeunload', function () { clearInterval(wcInterval); });
