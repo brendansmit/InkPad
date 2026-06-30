@@ -140,6 +140,10 @@
           </div>
         </aside>
         <article class="panel paper">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+            <span class="pill" id="paperMode">Current text</span>
+            <button class="btn" id="currentTextBtn" type="button" style="display:none">Current text</button>
+          </div>
           <div class="essay" id="essayText">${renderMarkedText(reviewData.pad.plain_text, reviewData.annotations)}</div>
         </article>
         <aside class="side">
@@ -177,6 +181,7 @@
       `;
       document.getElementById('essayText').addEventListener('mouseup', captureSelection);
       document.getElementById('essayText').addEventListener('keyup', captureSelection);
+      document.getElementById('currentTextBtn').addEventListener('click', showCurrentText);
       document.getElementById('savePolicyBtn').addEventListener('click', savePolicy);
       document.getElementById('saveGeneralBtn').addEventListener('click', saveGeneralComment);
       document.getElementById('addRangeBtn').addEventListener('click', addRangeAnnotation);
@@ -184,6 +189,7 @@
       document.querySelectorAll('[data-filter]').forEach(btn=>btn.addEventListener('click',()=> {
         document.getElementById('annotationList').innerHTML=annotationList(btn.dataset.filter);
       }));
+      document.querySelectorAll('[data-revision]').forEach(btn=>btn.addEventListener('click',()=>showRevision(Number(btn.dataset.revision))));
       updateRangeForm();
     }
 
@@ -196,7 +202,25 @@
     }
 
     function revisionItem(revision){
-      return `<div class="comment"><strong>${escapeHtml(revision.reason)}</strong><p>${revision.word_count} words · v${revision.document_version}</p><span class="meta">${escapeHtml(formatDate(revision.created_at))}</span></div>`;
+      return `<div class="comment"><strong>${escapeHtml(revision.reason)}</strong><p>${revision.word_count} words · v${revision.document_version}</p><span class="meta">${escapeHtml(formatDate(revision.created_at))}</span><button class="btn" type="button" data-revision="${revision.id}" style="margin-top:8px">View</button></div>`;
+    }
+
+    function showRevision(id){
+      const revision=reviewData.revisions.find(item=>item.id===id);
+      if(!revision) return;
+      document.getElementById('essayText').textContent=revision.plain_text || '';
+      document.getElementById('paperMode').textContent=`Revision ${revision.id} · ${revision.reason} · v${revision.document_version}`;
+      document.getElementById('currentTextBtn').style.display='';
+      selectedRange=null;
+      captureSelection();
+    }
+
+    function showCurrentText(){
+      document.getElementById('essayText').innerHTML=renderMarkedText(reviewData.pad.plain_text, reviewData.annotations);
+      document.getElementById('paperMode').textContent='Current text';
+      document.getElementById('currentTextBtn').style.display='none';
+      selectedRange=null;
+      captureSelection();
     }
 
     function annotationList(filter){

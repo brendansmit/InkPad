@@ -374,6 +374,7 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /api\/native\/pads/);
   assert.match(page.body, /pasteMode/);
   assert.match(page.body, /literacy_code/);
+  assert.match(page.body, /showRevision/);
 
   await app.close();
 });

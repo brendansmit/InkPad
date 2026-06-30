@@ -43,6 +43,11 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Literacy-code annotations carry metadata for code, category and label.
 - Review rendering marks inline comments, code marks and highlights with different styles.
 
+## Phase 6 Revision Viewing
+
+- Native review page revision list has `View` buttons.
+- Teachers can inspect saved snapshots in the main paper pane and return to the marked current text.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:
