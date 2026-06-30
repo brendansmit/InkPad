@@ -633,60 +633,91 @@ ${padContent}
   zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
 
   // ── Pad UI cleanup + author color suppression ─────────────────────────────
-  function injectInnerFrameStyles(doc) {
+
+  var EP_HIDE_CSS =
+    ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
+    '#editbar{display:none!important}' +
+    '#chaticon,#chat,#chatbutton,#chatAndUsers,.chat-container,.buttonicon-chat,' +
+    '.chatbuttons,#chatcounter,.chat,.stick-to-bottom{display:none!important}' +
+    'ul.menu_right,ul.menu_right *{display:none!important}' +
+    '#history-controls,.history-controls{display:none!important}' +
+    '#online_count,#users,#userlist,.popup.users{display:none!important}' +
+    '#color,#color-selection{display:none!important}' +
+    '.ep_align_left,.ep_align_center,.ep_align_right,.ep_align_justify{display:none!important}' +
+    '#font-size,li#font-size{display:none!important}';
+
+  var EP_INNER_CSS =
+    ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
+    '#innerdocbody,#outerdocbody{background:#fff!important;color:#000!important;}' +
+    '#editorcontainerbox{background:#fff!important;}' +
+    '#innerdocbody span{background:none!important;background-color:transparent!important;' +
+    'border-left:none!important;box-shadow:none!important;}';
+
+  function injectStyle(doc, id, css) {
     if (!doc || !doc.head) return false;
-    if (!doc.getElementById('ih-author-suppress')) {
+    if (!doc.getElementById(id)) {
       var s = doc.createElement('style');
-      s.id = 'ih-author-suppress';
-      s.textContent =
-        ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
-        '#innerdocbody,#outerdocbody{background:#fff!important;color:#000!important;}' +
-        '#editorcontainerbox{background:#fff!important;}' +
-        '#innerdocbody span{background:none!important;background-color:transparent!important;' +
-        'border-left:none!important;box-shadow:none!important;}';
+      s.id = id;
+      s.textContent = css;
       doc.head.appendChild(s);
     }
     return true;
   }
 
-  function applyPadUiCleanup() {
+  // Watch padDoc for EP chrome elements appearing and nuke them immediately.
+  var epChromeObserver = null;
+  var EP_CHROME_SEL = '#editbar,#chaticon,#chat,#chatbutton,#chatAndUsers,.chat-container,' +
+    '#online_count,#users,#userlist,ul.menu_right,#history-controls';
+  function startEpChromeObserver(padDoc) {
+    if (epChromeObserver) epChromeObserver.disconnect();
+    try {
+      epChromeObserver = new MutationObserver(function () {
+        try {
+          padDoc.querySelectorAll(EP_CHROME_SEL).forEach(function (el) {
+            el.style.setProperty('display', 'none', 'important');
+          });
+        } catch (_) {}
+      });
+      epChromeObserver.observe(padDoc.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    } catch (_) {}
+  }
+
+  function applyOuterCleanup() {
     try {
       var padDoc = getPadDoc();
       if (!padDoc || !padDoc.head) return false;
+      injectStyle(padDoc, 'ih-ui-cleanup', EP_HIDE_CSS);
+      // Also force-hide anything already in the DOM right now.
+      padDoc.querySelectorAll(EP_CHROME_SEL).forEach(function (el) {
+        el.style.setProperty('display', 'none', 'important');
+      });
+      startEpChromeObserver(padDoc);
+      return true;
+    } catch (_) { return false; }
+  }
 
-      if (!padDoc.getElementById('ih-ui-cleanup')) {
-        var s = padDoc.createElement('style');
-        s.id = 'ih-ui-cleanup';
-        s.textContent =
-          // Force light mode on the outer pad iframe
-          ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
-          // Hide Etherpad's own toolbar
-          '#editbar{display:none!important}' +
-          // Hide ALL chat elements — EP 3.x uses several different selectors
-          '#chaticon,#chat,#chatbutton,#chatAndUsers,.chat-container,.buttonicon-chat,' +
-          '.chatbuttons,#chatcounter,.chat,.stick-to-bottom{display:none!important}' +
-          // Hide user list, right-side chrome
-          'ul.menu_right,ul.menu_right *{display:none!important}' +
-          '#history-controls,.history-controls{display:none!important}' +
-          '#online_count,#users,#userlist,.popup.users{display:none!important}' +
-          // Hide ep_colors, ep_align, ep_font_size native UIs
-          '#color,#color-selection{display:none!important}' +
-          '.ep_align_left,.ep_align_center,.ep_align_right,.ep_align_justify{display:none!important}' +
-          '#font-size,li#font-size{display:none!important}';
-        padDoc.head.appendChild(s);
-      }
-
+  function applyInnerCleanup() {
+    try {
+      var padDoc = getPadDoc();
+      if (!padDoc) return false;
       var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
       if (!aceOuter || !aceOuter.contentDocument) return false;
       var aoDoc = aceOuter.contentDocument;
-      injectInnerFrameStyles(aoDoc);
+      injectStyle(aoDoc, 'ih-author-suppress', EP_INNER_CSS);
+
+      // Watch aceOuter reloads — they wipe injected styles.
+      try {
+        aceOuter.removeEventListener('load', aceOuter._ihLoad);
+      } catch (_) {}
+      aceOuter._ihLoad = function () {
+        setTimeout(applyInnerCleanup, 50);
+      };
+      aceOuter.addEventListener('load', aceOuter._ihLoad);
 
       var aceInner = aoDoc.querySelector('iframe[name="ace_inner"]');
-      // Don't mark done until aceInner is also injected — it loads slightly later.
       if (!aceInner || !aceInner.contentDocument) return false;
-      injectInnerFrameStyles(aceInner.contentDocument);
+      injectStyle(aceInner.contentDocument, 'ih-author-suppress', EP_INNER_CSS);
       attachWordCountObserver();
-
       return true;
     } catch (_) { return false; }
   }
@@ -695,13 +726,10 @@ ${padContent}
   var cleanupAttempts = 0;
   function tryCleanup() {
     if (cleanupDone) return;
-    if (applyPadUiCleanup()) {
+    applyOuterCleanup(); // always run immediately — hides EP chrome with no delay
+    if (applyInnerCleanup()) {
       cleanupDone = true;
-      // Reapply zoom if user changed it before cleanup ran.
       if (currentZoom !== 1) applyZoom(currentZoom);
-      // EP calculates gutter positions before our layout.css padding takes effect.
-      // Wait for the browser to apply the CSS, then fire resize on ace_outer so
-      // EP recalculates line-number positions to match the padded text.
       setTimeout(function () {
         try {
           var padDoc = getPadDoc();
@@ -715,17 +743,18 @@ ${padContent}
   }
 
   iframe.addEventListener('load', function () {
-    // EP reloads its inner iframes during session setup — reset all state so
-    // cleanup, paste, and spellcheck re-run on each load cycle.
     cleanupDone = false;
     cleanupAttempts = 0;
     pasteAttached = false;
     pasteAttempts = 0;
     spellRetries = 0;
     if (wcObserver) { wcObserver.disconnect(); wcObserver = null; }
+    if (epChromeObserver) { epChromeObserver.disconnect(); epChromeObserver = null; }
+    // Inject outer hide CSS immediately — no delay — so EP toolbar never flashes.
+    applyOuterCleanup();
     setTimeout(trySpellcheck, 200);
     setTimeout(tryAttachPaste, 500);
-    setTimeout(tryCleanup, 300);
+    setTimeout(tryCleanup, 100);
     syncWordCount();
   });
 
