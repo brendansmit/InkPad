@@ -488,12 +488,13 @@ ${padContent}
   }
 
   // ── Word count ─────────────────────────────────────────────────────────────
+  // Word count is handled by the postMessage listener above (injected script in ace_inner).
+  // Keep a light fallback poll only to handle cases where the script injection was delayed.
   function syncWordCount() {
     try {
       var doc = getAceInner();
       if (!doc) return;
-      // Use getElementById then fallback — textContent (not innerText) works cross-iframe
-      var body = doc.getElementById('innerdocbody') || doc.querySelector('[contenteditable="true"]');
+      var body = doc.getElementById('innerdocbody');
       if (!body) return;
       var text = body.textContent || '';
       var words = text.trim() ? text.trim().split(/\s+/).filter(function (w) { return w.length > 0; }).length : 0;
@@ -501,7 +502,7 @@ ${padContent}
       wcEl.textContent = words + ' words · ' + chars + ' chars';
     } catch (_) {}
   }
-  var wcInterval = setInterval(syncWordCount, 500);
+  var wcInterval = setInterval(syncWordCount, 2000);
 
   // ── Spellcheck ─────────────────────────────────────────────────────────────
   function applySpellcheck() {
@@ -540,13 +541,41 @@ ${padContent}
   zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
 
   // ── Pad UI cleanup + author color suppression ─────────────────────────────
-  function injectInnerFrameStyles(doc) {
+  // ── Word count via postMessage from injected script ──────────────────────
+  // Cross-iframe document access (getAceInner) is unreliable — textContent
+  // reads from a foreign frame can silently fail. Instead we inject a tiny
+  // script into ace_inner that observes #innerdocbody with MutationObserver
+  // and sends counts up to the top window via postMessage.
+  window.addEventListener('message', function (e) {
+    if (e.data && e.data.__ih_wc) {
+      wcEl.textContent = e.data.words + ' words · ' + e.data.chars + ' chars';
+    }
+  });
+
+  function injectWordCountScript(doc) {
+    if (!doc || !doc.head) return;
+    if (doc.getElementById('ih-wc-script')) return;
+    var sc = doc.createElement('script');
+    sc.id = 'ih-wc-script';
+    sc.textContent = '(function(){'
+      + 'var b=document.getElementById("innerdocbody");if(!b)return;'
+      + 'function send(){'
+      +   'var t=b.textContent||"";'
+      +   'var w=t.trim()?t.trim().split(/\\s+/).filter(function(x){return x.length>0;}).length:0;'
+      +   'var c=t.replace(/\\s/g,"").length;'
+      +   'try{window.top.postMessage({__ih_wc:true,words:w,chars:c},"*");}catch(e){}'
+      + '}'
+      + 'new MutationObserver(send).observe(b,{childList:true,subtree:true,characterData:true});'
+      + 'send();'
+      + '})();';
+    doc.head.appendChild(sc);
+  }
+
+  function injectInnerFrameStyles(doc, isAceInner) {
     if (!doc || !doc.head) return false;
     if (!doc.getElementById('ih-author-suppress')) {
       var s = doc.createElement('style');
       s.id = 'ih-author-suppress';
-      // Force white bg on the writing surface and kill author highlight colours.
-      // #innerdocbody span beats .authorColors .author-XXX on specificity (id+el > class+class).
       s.textContent =
         ':root,html,body{color-scheme:light!important;background:#fff!important;color:#000!important;}' +
         '#innerdocbody,#outerdocbody{background:#fff!important;color:#000!important;}' +
@@ -555,6 +584,7 @@ ${padContent}
         'border-left:none!important;box-shadow:none!important;}';
       doc.head.appendChild(s);
     }
+    if (isAceInner) injectWordCountScript(doc);
     return true;
   }
 
@@ -593,7 +623,7 @@ ${padContent}
       var aceInner = aoDoc.querySelector('iframe[name="ace_inner"]');
       // Don't mark done until aceInner is also injected — it loads slightly later.
       if (!aceInner || !aceInner.contentDocument) return false;
-      injectInnerFrameStyles(aceInner.contentDocument);
+      injectInnerFrameStyles(aceInner.contentDocument, true);
 
       return true;
     } catch (_) { return false; }
@@ -605,14 +635,13 @@ ${padContent}
     if (cleanupDone) return;
     if (applyPadUiCleanup()) {
       cleanupDone = true;
-      // EP calculates line-number gutter positions on load; our CSS injection
-      // changes the layout after that, so trigger EP's own resize handler to
-      // force a recalculation.
+      // EP calculates gutter positions on load before our CSS runs.
+      // Fire resize on both padDoc and ace_outer so EP recalculates line numbers.
       try {
         var padDoc = getPadDoc();
-        if (padDoc && padDoc.defaultView) {
-          padDoc.defaultView.dispatchEvent(new Event('resize'));
-        }
+        if (padDoc && padDoc.defaultView) padDoc.defaultView.dispatchEvent(new Event('resize'));
+        var ao = padDoc && padDoc.querySelector('iframe[name="ace_outer"]');
+        if (ao && ao.contentWindow) ao.contentWindow.dispatchEvent(new Event('resize'));
       } catch (_) {}
       return;
     }
