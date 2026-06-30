@@ -124,9 +124,9 @@ export class EtherpadService {
   /**
    * Create a new group pad for an assignment. Returns the full pad id (groupID$padName).
    */
-  async createAssignmentPad(classId, assignmentId, studentId, initialText) {
+  async createAssignmentPad(classId, assignmentId, studentId, initialText, suffix) {
     const groupId = await this.ensureClassGroup(classId);
-    const padName = `a${assignmentId}_s${studentId}`;
+    const padName = suffix ? `a${assignmentId}_s${studentId}_${suffix}` : `a${assignmentId}_s${studentId}`;
     await this.api.createGroupPad(groupId, padName, initialText);
     return `${groupId}$${padName}`;
   }

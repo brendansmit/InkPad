@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import crypto from 'node:crypto';
 import { EtherpadService } from '../etherpad/api.js';
 import { renderWriteView } from '../views/write.js';
 
@@ -49,19 +50,14 @@ async function resolveAssignmentAndStudent(db, assignmentId, studentId) {
   return { assignment, student };
 }
 
-async function provisionPad(db, service, { assignment, student }) {
+async function provisionPad(db, service, { assignment, student, suffixGenerator }) {
   const studentId = student.id;
   const assignmentId = assignment.id;
 
   let pad = db.prepare('SELECT id, etherpad_pad_id, state FROM pads WHERE student_id = ? AND assignment_id = ?').get(studentId, assignmentId);
 
   if (!pad) {
-    const etherpadPadId = await service.createAssignmentPad(
-      assignment.class_id,
-      assignmentId,
-      studentId,
-      ''
-    );
+    const etherpadPadId = await createAllocatedAssignmentPad(db, service, { assignment, student }, suffixGenerator);
     const result = db.prepare(`
       INSERT INTO pads (student_id, assignment_id, etherpad_pad_id, state)
       VALUES (?, ?, ?, 'writing')
@@ -70,6 +66,58 @@ async function provisionPad(db, service, { assignment, student }) {
   }
 
   return pad;
+}
+
+function generatePadSuffix() {
+  const letter = String.fromCharCode(65 + crypto.randomInt(26));
+  const digits = String(crypto.randomInt(10000)).padStart(4, '0');
+  return `${letter}${digits}`;
+}
+
+function isValidPadSuffix(suffix) {
+  return /^[A-Z][0-9]{4}$/.test(suffix);
+}
+
+function reservePadSuffix(db, suffix) {
+  if (!isValidPadSuffix(suffix)) {
+    const err = new Error('invalid_pad_suffix');
+    err.statusCode = 500;
+    throw err;
+  }
+  try {
+    db.prepare('INSERT INTO pad_allocations (pad_suffix) VALUES (?)').run(suffix);
+    return true;
+  } catch (error) {
+    if (error.code === 'ERR_SQLITE_CONSTRAINT_PRIMARYKEY' || error.message?.includes('UNIQUE constraint failed')) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function createAllocatedAssignmentPad(db, service, { assignment, student }, suffixGenerator = generatePadSuffix) {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const suffix = suffixGenerator();
+    if (!reservePadSuffix(db, suffix)) continue;
+    try {
+      const etherpadPadId = await service.createAssignmentPad(
+        assignment.class_id,
+        assignment.id,
+        student.id,
+        '',
+        suffix
+      );
+      db.prepare('UPDATE pad_allocations SET etherpad_pad_id = ? WHERE pad_suffix = ?').run(etherpadPadId, suffix);
+      return etherpadPadId;
+    } catch (error) {
+      db.prepare('DELETE FROM pad_allocations WHERE pad_suffix = ? AND etherpad_pad_id IS NULL').run(suffix);
+      throw error;
+    }
+  }
+
+  const err = new Error('could_not_allocate_pad_id');
+  err.statusCode = 500;
+  throw err;
 }
 
 // Auto-lock a draft pad that has passed its due date.
@@ -275,7 +323,7 @@ function latestSubmissionForPad(db, padId) {
   `).get(padId);
 }
 
-export async function registerPadRoutes(app, { db, etherpadService }) {
+export async function registerPadRoutes(app, { db, etherpadService, padSuffixGenerator }) {
   const service = etherpadService ?? new EtherpadService({ apiKey: process.env.ETHERPAD_API_KEY || 'unset' });
 
   /**
@@ -297,7 +345,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         return reply.code(403).send({ error: 'not_open_yet' });
       }
 
-      const pad = await provisionPad(db, service, { assignment, student });
+      const pad = await provisionPad(db, service, { assignment, student, suffixGenerator: padSuffixGenerator });
       applyDueDateLock(db, pad, assignment);
 
       const groupId = await service.ensureClassGroup(assignment.class_id);
@@ -338,7 +386,7 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         return reply.code(403).send({ error: 'not_open_yet' });
       }
 
-      const pad = await provisionPad(db, service, { assignment, student });
+      const pad = await provisionPad(db, service, { assignment, student, suffixGenerator: padSuffixGenerator });
 
       // Step 4.4 — due-date auto-lock
       applyDueDateLock(db, pad, assignment);

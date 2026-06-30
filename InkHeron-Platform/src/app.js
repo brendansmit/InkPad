@@ -77,7 +77,7 @@ export async function buildApp(options = {}) {
   await registerSettingsRoutes(app, { db });
   await registerSettingsTestRoutes(app, { db });
   await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });
-  await registerPadRoutes(app, { db, etherpadService: options.etherpadService });
+  await registerPadRoutes(app, { db, etherpadService: options.etherpadService, padSuffixGenerator: options.padSuffixGenerator });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
   app.get('/student/change-password', async (_request, reply) => reply.sendFile('student-change-password.html', publicDir));

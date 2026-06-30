@@ -72,9 +72,9 @@ function makeFakeEtherpadService() {
   let calls = [];
   return {
     calls,
-    async createAssignmentPad(classId, assignmentId, studentId) {
-      calls.push({ method: 'createAssignmentPad', classId, assignmentId, studentId });
-      return `g.class${classId}$a${assignmentId}_s${studentId}`;
+    async createAssignmentPad(classId, assignmentId, studentId, _initialText, suffix) {
+      calls.push({ method: 'createAssignmentPad', classId, assignmentId, studentId, suffix });
+      return `g.class${classId}$a${assignmentId}_s${studentId}_${suffix}`;
     },
     async ensureClassGroup(classId) {
       calls.push({ method: 'ensureClassGroup', classId });
@@ -116,7 +116,7 @@ test('student opening assignment creates and reuses a pad', async () => {
   assert.equal(first.statusCode, 200);
   const firstData = first.json();
   assert.equal(firstData.pad.state, 'writing');
-  assert.ok(firstData.pad.etherpad_pad_id.includes(`a${assignmentId}_s${studentId}`));
+  assert.match(firstData.pad.etherpad_pad_id, new RegExp(`a${assignmentId}_s${studentId}_[A-Z][0-9]{4}$`));
   assert.ok(firstData.session_cookie.startsWith('sessionID='));
 
   const createCalls = fakeEtherpad.calls.filter(c => c.method === 'createAssignmentPad');
@@ -169,8 +169,91 @@ test('two students get different pads for the same assignment', async () => {
   });
 
   assert.notEqual(alicePad.json().pad.etherpad_pad_id, bobPad.json().pad.etherpad_pad_id);
-  assert.ok(alicePad.json().pad.etherpad_pad_id.includes(`_s${alicePad.json().pad.student_id ?? 1}`) || true);
-  assert.ok(bobPad.json().pad.etherpad_pad_id.includes(`_s${bobId}`));
+  assert.match(alicePad.json().pad.etherpad_pad_id, /_[A-Z][0-9]{4}$/);
+  assert.match(bobPad.json().pad.etherpad_pad_id, new RegExp(`_s${bobId}_[A-Z][0-9]{4}$`));
+
+  await app.close();
+});
+
+test('deleted local pad is recreated with a fresh allocated suffix', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const suffixes = ['A0001', 'B0002'];
+  const app = await buildApp({
+    databasePath,
+    logger: false,
+    etherpadService: fakeEtherpad,
+    padSuffixGenerator: () => suffixes.shift(),
+  });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const first = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(first.statusCode, 200);
+  const firstPad = first.json().pad;
+  assert.ok(firstPad.etherpad_pad_id.endsWith('_A0001'));
+
+  const db = new DatabaseSync(databasePath);
+  db.prepare('DELETE FROM pads WHERE id = ?').run(firstPad.id);
+  db.close();
+
+  const second = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(second.statusCode, 200);
+  assert.notEqual(second.json().pad.etherpad_pad_id, firstPad.etherpad_pad_id);
+  assert.ok(second.json().pad.etherpad_pad_id.endsWith('_B0002'));
+
+  const check = new DatabaseSync(databasePath);
+  try {
+    const rows = check.prepare('SELECT pad_suffix, etherpad_pad_id FROM pad_allocations ORDER BY pad_suffix').all()
+      .map(row => ({ pad_suffix: row.pad_suffix, etherpad_pad_id: row.etherpad_pad_id }));
+    assert.deepEqual(rows.map(row => row.pad_suffix), ['A0001', 'B0002']);
+    assert.equal(rows[0].etherpad_pad_id, firstPad.etherpad_pad_id);
+    assert.equal(rows[1].etherpad_pad_id, second.json().pad.etherpad_pad_id);
+  } finally {
+    check.close();
+  }
+
+  await app.close();
+});
+
+test('pad suffix allocation retries after a permanent collision', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const suffixes = ['A0001', 'C0003'];
+  const app = await buildApp({
+    databasePath,
+    logger: false,
+    etherpadService: fakeEtherpad,
+    padSuffixGenerator: () => suffixes.shift(),
+  });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { assignmentId } = await seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf });
+  const db = new DatabaseSync(databasePath);
+  db.prepare("INSERT INTO pad_allocations (pad_suffix, etherpad_pad_id) VALUES ('A0001', 'old-pad')").run();
+  db.close();
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const response = await app.inject({
+    method: 'GET',
+    url: `/api/assignments/${assignmentId}/pad`,
+    headers: { cookie: studentCookies },
+  });
+  assert.equal(response.statusCode, 200);
+  assert.ok(response.json().pad.etherpad_pad_id.endsWith('_C0003'));
+  const createCalls = fakeEtherpad.calls.filter(c => c.method === 'createAssignmentPad');
+  assert.equal(createCalls.length, 1);
+  assert.equal(createCalls[0].suffix, 'C0003');
 
   await app.close();
 });

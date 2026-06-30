@@ -9,8 +9,9 @@ import { runMigrations } from '../src/db/migrate.js';
 const expectedColumns = {
   students: ['id', 'username', 'display_name', 'password_hash', 'class_id', 'created_at', 'must_change_password', 'is_demo', 'is_ghost'],
   classes: ['id', 'name', 'created_at'],
-  assignments: ['id', 'class_id', 'title', 'type', 'settings_json', 'opens_at', 'due_at', 'created_at'],
+  assignments: ['id', 'class_id', 'title', 'type', 'settings_json', 'opens_at', 'due_at', 'created_at', 'is_archived'],
   pads: ['id', 'student_id', 'assignment_id', 'etherpad_pad_id', 'state', 'created_at'],
+  pad_allocations: ['pad_suffix', 'etherpad_pad_id', 'created_at'],
   submissions: ['id', 'pad_id', 'submitted_at', 'is_graded', 'released'],
   grades: ['id', 'submission_id', 'score', 'released', 'graded_at'],
   paste_events: ['id', 'pad_id', 'at', 'length', 'input_type'],
@@ -22,6 +23,8 @@ const expectedColumns = {
   eap_library_categories: ['id', 'label', 'icon', 'sort_order'],
   eap_library_docs: ['id', 'filename', 'title', 'hidden', 'views', 'uploaded_at', 'category_id', 'icon', 'release_at', 'file_type', 'downloadable'],
   eap_library_view_log: ['id', 'doc_id', 'student_name', 'class_period', 'viewed_at', 'duration_seconds'],
+  sessions: ['sid', 'data', 'expires_at'],
+  submission_comments: ['id', 'submission_id', 'kind', 'body', 'created_at', 'updated_at'],
 };
 
 const migrationFiles = [
@@ -32,6 +35,10 @@ const migrationFiles = [
   '005_submission_feedback.sql',
   '006_assignment_students.sql',
   '007_eap_library.sql',
+  '008_assignment_archived.sql',
+  '009_sessions.sql',
+  '010_submission_comments.sql',
+  '011_pad_allocations.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

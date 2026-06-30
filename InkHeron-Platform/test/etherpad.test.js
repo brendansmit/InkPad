@@ -78,18 +78,18 @@ test('createSession returns session id and validUntil', async () => {
   assert.equal(server.calls[0].params.authorID, 'a.xyz');
 });
 
-test('createAssignmentPad builds deterministic pad id', async () => {
+test('createAssignmentPad appends optional random suffix to pad id', async () => {
   const server = makeMockServer([
     { json: { code: 0, data: { groupID: 'g.class1' } } },
-    { json: { code: 0, data: { padID: 'g.class1$a2_s5' } } },
+    { json: { code: 0, data: { padID: 'g.class1$a2_s5_K4821' } } },
   ]);
   const service = new EtherpadService({ baseUrl: 'http://localhost:9001', apiKey: 'secret' });
   service.api._fetch = server.fetch.bind(server);
 
-  const padId = await service.createAssignmentPad(1, 2, 5, 'Hello');
-  assert.equal(padId, 'g.class1$a2_s5');
+  const padId = await service.createAssignmentPad(1, 2, 5, 'Hello', 'K4821');
+  assert.equal(padId, 'g.class1$a2_s5_K4821');
   assert.equal(server.calls[1].params.groupID, 'g.class1');
-  assert.equal(server.calls[1].params.padName, 'a2_s5');
+  assert.equal(server.calls[1].params.padName, 'a2_s5_K4821');
   assert.equal(server.calls[1].params.text, 'Hello');
 });
 
@@ -118,7 +118,7 @@ test('EtherpadApiClient surfaces API error codes', async () => {
   client._fetch = server.fetch.bind(server);
 
   await assert.rejects(
-    () => client.createGroupPad('g.1', 'pad'),
+    () => client.getText('g.1$pad'),
     /padID does already exist/
   );
 });
