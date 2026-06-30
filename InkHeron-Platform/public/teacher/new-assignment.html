@@ -249,11 +249,10 @@
 
       if(passagePdfFile&&lastId){
         btn.textContent='Uploading PDF…';
-        const fd=new FormData();fd.append('pdf',passagePdfFile);
         await fetch(`/api/assignments/${lastId}/passage-pdf`,{
-          method:'POST',
-          headers:{'X-CSRF-Token':csrfToken},
-          body:fd,
+          method:'PUT',
+          headers:{'Content-Type':'application/pdf','X-CSRF-Token':csrfToken},
+          body:passagePdfFile,
         });
       }
 
