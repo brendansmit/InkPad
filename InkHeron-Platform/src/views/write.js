@@ -492,11 +492,12 @@ ${padContent}
     try {
       var doc = getAceInner();
       if (!doc) return;
-      var body = doc.querySelector('#innerdocbody, .innerdocbody, [contenteditable="true"]');
+      // Use getElementById then fallback — textContent (not innerText) works cross-iframe
+      var body = doc.getElementById('innerdocbody') || doc.querySelector('[contenteditable="true"]');
       if (!body) return;
-      var text = body.innerText || body.textContent || '';
+      var text = body.textContent || '';
       var words = text.trim() ? text.trim().split(/\s+/).filter(function (w) { return w.length > 0; }).length : 0;
-      var chars = text.replace(/[\s​]/g, '').length;
+      var chars = text.replace(/\s/g, '').length;
       wcEl.textContent = words + ' words · ' + chars + ' chars';
     } catch (_) {}
   }
@@ -602,7 +603,19 @@ ${padContent}
   var cleanupAttempts = 0;
   function tryCleanup() {
     if (cleanupDone) return;
-    if (applyPadUiCleanup()) { cleanupDone = true; return; }
+    if (applyPadUiCleanup()) {
+      cleanupDone = true;
+      // EP calculates line-number gutter positions on load; our CSS injection
+      // changes the layout after that, so trigger EP's own resize handler to
+      // force a recalculation.
+      try {
+        var padDoc = getPadDoc();
+        if (padDoc && padDoc.defaultView) {
+          padDoc.defaultView.dispatchEvent(new Event('resize'));
+        }
+      } catch (_) {}
+      return;
+    }
     if (++cleanupAttempts < 40) setTimeout(tryCleanup, 300);
   }
 
