@@ -896,7 +896,7 @@
     "duration": 1,
 
     // maximum number of changes per IP to allow during the rate limit window
-    "points": 100
+    "points": 500
   },
 
   "toolbar": {
