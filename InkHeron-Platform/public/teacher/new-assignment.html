@@ -203,12 +203,12 @@
       if(!data.classes?.length) box.innerHTML='<span style="color:var(--text-3);font-size:13px">No classes yet. <a href="/teacher/students">Create one first.</a></span>';
     }
 
-    function setPassageTab(tab){
+    window.setPassageTab=function(tab){
       document.getElementById('ptabText').classList.toggle('active',tab==='text');
       document.getElementById('ptabPdf').classList.toggle('active',tab==='pdf');
       document.getElementById('passageTextPane').style.display=tab==='text'?'':'none';
       document.getElementById('passagePdfPane').style.display=tab==='pdf'?'':'none';
-    }
+    };
 
     document.getElementById('newForm').addEventListener('submit',async e=>{
       e.preventDefault();
