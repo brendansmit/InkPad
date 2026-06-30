@@ -340,7 +340,7 @@ ${padContent}
       var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
       if (!aceOuter || !aceOuter.contentDocument) return null;
       var aceInner = aceOuter.contentDocument.querySelector('iframe[name="ace_inner"]');
-      return aceInner ? aceInner.contentDocument : aceOuter.contentDocument;
+      return aceInner ? aceInner.contentDocument : null;
     } catch (_) { return null; }
   }
 
@@ -500,7 +500,7 @@ ${padContent}
       wcEl.textContent = words + ' words · ' + chars + ' chars';
     } catch (_) {}
   }
-  var wcInterval = setInterval(syncWordCount, 1500);
+  var wcInterval = setInterval(syncWordCount, 500);
 
   // ── Spellcheck ─────────────────────────────────────────────────────────────
   function applySpellcheck() {
@@ -607,6 +607,13 @@ ${padContent}
   }
 
   iframe.addEventListener('load', function () {
+    // EP reloads its inner iframes during session setup — reset all state so
+    // cleanup, paste, and spellcheck re-run on each load cycle.
+    cleanupDone = false;
+    cleanupAttempts = 0;
+    pasteAttached = false;
+    pasteAttempts = 0;
+    spellRetries = 0;
     setTimeout(trySpellcheck, 200);
     setTimeout(tryAttachPaste, 500);
     setTimeout(tryCleanup, 300);
