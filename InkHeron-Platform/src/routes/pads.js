@@ -520,6 +520,12 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         feedback_options: feedbackLibrary,
         previous_targets: previousTargets,
         text,
+        comment: pad.submission_id ? (() => {
+          const row = db.prepare(
+            "SELECT body FROM submission_comments WHERE submission_id = ? AND kind = 'general' LIMIT 1"
+          ).get(pad.submission_id);
+          return row ? row.body : '';
+        })() : '',
       };
     }
   );
@@ -536,6 +542,29 @@ export async function registerPadRoutes(app, { db, etherpadService }) {
         targets: request.body?.targets,
       });
       return { feedback };
+    }
+  );
+
+  app.put('/api/submissions/:submissionId/comment',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const submissionId = requirePositiveInteger(request.params.submissionId, 'submissionId');
+      const submission = db.prepare('SELECT id FROM submissions WHERE id = ?').get(submissionId);
+      if (!submission) return reply.code(404).send({ error: 'submission_not_found' });
+      const body = String(request.body?.body ?? '').trim();
+      const existing = db.prepare(
+        "SELECT id FROM submission_comments WHERE submission_id = ? AND kind = 'general'"
+      ).get(submissionId);
+      if (existing) {
+        db.prepare(
+          "UPDATE submission_comments SET body = ?, updated_at = datetime('now') WHERE id = ?"
+        ).run(body, existing.id);
+      } else if (body) {
+        db.prepare(
+          "INSERT INTO submission_comments (submission_id, kind, body) VALUES (?, 'general', ?)"
+        ).run(submissionId, body);
+      }
+      return { ok: true };
     }
   );
 

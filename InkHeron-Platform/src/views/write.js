@@ -31,25 +31,25 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
   const hasPassage = !!(passageText || passagePdf);
   const assignmentIdSafe = Number(assignmentId) || 0;
 
-  const promptBtn = hasPrompt
-    ? `<button class="prompt-btn" id="prompt-btn" type="button">Task</button>`
-    : '';
+  // Sidebar: shown when there is a prompt, a passage, or both.
+  // The old collapsible prompt-panel above the pad is replaced by this sidebar.
+  const hasSidebar = hasPrompt || hasPassage;
 
-  const promptPanel = hasPrompt ? `
-    <div class="prompt-panel" id="prompt-panel">
-      <div class="prompt-panel-inner">
-        <div class="prompt-label">Assignment task</div>
-        <div class="prompt-text">${esc(prompt)}</div>
-      </div>
-    </div>` : '';
-
-  const passagePanel = hasPassage ? `
+  const sidebarLeft = hasSidebar ? `
     <div class="split-left">
-      <div class="passage-head">Reference passage</div>
-      ${passagePdf
-        ? `<iframe class="passage-pdf-frame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe>`
-        : `<div class="passage-text-content">${esc(passageText)}</div>`
-      }
+      ${hasPrompt ? `
+        <div class="side-section ${hasPassage ? 'side-sect-top' : 'side-sect-fill'}">
+          <div class="passage-head">Task</div>
+          <div class="side-prompt-inner"><div class="prompt-text">${esc(prompt)}</div></div>
+        </div>` : ''}
+      ${hasPassage ? `
+        <div class="side-section side-sect-fill">
+          <div class="passage-head">Reference passage</div>
+          ${passagePdf
+            ? `<iframe class="passage-pdf-frame" src="/api/assignments/${assignmentIdSafe}/passage-pdf" title="Reference passage"></iframe>`
+            : `<div class="passage-text-content">${esc(passageText)}</div>`
+          }
+        </div>` : ''}
     </div>` : '';
 
   // ── Padchrome toolbar ─────────────────────────────────────────────────────
@@ -135,7 +135,6 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
 
   const padchrome = `
     <div class="padchrome">
-      ${hasPrompt ? promptBtn : ''}
       <span class="wordcount" id="wc"></span>
       <span class="fmt-sep"></span>
       ${fmtBtns}
@@ -149,13 +148,12 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       <button class="btn p" id="submit-btn">Submit for grading</button>
     </div>`;
 
-  const padContent = hasPassage ? `
+  const padContent = hasSidebar ? `
 <div class="padwrap has-passage">
-  ${passagePanel}
+  ${sidebarLeft}
   <div class="split-right">
     <div class="padframe">
       ${padchrome}
-      ${promptPanel}
       <iframe class="padiframe" id="padiframe" src="${padUrl}" title="Writing pad"></iframe>
     </div>
     ${writeActions}
@@ -164,7 +162,6 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
 <div class="padwrap">
   <div class="padframe">
     ${padchrome}
-    ${promptPanel}
     <iframe class="padiframe" id="padiframe" src="${padUrl}" title="Writing pad"></iframe>
   </div>
 </div>
@@ -198,15 +195,16 @@ ${writeActions}`;
     .padwrap.has-passage{flex-direction:row;}
     .split-left{width:340px;flex-shrink:0;border-right:1px solid var(--border);display:flex;flex-direction:column;background:var(--surface);overflow:hidden;}
     .split-right{flex:1;min-width:0;display:flex;flex-direction:column;}
+    .side-section{display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid var(--border);}
+    .side-section:last-child{border-bottom:none;}
+    .side-sect-fill{flex:1;}
+    .side-sect-top{flex-shrink:0;max-height:40%;}
     .passage-head{padding:9px 14px;font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);border-bottom:1px solid var(--border);flex-shrink:0;}
-    .passage-text-content{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
+    .passage-text-content,.side-prompt-inner{flex:1;overflow-y:auto;padding:16px 18px;white-space:pre-wrap;font-family:var(--serif,Georgia,serif);font-size:14.5px;line-height:1.75;color:var(--text);}
     .passage-pdf-frame{flex:1;border:none;width:100%;display:block;}
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:54px;overflow-x:auto;}
-    .prompt-btn{font-size:11.5px;font-weight:700;color:var(--primary);background:var(--green-50,#f0fdf4);border:1px solid var(--green-200,#bbf7d0);border-radius:5px;padding:3px 10px;cursor:pointer;white-space:nowrap;flex-shrink:0;}
-    .prompt-btn:hover{background:var(--green-100,#dcfce7);}
-    .prompt-btn.active{background:var(--green-100,#dcfce7);border-color:var(--primary);}
     .wordcount{font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;}
     .fmt-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 3px;}
     /* ── Toolbar buttons ────────────────────────────── */
@@ -226,10 +224,6 @@ ${writeActions}`;
     .zoom-wrap label{font-size:11px;color:var(--text-3);}
     .zoom-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;}
     /* ── Prompt panel ───────────────────────────────── */
-    .prompt-panel{display:none;border-bottom:1px solid var(--border);background:var(--surface-2,#f9f8f5);max-height:180px;overflow-y:auto;flex-shrink:0;}
-    .prompt-panel.open{display:block;}
-    .prompt-panel-inner{padding:12px 18px;}
-    .prompt-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:6px;}
     .prompt-text{font-size:14px;line-height:1.65;color:var(--text);white-space:pre-wrap;}
     /* ── Pad iframe ─────────────────────────────────── */
     .padiframe{flex:1;width:100%;border:none;min-height:0;display:block;}
@@ -272,17 +266,6 @@ ${padContent}
   var wcEl = document.getElementById('wc');
   var saveBtn = document.getElementById('save-btn');
   var iframe = document.getElementById('padiframe');
-
-  // ── Prompt panel toggle ───────────────────────────────────────────────────
-  var promptBtn = document.getElementById('prompt-btn');
-  var promptPanel = document.getElementById('prompt-panel');
-  if (promptBtn && promptPanel) {
-    promptBtn.addEventListener('click', function () {
-      var open = promptPanel.classList.toggle('open');
-      promptBtn.classList.toggle('active', open);
-      promptBtn.textContent = open ? 'Hide task' : 'Task';
-    });
-  }
 
   // ── Save-state UI ─────────────────────────────────────────────────────────
   var saveTimer = null;
@@ -553,18 +536,21 @@ ${padContent}
   }
 
   // ── Zoom ───────────────────────────────────────────────────────────────────
-  // #editorcontainerbox lives inside ace_outer, not padDoc — must target that frame.
+  // Apply zoom to both the outer pad iframe body and the ace_outer body so the
+  // gutter, toolbar, and editor all scale together.
+  var currentZoom = 1;
   var zoomSel = document.getElementById('zoom-sel');
   function applyZoom(level) {
+    currentZoom = level;
     try {
       var padDoc = getPadDoc();
-      if (!padDoc) return;
+      if (!padDoc || !padDoc.body) return;
+      var z = level !== 1 ? String(level) : '';
+      padDoc.body.style.zoom = z;
       var aceOuter = padDoc.querySelector('iframe[name="ace_outer"]');
-      if (!aceOuter || !aceOuter.contentDocument || !aceOuter.contentDocument.head) return;
-      var outerDoc = aceOuter.contentDocument;
-      var zs = outerDoc.getElementById('ih-zoom');
-      if (!zs) { zs = outerDoc.createElement('style'); zs.id = 'ih-zoom'; outerDoc.head.appendChild(zs); }
-      zs.textContent = '#editorcontainerbox{zoom:' + level + '!important;transform-origin:top left;}';
+      if (aceOuter && aceOuter.contentDocument && aceOuter.contentDocument.body) {
+        aceOuter.contentDocument.body.style.zoom = z;
+      }
     } catch (_) {}
   }
   zoomSel && zoomSel.addEventListener('change', function () { applyZoom(Number(zoomSel.value)); });
@@ -634,14 +620,18 @@ ${padContent}
     if (cleanupDone) return;
     if (applyPadUiCleanup()) {
       cleanupDone = true;
-      // EP calculates gutter positions on load before our CSS runs.
-      // Fire resize on both padDoc and ace_outer so EP recalculates line numbers.
-      try {
-        var padDoc = getPadDoc();
-        if (padDoc && padDoc.defaultView) padDoc.defaultView.dispatchEvent(new Event('resize'));
-        var ao = padDoc && padDoc.querySelector('iframe[name="ace_outer"]');
-        if (ao && ao.contentWindow) ao.contentWindow.dispatchEvent(new Event('resize'));
-      } catch (_) {}
+      // Reapply zoom if user changed it before cleanup ran.
+      if (currentZoom !== 1) applyZoom(currentZoom);
+      // EP calculates gutter positions before our layout.css padding takes effect.
+      // Wait for the browser to apply the CSS, then fire resize on ace_outer so
+      // EP recalculates line-number positions to match the padded text.
+      setTimeout(function () {
+        try {
+          var padDoc = getPadDoc();
+          var ao = padDoc && padDoc.querySelector('iframe[name="ace_outer"]');
+          if (ao && ao.contentWindow) ao.contentWindow.dispatchEvent(new Event('resize'));
+        } catch (_) {}
+      }, 200);
       return;
     }
     if (++cleanupAttempts < 40) setTimeout(tryCleanup, 300);

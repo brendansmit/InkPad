@@ -154,7 +154,11 @@
                 <input id="gradeInput" type="number" min="0" step="0.5" value="${data.grade?.score ?? ''}">
               </div>
             </div>
-            <div class="stack" style="margin-top:12px;max-width:180px;">
+            <div style="margin-top:12px;">
+              <label class="label" for="commentInput">General comment (visible to student)</label>
+              <textarea id="commentInput" rows="4" style="resize:vertical;" ${data.submission?'':'disabled'}>${escapeHtml(data.comment||'')}</textarea>
+            </div>
+            <div class="stack" style="margin-top:12px;max-width:240px;">
               <button class="btn primary" type="button" id="saveFeedbackBtn" ${data.submission?'':'disabled'}>Save feedback</button>
               <button class="btn" type="button" id="saveGradeBtn" ${data.submission?'':'disabled'}>Save grade</button>
             </div>
@@ -207,17 +211,25 @@
 
     async function saveFeedback(submissionId){
       if(!submissionId) return;
-      const body={
+      const msg=document.getElementById('feedbackMsg');
+      const feedbackBody={
         strengths:selectedValues(document.getElementById('strengthSelect')),
         targets:selectedValues(document.getElementById('targetSelect')),
       };
-      const r=await fetch(`/api/submissions/${submissionId}/feedback`,{
-        method:'POST',
-        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-        body:JSON.stringify(body),
-      });
-      const msg=document.getElementById('feedbackMsg');
-      if(!r.ok){msg.textContent='Could not save feedback.';return;}
+      const commentBody=document.getElementById('commentInput')?.value ?? '';
+      const [feedbackRes, commentRes] = await Promise.all([
+        fetch(`/api/submissions/${submissionId}/feedback`,{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+          body:JSON.stringify(feedbackBody),
+        }),
+        fetch(`/api/submissions/${submissionId}/comment`,{
+          method:'PUT',
+          headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+          body:JSON.stringify({body:commentBody}),
+        }),
+      ]);
+      if(!feedbackRes.ok||!commentRes.ok){msg.textContent='Could not save feedback.';return;}
       msg.textContent='Feedback saved.';
     }
 
