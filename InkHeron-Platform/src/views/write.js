@@ -104,12 +104,33 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
       </button>
     </div>
     <span class="fmt-sep"></span>
-    <div class="clr-palette">
-      <button class="clr-btn" data-epcolor="0" title="Black" style="background:#111111" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="1" title="Red" style="background:#cc0000" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="2" title="Green" style="background:#009900" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="3" title="Blue" style="background:#0000cc" onmousedown="return false"></button>
-      <button class="clr-btn" data-epcolor="5" title="Orange" style="background:#e67300" onmousedown="return false"></button>
+    <div class="clr-group">
+      <div class="clr-picker" id="clrPicker">
+        <button class="fmt-btn clr-trigger" id="clrTrigger" onmousedown="return false" title="Text color">
+          <span class="clr-trigger-ic">A<span class="clr-bar" id="clrBar" style="background:#111111"></span></span>
+        </button>
+        <div class="clr-popup" id="clrPopup">
+          <button class="clr-swatch" data-epcolor="0" style="background:#111111" onmousedown="return false" title="Black"></button>
+          <button class="clr-swatch" data-epcolor="1" style="background:#cc0000" onmousedown="return false" title="Red"></button>
+          <button class="clr-swatch" data-epcolor="2" style="background:#009900" onmousedown="return false" title="Green"></button>
+          <button class="clr-swatch" data-epcolor="3" style="background:#0000cc" onmousedown="return false" title="Blue"></button>
+          <button class="clr-swatch" data-epcolor="5" style="background:#e67300" onmousedown="return false" title="Orange"></button>
+          <button class="clr-swatch" data-epcolor="4" style="background:#660066" onmousedown="return false" title="Purple"></button>
+        </div>
+      </div>
+      <div class="clr-picker" id="hlPicker">
+        <button class="fmt-btn clr-trigger" id="hlTrigger" onmousedown="return false" title="Highlight">
+          <span class="clr-trigger-ic">H<span class="clr-bar" id="hlBar" style="background:#ffff00"></span></span>
+        </button>
+        <div class="clr-popup" id="hlPopup">
+          <button class="clr-swatch hl-none" data-hlcolor="transparent" onmousedown="return false" title="Remove highlight">&#10005;</button>
+          <button class="clr-swatch" data-hlcolor="#ffff00" style="background:#ffff00" onmousedown="return false" title="Yellow"></button>
+          <button class="clr-swatch" data-hlcolor="#b3ffb3" style="background:#b3ffb3" onmousedown="return false" title="Green"></button>
+          <button class="clr-swatch" data-hlcolor="#b3d9ff" style="background:#b3d9ff" onmousedown="return false" title="Blue"></button>
+          <button class="clr-swatch" data-hlcolor="#ffb3d9" style="background:#ffb3d9" onmousedown="return false" title="Pink"></button>
+          <button class="clr-swatch" data-hlcolor="#ffd9b3" style="background:#ffd9b3" onmousedown="return false" title="Orange"></button>
+        </div>
+      </div>
     </div>
     <span class="fmt-sep"></span>
     <select id="fsize-sel" class="fsize-select" title="Font size">
@@ -137,7 +158,7 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
 
   const padchrome = `
     <div class="padchrome">
-      <span class="wordcount" id="wc"></span>
+      <span class="wordcount" id="wc"><span class="wc-num" id="wc-w">0</span><span class="wc-lbl">w</span><span class="wc-dot">·</span><span class="wc-num" id="wc-c">0</span><span class="wc-lbl">c</span><span class="wc-dot">·</span><span class="wc-num" id="wc-l">0</span><span class="wc-lbl">l</span><span class="wc-dot">·</span><span class="wc-num" id="wc-s">0</span><span class="wc-lbl">s</span></span>
       <span class="fmt-sep"></span>
       ${fmtBtns}
       ${zoomSelect}
@@ -216,7 +237,6 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     /* ── Padframe + chrome ─────────────────────────── */
     .padframe{background:var(--surface);border-top:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column;min-height:0;}
     .padchrome{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;min-height:54px;overflow-x:auto;}
-    .wordcount{font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;}
     .fmt-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;margin:0 3px;}
     /* ── Toolbar buttons ────────────────────────────── */
     .fmt-group{display:flex;align-items:center;gap:2px;flex-shrink:0;}
@@ -224,11 +244,22 @@ export function renderWriteView({ title, dueAt, spellcheck, pasteBlock, etherpad
     .fmt-btn b,.fmt-btn i,.fmt-btn u,.fmt-btn s{font-size:19px;pointer-events:none;}
     .fmt-btn:hover{background:var(--surface-3);color:var(--text);}
     .fmt-btn.active{background:var(--surface-3);color:var(--primary);border-color:var(--border);}
-    /* ── Color swatches ─────────────────────────────── */
-    .clr-palette{display:flex;align-items:center;gap:6px;flex-shrink:0;}
-    .clr-btn{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .15s,border-color .15s;outline:none;flex-shrink:0;}
-    .clr-btn:hover{transform:scale(1.25);}
-    .clr-btn.active{border-color:var(--text);}
+    /* ── Word count fixed-width ─────────────────────── */
+    .wordcount{display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums;}
+    .wc-num{display:inline-block;min-width:2.8ch;text-align:right;}
+    .wc-lbl{font-size:10px;margin-right:2px;}
+    .wc-dot{margin:0 3px;opacity:.5;}
+    /* ── Color + highlight picker ───────────────────── */
+    .clr-group{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+    .clr-picker{position:relative;display:flex;align-items:center;}
+    .clr-trigger-ic{display:flex;flex-direction:column;align-items:center;line-height:1;font-weight:700;font-size:13px;gap:1px;pointer-events:none;}
+    .clr-bar{display:block;width:16px;height:3px;border-radius:2px;}
+    .clr-popup{display:none;position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:200;gap:4px;flex-wrap:wrap;width:116px;}
+    .clr-popup.open{display:flex;}
+    .clr-swatch{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;outline:none;transition:transform .12s,border-color .12s;flex-shrink:0;}
+    .clr-swatch:hover{transform:scale(1.2);}
+    .clr-swatch.active{border-color:var(--text);}
+    .hl-none{background:var(--surface-2)!important;border:1px solid var(--border)!important;font-size:11px;color:var(--text-3);display:flex;align-items:center;justify-content:center;}
     /* ── Font size + Zoom ──────────────────────────── */
     .fsize-select{font-size:11.5px;padding:2px 4px;border:1px solid var(--border);border-radius:5px;background:var(--surface);color:var(--text);cursor:pointer;max-width:58px;flex-shrink:0;}
     .zoom-wrap{margin-left:auto;display:flex;align-items:center;gap:5px;flex-shrink:0;}
@@ -392,13 +423,54 @@ ${padContent}
       }
     } catch (_) {}
   }
-  var activeClrBtn = null;
-  document.querySelectorAll('.clr-btn').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      applyEpColor(btn.dataset.epcolor);
-      if (activeClrBtn) activeClrBtn.classList.remove('active');
-      btn.classList.add('active');
-      activeClrBtn = btn;
+  // ── Color + highlight pickers ─────────────────────────────────────────────
+  var clrTrigger = document.getElementById('clrTrigger');
+  var clrPopup   = document.getElementById('clrPopup');
+  var hlTrigger  = document.getElementById('hlTrigger');
+  var hlPopup    = document.getElementById('hlPopup');
+  function closeAllPickers() {
+    if (clrPopup) clrPopup.classList.remove('open');
+    if (hlPopup)  hlPopup.classList.remove('open');
+  }
+  document.addEventListener('click', closeAllPickers);
+  if (clrTrigger) {
+    clrTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var was = clrPopup.classList.contains('open');
+      closeAllPickers();
+      if (!was) clrPopup.classList.add('open');
+    });
+  }
+  document.querySelectorAll('.clr-swatch[data-epcolor]').forEach(function (sw) {
+    sw.addEventListener('click', function (e) {
+      e.stopPropagation();
+      applyEpColor(sw.dataset.epcolor);
+      var bar = document.getElementById('clrBar');
+      if (bar) bar.style.background = sw.style.background;
+      document.querySelectorAll('.clr-swatch[data-epcolor]').forEach(function (s) { s.classList.remove('active'); });
+      sw.classList.add('active');
+      closeAllPickers();
+    });
+  });
+  if (hlTrigger) {
+    hlTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var was = hlPopup.classList.contains('open');
+      closeAllPickers();
+      if (!was) hlPopup.classList.add('open');
+    });
+  }
+  document.querySelectorAll('.clr-swatch[data-hlcolor]').forEach(function (sw) {
+    sw.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var color = sw.dataset.hlcolor;
+      try {
+        var iDoc = getAceInner();
+        if (iDoc) iDoc.execCommand('hiliteColor', false, color === 'transparent' ? 'transparent' : color);
+      } catch (_) {}
+      var bar = document.getElementById('hlBar');
+      if (bar) bar.style.background = color === 'transparent' ? '' : color;
+      closeAllPickers();
     });
   });
 
@@ -488,14 +560,28 @@ ${padContent}
 
   function countFromBody(body) {
     try {
-      var text = (typeof body.innerText === 'string' ? body.innerText : body.textContent) || '';
+      var raw = body.textContent || '';
+      // EP injects ​/  between tokens: strip zero-width chars,
+      // normalise nbsp to space, so word-splitting works correctly.
+      var text = raw.replace(/\u00a0/g, ' ')
+                    .replace(/[\u200b\u200c\u200d\u2060\ufeff]/g, '');
       var trimmed = text.trim();
       var words = trimmed ? trimmed.split(/\s+/).filter(function (w) { return w.length > 0; }).length : 0;
       var chars = trimmed.replace(/\s/g, '').length;
-      wcEl.textContent = words + ' words · ' + chars + ' chars';
+      var lineEls = body.querySelectorAll('.ace-line');
+      var lines = lineEls.length || (trimmed ? trimmed.split(/\n+/).filter(function (l) { return l.trim(); }).length : 0);
+      var sentences = trimmed ? (trimmed.match(/[.!?]+(?=\s|$)/g) || []).length : 0;
+      var wW = document.getElementById('wc-w');
+      if (wW) {
+        wW.textContent = words;
+        document.getElementById('wc-c').textContent = chars;
+        document.getElementById('wc-l').textContent = lines;
+        document.getElementById('wc-s').textContent = sentences;
+      }
     } catch (_) {}
   }
 
+  
   function attachWordCountObserver() {
     try {
       var doc = getAceInner();
