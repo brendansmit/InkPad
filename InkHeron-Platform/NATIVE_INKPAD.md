@@ -37,6 +37,12 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Stale saves return `409 version_conflict` with the current pad instead of overwriting newer text.
 - Student editor tracks the saved version and shows a conflict message if another tab has newer work.
 
+## Phase 5 Review Marking Tools
+
+- Native review page can add inline comments, literacy-code marks and highlights from selected text ranges.
+- Literacy-code annotations carry metadata for code, category and label.
+- Review rendering marks inline comments, code marks and highlights with different styles.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:

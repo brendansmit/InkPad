@@ -288,6 +288,38 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(updatedInline.statusCode, 200);
   assert.equal(updatedInline.json().annotation.resolved, true);
 
+  const code = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/annotations`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      type: 'literacy_code',
+      start_offset: 14,
+      end_offset: 26,
+      selected_text: 'Sentence two',
+      body: 'Evidence needs explanation.',
+      metadata: { code: 'EV', category: 'Evidence', label: 'Evidence' },
+    },
+  });
+  assert.equal(code.statusCode, 201);
+  assert.equal(code.json().annotation.type, 'literacy_code');
+  assert.equal(code.json().annotation.metadata.code, 'EV');
+
+  const highlight = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/annotations`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      type: 'highlight',
+      start_offset: 0,
+      end_offset: 8,
+      selected_text: 'Sentence',
+      body: 'Strong start.',
+    },
+  });
+  assert.equal(highlight.statusCode, 201);
+  assert.equal(highlight.json().annotation.type, 'highlight');
+
   const review = await app.inject({
     method: 'GET',
     url: `/api/native/pads/${padId}/review`,
@@ -297,7 +329,7 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(review.json().pad.plain_text, 'Sentence one. Sentence two.');
   assert.equal(review.json().policy.paste_mode, 'block');
   assert.equal(review.json().paste_events.length, 1);
-  assert.deepEqual(review.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment']);
+  assert.deepEqual(review.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment', 'literacy_code', 'highlight']);
 
   await app.close();
 });
@@ -341,6 +373,7 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /Native review/);
   assert.match(page.body, /api\/native\/pads/);
   assert.match(page.body, /pasteMode/);
+  assert.match(page.body, /literacy_code/);
 
   await app.close();
 });

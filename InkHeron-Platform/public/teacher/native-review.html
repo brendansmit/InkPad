@@ -150,11 +150,20 @@
             <span class="sub" id="generalMsg"></span>
           </section>
           <section class="panel box">
-            <span class="label">Inline comment</span>
+            <span class="label">Range annotation</span>
             <div class="meta" id="selectionMeta">${selectedRange ? rangeLabel(selectedRange) : 'No text selected'}</div>
-            <textarea id="inlineComment"></textarea>
-            <button class="btn primary" id="addInlineBtn" type="button" style="margin-top:8px" ${selectedRange?'':'disabled'}>Add inline</button>
-            <span class="sub" id="inlineMsg"></span>
+            <select id="rangeType" style="margin-top:8px">
+              <option value="inline_comment">Inline comment</option>
+              <option value="literacy_code">Literacy code</option>
+              <option value="highlight">Highlight</option>
+            </select>
+            <div id="codeFields" style="display:none;margin-top:8px">
+              <input id="codeInput" type="text" placeholder="Code, e.g. EV" style="margin-bottom:8px">
+              <input id="categoryInput" type="text" placeholder="Category, e.g. Evidence">
+            </div>
+            <textarea id="rangeBody" placeholder="Comment or explanation" style="margin-top:8px"></textarea>
+            <button class="btn primary" id="addRangeBtn" type="button" style="margin-top:8px" ${selectedRange?'':'disabled'}>Add annotation</button>
+            <span class="sub" id="rangeMsg"></span>
           </section>
           <section class="panel box">
             <div class="tabs">
@@ -170,10 +179,12 @@
       document.getElementById('essayText').addEventListener('keyup', captureSelection);
       document.getElementById('savePolicyBtn').addEventListener('click', savePolicy);
       document.getElementById('saveGeneralBtn').addEventListener('click', saveGeneralComment);
-      document.getElementById('addInlineBtn').addEventListener('click', addInlineComment);
+      document.getElementById('addRangeBtn').addEventListener('click', addRangeAnnotation);
+      document.getElementById('rangeType').addEventListener('change', updateRangeForm);
       document.querySelectorAll('[data-filter]').forEach(btn=>btn.addEventListener('click',()=> {
         document.getElementById('annotationList').innerHTML=annotationList(btn.dataset.filter);
       }));
+      updateRangeForm();
     }
 
     function policyOption(value,label){
@@ -222,11 +233,15 @@
       ranged.forEach(item=>{
         if(item.start_offset<cursor) return;
         html+=escapeHtml(text.slice(cursor,item.start_offset));
-        html+=`<span class="mark ${escapeHtml(item.type.replace('_','-'))}" title="${escapeHtml(item.body || item.metadata?.label || item.type)}">${escapeHtml(text.slice(item.start_offset,item.end_offset))}</span>`;
+        html+=`<span class="mark ${escapeHtml(markClass(item.type))}" title="${escapeHtml(item.body || item.metadata?.label || item.type)}">${escapeHtml(text.slice(item.start_offset,item.end_offset))}</span>`;
         cursor=item.end_offset;
       });
       html+=escapeHtml(text.slice(cursor));
       return html || '<span class="sub">No text saved.</span>';
+    }
+
+    function markClass(type){
+      return {inline_comment:'comment',literacy_code:'code',highlight:'highlight'}[type] || '';
     }
 
     function captureSelection(){
@@ -238,9 +253,15 @@
         selectedRange=selectionOffsets(root, selection.getRangeAt(0));
       }
       const meta=document.getElementById('selectionMeta');
-      const button=document.getElementById('addInlineBtn');
+      const button=document.getElementById('addRangeBtn');
       if(meta) meta.textContent=selectedRange ? rangeLabel(selectedRange) : 'No text selected';
       if(button) button.disabled=!selectedRange;
+    }
+
+    function updateRangeForm(){
+      const type=document.getElementById('rangeType')?.value;
+      const fields=document.getElementById('codeFields');
+      if(fields) fields.style.display=type==='literacy_code'?'':'none';
     }
 
     function selectionOffsets(root, range){
@@ -278,22 +299,27 @@
       if(response.ok) await loadReview();
     }
 
-    async function addInlineComment(){
+    async function addRangeAnnotation(){
       if(!selectedRange) return;
-      const body=document.getElementById('inlineComment').value;
+      const type=document.getElementById('rangeType').value;
+      const body=document.getElementById('rangeBody').value;
+      const code=document.getElementById('codeInput').value.trim();
+      const category=document.getElementById('categoryInput').value.trim();
+      const metadata=type==='literacy_code' ? { code, category, label: code ? `${code}${category ? ' · ' + category : ''}` : category } : {};
       const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/annotations',{
         method:'POST',
         headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
         body:JSON.stringify({
-          type:'inline_comment',
+          type,
           start_offset:selectedRange.start,
           end_offset:selectedRange.end,
           selected_text:selectedRange.text,
           body,
+          metadata,
           document_version:reviewData.pad.version,
         }),
       });
-      document.getElementById('inlineMsg').textContent=response.ok?'Inline comment saved.':'Inline comment failed.';
+      document.getElementById('rangeMsg').textContent=response.ok?'Annotation saved.':'Annotation failed.';
       if(response.ok){ selectedRange=null; await loadReview(); }
     }
 
