@@ -12,6 +12,9 @@ const expectedColumns = {
   assignments: ['id', 'class_id', 'title', 'type', 'settings_json', 'opens_at', 'due_at', 'created_at', 'is_archived'],
   pads: ['id', 'student_id', 'assignment_id', 'etherpad_pad_id', 'state', 'created_at'],
   pad_allocations: ['pad_suffix', 'etherpad_pad_id', 'created_at'],
+  native_pads: ['id', 'student_id', 'assignment_id', 'state', 'document_json', 'plain_text', 'word_count', 'created_at', 'updated_at', 'submitted_at'],
+  native_pad_revisions: ['id', 'native_pad_id', 'reason', 'document_json', 'plain_text', 'word_count', 'created_at'],
+  native_paste_events: ['id', 'native_pad_id', 'at', 'length', 'input_type'],
   submissions: ['id', 'pad_id', 'submitted_at', 'is_graded', 'released'],
   grades: ['id', 'submission_id', 'score', 'released', 'graded_at'],
   paste_events: ['id', 'pad_id', 'at', 'length', 'input_type'],
@@ -39,6 +42,7 @@ const migrationFiles = [
   '009_sessions.sql',
   '010_submission_comments.sql',
   '011_pad_allocations.sql',
+  '012_native_inkpad.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {
