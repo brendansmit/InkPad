@@ -668,9 +668,11 @@ ${padContent}
       splitDivider.classList.add('dragging');
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
-      function onMove(e) {
+      var iframes = document.querySelectorAll('iframe');
+      for (var i = 0; i < iframes.length; i++) iframes[i].style.pointerEvents = 'none';
+      function onMove(ev) {
         var rect = padColsEl.getBoundingClientRect();
-        var pct = (e.clientX - rect.left) / rect.width * 100;
+        var pct = (ev.clientX - rect.left) / rect.width * 100;
         pct = Math.max(35, Math.min(65, pct));
         splitLeft.style.width = pct + '%';
       }
@@ -678,6 +680,7 @@ ${padContent}
         splitDivider.classList.remove('dragging');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        for (var i = 0; i < iframes.length; i++) iframes[i].style.pointerEvents = '';
         window.removeEventListener('mousemove', onMove);
         window.removeEventListener('mouseup', onUp);
       }
