@@ -274,3 +274,27 @@ test('native write view renders without touching Etherpad', async () => {
 
   await app.close();
 });
+
+test('teacher native review page is served behind teacher auth', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { teacherCookies } = await seedNativeAssignment(app);
+
+  const blocked = await app.inject({
+    method: 'GET',
+    url: '/teacher/native-review',
+  });
+  assert.equal(blocked.statusCode, 401);
+
+  const page = await app.inject({
+    method: 'GET',
+    url: '/teacher/native-review',
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.body, /Native review/);
+  assert.match(page.body, /api\/native\/pads/);
+  assert.match(page.body, /pasteMode/);
+
+  await app.close();
+});
