@@ -347,9 +347,24 @@ ${padContent}
   // ── Submit for grading ────────────────────────────────────────────────────
   var submitBtn = document.getElementById('submit-btn');
   if (submitBtn && PAD_ID) {
+    var submitPending = false;
+    var submitPendingTimer = null;
     submitBtn.addEventListener('click', function () {
-      if (!confirm('Submit for grading? You can keep editing until the due date, but this marks your current version for your teacher.')) return;
+      if (!submitPending) {
+        submitPending = true;
+        submitBtn.textContent = 'Tap again to confirm';
+        submitBtn.style.background = 'var(--amber-700,#b45309)';
+        submitPendingTimer = setTimeout(function () {
+          submitPending = false;
+          submitBtn.textContent = 'Submit for grading';
+          submitBtn.style.background = '';
+        }, 3000);
+        return;
+      }
+      clearTimeout(submitPendingTimer);
+      submitPending = false;
       submitBtn.disabled = true;
+      submitBtn.style.background = '';
       submitBtn.textContent = 'Submitting…';
       fetch('/api/pads/' + PAD_ID + '/submit', {
         method: 'POST',
@@ -365,7 +380,13 @@ ${padContent}
       }).catch(function (e) {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit for grading';
-        alert('Could not submit: ' + e.message);
+        submitBtn.style.background = '';
+        // surface the error without relying on alert()
+        var msg = document.createElement('div');
+        msg.textContent = 'Submit failed: ' + e.message;
+        msg.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#c0392b;color:#fff;padding:10px 20px;border-radius:8px;z-index:9999;font-size:13px;';
+        document.body.appendChild(msg);
+        setTimeout(function () { msg.remove(); }, 4000);
       });
     });
   }
