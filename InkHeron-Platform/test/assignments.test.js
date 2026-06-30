@@ -233,6 +233,28 @@ test('editing assignment settings preserves hidden native InkPad flag', async ()
   await app.close();
 });
 
+test('teacher can explicitly toggle native InkPad setting', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Native toggle', settings: { native_inkpad: true } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(JSON.parse(created.json().assignment.settings_json).native_inkpad, true);
+  const assignmentId = created.json().assignment.id;
+
+  const patched = await app.inject({ method: 'PATCH', url: `/api/assignments/${assignmentId}`,
+    payload: { settings: { native_inkpad: false } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(patched.statusCode, 200);
+  assert.equal(JSON.parse(patched.json().assignment.settings_json).native_inkpad, undefined);
+
+  await app.close();
+});
+
 test('teacher assignment dashboard shows status, submission time and paste flags', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false, etherpadService: makeFakeEtherpadService() });
   const teacher = await setupTeacher(app);

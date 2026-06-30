@@ -259,6 +259,10 @@
             <input type="checkbox" id="eGreenPen">
             <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
           </label>
+          <label class="toggle">
+            <input type="checkbox" id="eNativeInkpad">
+            <span class="toggle-label">Use Native InkPad<small>Experimental sidecar editor. Etherpad stays default when this is off.</small></span>
+          </label>
         </div>
       </div>
 
@@ -627,6 +631,7 @@
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
       document.getElementById('eGreenPen').checked=s.green_pen===true;
+      document.getElementById('eNativeInkpad').checked=s.native_inkpad===true;
       document.getElementById('editMsg').className='msg';
 
       // render date rows — one per class in the group
@@ -665,7 +670,8 @@
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
-      const settings={submit_behaviour,spellcheck,green_pen};
+      const native_inkpad=document.getElementById('eNativeInkpad').checked;
+      const settings={submit_behaviour,spellcheck,green_pen,native_inkpad};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 

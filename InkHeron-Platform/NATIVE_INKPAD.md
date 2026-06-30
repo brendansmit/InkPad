@@ -29,6 +29,7 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Student dashboard uses `write_url`, so native assignments open `/native/write/:assignmentId`.
 - Teacher assignment dashboard returns `pad_kind` and `review_url`.
 - Teacher dashboard review buttons use `review_url`, so native pads open `/teacher/native-review?pad_id=...`.
+- Teacher new/edit assignment screens include an experimental Native InkPad toggle.
 
 ## Cutover Rule
 
