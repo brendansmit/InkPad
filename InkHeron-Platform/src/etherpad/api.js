@@ -65,7 +65,12 @@ export class EtherpadApiClient {
   async createGroupPad(groupID, padName, text) {
     const params = { groupID, padName };
     if (text !== undefined) params.text = text;
-    return this.call('createGroupPad', params);
+    try {
+      return await this.call('createGroupPad', params);
+    } catch (e) {
+      if (/already exist/i.test(e.message)) return { padID: `${groupID}$${padName}` };
+      throw e;
+    }
   }
 
   async getText(padID) {
