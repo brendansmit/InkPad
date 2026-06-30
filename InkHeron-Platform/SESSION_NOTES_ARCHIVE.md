@@ -507,3 +507,354 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 - Decisions: Did not trigger live OpenRouter or ServerChan tests because that could consume API
   quota or send a real notification from production keys.
 - Open / next: Phase 8, Step 8.4 class and student management.
+
+## Archived from SESSION_NOTES.md on 2026-07-01
+
+## 2026-06-29 — Teacher tab: class import, timeslider wrapper, new assignment
+- Phase/Step worked: Phase 8 teacher UX polish
+- Built:
+  - Fixed "Manage classes" dashboard link (was `#`, now `/teacher/students`)
+  - students.html: drag-drop CSV/Excel import using self-hosted SheetJS; preview
+    table with editable names/usernames and per-row skip toggle; bulk import uses
+    temp password `ChangeMe1` with must_change_password flag
+  - timeslider.html: InkHeron wrapper with "Back to assignments" nav bar, iframe
+    loads `/api/pads/{id}/timeslider`, CSS injection hides "Return to pad" button
+  - review.html: timeslider button now opens the wrapper instead of raw redirect
+  - new-assignment.html: full create form with title, class, type, dates, submit
+    behaviour, spellcheck, green pen, writing prompt (stored in settings_json)
+  - assignments.html: "+ New assignment" button added
+  - app.js: routes for `/teacher/timeslider` and `/teacher/new-assignment`
+  - assignments.js: `buildSettingsJson` passes through prompt field (capped 4k)
+  - public/xlsx.mini.min.js: self-hosted SheetJS 0.18.5 mini bundle
+- Decisions: prompt stored in settings_json blob (no migration needed). Import
+  temp password is hardcoded `ChangeMe1`; must_change_password forces reset.
+- Open / next: Strengths and Targets upload + AI marking suggestions (Phase 8.6)
+- Gotchas hit: app.js must be synced separately from src/routes/
+
+## 2026-06-28 — Etherpad UI cleanup (hide non-formatting chrome)
+- Phase/Step worked: Phase 8 housekeeping / write view polish
+- Built: Added `applyPadUiCleanup()` to `src/views/write.js`. Injects a `<style>` element into
+  the Etherpad outer iframe document hiding: bottom toolbar icons (timeslider, settings, embed,
+  import/export, showusers), chat button/panel, user count. Retries up to 20 times at 400ms
+  so it lands after Etherpad finishes loading. Deployed to `/opt/inkheron-platform/` via rsync,
+  restarted `inkheron-wrapper.service`.
+- Decisions: CSS injection into iframe.contentDocument is possible because nginx serves both
+  the wrapper and Etherpad on the same origin. Formatting toolbar (B/I/U/lists/align) is not
+  touched — only non-essential chrome is hidden.
+- Open / next: Phase 9 Tests portal, or next Phase 8 step.
+- Gotchas hit: SSH hostname `inkheron.app` does not resolve in this environment; must use IP
+  `167.172.71.219`. Droplet path is `/opt/inkheron-platform/`, service name is
+  `inkheron-wrapper.service` (systemd, not PM2).
+
+## 2026-06-28 — Phase 7 Step 7.3 student green-pen view
+- Phase/Step worked: Phase 7, Step 7.3
+- Built: Added `renderGreenPenView` and wired `/write/:assignmentId` to show it when the pad is
+  `green_pen_open`. The view embeds the real Etherpad pad for editing, shows an answer-free coded
+  snapshot, literacy code legend, expandable coaching targets, expandable strengths and a resend
+  button placeholder for Step 7.5. Deployed and verified live on `/write/2`.
+- Decisions: The green-pen page keeps actual rewriting in Etherpad and presents feedback beside
+  it, so editing remains on the proven pad surface.
+- Open / next: Phase 7 Step 7.4 prominent dashboard surfacing.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 7 Step 7.2 green-pen reopen
+- Phase/Step worked: Phase 7, Step 7.2
+- Built: Added `POST /api/submissions/:submissionId/finish-marking` to move green-pen
+  assignments to `green_pen_open` and non-green-pen assignments to `marked`. Marked/resubmitted
+  pads now render a locked view unless explicitly reopened. Deployed and verified live against
+  the audit assignment: finish marking sets `green_pen_open`, student dashboard shows
+  `needs_rewrite`, and `/write/2` reopens the editor.
+- Decisions: Reopen is explicit on finish-marking, not an implicit side effect of saving a grade.
+- Open / next: Phase 7 Step 7.3 student green-pen view.
+- Gotchas hit: First rsync target was too broad; corrected by syncing exact remote paths.
+
+## 2026-06-28 — Phase 7 Step 7.1 feedback attachment
+- Phase/Step worked: Phase 7, Step 7.1
+- Built: Added `POST /api/submissions/:submissionId/codes` for teacher/analyzer attachment of
+  inline literacy codes, replacing existing codes with validated spans and metadata. Review API
+  now reads codes through the shared helper. Deployed to droplet and verified live with audit
+  teacher, audit submission, valid code save, invalid span rejection and review retrieval.
+- Decisions: Codes remain answer-free metadata only: span, code, category and optional label.
+  Strengths/targets continue through the existing `submission_feedback` endpoint.
+- Open / next: Phase 7 Step 7.2 marking reopens green-pen assignments.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 6 bug hunt and Etherpad fixes
+- Phase/Step worked: Post-Phase 6 bug hunt
+- Built: Ran deployed HTTP audit across teacher/student login, CSRF, role guards, Etherpad pad
+  provisioning, write shell, paste event, submit, dashboard, review, feedback, grade, release,
+  CSV and replay. Fixed production session config by adding a real
+  `INKHERON_SESSION_SECRET`, `INKHERON_SESSION_SECURE=true` and `INKHERON_TRUST_PROXY=true` on
+  the droplet. Added app support for `INKHERON_TRUST_PROXY=true`. Fixed replay redirect to
+  Etherpad v3's required `/timeslider?embed=1`.
+- Decisions: Production wrapper now trusts nginx forwarded HTTPS headers so Secure session
+  cookies are issued correctly. Timeslider replay uses the embedded Etherpad history route.
+- Open / next: Browser plugin navigation still timed out before page load, so the completed pass
+  is HTTP/API plus remote log verification, not visual browser automation.
+- Gotchas hit: Secure cookies silently failed without Fastify trustProxy. Etherpad v3 redirects
+  legacy `/p/:pad/timeslider` back to the pad unless `embed=1` is present.
+
+## 2026-06-28 — Phase 6 exit check and deployment
+- Phase/Step worked: Phase 6 exit check and deploy
+- Built: Re-ran full local suite with 52/52 passing, deployed the platform to
+  `/opt/inkheron-platform`, restarted `inkheron-wrapper`, verified public `/healthz`, confirmed
+  migrations `004_submission_codes.sql` and `005_submission_feedback.sql` applied on the droplet,
+  and rechecked the remote `write.js` paste_block patch.
+- Decisions: Phase 6 is deployed on the existing nginx + wrapper + Etherpad split.
+- Open / next: Phase 7 green-pen loop.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 6 Step 6.8 carry-forward targets
+- Phase/Step worked: Phase 6, Step 6.8
+- Built: Review API now returns the most recent previous assignment targets for the same student,
+  and the review page shows those targets above the current strength/target selectors.
+- Decisions: Carry-forward reads the latest earlier assignment with target feedback by assignment
+  creation time and id, then shows all targets from that assignment.
+- Open / next: Phase 6 exit check and deploy.
+- Gotchas hit: Test fixture initially inserted previous targets without destructuring the seeded
+  class/student ids.
+
+## 2026-06-28 — Phase 6 Step 6.7 CSV export
+- Phase/Step worked: Phase 6, Step 6.7
+- Built: Added `GET /api/assignments/:id/export.csv` with student name, username, status,
+  submitted time, grade, grade state, paste flag and paste count. Added Export CSV button to the
+  assignment dashboard.
+- Decisions: CSV uses the same server-derived dashboard status and paste fields as the UI.
+- Open / next: Phase 6 Step 6.8 carry-forward targets.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 6 Step 6.6 grades and release all
+- Phase/Step worked: Phase 6, Step 6.6
+- Built: Added held grade save route `POST /api/submissions/:submissionId/grade`, release route
+  `POST /api/assignments/:id/release-grades`, dashboard held/released labels, review page grade
+  save button and release-all button on the assignment dashboard.
+- Decisions: Saving or editing a grade resets it to held. Release all flips every graded
+  submission for that assignment to released together.
+- Open / next: Phase 6 Step 6.7 CSV export.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 6 Step 6.5 strengths and targets
+- Phase/Step worked: Phase 6, Step 6.5
+- Built: Added `submission_feedback` storage, a small feedback library, selected feedback in the
+  review payload, and `POST /api/submissions/:submissionId/feedback` with CSRF. Review page now
+  loads multi-select strengths/targets and saves selected feedback.
+- Decisions: Feedback options are app-owned seed data for now. Writing Analyzer still owns any
+  future generated suggestions.
+- Open / next: Phase 6 Step 6.6 grade entry and release all.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 6 Step 6.4 literacy coding view
+- Phase/Step worked: Phase 6, Step 6.4
+- Built: Added `submission_codes` storage for analyzer-provided inline codes, returned codes in
+  the teacher review API, and wired the review page Literacy codes button to toggle coded text
+  with answer-free inline marks and a code/category legend.
+- Decisions: InkHeron stores and renders codes only. Code generation/import remains a Phase 7
+  boundary with the Writing Analyzer.
+- Open / next: Phase 6 Step 6.5 strengths and targets selection.
+- Gotchas hit: Step 6.4 depends on Phase 7 data, so this step builds the display/storage boundary
+  and handles the no-code case cleanly.
+
+## 2026-06-28 — Phase 6 Step 6.3 timeslider replay
+- Phase/Step worked: Phase 6, Step 6.3
+- Built: Added teacher author mapping in Etherpad, `GET /api/pads/:padId/timeslider` to issue
+  an Etherpad session cookie and redirect to the exact pad timeslider, and wired the review
+  page replay button to that route.
+- Decisions: Timeslider access is a server-side authenticated redirect so the browser receives
+  the right Etherpad cookie without exposing API credentials.
+- Open / next: Phase 6 Step 6.4 literacy coding view.
+- Gotchas hit: Fastify returns multiple Set-Cookie headers as an array in tests.
+
+## 2026-06-28 — Phase 6 Step 6.2 review surface
+- Phase/Step worked: Phase 6, Step 6.2
+- Built: Added teacher review API `GET /api/pads/:padId/review`, Etherpad `getPadText`
+  helper, `/teacher/review` page, and Review links from the assignment dashboard. Review page
+  shows student metadata, submission state, paste evidence, submitted text, timeslider and codes
+  buttons, strength/target selectors and grade field.
+- Decisions: Text is fetched server-side from Etherpad for review. Saving marks remains deferred
+  to Steps 6.5 and 6.6.
+- Open / next: Phase 6 Step 6.3 timeslider replay button.
+- Gotchas hit: none.
+
+## 2026-06-28 — Phase 6 Step 6.1 assignment dashboard
+- Phase/Step worked: Phase 6, Step 6.1
+- Built: Added `GET /api/assignments/:id/dashboard` for teacher roster progress with status,
+  submission time, paste counts, paste totals and scores. Added `/teacher/assignments` with an
+  assignment picker, status and paste filters, sort controls, summary counters and roster table.
+- Decisions: Teacher dashboard status is derived server-side so later review, CSV and release
+  steps can reuse one source of truth.
+- Open / next: Phase 6 Step 6.2 review surface.
+- Gotchas hit: Initial dashboard tests accidentally used the real Etherpad client. Switched them
+  to the fake Etherpad service used by existing pad tests.
+
+## 2026-06-29 — AP Lang dashboard read pass
+- Asked: Inspect and understand sibling project `ap-lang-dashboard`, then report back.
+- Did: Reviewed project tree, package metadata, Express/SQLite server, student library UI,
+  admin UI, database table counts and current content state.
+- Decisions: No code changes made to the AP Lang dashboard. Noted the admin topbar upload
+  button has malformed inline JavaScript and the project currently has no documents or view logs.
+- Open / next: Fix admin button syntax and consider tightening auth/logging if this app is going
+  beyond local classroom use.
+
+## 2026-06-29 — AP Lang PDF uploads and download toggle
+- Asked: Allow AP Lang dashboard library uploads to accept PDFs, add an upload toggle for student
+  downloads versus view-only, let students download when enabled and fix the admin upload button bug.
+- Did: Updated `ap-lang-dashboard` server and front ends for PDF metadata, download routing,
+  upload UI toggle, student viewer download visibility and admin library download toggles. Fixed
+  the malformed admin topbar upload button.
+- Verification: `node --check server.js`, front-end script parse checks, local server smoke test
+  for downloadable PDF `200` and view-only PDF `403`. Test uploads were deleted afterward.
+- Commit: `df29f56` in `/Users/brendansmit/Documents/Claude/ap-lang-dashboard`.
+- Notes: The tracked `ap-lang.db` and local image assets were already dirty or local and were not
+  included in the commit.
+
+## 2026-06-29 — AP Lang deploy clarification
+- Asked: Shared a screenshot where the upload UI still showed the old HTML-only copy.
+- Did: Verified local source already had the PDF upload and student-download toggle changes.
+- Decision: User confirmed the deployed app had not been updated yet, so no further code change
+  was needed.
+
+## 2026-06-29 — AP Lang admin table alignment
+- Asked: Fix the admin library table alignment issue shown after adding the Download column.
+- Did: Changed the Actions table cell back to normal table-cell layout and moved button flex
+  alignment into an inner `.actions-row`. Centered the Download and Visible toggle cells.
+- Verification: Parsed `public/admin.html` script, ran `node --check server.js`, ran
+  `git diff --check`, started a local server and confirmed the updated admin HTML was served.
+  Headless screenshot verification was attempted but blocked by local browser permissions.
+- Commit: `495948b` in `/Users/brendansmit/Documents/Claude/ap-lang-dashboard`.
+
+## 2026-06-29 — EAP landing page and library entry
+- Asked: Add an `eap.inkheron.app` landing page with cards for Grammar Arcade, Inkpad and a file
+  library adapted from the AP Lang dashboard.
+- Did: Replaced root with a three-card EAP chooser, moved the existing student writing dashboard
+  to `/student`, updated student login redirects, added `/library` with an AP Lang-style student
+  library UI and added platform-native EAP library tables and public API routes.
+- Decisions: Kept this pass student-facing only. Did not copy the AP Lang admin upload workflow
+  because that is a larger multipart/admin surface.
+- Verification: Focused route and migration tests passed with bundled Node 24. Local HTTP smoke
+  test on port 3490 returned `200` for `/`, `/library`, `/api/library/docs` and
+  `/api/library/categories`. Full suite still has unrelated pre-existing failures around student
+  password defaults, roster copy and Etherpad wrapper expectations.
+
+## 2026-06-29 — EAP library admin backend
+- Asked: Add the obvious missing admin backend so files can actually be added to the EAP library.
+- Did: Added `@fastify/multipart`, teacher-protected `/library/admin`, admin APIs for document
+  upload, replace, edit, hide/show, download toggle, delete, categories and view logs. Linked the
+  student library to the admin page.
+- Decisions: Admin uses the existing InkHeron teacher session and CSRF token, not a separate
+  library password.
+- Verification: `node --check` for app and library routes passed. Focused route/admin tests passed
+  with bundled Node 24, including real multipart upload/replace/delete. Local HTTP smoke test on
+  port 3491 created a teacher, loaded `/library/admin`, uploaded an HTML file and downloaded it.
+  Full suite still has the same unrelated six failures noted above.
+
+## 2026-06-29 — EAP live deployment split
+- Asked: Update the live droplet so `eap.inkheron.app` shows the new three-card EAP landing page
+  and make deploy-dashboard updates hit the correct app.
+- Did: Deployed `InkHeron-Platform` to `/opt/eap-platform` as PM2 app `eap-platform` on port
+  `3466`, created a remote-only EAP env file, migrated the separate EAP SQLite database and updated
+  nginx so `/` serves EAP while `/grammar-arcade/` serves the existing Grammar Arcade app. Patched
+  Grammar Arcade for subpath-aware API and teacher links.
+- Did: Updated the local deploy dashboard to default to EAP, use rsync deploys for EAP and keep
+  Grammar Arcade deployable as `eap.inkheron.app/grammar-arcade/`.
+- Verification: Live checks returned `200` for `https://eap.inkheron.app/`, `/library`,
+  `/api/library/docs`, `/grammar-arcade/`, `/grammar-arcade/api/health` and
+  `https://inkpad.inkheron.app/`. `/library/admin` correctly returned `401` when unauthenticated.
+
+## 2026-06-30 — Force light mode on pad
+
+- Asked: pad should always be white background / black text, no dark mode.
+- Did: injected `color-scheme:light!important; background:#fff!important; color:#000!important;` into all three iframe documents (padDoc via ih-ui-cleanup, ace_outer and ace_inner via ih-author-suppress). Deployed, restarted. Committed feba54d.
+
+## 2026-06-30 — Pad UI overhaul (toolbar size, dark bg, highlights, chat, submit)
+
+- Asked: remove chat, remove purple highlights, fix dark grey background, fix zoom, make formatting buttons 50% bigger, wire up Submit button.
+- Did:
+  - Toolbar buttons: 26px→39px, font 13px→19px, SVGs rescaled, padchrome min-height 54px, colour swatches 16px→22px
+  - Submit handler: POSTs to /api/pads/:id/submit with CSRF token; shows confirm dialog, disables button on success
+  - Highlight fix: was setting cleanupDone=true before aceInner was ready. Now returns false until aceInner is also injected; retries up to 40×300ms
+  - White background: added #innerdocbody, #outerdocbody, #editorcontainerbox to the injected CSS in both inner frames
+  - Chat: expanded selector list to cover all EP 3.x chat element IDs/classes
+- Deployed, restarted. Committed 9f57069.
+
+## 2026-06-30 — Fix submit/zoom/undo-redo/dark-border + literacy coding bridge
+
+- Asked: fix submit error, zoom, undo/redo arrows, dark grey border; bridge literacy codes to InkHeron on submit.
+- Bugs fixed:
+  - Submit: Content-Type:application/json with no body → Fastify rejected. Removed header.
+  - Zoom: was injecting CSS into padDoc, but #editorcontainerbox is in ace_outer. Moved target.
+  - Undo/redo: unicode chars rendered poorly at large size. Replaced with SVG paths.
+  - Dark border: EP sets body background-color via inline JS which beats !important. Now use element.style.setProperty('background','#fff','important') on aceOuter.body and #editorcontainerbox.
+- Literacy bridge (literacyCoder.js):
+  - On submit, background async task fetches pad text via EtherpadService.getText()
+  - Splits into paragraphs, calls Claude Haiku via OpenRouter with Writing Analyzer prompt
+  - Parses JSON array response, locates each quote span in text, saves to submission_codes
+  - Results held (not student-visible) until teacher releases feedback
+  - Deployed, restarted. Committed 215c055.
+
+## 2026-06-30 — Fix grey border (root cause found)
+
+- Root cause: CSS variables don't cross iframe boundaries. `var(--bg-color)` inside ace_outer was undefined, so `#editorcontainerbox` fell back to its hardcoded fallback `#f2f3f4` (grey). All prior JS/CSS injection attempts failed because they were fighting the wrong thing.
+- Fix: patched `/opt/etherpad-lite/src/static/skins/colibris/src/layout.css` directly — hardcoded `#ffffff !important` on `#editorcontainerbox` and `#outerdocbody iframe`. Backup at layout.css.bak. No EP restart needed (static file). Browser needs Cmd+Shift+R to bust CSS cache.
+- Committed bc005b9 (write.js cleanup only — EP file change is outside the InkHeron repo).
+
+## 2026-06-30 — Fix word count + PDF zoom (context resumed)
+
+**Asked:** Fix word count (showing ~7 words for ~18-word sentence) and PDF zoom slider (visually no effect).
+
+**Word count fix:** Replaced `.ace-line querySelectorAll` approach with `body.innerText` directly on `#innerdocbody`. The ace-line approach was returning a partial/inconsistent set of DOM elements depending on EP internals, causing severe undercounting. `innerText` is robust against EP's DOM structure.
+
+**PDF zoom fix:** Adding only a `#zoom=N` fragment to `iframe.src` doesn't force a reload when the base URL is unchanged — browsers treat hash-only navigations as same-document and skip reload. Fixed by appending `?_z=<timestamp>` to force the browser to treat it as a new URL, triggering a full iframe reload with the correct `#zoom=` parameter.
+
+**Commit:** cfc69be
+
+## 2026-06-30 — PDF.js canvas renderer for passage panel
+
+**Asked:** Extract PDF text for more control, or move the broken zoom slider. Decided on Option A (PDF.js canvas renderer) to preserve images and get real zoom control.
+
+**What was done:**
+- Installed `pdfjs-dist` v5, copied `pdf.min.mjs` + `pdf.worker.min.mjs` to `public/static/pdfjs/`
+- Replaced `<iframe>` passage panel with a `<div id="passagePdfPages">` container
+- Added `<script type="module">` using PDF.js to render each page as a `<canvas>` element
+- PDF auto-fits to the panel width at 100% zoom; slider re-renders at the chosen scale multiplier (50–200%)
+- Removed broken `#zoom=` fragment approach entirely
+- Static path: `/assets/static/pdfjs/` (Fastify prefix is `/assets/`, root is `public/`)
+
+**Commit:** ea4ecea
+
+## 2026-06-30 — Fix PDF scroll + draggable split panel
+
+**Asked:** PDF panel not scrollable (renders as one long image). Add resizable split with 35/65 min ratio.
+
+**Scroll fix:** Root cause was `body{min-height:100vh}` — body expands with content so `.passage-pdf-outer`'s `overflow:auto` never triggers. Fixed to `height:100vh; overflow:hidden`. Also added `min-height:0` to `.split-left` and `.passage-pdf-outer`.
+
+**Divider:** Added `<div class="split-divider" id="splitDivider">` between panels. Mousedown on it starts drag; mousemove sets `.split-left` width as percentage of `.padcols` width clamped to [35%, 65%]. Turns green on hover/drag. Mobile: becomes a horizontal bar (cursor:row-resize).
+
+**Commit:** 2cc2654
+
+## 2026-06-30 — Toolbar pickers, stats bar, word count fix
+
+**Asked:** Group colors into popup grid, add highlight picker, add lines/sentences to counter, fix layout shift, fix word count accuracy.
+
+**Color picker:** Replaced 5 individual swatch buttons with a single "A" button that opens a 6-color grid popup (black, red, green, blue, orange, purple). Click outside or select a color to close.
+
+**Highlight picker:** "H" button opens a 6-color pastel grid + remove option. Uses `execCommand('hiliteColor')` on ace_inner doc. Note: EP may wipe highlight on next changeset sync; a proper ep_highlight plugin would be needed for persistence.
+
+**Word count fix:** Root cause identified — EP injects U+200B zero-width spaces between tokens. These are invisible but not matched by `/\s+/`, causing adjacent words to merge (undercount) and being counted as non-whitespace chars (overcount). Fixed by stripping U+200B, U+200C, U+200D, U+2060, U+FEFF before counting, and normalising U+00A0 to regular space.
+
+**Stats bar:** Now shows w · c · l · s (words, chars, lines, sentences). Lines counted via `.ace-line` element count; sentences via `/[.!?]+(?=\s|$)/` match. Each number in a fixed-width `<span>` with `tabular-nums` to prevent layout shift.
+
+**Commit:** 57514f4
+
+## 2026-06-30 — Fix picker init killing IIFE, popup overflow clip
+
+**Root cause of all three bugs (zero counters, buttons not working, EP cleanup not running):**
+Color picker code ran BEFORE `setInterval(syncWordCount, 500)` and `iframe.addEventListener('load', ...)`. A null-ref error (`clrPopup.classList` when clrPopup could be null, inside `if (clrTrigger)`) silently stopped IIFE execution, so critical setup never ran.
+
+**Fixes:**
+1. Moved picker init to end of IIFE, wrapped in try/catch — errors there can't kill word count or pad load listener
+2. Added `if (clrTrigger && clrPopup)` guard (was `if (clrTrigger)` only)
+3. Popup: `position:fixed` with JS-set left/top from `getBoundingClientRect()` — `position:absolute` was clipped by `overflow-x:auto` on `.padchrome`
+
+**Yellow auto-highlight:** Likely EP author color showing before cleanup CSS injection runs. Not a code bug from our changes.
+
+**Commit:** e7ef94b
