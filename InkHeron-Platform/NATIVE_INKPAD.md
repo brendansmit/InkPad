@@ -23,6 +23,13 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - `native_teacher_events` records teacher actions for later debugging.
 - Student editor polls policy and can allow, log or block paste without a page reload.
 
+## Phase 3 Dashboard Integration
+
+- Student assignment API returns `native_inkpad` and `write_url`.
+- Student dashboard uses `write_url`, so native assignments open `/native/write/:assignmentId`.
+- Teacher assignment dashboard returns `pad_kind` and `review_url`.
+- Teacher dashboard review buttons use `review_url`, so native pads open `/teacher/native-review?pad_id=...`.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:
