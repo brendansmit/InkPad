@@ -693,13 +693,17 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /id="charCount"/);
   assert.match(response.body, /id="sentenceCount"/);
   assert.match(response.body, /id="readerResizer"/);
+  assert.match(response.body, /Drag to resize panels/);
   assert.match(response.body, /id="saveBtn"/);
   assert.match(response.body, /id="zoomSlider"/);
   assert.match(response.body, /id="zoomSlider"[^>]+max="125"/);
   assert.doesNotMatch(response.body, /zoom:var\(--editor-zoom\)/);
   assert.match(response.body, /transform:scale\(var\(--editor-zoom\)\)/);
+  assert.match(response.body, /transform-origin:top center/);
   assert.match(response.body, /id="lineNumbers"/);
   assert.match(response.body, /id="fontSizeSelect"/);
+  assert.match(response.body, /function applyFontSize/);
+  assert.match(response.body, /rememberEditorSelection/);
   assert.match(response.body, /data-command="undo"/);
   assert.match(response.body, /data-command="redo"/);
   assert.match(response.body, /data-command="indent"/);

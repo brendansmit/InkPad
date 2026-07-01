@@ -15,8 +15,8 @@ function toolIcon(name) {
   const icons = {
     undo: '<span class="niw-glyph">↺</span>',
     redo: '<span class="niw-glyph">↻</span>',
-    bullets: '<span class="niw-list-icon"><span>•</span><i></i><span>•</span><i></i><span>•</span><i></i></span>',
-    numbers: '<span class="niw-list-icon numbered"><span>1</span><i></i><span>2</span><i></i><span>3</span><i></i></span>',
+    bullets: '<span class="niw-list-icon bullets"><b>•</b><i></i><b>•</b><i></i><b>•</b><i></i></span>',
+    numbers: '<span class="niw-list-icon numbered"><b>1</b><i></i><b>2</b><i></i><b>3</b><i></i></span>',
     outdent: '<span class="niw-indent-icon outdent"><b></b><i></i><i></i><i></i></span>',
     indent: '<span class="niw-indent-icon indent"><b></b><i></i><i></i><i></i></span>',
     alignLeft: '<span class="niw-align-icon left"><i></i><i></i><i></i><i></i></span>',
@@ -64,14 +64,15 @@ export function renderNativeWriteView({
     .niw-btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 10px;font-weight:800;cursor:pointer;font-family:inherit}
     .niw-icon-btn{width:34px;padding:0}
     .niw-glyph{display:block;font-size:22px;line-height:1;font-weight:700}
-    .niw-list-icon{width:20px;display:grid;grid-template-columns:5px 1fr;gap:3px 4px;align-items:center;margin:auto;font-size:10px;line-height:1;color:currentColor}
-    .niw-list-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
-    .niw-list-icon.numbered{font-size:9px;font-weight:800}
-    .niw-indent-icon{width:22px;display:grid;grid-template-columns:8px 1fr;gap:3px 4px;align-items:center;margin:auto;color:currentColor}
+    .niw-list-icon{width:24px;display:grid;grid-template-columns:6px 1fr;gap:3px 4px;align-items:center;margin:auto;color:currentColor}
+    .niw-list-icon b{display:block;text-align:center;font-size:8px;font-weight:900;line-height:1;color:currentColor}
+    .niw-list-icon.bullets b{font-size:13px;line-height:.65}
+    .niw-list-icon i{display:block;width:15px;height:3px;background:currentColor;border-radius:2px}
+    .niw-indent-icon{width:25px;display:grid;grid-template-columns:9px 1fr;gap:3px 3px;align-items:center;margin:auto;color:currentColor}
     .niw-indent-icon b{grid-row:1 / span 3;width:0;height:0;align-self:center}
-    .niw-indent-icon.outdent b{border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:7px solid currentColor}
-    .niw-indent-icon.indent b{border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:7px solid currentColor}
-    .niw-indent-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
+    .niw-indent-icon.outdent b{border-top:6px solid transparent;border-bottom:6px solid transparent;border-right:8px solid currentColor}
+    .niw-indent-icon.indent b{border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:8px solid currentColor}
+    .niw-indent-icon i{display:block;width:14px;height:3px;background:currentColor;border-radius:2px}
     .niw-align-icon{width:22px;display:grid;gap:4px;margin:auto}
     .niw-align-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
     .niw-align-icon.left i:nth-child(odd),.niw-align-icon.right i:nth-child(odd){width:100%}
@@ -89,7 +90,7 @@ export function renderNativeWriteView({
     .niw-select{border:1px solid #b8c2b9;border-radius:7px;min-height:34px;background:#fff;color:#17221b;font:inherit;font-weight:800;padding:0 8px;width:auto}
     .niw-zoom{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#657268}
     .niw-zoom input{width:116px}
-    .niw-shell{--reader-width:420px;--page-width:794px;--editor-zoom:1;height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(260px,var(--reader-width)) 8px minmax(0,1fr)}
+    .niw-shell{--reader-width:420px;--page-width:794px;--editor-zoom:1;height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(260px,var(--reader-width)) 10px minmax(0,1fr)}
     .niw-passage{border-right:1px solid #d8d4c8;background:#f0eee7;overflow:auto;padding:18px;display:grid;gap:14px;align-content:start}
     .niw-source-card{background:#fff;border:1px solid #d8d4c8;border-radius:8px;padding:16px;box-shadow:0 5px 18px rgba(31,42,36,.06)}
     .niw-source-card.reference{background:#f8fbff;border-color:#bfd0df}
@@ -102,13 +103,16 @@ export function renderNativeWriteView({
     .niw-local-underline{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#2f6f4e}
     .niw-local-highlight{background:#fff0a6}
     .niw-resizer{background:#e5e1d6;cursor:col-resize;position:relative}
-    .niw-resizer::after{content:'';position:absolute;inset:0 3px;background:#bdb6a8;border-radius:99px;opacity:.65}
+    .niw-resizer::before{content:'';position:absolute;inset:0 -7px}
+    .niw-resizer::after{content:'';position:absolute;top:50%;left:50%;width:4px;height:44px;transform:translate(-50%,-50%);border-left:2px solid #8f9a92;border-right:2px solid #8f9a92;border-radius:2px;opacity:.78}
+    .niw-resizer:hover,.niw-resizer:focus{background:#d7ded4}
+    .niw-resizer:hover::after,.niw-resizer:focus::after{border-color:#2f6f4e;opacity:1}
     .niw-editor-wrap{display:flex;flex-direction:column;min-width:0;min-height:0}
     .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4;flex-wrap:wrap}
     .niw-divider{width:1px;height:28px;background:#d8d4c8;margin:0 3px}
     .niw-editor-stage{flex:1;overflow:auto;padding:36px 32px}
-    .niw-page-zoom-frame{width:var(--page-width);max-width:max-content;margin:0 auto;position:relative}
-    .niw-page-shell{width:var(--page-width);max-width:100%;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;transform:scale(var(--editor-zoom));transform-origin:top left}
+    .niw-page-zoom-frame{width:var(--page-width);max-width:max-content;margin:0 auto;position:relative;display:flex;justify-content:center}
+    .niw-page-shell{width:var(--page-width);max-width:100%;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;transform:scale(var(--editor-zoom));transform-origin:top center}
     .niw-line-numbers{border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;line-height:31.5px;text-align:right;padding:35px 7px 34px 0;user-select:none;white-space:pre;min-height:0}
     #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background:#fff;border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor p,#nativeEditor div{margin:0 0 1em}
@@ -183,7 +187,7 @@ export function renderNativeWriteView({
       ${passagePdf ? `<section class="niw-source-card reference"><a href="/api/assignments/${assignmentId}/passage-pdf" target="_blank" rel="noopener">Open PDF passage</a></section>` : ''}
       ${dueAt ? `<p class="niw-stat">Due ${escapeHtml(dueAt)}</p>` : ''}
     </aside>
-    <div class="niw-resizer" id="readerResizer" role="separator" aria-orientation="vertical" aria-label="Resize reader"></div>
+    <div class="niw-resizer" id="readerResizer" role="separator" aria-orientation="vertical" aria-label="Drag to resize panels" title="Drag to resize panels"></div>
     <section class="niw-editor-wrap">
       <div class="niw-tools">
         <button class="niw-btn niw-icon-btn" type="button" data-command="undo" title="Undo">${toolIcon('undo')}</button>
@@ -258,6 +262,7 @@ export function renderNativeWriteView({
     let lastSavedText = initialPad.plain_text || '';
     let lastSavedHtml = sanitizeEditorHtml(initialPad.document?.html || '');
     let currentVersion = initialPad.version || 1;
+    let savedEditorRange = null;
     const pageWidth = 794;
     let editorZoom = loadNumberSetting('nativePadZoom', 1);
     let readerWidth = loadNumberSetting('nativePadReaderWidth', 420);
@@ -321,6 +326,21 @@ export function renderNativeWriteView({
         pageZoomFrame.style.width = Math.ceil(pageShell.offsetWidth * editorZoom) + 'px';
         pageZoomFrame.style.height = Math.ceil(pageShell.offsetHeight * editorZoom) + 'px';
       });
+    }
+    function editorOwnsNode(node){
+      return !!node && (node === editor || editor.contains(node));
+    }
+    function rememberEditorSelection(){
+      const selection = window.getSelection();
+      if(!selection || !selection.rangeCount || !editorOwnsNode(selection.anchorNode)) return;
+      savedEditorRange = selection.getRangeAt(0).cloneRange();
+    }
+    function restoreEditorSelection(){
+      if(!savedEditorRange) return false;
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(savedEditorRange);
+      return true;
     }
     function sanitizeEditorHtml(html){
       const template = document.createElement('template');
@@ -473,8 +493,8 @@ export function renderNativeWriteView({
       syncToolbarState();
     });
     editor.addEventListener('blur', saveNow);
-    editor.addEventListener('keyup', syncToolbarState);
-    editor.addEventListener('mouseup', syncToolbarState);
+    editor.addEventListener('keyup', () => { rememberEditorSelection(); syncToolbarState(); });
+    editor.addEventListener('mouseup', () => { rememberEditorSelection(); syncToolbarState(); });
     setInterval(saveNow, 5000);
     setInterval(refreshPolicy, 5000);
 
@@ -501,17 +521,15 @@ export function renderNativeWriteView({
       });
     });
 
+    fontSizeSelect.addEventListener('mousedown', rememberEditorSelection);
+    fontSizeSelect.addEventListener('focus', rememberEditorSelection);
     fontSizeSelect.addEventListener('change', () => {
       editor.focus();
-      document.execCommand('fontSize', false, '7');
-      editor.querySelectorAll('font[size="7"]').forEach(font => {
-        const span = document.createElement('span');
-        span.style.fontSize = fontSizeSelect.value + 'px';
-        span.innerHTML = font.innerHTML;
-        font.replaceWith(span);
-      });
+      restoreEditorSelection();
+      applyFontSize(fontSizeSelect.value);
       dirty = true;
       saveState.textContent = 'Unsaved';
+      updateLineNumbers();
       syncToolbarState();
     });
 
@@ -561,7 +579,10 @@ export function renderNativeWriteView({
 
     document.addEventListener('selectionchange', () => {
       const selection = window.getSelection();
-      if(selection?.anchorNode && (document.activeElement === editor || editor.contains(selection.anchorNode))) syncToolbarState();
+      if(selection?.anchorNode && (document.activeElement === editor || editor.contains(selection.anchorNode))) {
+        rememberEditorSelection();
+        syncToolbarState();
+      }
     });
 
     document.querySelectorAll('[data-source-mark]').forEach(button => {
@@ -617,6 +638,39 @@ export function renderNativeWriteView({
     }
     function closePalettes(){
       document.querySelectorAll('.niw-popover.open').forEach(popover => popover.classList.remove('open'));
+    }
+    function applyFontSize(size){
+      const px = clamp(Number(size), 8, 22);
+      const selection = window.getSelection();
+      if(!selection || !selection.rangeCount || !editorOwnsNode(selection.anchorNode)) return;
+      const range = selection.getRangeAt(0);
+      if(range.collapsed){
+        document.execCommand('fontSize', false, '7');
+        convertFontSizeTags(px);
+        return;
+      }
+      const span = document.createElement('span');
+      span.style.fontSize = px + 'px';
+      try{
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+        selection.removeAllRanges();
+        const nextRange = document.createRange();
+        nextRange.selectNodeContents(span);
+        selection.addRange(nextRange);
+        savedEditorRange = nextRange.cloneRange();
+      }catch(_){
+        document.execCommand('fontSize', false, '7');
+        convertFontSizeTags(px);
+      }
+    }
+    function convertFontSizeTags(px){
+      editor.querySelectorAll('font[size="7"]').forEach(font => {
+        const span = document.createElement('span');
+        span.style.fontSize = px + 'px';
+        span.innerHTML = font.innerHTML;
+        font.replaceWith(span);
+      });
     }
     function syncToolbarState(){
       ['bold','italic','underline','strikeThrough','insertUnorderedList','insertOrderedList','justifyLeft','justifyCenter','justifyRight'].forEach(command => {
