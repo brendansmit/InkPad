@@ -20,6 +20,16 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Native assignment and review cleanup
+- Asked: Fix the PDF regression, move paste blocking into assignment settings, remove Etherpad choice from teacher assignment pages, stop showing autosaves as an always-open list, preserve assignment filters, fix timestamps and hide non-current student assignments.
+- Built: Native writer PDFs are true embedded PDF documents again, not PDF.js-rendered page canvases. Removed fake PDF highlight/underline controls from the PDF pane.
+- Built: New/edit assignment pages are native-only in the teacher UI and now expose Outside paste: Allow, Log only or Block. Assignment saves update existing native pad policies.
+- Built: Student paste blocking now permits copy/paste that originates inside the InkPad screen and logs or blocks outside paste only.
+- Built: Assignment filters persist when returning from detail view and clear when going back to teacher home. Student and teacher timestamp display now parses server UTC correctly.
+- Built: Native review now hides autosaves behind a Revision history button instead of dumping the full list in the rail.
+- Live data: Archived live assignment IDs 5, 6, 8, 9 and 10. Active student-visible native Personal Statements remain IDs 3, 4 and 7 with 19 native pads.
+- Verified: Node 24 `--check` passed for touched server/view files. `--test test/assignments.test.js test/nativePads.test.js` passed 26/26. Deployed, restarted wrapper and public `/` returned 200.
+
 ## 2026-07-01 - Rebuild native PDF zoom and marking
 - Asked: Replace bad PDF marking, make PDF zoom centre on the document and stop right-side zoom from changing font size.
 - Built: Replaced embedded browser PDF with PDF.js page rendering, selectable text layers and locally persisted canvas-based selected-text highlight/underline.
@@ -363,36 +373,3 @@ Entry format:
 - Decisions: PDF uploaded only to the primary assignment in a multi-class group (first in editGroup). passage_text cleared from settings_json if textarea is empty on save — correct, expected behaviour.
 - Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions. Also: Server酱 pricing.
 - Gotchas hit: SSH key not loaded in agent; needed `ssh-add` + `-i` flag; root user is the correct login.
-
-## 2026-06-29 — Unread submission badge + password fixes
-- Phase/Step worked: Phase 8 polish
-- Built:
-  - `GET /api/teacher/notifications` counts submissions since `notifications_cleared_at` in settings table (excluding demo/ghost). `POST /api/teacher/notifications/clear` updates the watermark.
-  - Teacher dashboard shows red badge on Assignments tile when count > 0. Clears on assignments page load.
-  - Reset password endpoint now always uses `ChangeMe1` (was `generateTempPassword()`). Frontend message updated accordingly.
-  - `must_change_password` defaulted to 1 on new student creation. 53 existing students patched in DB.
-  - ChangeMe1 shown in purple on roster while `must_change_password = 1`; nothing shown once changed.
-- Decisions: Badge clears on page visit (not on per-submission view). Silent clear — no explicit dismiss button needed at this scale.
-- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking. Also: investigate Server酱 pricing for WeChat notifications.
-- Gotchas hit: All existing students had `must_change_password = 0` — needed one-off DB patch.
-
-## 2026-06-29 — Fix cross-class student modal contamination
-- Phase/Step worked: Phase 8 bug fix
-- Built: `GET /api/assignments/:id/students` scoped to `WHERE s.class_id = assignment.class_id` (was returning all classes). `PUT /api/assignments/:id/students` now builds a `classStudentIds` set and silently skips any student IDs from other classes before inserting. Deployed commit `654a335`.
-- Decisions: Cross-class IDs are silently dropped on PUT rather than errored — the scoped GET means the UI should never send them; error would only confuse a race condition edge case.
-- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions.
-- Gotchas hit: Session resumed from summary after context limit.
-
-## 2026-07-01 - Native InkPad Phase 8 student writing profiles
-- Asked: Keep the long-term student writing and voice profile goal built into the native InkPad work.
-- Built: Added `015_student_writing_profiles.sql` with student writing profiles, literacy issue stats and literacy evidence. Literacy-code annotations now sync into student profile evidence and update total/open/resolved counts.
-- UI/API: Review payloads include `student_profile`, teachers can fetch `/api/native/students/:studentId/profile` and the native review rail shows top tracked profile issues while marking.
-- Verified: `node --check src/routes/nativePads.js` and Node 24 `--test test/migration.test.js test/nativePads.test.js` passed 8/8.
-- Decision: This phase stores structured evidence only. AI-written summaries, voice analysis and personalised exam practice stay later phases built on these tables.
-
-## 2026-07-01 - Native InkPad Phase 9 backup and recovery
-- Asked: Add a backup of student work in case the server goes down and allow a teacher to upload or paste recovered student work.
-- Built: Added teacher-only JSON backup export for all native pads or one assignment. Backup includes current pad data, revisions, annotations, paste events, rubric data and profile evidence.
-- UI/API: Native review page now has an assignment backup download link, pasted-text recovery and `.txt` upload recovery. Imports can create a manual revision only or replace current pad text.
-- Verified: Node 24 `--check src/routes/nativePads.js` and `--test test/migration.test.js test/nativePads.test.js` passed 9/9. Broader stable suite `--test test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 29/29.
-- Decision: Recovery revisions use existing `manual` reason because the schema check does not allow `teacher_import`; detailed source is recorded in `native_teacher_events`.

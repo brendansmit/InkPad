@@ -506,7 +506,7 @@ function importTeacherText(db, pad, teacherId, { plainText, replaceCurrent, sour
 function ensurePolicy(db, padId, settings = {}, teacherId = null) {
   const existing = db.prepare('SELECT * FROM native_pad_policies WHERE native_pad_id = ?').get(padId);
   if (existing) return existing;
-  const pasteMode = settings.paste_detection === false ? 'allow' : 'log';
+  const pasteMode = PASTE_MODES.has(settings.paste_mode) ? settings.paste_mode : (settings.paste_detection === false ? 'allow' : 'log');
   const spellcheck = settings.spellcheck === false ? 0 : 1;
   db.prepare(`
     INSERT INTO native_pad_policies (native_pad_id, paste_mode, spellcheck_enabled, updated_by_teacher_id)

@@ -136,9 +136,16 @@
 
     function dateLabel(value){
       if(!value) return 'No due date';
-      const date=new Date(value);
+      const date=parseServerDate(value);
       if(Number.isNaN(date.getTime())) return value;
       return `Due ${date.toLocaleString([], { dateStyle:'medium', timeStyle:'short' })}`;
+    }
+
+    function parseServerDate(value){
+      if(!value) return new Date(NaN);
+      const text=String(value);
+      if(/[zZ]$|[+-]\d\d:?\d\d$/.test(text)) return new Date(text);
+      return new Date(text.replace(' ','T')+'Z');
     }
 
     function escapeHtml(str){const div=document.createElement('div');div.textContent=str;return div.innerHTML;}

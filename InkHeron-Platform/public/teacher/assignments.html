@@ -129,7 +129,7 @@
   </div>
 
   <main class="container">
-    <a class="back-link" href="/teacher">← Back to dashboard</a>
+    <a class="back-link" id="teacherHomeLink" href="/teacher">← Back to dashboard</a>
 
     <!-- ── List view ── -->
     <div id="listView">
@@ -250,6 +250,15 @@
           </div>
           <p class="hint">Draft: students can keep editing until due date. Exam: submitting locks the pad permanently.</p>
         </div>
+        <div class="field">
+          <label for="ePasteMode">Outside paste</label>
+          <select id="ePasteMode">
+            <option value="allow">Allow</option>
+            <option value="log">Log only</option>
+            <option value="block">Block</option>
+          </select>
+          <p class="hint">Controls paste from outside the InkPad screen. Copying within the writing screen can still be pasted.</p>
+        </div>
         <div class="toggle-group">
           <label class="toggle">
             <input type="checkbox" id="eSpellcheck">
@@ -258,10 +267,6 @@
           <label class="toggle">
             <input type="checkbox" id="eGreenPen">
             <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="eNativeInkpad">
-            <span class="toggle-label">Use Native InkPad<small>Recommended student writer. Turn this off only to keep this assignment on Etherpad.</small></span>
           </label>
         </div>
       </div>
@@ -317,6 +322,7 @@
     let editGroup=[];
     let modalId=null;
     let currentPassagePdfExists=false;
+    const filterStateKey='inkheronAssignmentFilters';
 
     window.setPassageTab=function(tab){
       document.getElementById('ptabText').classList.toggle('active',tab==='text');
@@ -352,6 +358,7 @@
       const user=await me.json();
       if(user.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=user.user.csrf_token;
+      restoreFilterState();
       fetch('/api/teacher/notifications/clear',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
       const [,cr]=await Promise.all([fetchAssignments(),fetch('/api/classes')]);
       const cd=await cr.json(); classes=cd.classes||[];
@@ -504,14 +511,22 @@
         showingArchived=!showingArchived;
         await fetchAssignments();
         renderList(document.getElementById('searchInput').value);
+        saveFilterState();
       });
       document.getElementById('detailClassSel').addEventListener('change',e=>{
         const v=e.target.value;openDetail(v==='all'?'all':Number(v));
       });
       ['statusFilter','pasteFilter','sortSelect'].forEach(id=>{
-        document.getElementById(id).addEventListener('change',loadDashboard);
+        document.getElementById(id).addEventListener('change',()=>{
+          saveFilterState();
+          loadDashboard();
+        });
       });
-      document.getElementById('searchInput').addEventListener('input',e=>renderList(e.target.value));
+      document.getElementById('searchInput').addEventListener('input',e=>{
+        renderList(e.target.value);
+        saveFilterState();
+      });
+      document.getElementById('teacherHomeLink').addEventListener('click',()=>sessionStorage.removeItem(filterStateKey));
       document.getElementById('logoutBtn').addEventListener('click',async()=>{
         await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
         window.location.href='/teacher-login';
@@ -629,9 +644,9 @@
 
       document.getElementById('eSbDraft').checked=(s.submit_behaviour||'draft')==='draft';
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
+      document.getElementById('ePasteMode').value=s.paste_mode||'log';
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
       document.getElementById('eGreenPen').checked=s.green_pen===true;
-      document.getElementById('eNativeInkpad').checked=s.native_inkpad===true;
       document.getElementById('editMsg').className='msg';
 
       // render date rows — one per class in the group
@@ -668,10 +683,10 @@
       const passageText=document.getElementById('ePassageText').value.trim();
       const passagePdfFile=document.getElementById('ePassagePdf').files[0];
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
+      const paste_mode=document.getElementById('ePasteMode').value;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
-      const native_inkpad=document.getElementById('eNativeInkpad').checked;
-      const settings={submit_behaviour,spellcheck,green_pen,native_inkpad};
+      const settings={submit_behaviour,paste_mode,spellcheck,green_pen,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 
@@ -916,7 +931,7 @@
     }
     function isoToLocal(iso){
       if(!iso) return '';
-      const d=new Date(iso);
+      const d=parseServerDate(iso);
       if(Number.isNaN(d.getTime())) return '';
       const pad=n=>String(n).padStart(2,'0');
       return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -924,7 +939,33 @@
     function statusLabel(s){
       return {not_started:'Not started',writing:'Writing',submitted:'Submitted',marked:'Marked',released:'Released',green_pen_open:'Green pen',resubmitted:'Resubmitted'}[s]||s;
     }
-    function formatDate(v){const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleString([],{dateStyle:'medium',timeStyle:'short'});}
+    function parseServerDate(value){
+      if(!value) return new Date(NaN);
+      const text=String(value);
+      if(/[zZ]$|[+-]\d\d:?\d\d$/.test(text)) return new Date(text);
+      return new Date(text.replace(' ','T')+'Z');
+    }
+    function formatDate(v){const d=parseServerDate(v);return Number.isNaN(d.getTime())?v:d.toLocaleString([],{dateStyle:'medium',timeStyle:'short'});}
+    function saveFilterState(){
+      const state={
+        search:document.getElementById('searchInput').value,
+        archived:showingArchived,
+        status:document.getElementById('statusFilter').value,
+        paste:document.getElementById('pasteFilter').value,
+        sort:document.getElementById('sortSelect').value,
+      };
+      try{sessionStorage.setItem(filterStateKey,JSON.stringify(state));}catch(_){}
+    }
+    function restoreFilterState(){
+      try{
+        const state=JSON.parse(sessionStorage.getItem(filterStateKey)||'{}');
+        showingArchived=state.archived===true;
+        if(state.search) document.getElementById('searchInput').value=state.search;
+        if(state.status) document.getElementById('statusFilter').value=state.status;
+        if(state.paste) document.getElementById('pasteFilter').value=state.paste;
+        if(state.sort) document.getElementById('sortSelect').value=state.sort;
+      }catch(_){}
+    }
     function escapeHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 
     init();

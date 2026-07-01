@@ -55,7 +55,7 @@ function multipartPayload({ file }) {
   };
 }
 
-async function seedNativeAssignment(app, { enabled = true, greenPen = false } = {}) {
+async function seedNativeAssignment(app, { enabled = true, greenPen = false, pasteMode = 'log' } = {}) {
   const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
 
   const classResponse = await app.inject({
@@ -81,6 +81,7 @@ async function seedNativeAssignment(app, { enabled = true, greenPen = false } = 
     spellcheck: true,
     green_pen: greenPen,
     native_inkpad: enabled,
+    paste_mode: pasteMode,
     prompt: 'Write one clear paragraph.',
   };
   const result = db.prepare(`
@@ -170,6 +171,58 @@ test('student can create, autosave and submit a native pad', async () => {
   });
   assert.equal(revisions.statusCode, 200);
   assert.deepEqual(revisions.json().revisions.map(revision => revision.reason), ['create', 'autosave', 'submit']);
+
+  await app.close();
+});
+
+test('native pads inherit assignment paste policy', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId } = await seedNativeAssignment(app, { pasteMode: 'block' });
+  const { cookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  assert.equal(created.json().policy.paste_mode, 'block');
+
+  await app.close();
+});
+
+test('assignment settings update existing native pad paste policy', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app);
+  const { cookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+  assert.equal(created.json().policy.paste_mode, 'log');
+
+  const patched = await app.inject({
+    method: 'PATCH',
+    url: `/api/assignments/${assignmentId}`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { settings: { paste_mode: 'block', spellcheck: false, native_inkpad: true } },
+  });
+  assert.equal(patched.statusCode, 200);
+
+  const policy = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/policy`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(policy.statusCode, 200);
+  assert.equal(policy.json().policy.paste_mode, 'block');
+  assert.equal(policy.json().policy.spellcheck_enabled, false);
 
   await app.close();
 });
@@ -748,16 +801,15 @@ test('native write view embeds PDF reference inside contained scroll panel', () 
   });
 
   assert.match(html, /id="pdfFrame"/);
-  assert.match(html, /id="pdfPages"/);
-  assert.match(html, /pdfjs\/pdf\.min\.mjs/);
-  assert.match(html, /getDocument\('\/api\/assignments\/42\/passage-pdf'\)/);
+  assert.match(html, /id="pdfEmbed"/);
+  assert.match(html, /\/api\/assignments\/42\/passage-pdf#toolbar=1/);
   assert.match(html, /id="pdfZoomSlider"[^>]+min="75"[^>]+max="175"/);
-  assert.match(html, /new TextLayer/);
-  assert.match(html, /data-pdf-highlight="rgba\(255,240,166,\.55\)"/);
-  assert.match(html, /data-pdf-highlight="underline"/);
-  assert.doesNotMatch(html, /id="pdfEmbed"/);
-  assert.doesNotMatch(html, /pdfEmbed\.src/);
-  assert.match(html, /\.niw-pdf-frame\{[^}]*overflow:auto/);
+  assert.match(html, /pdfEmbed\.src = pdfBaseUrl \+ '#toolbar=1&navpanes=0&view=FitH&zoom=' \+ zoom/);
+  assert.match(html, /\.niw-pdf-frame\{[^}]*overflow:hidden/);
+  assert.doesNotMatch(html, /pdfjs\/pdf\.min\.mjs/);
+  assert.doesNotMatch(html, /new TextLayer/);
+  assert.doesNotMatch(html, /id="pdfPages"/);
+  assert.doesNotMatch(html, /data-pdf-highlight/);
   assert.doesNotMatch(html, /target="_blank" rel="noopener">Open PDF passage/);
 });
 
@@ -835,6 +887,8 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /pasteMode/);
   assert.match(page.body, /literacy_code/);
   assert.match(page.body, /showRevision/);
+  assert.match(page.body, /revisionHistoryBtn/);
+  assert.match(page.body, /revision-panel/);
   assert.match(page.body, /rubricPanel/);
   assert.match(page.body, /saveRubricScores/);
   assert.match(page.body, /profileIssueList/);

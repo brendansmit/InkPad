@@ -11,6 +11,17 @@ function tmpDb() {
   return path.join(dir, 'inkheron.db');
 }
 
+test('teacher assignment forms are native-only and expose outside paste policy', () => {
+  const newAssignment = fs.readFileSync(path.join(process.cwd(), 'public/teacher/new-assignment.html'), 'utf8');
+  const assignments = fs.readFileSync(path.join(process.cwd(), 'public/teacher/assignments.html'), 'utf8');
+  assert.doesNotMatch(newAssignment, /Use Native InkPad|Etherpad fallback|id="fNativeInkpad"/);
+  assert.doesNotMatch(assignments, /Use Native InkPad|keep this assignment on Etherpad|id="eNativeInkpad"/);
+  assert.match(newAssignment, /id="fPasteMode"/);
+  assert.match(assignments, /id="ePasteMode"/);
+  assert.match(newAssignment, /Controls paste from outside the InkPad screen/);
+  assert.match(assignments, /Controls paste from outside the InkPad screen/);
+});
+
 async function setupTeacher(app) {
   const setup = await app.inject({ method: 'POST', url: '/api/setup/teacher',
     payload: { username: 'teacher', display_name: 'Teacher', password: 'teacherpass123' } });
@@ -76,6 +87,7 @@ test('teacher can create an assignment with settings_json', async () => {
   assert.equal(settings.submit_behaviour, 'draft');
   assert.equal(settings.word_count, true);
   assert.equal(settings.paste_detection, true);
+  assert.equal(settings.paste_mode, 'log');
   assert.equal(settings.green_pen, true);
 
   await app.close();
@@ -95,6 +107,7 @@ test('word_count and paste_detection are always true regardless of input', async
   const settings = JSON.parse(res.json().assignment.settings_json);
   assert.equal(settings.word_count, true);
   assert.equal(settings.paste_detection, true);
+  assert.equal(settings.paste_mode, 'log');
 
   await app.close();
 });
@@ -169,6 +182,13 @@ test('student sees own assignments with correct statuses', async () => {
       opens_at: '2020-01-01T00:00:00Z', due_at: '2020-06-01T00:00:00Z' },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
 
+  const archived = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Archived',
+      opens_at: '2020-01-01T00:00:00Z', due_at: '2099-12-31T23:59:59Z' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  await app.inject({ method: 'POST', url: `/api/assignments/${archived.json().assignment.id}/archive`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+
   const student = await setupStudent(app, teacher, classId);
   const res = await app.inject({ method: 'GET', url: '/api/student/assignments',
     headers: { cookie: student.cookies } });
@@ -180,6 +200,7 @@ test('student sees own assignments with correct statuses', async () => {
   assert.equal(byTitle['Coming soon'].status, 'upcoming');
   assert.equal(byTitle['Open now'].status, 'not_started');
   assert.equal(byTitle['Closed'].status, 'closed');
+  assert.equal(byTitle.Archived, undefined);
 
   await app.close();
 });

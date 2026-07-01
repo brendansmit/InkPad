@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
 const PASSAGES_DIR = path.join(__routesDir, '..', '..', 'data', 'passages');
+const PASTE_MODES = new Set(['allow', 'log', 'block']);
 
 function requirePositiveInteger(value, field) {
   const n = Number(value);
@@ -37,6 +38,7 @@ function buildSettingsJson(settings = {}, type = 'essay', { nativeDefault = fals
     spellcheck: settings.spellcheck !== false,
     word_count: true,
     paste_detection: true,
+    paste_mode: PASTE_MODES.has(settings.paste_mode) ? settings.paste_mode : 'log',
     green_pen: settings.green_pen === true,
   };
   if (settings.native_inkpad === true || (nativeDefault && settings.native_inkpad !== false)) {
@@ -365,6 +367,21 @@ export async function registerAssignmentRoutes(app, { db }) {
         UPDATE assignments SET title = ?, opens_at = ?, due_at = ?, settings_json = ? WHERE id = ?
       `).run(newTitle, newOpensAt ?? null, newDueAt ?? null, newSettings, id);
 
+      if (settings !== undefined) {
+        const parsed = parseSettings(newSettings);
+        const pasteMode = PASTE_MODES.has(parsed.paste_mode) ? parsed.paste_mode : 'log';
+        const spellcheck = parsed.spellcheck === false ? 0 : 1;
+        db.prepare(`
+          INSERT OR IGNORE INTO native_pad_policies (native_pad_id, paste_mode, spellcheck_enabled, updated_by_teacher_id)
+          SELECT id, ?, ?, ? FROM native_pads WHERE assignment_id = ?
+        `).run(pasteMode, spellcheck, request.session.user.id, id);
+        db.prepare(`
+          UPDATE native_pad_policies
+          SET paste_mode = ?, spellcheck_enabled = ?, updated_by_teacher_id = ?, updated_at = datetime('now')
+          WHERE native_pad_id IN (SELECT id FROM native_pads WHERE assignment_id = ?)
+        `).run(pasteMode, spellcheck, request.session.user.id, id);
+      }
+
       const updated = db.prepare('SELECT * FROM assignments WHERE id = ?').get(id);
       return { assignment: publicAssignment(updated) };
     }
@@ -649,6 +666,7 @@ export async function registerAssignmentRoutes(app, { db }) {
           -- explicit inclusion
           EXISTS (SELECT 1 FROM assignment_students ast WHERE ast.assignment_id = a.id AND ast.student_id = ?)
         )
+        AND a.is_archived = 0
         ORDER BY a.due_at ASC, a.opens_at ASC, a.created_at DESC
       `).all(studentId, studentId, student.class_id, studentId);
 
