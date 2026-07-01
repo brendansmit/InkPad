@@ -11,20 +11,20 @@ function jsonScript(value) {
   return JSON.stringify(value).replaceAll('</', '<\\/');
 }
 
-function iconSvg(name) {
+function toolIcon(name) {
   const icons = {
-    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7H4v5"/><path d="M4 12c2.5-3.5 5.7-5.2 9.4-4.9 3.8.3 6.6 3.2 6.6 6.9 0 3.3-2.5 6-6 6h-3"/></svg>',
-    redo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7h5v5"/><path d="M20 12c-2.5-3.5-5.7-5.2-9.4-4.9C6.8 7.4 4 10.3 4 14c0 3.3 2.5 6 6 6h3"/></svg>',
-    bullets: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><circle cx="4" cy="6" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="4" cy="18" r="1.5"/></svg>',
-    numbers: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10"/><path d="M10 12h10"/><path d="M10 18h10"/><path d="M4 5h1v4"/><path d="M3.5 9h3"/><path d="M3 12.5c.4-.7 1-1 1.8-1 .9 0 1.6.5 1.6 1.4 0 .7-.5 1.2-1.2 1.7L3 16h3.5"/><path d="M3.5 18h2a1 1 0 0 1 0 2h-1a1 1 0 0 0 0 2h2"/></svg>',
-    outdent: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6h8"/><path d="M12 12h8"/><path d="M12 18h8"/><path d="M4 12h5"/><path d="M7 9l-3 3 3 3"/></svg>',
-    indent: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6h8"/><path d="M12 12h8"/><path d="M12 18h8"/><path d="M4 12h5"/><path d="M6 9l3 3-3 3"/></svg>',
-    alignLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 10h10"/><path d="M4 14h16"/><path d="M4 18h10"/></svg>',
-    alignCenter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M7 10h10"/><path d="M4 14h16"/><path d="M7 18h10"/></svg>',
-    alignRight: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M10 10h10"/><path d="M4 14h16"/><path d="M10 18h10"/></svg>',
-    textColor: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14"/><path d="M8 16l4-12 4 12"/><path d="M9.5 12h5"/></svg>',
-    highlight: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M8 15l8-8 3 3-8 8H8v-3z"/><path d="M14 9l3 3"/></svg>',
-    eraser: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l8-8 7 7-5 5H8l-4-4z"/><path d="M9 20h11"/></svg>',
+    undo: '<span class="niw-glyph">↶</span>',
+    redo: '<span class="niw-glyph">↷</span>',
+    bullets: '<span class="niw-list-icon"><span>•</span><i></i><span>•</span><i></i><span>•</span><i></i></span>',
+    numbers: '<span class="niw-list-icon numbered"><span>1</span><i></i><span>2</span><i></i><span>3</span><i></i></span>',
+    outdent: '<span class="niw-indent-icon"><b>‹</b><i></i><i></i><i></i></span>',
+    indent: '<span class="niw-indent-icon"><b>›</b><i></i><i></i><i></i></span>',
+    alignLeft: '<span class="niw-align-icon left"><i></i><i></i><i></i><i></i></span>',
+    alignCenter: '<span class="niw-align-icon center"><i></i><i></i><i></i><i></i></span>',
+    alignRight: '<span class="niw-align-icon right"><i></i><i></i><i></i><i></i></span>',
+    textColor: '<span class="niw-color-icon">A</span>',
+    highlight: '<span class="niw-highlight-icon">H</span>',
+    eraser: '<span class="niw-glyph">⌫</span>',
   };
   return icons[name] ?? '';
 }
@@ -63,9 +63,25 @@ export function renderNativeWriteView({
     .niw-stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums;white-space:nowrap}
     .niw-stat.warn{color:#a75432;font-weight:800}
     .niw-btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 10px;font-weight:800;cursor:pointer;font-family:inherit}
-    .niw-icon-btn{width:36px;padding:0}
-    .niw-icon{width:20px;height:20px;display:block}
-    .niw-icon path,.niw-icon circle{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    .niw-icon-btn{width:34px;padding:0}
+    .niw-glyph{display:block;font-size:22px;line-height:1;font-weight:700}
+    .niw-list-icon{width:20px;display:grid;grid-template-columns:5px 1fr;gap:3px 4px;align-items:center;margin:auto;font-size:10px;line-height:1;color:currentColor}
+    .niw-list-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
+    .niw-list-icon.numbered{font-size:9px;font-weight:800}
+    .niw-indent-icon{width:21px;display:grid;grid-template-columns:7px 1fr;gap:3px;align-items:center;margin:auto;color:currentColor}
+    .niw-indent-icon b{grid-row:1 / span 3;font-size:18px;line-height:1}
+    .niw-indent-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
+    .niw-align-icon{width:22px;display:grid;gap:4px;margin:auto}
+    .niw-align-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
+    .niw-align-icon.left i:nth-child(odd),.niw-align-icon.right i:nth-child(odd){width:100%}
+    .niw-align-icon.left i:nth-child(even),.niw-align-icon.center i:nth-child(even),.niw-align-icon.right i:nth-child(even){width:62%}
+    .niw-align-icon.left i{justify-self:start}
+    .niw-align-icon.center i{justify-self:center}
+    .niw-align-icon.right i{justify-self:end}
+    .niw-align-icon.center i:nth-child(odd){width:100%}
+    .niw-color-icon,.niw-highlight-icon{display:grid;place-items:center;width:20px;height:22px;margin:auto;font-weight:900;font-size:16px;line-height:1;position:relative}
+    .niw-color-icon::after{content:'';position:absolute;left:2px;right:2px;bottom:1px;height:3px;background:#1f2a24;border-radius:99px}
+    .niw-highlight-icon{background:linear-gradient(transparent 58%,#fff0a6 58%);border-radius:3px}
     .niw-btn.active{background:#dfe9df;border-color:#2f6f4e;color:#183d2a}
     .niw-btn.primary{background:#2f6f4e;color:#fff;border-color:#2f6f4e}
     .niw-btn:disabled{opacity:.5;cursor:not-allowed}
@@ -81,8 +97,6 @@ export function renderNativeWriteView({
     .niw-source-head h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#657268}
     .niw-source-tools{margin-left:auto;display:flex;gap:5px}
     .niw-source-btn{min-height:28px;padding:0 8px;border-radius:6px;border:1px solid #b8c2b9;background:#fff;font-weight:800;cursor:pointer}
-    .niw-source-btn svg{width:17px;height:17px;display:block}
-    .niw-source-btn path,.niw-source-btn circle{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .niw-passage .niw-text{white-space:pre-wrap;font-family:var(--font);font-size:15px;line-height:1.65;outline:none}
     .niw-local-underline{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#2f6f4e}
     .niw-local-highlight{background:#fff0a6}
@@ -92,8 +106,8 @@ export function renderNativeWriteView({
     .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4;flex-wrap:wrap}
     .niw-divider{width:1px;height:28px;background:#d8d4c8;margin:0 3px}
     .niw-editor-stage{flex:1;overflow:auto;padding:36px 32px}
-    .niw-page-shell{width:var(--page-width);max-width:100%;margin:0 auto;display:grid;grid-template-columns:46px minmax(0,1fr);align-items:start;zoom:var(--editor-zoom)}
-    .niw-line-numbers{min-height:calc(var(--page-width) * 1.414);border:1px solid #ddd7ca;border-right:0;border-radius:8px 0 0 8px;background:#f3f1eb;color:#8a938d;font-family:var(--mono);font-size:12px;line-height:31.5px;text-align:right;padding:34px 9px 34px 0;user-select:none;white-space:pre}
+    .niw-page-shell{width:var(--page-width);max-width:100%;margin:0 auto;display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;zoom:var(--editor-zoom)}
+    .niw-line-numbers{border:1px solid #ddd7ca;border-right:0;border-radius:8px 0 0 8px;background:#f3f1eb;color:#8a938d;font-family:var(--mono);font-size:11px;line-height:31.5px;text-align:right;padding:34px 6px 34px 0;user-select:none;white-space:pre;min-height:0}
     #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background:#fff;border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor p,#nativeEditor div{margin:0 0 1em}
     #nativeEditor ul,#nativeEditor ol{margin:0 0 1em 1.3em;padding:0}
@@ -108,7 +122,7 @@ export function renderNativeWriteView({
     .niw-local-highlight-pink{background:#fecaca}
     .empty{color:#8a938d}
     @media(max-width:1080px){.niw-bar{gap:9px}.niw-stat{font-size:12px}.niw-btn{padding:0 10px}}
-    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-shell{width:100%;grid-template-columns:34px minmax(0,1fr)}.niw-line-numbers{font-size:11px;padding-right:6px}#nativeEditor{min-height:60vh;padding:22px}}
+    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-shell{width:100%;grid-template-columns:26px minmax(0,1fr)}.niw-line-numbers{font-size:10px;padding-right:5px}#nativeEditor{min-height:60vh;padding:22px}}
   </style>
 </head>
 <body>
@@ -132,7 +146,7 @@ export function renderNativeWriteView({
           <div class="niw-source-tools">
             <button class="niw-source-btn" type="button" data-source-mark="underline" title="Underline selected task/reference text">U</button>
             <span class="niw-popover">
-              <button class="niw-source-btn" type="button" data-toggle-palette="sourceHighlightPalette" title="Highlight selected task/reference text">${iconSvg('highlight')}</button>
+              <button class="niw-source-btn" type="button" data-toggle-palette="sourceHighlightPalette" title="Highlight selected task/reference text">${toolIcon('highlight')}</button>
               <span class="niw-palette" id="sourceHighlightPalette">
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-yellow" title="Yellow highlight" style="background:#fff0a6"></button>
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-green" title="Green highlight" style="background:#c7f9cc"></button>
@@ -140,7 +154,7 @@ export function renderNativeWriteView({
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-pink" title="Pink highlight" style="background:#fecaca"></button>
               </span>
             </span>
-            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${iconSvg('eraser')}</button>
+            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${toolIcon('eraser')}</button>
           </div>
         </div>
         <div class="niw-text" id="taskText">${escapeHtml(prompt || 'No prompt added.')}</div>
@@ -151,7 +165,7 @@ export function renderNativeWriteView({
           <div class="niw-source-tools">
             <button class="niw-source-btn" type="button" data-source-mark="underline" title="Underline selected task/reference text">U</button>
             <span class="niw-popover">
-              <button class="niw-source-btn" type="button" data-toggle-palette="referenceHighlightPalette" title="Highlight selected task/reference text">${iconSvg('highlight')}</button>
+              <button class="niw-source-btn" type="button" data-toggle-palette="referenceHighlightPalette" title="Highlight selected task/reference text">${toolIcon('highlight')}</button>
               <span class="niw-palette" id="referenceHighlightPalette">
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-yellow" title="Yellow highlight" style="background:#fff0a6"></button>
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-green" title="Green highlight" style="background:#c7f9cc"></button>
@@ -159,7 +173,7 @@ export function renderNativeWriteView({
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-pink" title="Pink highlight" style="background:#fecaca"></button>
               </span>
             </span>
-            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${iconSvg('eraser')}</button>
+            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${toolIcon('eraser')}</button>
           </div>
         </div>
         <div class="niw-text" id="referenceText">${escapeHtml(passageText)}</div>
@@ -170,8 +184,8 @@ export function renderNativeWriteView({
     <div class="niw-resizer" id="readerResizer" role="separator" aria-orientation="vertical" aria-label="Resize reader"></div>
     <section class="niw-editor-wrap">
       <div class="niw-tools">
-        <button class="niw-btn niw-icon-btn" type="button" data-command="undo" title="Undo">${iconSvg('undo')}</button>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="redo" title="Redo">${iconSvg('redo')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="undo" title="Undo">${toolIcon('undo')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="redo" title="Redo">${toolIcon('redo')}</button>
         <div class="niw-divider"></div>
         <button class="niw-btn" type="button" data-command="bold" title="Bold">B</button>
         <button class="niw-btn" type="button" data-command="italic" title="Italic">I</button>
@@ -181,23 +195,23 @@ export function renderNativeWriteView({
           ${[8,10,12,14,16,18,20,22].map((size) => `<option value="${size}" ${size === 18 ? 'selected' : ''}>${size}</option>`).join('')}
         </select>
         <div class="niw-divider"></div>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="insertUnorderedList" title="Bulleted list">${iconSvg('bullets')}</button>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="insertOrderedList" title="Numbered list">${iconSvg('numbers')}</button>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="outdent" title="Outdent">${iconSvg('outdent')}</button>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="indent" title="Indent">${iconSvg('indent')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="insertUnorderedList" title="Bulleted list">${toolIcon('bullets')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="insertOrderedList" title="Numbered list">${toolIcon('numbers')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="outdent" title="Outdent">${toolIcon('outdent')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="indent" title="Indent">${toolIcon('indent')}</button>
         <div class="niw-divider"></div>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyLeft" title="Align left">${iconSvg('alignLeft')}</button>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyCenter" title="Align centre">${iconSvg('alignCenter')}</button>
-        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyRight" title="Align right">${iconSvg('alignRight')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyLeft" title="Align left">${toolIcon('alignLeft')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyCenter" title="Align centre">${toolIcon('alignCenter')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyRight" title="Align right">${toolIcon('alignRight')}</button>
         <div class="niw-divider"></div>
         <span class="niw-popover">
-          <button class="niw-btn niw-icon-btn" type="button" data-toggle-palette="textColorPalette" title="Text colour">${iconSvg('textColor')}</button>
+          <button class="niw-btn niw-icon-btn" type="button" data-toggle-palette="textColorPalette" title="Text colour">${toolIcon('textColor')}</button>
           <span class="niw-palette" id="textColorPalette">
             ${['#1f2a24','#2f6f4e','#1d4ed8','#991b1b','#7c2d12','#6b21a8'].map((color) => `<button class="niw-swatch" type="button" data-fore-color="${color}" title="Text colour ${color}" style="background:${color}"></button>`).join('')}
           </span>
         </span>
         <span class="niw-popover">
-          <button class="niw-btn niw-icon-btn" type="button" data-toggle-palette="highlightPalette" title="Highlight colour">${iconSvg('highlight')}</button>
+          <button class="niw-btn niw-icon-btn" type="button" data-toggle-palette="highlightPalette" title="Highlight colour">${toolIcon('highlight')}</button>
           <span class="niw-palette" id="highlightPalette">
             ${['#fff0a6','#c7f9cc','#bfdbfe','#fecaca','#e9d5ff','#ffffff'].map((color) => `<button class="niw-swatch" type="button" data-hilite-color="${color}" title="Highlight ${color}" style="background:${color}"></button>`).join('')}
           </span>
@@ -583,7 +597,8 @@ export function renderNativeWriteView({
     });
 
     function updateLineNumbers(){
-      const lines = Math.max(30, currentText().split('\\n').length);
+      const text = currentText();
+      const lines = text.trim() ? text.split('\\n').length : 0;
       lineNumbers.textContent = Array.from({length:lines}, (_, index) => String(index + 1)).join('\\n');
     }
     function closePalettes(){

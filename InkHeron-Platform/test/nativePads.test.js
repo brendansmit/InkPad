@@ -707,7 +707,9 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /data-toggle-palette="sourceHighlightPalette"/);
   assert.match(response.body, /data-fore-color="#2f6f4e"/);
   assert.match(response.body, /data-hilite-color="#fff0a6"/);
-  assert.match(response.body, /viewBox="0 0 24 24"/);
+  assert.match(response.body, /niw-align-icon center/);
+  assert.match(response.body, /niw-list-icon numbered/);
+  assert.match(response.body, /niw-glyph/);
   assert.match(response.body, /font-family:var\(--font\)/);
   assert.match(response.body, /type:'html'/);
 
