@@ -690,7 +690,13 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /Native InkPad/);
   assert.match(response.body, /Write one clear paragraph/);
   assert.match(response.body, /niw-editor-stage/);
-  assert.match(response.body, /width:min\(100%,860px\)/);
+  assert.match(response.body, /id="charCount"/);
+  assert.match(response.body, /id="sentenceCount"/);
+  assert.match(response.body, /id="readerResizer"/);
+  assert.match(response.body, /data-width-step="80"/);
+  assert.match(response.body, /data-zoom-step="0\.1"/);
+  assert.match(response.body, /width:min\(100%,var\(--page-width\)\)/);
+  assert.match(response.body, /type:'html'/);
 
   await app.close();
 });

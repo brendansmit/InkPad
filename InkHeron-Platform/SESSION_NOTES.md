@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Native writer counters, formatting and resizing
+- Asked: Add more formatting options, character and sentence counters, working reader/pad resizing and working zoom.
+- Built: Added character and sentence counters, more formatting buttons, persisted simple HTML formatting, draggable reader split, page width controls and zoom controls.
+- Verified: Deployed `src/views/nativeWrite.js`, restarted the wrapper, passed syntax/focused native writer checks and live health returned 200.
+
 ## 2026-07-01 - Fix native writer horror layout
 - Asked: Native writer rendered as a tiny narrow writing strip.
 - Fixed: Namespaced native writer CSS and markup, made the reference panel a sane fixed width and forced the writing surface to `width:min(100%,860px)`.
@@ -393,8 +398,3 @@ Entry format:
 - Asked: Show what the custom native pad looks like compared with Etherpad.
 - Did: Started `scripts/native-smoke-server.mjs` on `http://127.0.0.1:3476` with a temp SQLite database and seeded native assignment.
 - Decision: This preview is local temp data only and does not touch live student work.
-
-## 2026-07-01 - Native InkPad default for new assignments
-- Asked: Get the custom pad usable for students ASAP because Etherpad has been breaking down.
-- Built: New assignments now default to Native InkPad in the API and teacher form. Etherpad remains an explicit fallback and existing Etherpad assignments are not silently flipped.
-- Verified: Node 24 syntax and whitespace checks passed. Focused assignment/native suite passed 21/21. Broader stable suite passed 31/31.

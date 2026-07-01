@@ -42,22 +42,28 @@ export function renderNativeWriteView({
     .niw-brand{font-weight:800}
     .niw-title{font-family:var(--serif);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .niw-spacer{flex:1}
-    .niw-stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums}
+    .niw-stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums;white-space:nowrap}
     .niw-stat.warn{color:#a75432;font-weight:800}
     .niw-btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 12px;font-weight:800;cursor:pointer;font-family:inherit}
     .niw-btn.primary{background:#2f6f4e;color:#fff;border-color:#2f6f4e}
     .niw-btn:disabled{opacity:.5;cursor:not-allowed}
-    .niw-shell{height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(300px,420px) minmax(0,1fr)}
+    .niw-shell{--reader-width:420px;--page-width:860px;--editor-zoom:1;height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(260px,var(--reader-width)) 8px minmax(0,1fr)}
     .niw-passage{border-right:1px solid #d8d4c8;background:#fbfaf6;overflow:auto;padding:22px}
     .niw-passage h2{margin:0 0 10px;font-size:14px}
     .niw-passage .niw-text{white-space:pre-wrap;font-family:var(--serif);font-size:16px;line-height:1.7}
+    .niw-resizer{background:#e5e1d6;cursor:col-resize;position:relative}
+    .niw-resizer::after{content:'';position:absolute;inset:0 3px;background:#bdb6a8;border-radius:99px;opacity:.65}
     .niw-editor-wrap{display:flex;flex-direction:column;min-width:0;min-height:0}
-    .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4}
+    .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4;flex-wrap:wrap}
+    .niw-divider{width:1px;height:28px;background:#d8d4c8;margin:0 3px}
     .niw-editor-stage{flex:1;overflow:auto;padding:36px 32px}
-    #nativeEditor{display:block;width:min(100%,860px);min-height:calc(100vh - 190px);margin:0 auto;background:#fff;border:1px solid #ddd7ca;border-radius:8px;padding:34px 38px;font-family:var(--serif);font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
+    #nativeEditor{display:block;width:min(100%,var(--page-width));min-height:calc(100vh - 190px);margin:0 auto;background:#fff;border:1px solid #ddd7ca;border-radius:8px;padding:34px 38px;font-family:var(--serif);font-size:calc(18px * var(--editor-zoom));line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
+    #nativeEditor p,#nativeEditor div{margin:0 0 1em}
+    #nativeEditor ul,#nativeEditor ol{margin:0 0 1em 1.3em;padding:0}
     #nativeEditor[contenteditable="false"]{background:#f7f7f4;color:#59635d}
     .empty{color:#8a938d}
-    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-editor-stage{padding:16px}#nativeEditor{min-height:60vh;padding:22px}}
+    @media(max-width:1080px){.niw-bar{gap:9px}.niw-stat{font-size:12px}.niw-btn{padding:0 10px}}
+    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}#nativeEditor{min-height:60vh;padding:22px}}
   </style>
 </head>
 <body>
@@ -68,6 +74,8 @@ export function renderNativeWriteView({
     <div class="niw-stat" id="pastePolicy">Paste ${escapeHtml(policy?.paste_mode ?? 'log')}</div>
     <div class="niw-stat" id="saveState">Saved</div>
     <div class="niw-stat"><span id="wordCount">${pad.word_count}</span> words</div>
+    <div class="niw-stat"><span id="charCount">0</span> chars</div>
+    <div class="niw-stat"><span id="sentenceCount">0</span> sentences</div>
     <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitLabel)}</button>
   </header>
   <main class="niw-shell">
@@ -78,12 +86,24 @@ export function renderNativeWriteView({
       ${passagePdf ? `<p><a href="/api/assignments/${assignmentId}/passage-pdf" target="_blank" rel="noopener">Open PDF passage</a></p>` : ''}
       ${dueAt ? `<p class="niw-stat">Due ${escapeHtml(dueAt)}</p>` : ''}
     </aside>
+    <div class="niw-resizer" id="readerResizer" role="separator" aria-orientation="vertical" aria-label="Resize reader"></div>
     <section class="niw-editor-wrap">
       <div class="niw-tools">
         <button class="niw-btn" type="button" data-command="bold">B</button>
         <button class="niw-btn" type="button" data-command="italic">I</button>
         <button class="niw-btn" type="button" data-command="underline">U</button>
-        <button class="niw-btn" type="button" data-command="insertUnorderedList">List</button>
+        <button class="niw-btn" type="button" data-command="strikeThrough">S</button>
+        <button class="niw-btn" type="button" data-command="insertUnorderedList">Bullets</button>
+        <button class="niw-btn" type="button" data-command="insertOrderedList">Numbers</button>
+        <div class="niw-divider"></div>
+        <button class="niw-btn" type="button" data-command="justifyLeft">Left</button>
+        <button class="niw-btn" type="button" data-command="justifyCenter">Centre</button>
+        <button class="niw-btn" type="button" data-command="justifyRight">Right</button>
+        <div class="niw-divider"></div>
+        <button class="niw-btn" type="button" data-width-step="-80">Page -</button>
+        <button class="niw-btn" type="button" data-width-step="80">Page +</button>
+        <button class="niw-btn" type="button" data-zoom-step="-0.1">Zoom -</button>
+        <button class="niw-btn" type="button" data-zoom-step="0.1">Zoom +</button>
       </div>
       <div class="niw-editor-stage">
         <div id="nativeEditor" contenteditable="${locked ? 'false' : 'true'}" spellcheck="${spellcheck ? 'true' : 'false'}"></div>
@@ -100,23 +120,89 @@ export function renderNativeWriteView({
     const pastePolicy = document.getElementById('pastePolicy');
     const saveState = document.getElementById('saveState');
     const wordCount = document.getElementById('wordCount');
+    const charCount = document.getElementById('charCount');
+    const sentenceCount = document.getElementById('sentenceCount');
     const submitBtn = document.getElementById('submitBtn');
+    const shell = document.querySelector('.niw-shell');
+    const readerResizer = document.getElementById('readerResizer');
     let dirty = false;
     let saving = false;
     let lastSavedText = initialPad.plain_text || '';
+    let lastSavedHtml = sanitizeEditorHtml(initialPad.document?.html || '');
     let currentVersion = initialPad.version || 1;
+    let pageWidth = loadNumberSetting('nativePadPageWidth', 860);
+    let editorZoom = loadNumberSetting('nativePadZoom', 1);
+    let readerWidth = loadNumberSetting('nativePadReaderWidth', 420);
 
-    editor.innerText = initialPad.plain_text || '';
+    editor.innerHTML = sanitizeEditorHtml(initialPad.document?.html || '');
+    if(!editor.innerText.trim()) editor.innerText = initialPad.plain_text || '';
+    applyLayoutSettings();
     applyPolicy(currentPolicy);
     updateCount();
 
     function currentText(){ return editor.innerText.replace(/\\u00a0/g, ' '); }
+    function currentHtml(){ return sanitizeEditorHtml(editor.innerHTML); }
     function countWords(text){
       const cleaned = text.replace(/[\\u200B\\u200C\\u200D\\u2060\\uFEFF]/g, '').trim();
       return cleaned ? cleaned.split(/\\s+/).filter(Boolean).length : 0;
     }
-    function updateCount(){ wordCount.textContent = countWords(currentText()); }
-    function documentPayload(){ return { type:'doc', content:[{ type:'text', text:currentText() }] }; }
+    function countSentences(text){
+      const cleaned = text.replace(/\\s+/g, ' ').trim();
+      if(!cleaned) return 0;
+      const matches = cleaned.match(/[^.!?]+[.!?]+(?=\\s|$)|[^.!?]+$/g) || [];
+      return matches.map(part => part.trim()).filter(Boolean).length;
+    }
+    function updateCount(){
+      const text = currentText();
+      wordCount.textContent = countWords(text);
+      charCount.textContent = text.length;
+      sentenceCount.textContent = countSentences(text);
+    }
+    function documentPayload(){ return { type:'html', html:currentHtml(), text:currentText() }; }
+    function loadNumberSetting(key, fallback){
+      try{
+        const value = Number(localStorage.getItem(key));
+        return Number.isFinite(value) ? value : fallback;
+      }catch(_){
+        return fallback;
+      }
+    }
+    function saveNumberSetting(key, value){
+      try{ localStorage.setItem(key, String(value)); }catch(_){}
+    }
+    function clamp(value, min, max){ return Math.max(min, Math.min(max, value)); }
+    function applyLayoutSettings(){
+      pageWidth = clamp(pageWidth, 560, 1160);
+      editorZoom = clamp(editorZoom, 0.8, 1.6);
+      readerWidth = clamp(readerWidth, 260, Math.min(Math.floor(window.innerWidth * 0.65), 760));
+      shell.style.setProperty('--page-width', pageWidth + 'px');
+      shell.style.setProperty('--editor-zoom', editorZoom.toFixed(2));
+      shell.style.setProperty('--reader-width', readerWidth + 'px');
+      saveNumberSetting('nativePadPageWidth', pageWidth);
+      saveNumberSetting('nativePadZoom', editorZoom);
+      saveNumberSetting('nativePadReaderWidth', readerWidth);
+    }
+    function sanitizeEditorHtml(html){
+      const template = document.createElement('template');
+      template.innerHTML = String(html || '');
+      const allowed = new Set(['B','I','U','S','STRONG','EM','UL','OL','LI','P','DIV','BR','SPAN']);
+      template.content.querySelectorAll('*').forEach(node => {
+        if(!allowed.has(node.tagName)){
+          node.replaceWith(document.createTextNode(node.textContent || ''));
+          return;
+        }
+        [...node.attributes].forEach(attribute => {
+          const name = attribute.name.toLowerCase();
+          const value = attribute.value;
+          if(name === 'style' && /^text-align:\\s*(left|center|right);?$/i.test(value)){
+            node.setAttribute('style', value);
+          }else{
+            node.removeAttribute(attribute.name);
+          }
+        });
+      });
+      return template.innerHTML;
+    }
     function applyPolicy(policy){
       currentPolicy = policy || currentPolicy;
       editor.spellcheck = currentPolicy.spellcheck_enabled !== false;
@@ -146,7 +232,8 @@ export function renderNativeWriteView({
     async function saveNow(){
       if(saving || !dirty || editor.getAttribute('contenteditable') === 'false') return;
       const text = currentText();
-      if(text === lastSavedText){ dirty = false; saveState.textContent = 'Saved'; return; }
+      const html = currentHtml();
+      if(text === lastSavedText && html === lastSavedHtml){ dirty = false; saveState.textContent = 'Saved'; return; }
       saving = true;
       saveState.textContent = 'Saving';
       try{
@@ -165,6 +252,7 @@ export function renderNativeWriteView({
         if(!response.ok) throw new Error('save_failed');
         const data = await response.json();
         lastSavedText = data.pad.plain_text || '';
+        lastSavedHtml = sanitizeEditorHtml(data.pad.document?.html || '');
         currentVersion = data.pad.version || currentVersion;
         dirty = false;
         saveState.textContent = 'Saved';
@@ -200,9 +288,45 @@ export function renderNativeWriteView({
         editor.focus();
         document.execCommand(button.dataset.command, false, null);
         dirty = true;
+        saveState.textContent = 'Unsaved';
         updateCount();
       });
     });
+
+    document.querySelectorAll('[data-width-step]').forEach(button => {
+      button.addEventListener('click', () => {
+        pageWidth += Number(button.dataset.widthStep || 0);
+        applyLayoutSettings();
+      });
+    });
+
+    document.querySelectorAll('[data-zoom-step]').forEach(button => {
+      button.addEventListener('click', () => {
+        editorZoom += Number(button.dataset.zoomStep || 0);
+        applyLayoutSettings();
+      });
+    });
+
+    readerResizer.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      readerResizer.setPointerCapture(event.pointerId);
+      const onMove = moveEvent => {
+        readerWidth = moveEvent.clientX;
+        applyLayoutSettings();
+      };
+      const onUp = upEvent => {
+        readerResizer.releasePointerCapture(upEvent.pointerId);
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+    });
+    readerResizer.addEventListener('dblclick', () => {
+      readerWidth = 420;
+      applyLayoutSettings();
+    });
+    window.addEventListener('resize', applyLayoutSettings);
 
     submitBtn.addEventListener('click', async () => {
       await saveNow();
