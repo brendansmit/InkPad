@@ -85,6 +85,12 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Teacher review payloads include comparison anchors for the original submission and latest rewrite.
 - Teacher review page exposes quick buttons for original submission and latest rewrite when both exist.
 
+## Phase 12 Browser Smoke Confidence
+
+- `scripts/native-smoke-server.mjs` starts a temporary seeded native assignment on localhost for browser smoke testing.
+- Browser smoke covered student login, password reset, native write, autosave, submit lock, teacher native review, return feedback, green-pen rewrite, resubmit lock and teacher comparison anchors.
+- The smoke server uses a temp SQLite database and does not touch live or development data.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:
