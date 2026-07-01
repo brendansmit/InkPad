@@ -379,3 +379,8 @@ Entry format:
 - Built: Added `scripts/native-smoke-server.mjs`, a temp-data local smoke server that seeds one teacher, one student and one green-pen native assignment for real browser checks.
 - Verified: In the in-app browser, student login/password reset, native write, autosave, submit lock, teacher review, return feedback, green-pen rewrite, resubmit lock and teacher comparison anchors all worked against the local server.
 - Decision: This is a smoke tool, not a production route. It uses a temp SQLite database and does not touch live data.
+
+## 2026-07-01 - Native InkPad local preview
+- Asked: Show what the custom native pad looks like compared with Etherpad.
+- Did: Started `scripts/native-smoke-server.mjs` on `http://127.0.0.1:3476` with a temp SQLite database and seeded native assignment.
+- Decision: This preview is local temp data only and does not touch live student work.
