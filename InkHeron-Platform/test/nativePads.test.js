@@ -688,6 +688,7 @@ test('native write view renders without touching Etherpad', async () => {
 
   assert.equal(response.statusCode, 200);
   assert.match(response.body, /Native InkPad/);
+  assert.match(response.body, /href="\/student">← Assignments/);
   assert.match(response.body, /Write one clear paragraph/);
   assert.match(response.body, /niw-editor-stage/);
   assert.match(response.body, /id="charCount"/);

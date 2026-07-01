@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Add native writer assignments back button
+- Asked: Add a back button from the native writer to the assignments page.
+- Built: Added a small `/student` assignments back link in the native writer header and a render test assertion.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: The button uses the fixed student dashboard route instead of browser history.
+
 ## 2026-07-01 - Replace toolbar icons with reference-style SVGs
 - Asked: Make the numbered list, bullet list, indent and outdent buttons match the provided reference image and widen the zoom range.
 - Built: Replaced the four CSS-built toolbar symbols with direct SVG shapes for dots/numbers, bars and triangles. Widened visual-only zoom to 70-150%.

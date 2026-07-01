@@ -62,6 +62,8 @@ export function renderNativeWriteView({
     .niw-stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums;white-space:nowrap}
     .niw-stat.warn{color:#a75432;font-weight:800}
     .niw-btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 10px;font-weight:800;cursor:pointer;font-family:inherit}
+    .niw-back{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 10px;border:1px solid #c8d0c9;border-radius:7px;background:#fff;color:#334239;text-decoration:none;font-size:14px;font-weight:800;white-space:nowrap}
+    .niw-back:hover{border-color:#2f6f4e;color:#183d2a}
     .niw-icon-btn{width:34px;padding:0}
     .niw-glyph{display:block;font-size:22px;line-height:1;font-weight:700}
     .niw-doc-icon{display:block;width:28px;height:22px;margin:auto;color:#566170;fill:currentColor}
@@ -126,6 +128,7 @@ export function renderNativeWriteView({
 </head>
 <body>
   <header class="niw-bar">
+    <a class="niw-back" href="/student">← Assignments</a>
     <div class="niw-brand">InkPad</div>
     <div class="niw-title">${escapeHtml(title)}</div>
     <div class="niw-spacer"></div>
