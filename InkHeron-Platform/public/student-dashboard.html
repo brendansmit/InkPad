@@ -110,7 +110,7 @@
     }
 
     function returnedCard(a){
-      return `<section class="returned"><div><strong>Feedback ready</strong><span>${escapeHtml(a.title)} is ready for green-pen rewriting.</span></div><a class="btn coral" href="${escapeHtml(a.write_url || `/write/${a.id}`)}">Open feedback</a></section>`;
+      return `<section class="returned"><div><strong>Feedback ready</strong><span>${escapeHtml(a.title)} is ready for green-pen rewriting.</span></div><a class="btn coral" href="${escapeHtml(a.feedback_url || a.write_url || `/write/${a.id}`)}">Open feedback</a></section>`;
     }
 
     function assignmentCard(a){

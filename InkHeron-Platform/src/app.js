@@ -93,6 +93,7 @@ export async function buildApp(options = {}) {
   app.get('/teacher/new-assignment', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/new-assignment.html', publicDir));
   app.get('/teacher/settings', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/settings.html', publicDir));
   app.get('/student', async (_request, reply) => reply.sendFile('student-dashboard.html', publicDir));
+  app.get('/native/feedback/:assignmentId', { preValidation: [app.requireStudentSession] }, async (_request, reply) => reply.sendFile('native-feedback.html', publicDir));
   app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));
   app.get('/library/admin', async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
   app.get('/', async (_request, reply) => reply.sendFile('index.html', publicDir));

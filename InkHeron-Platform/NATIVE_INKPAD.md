@@ -70,6 +70,13 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Teachers can recover work by pasting text or uploading a `.txt` file.
 - Recovery can either create a manual revision only or replace the current pad text while keeping a revision trail.
 
+## Phase 10 Student Feedback Loop
+
+- Teacher native review can return feedback, moving pads to `green_pen_open` when green pen is enabled or `marked` otherwise.
+- Student assignment API returns `feedback_url` for native assignments.
+- Student dashboard opens returned native work in a feedback package page.
+- Native feedback page shows marked text, general comments, inline comments, literacy codes, highlights, rubric scores and a rewrite link when green pen is open.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:

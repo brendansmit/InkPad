@@ -694,6 +694,21 @@ export async function registerNativePadRoutes(app, { db }) {
     }
   );
 
+  app.post('/api/native/pads/:padId/finish-marking',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const settings = parseSettings(pad.settings_json);
+      const nextState = settings.green_pen === true ? 'green_pen_open' : 'marked';
+      db.prepare("UPDATE native_pads SET state = ?, updated_at = datetime('now') WHERE id = ?").run(nextState, padId);
+      logTeacherEvent(db, padId, request.session.user.id, 'feedback_released', { state: nextState });
+      const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
+      return { pad: publicNativePad(updated) };
+    }
+  );
+
   app.get('/api/native/pads/:padId/revisions',
     { preValidation: [app.requireTeacherSession] },
     async (request, reply) => {
@@ -957,6 +972,49 @@ export async function registerNativePadRoutes(app, { db }) {
       const replaceCurrent = boolFlag(request.query?.replace_current);
       const updated = importTeacherText(db, pad, request.session.user.id, { plainText: parsed.text, replaceCurrent, source: parsed.filename });
       return { pad: publicNativePad(updated), replace_current: replaceCurrent, filename: parsed.filename };
+    }
+  );
+
+  app.get('/api/native/assignments/:assignmentId/feedback',
+    { preValidation: [app.requireStudentSession] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const studentId = request.session.user.id;
+      const { assignment, student, settings } = await resolveNativeAssignmentAndStudent(db, assignmentId, studentId);
+      const pad = db.prepare('SELECT * FROM native_pads WHERE assignment_id = ? AND student_id = ?').get(assignmentId, studentId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const annotations = db.prepare(`
+        SELECT *
+        FROM native_annotations
+        WHERE native_pad_id = ?
+        ORDER BY created_at ASC, id ASC
+      `).all(pad.id).map(publicAnnotation);
+      const revisions = db.prepare(`
+        SELECT id, reason, plain_text, word_count, document_version, created_at
+        FROM native_pad_revisions
+        WHERE native_pad_id = ?
+        ORDER BY id ASC
+      `).all(pad.id);
+      const rubric = loadAssignmentRubric(db, assignmentId);
+      return {
+        pad: publicNativePad(pad),
+        assignment: {
+          id: assignment.id,
+          title: assignment.title,
+          type: assignment.type,
+          due_at: assignment.due_at ?? null,
+          green_pen: settings.green_pen === true,
+        },
+        student: { id: student.id, display_name: student.display_name },
+        annotations,
+        revisions,
+        rubric: {
+          criteria: rubric.criteria,
+          scores: loadRubricScores(db, pad.id),
+        },
+        student_profile: loadStudentWritingProfile(db, student.id),
+        rewrite_url: `/native/write/${assignment.id}`,
+      };
     }
   );
 

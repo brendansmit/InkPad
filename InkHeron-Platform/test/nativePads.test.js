@@ -54,7 +54,7 @@ function multipartPayload({ file }) {
   };
 }
 
-async function seedNativeAssignment(app, { enabled = true } = {}) {
+async function seedNativeAssignment(app, { enabled = true, greenPen = false } = {}) {
   const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
 
   const classResponse = await app.inject({
@@ -78,6 +78,7 @@ async function seedNativeAssignment(app, { enabled = true } = {}) {
   const settings = {
     type: 'essay',
     spellcheck: true,
+    green_pen: greenPen,
     native_inkpad: enabled,
     prompt: 'Write one clear paragraph.',
   };
@@ -519,6 +520,102 @@ test('teacher can export native backups and import recovered student work', asyn
   await app.close();
 });
 
+test('teacher can return native feedback and student can view it', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app, { greenPen: true });
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const saved = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Feedback text sample.' }] },
+      plain_text: 'Feedback text sample.',
+    },
+  });
+  assert.equal(saved.statusCode, 200);
+
+  const submitted = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/submit`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+  });
+  assert.equal(submitted.statusCode, 201);
+
+  const general = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/annotations`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { type: 'general_comment', body: 'Clear improvement target.' },
+  });
+  assert.equal(general.statusCode, 201);
+
+  const inline = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/annotations`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      type: 'inline_comment',
+      start_offset: 0,
+      end_offset: 8,
+      selected_text: 'Feedback',
+      body: 'Explain this more clearly.',
+    },
+  });
+  assert.equal(inline.statusCode, 201);
+
+  const returned = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/finish-marking`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+  });
+  assert.equal(returned.statusCode, 200);
+  assert.equal(returned.json().pad.state, 'green_pen_open');
+
+  const dashboard = await app.inject({
+    method: 'GET',
+    url: '/api/student/assignments',
+    headers: { cookie: cookies },
+  });
+  assert.equal(dashboard.statusCode, 200);
+  const assignment = dashboard.json().assignments.find(item => item.id === assignmentId);
+  assert.equal(assignment.status, 'needs_rewrite');
+  assert.equal(assignment.feedback_url, `/native/feedback/${assignmentId}`);
+  assert.equal(assignment.write_url, `/native/write/${assignmentId}`);
+
+  const feedback = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/feedback`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(feedback.statusCode, 200);
+  assert.equal(feedback.json().pad.plain_text, 'Feedback text sample.');
+  assert.equal(feedback.json().assignment.green_pen, true);
+  assert.equal(feedback.json().rewrite_url, `/native/write/${assignmentId}`);
+  assert.deepEqual(feedback.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment']);
+
+  const page = await app.inject({
+    method: 'GET',
+    url: `/native/feedback/${assignmentId}`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(page.statusCode, 200);
+  assert.match(page.body, /Open rewrite/);
+  assert.match(page.body, /api\/native\/assignments/);
+
+  await app.close();
+});
+
 test('native write view renders without touching Etherpad', async () => {
   const databasePath = temporaryDatabasePath();
   const app = await buildApp({ databasePath, logger: false });
@@ -565,6 +662,7 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /profileIssueList/);
   assert.match(page.body, /importPastedText/);
   assert.match(page.body, /backups\/export/);
+  assert.match(page.body, /finishMarking/);
 
   await app.close();
 });

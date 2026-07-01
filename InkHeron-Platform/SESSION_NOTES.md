@@ -359,3 +359,10 @@ Entry format:
 - Schedule: systemd update timer checks daily at 02:00 with a 20 minute random delay. The script only runs on Wednesday, Sunday or when a retry marker exists. Watchdog runs daily at 06:00 and kills stuck apt/dpkg processes, then marks retry for the next morning.
 - Verified: Scripts pass `bash -n`, timers are enabled, Ubuntu `apt-daily` timers remain disabled and ServerChan test returned success.
 - Decision: Server maintenance now runs on the droplet without the MacBook. Manual update policy is controlled by these InkHeron timers rather than Ubuntu's default unattended update timers.
+
+## 2026-07-01 - Native InkPad Phase 10 student feedback loop
+- Asked: Run a health check, continue the build and report replacement readiness.
+- Health check: Droplet services were active, load recovered to near zero, swap active and public `inkpad.inkheron.app` timings were about 0.65-0.72 s.
+- Built: Added native `finish-marking` endpoint, student native feedback API, `/native/feedback/:assignmentId` page and dashboard feedback links for returned native work.
+- UI: Teacher review can return feedback. Student feedback page shows marked text, general comment, inline comments, literacy codes, highlights, rubric scores and an `Open rewrite` button when green pen is open.
+- Verified: Node 24 syntax checks passed. Focused suite `test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 21/21. Broader stable suite `test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.

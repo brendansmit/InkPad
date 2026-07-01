@@ -659,6 +659,7 @@ export async function registerAssignmentRoutes(app, { db }) {
             status: deriveStatus(row, now),
             pad_id: effectivePadId(row) ?? null,
             write_url: native ? `/native/write/${row.id}` : `/write/${row.id}`,
+            feedback_url: native ? `/native/feedback/${row.id}` : `/write/${row.id}`,
           };
         }),
       };
