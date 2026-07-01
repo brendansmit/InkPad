@@ -15,10 +15,10 @@ function toolIcon(name) {
   const icons = {
     undo: '<span class="niw-glyph">↺</span>',
     redo: '<span class="niw-glyph">↻</span>',
-    bullets: '<span class="niw-list-icon bullets"><b>•</b><i></i><b>•</b><i></i><b>•</b><i></i></span>',
-    numbers: '<span class="niw-list-icon numbered"><b>1</b><i></i><b>2</b><i></i><b>3</b><i></i></span>',
-    outdent: '<span class="niw-indent-icon outdent"><b></b><i></i><i></i><i></i></span>',
-    indent: '<span class="niw-indent-icon indent"><b></b><i></i><i></i><i></i></span>',
+    bullets: '<svg class="niw-doc-icon" viewBox="0 0 34 24" aria-hidden="true"><circle cx="6" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="6" cy="19" r="2.4"/><rect x="12" y="3" width="18" height="4" rx="1.3"/><rect x="12" y="10" width="18" height="4" rx="1.3"/><rect x="12" y="17" width="18" height="4" rx="1.3"/></svg>',
+    numbers: '<svg class="niw-doc-icon" viewBox="0 0 34 24" aria-hidden="true"><text x="3" y="7.5">1</text><text x="3" y="14.5">2</text><text x="3" y="21.5">3</text><rect x="13" y="3" width="17" height="4" rx="1.3"/><rect x="13" y="10" width="17" height="4" rx="1.3"/><rect x="13" y="17" width="17" height="4" rx="1.3"/></svg>',
+    outdent: '<svg class="niw-doc-icon" viewBox="0 0 34 24" aria-hidden="true"><path d="M12 4 L4 12 L12 20 Z"/><rect x="15" y="3" width="15" height="4" rx="1.3"/><rect x="15" y="10" width="15" height="4" rx="1.3"/><rect x="15" y="17" width="15" height="4" rx="1.3"/></svg>',
+    indent: '<svg class="niw-doc-icon" viewBox="0 0 34 24" aria-hidden="true"><path d="M4 4 L12 12 L4 20 Z"/><rect x="15" y="3" width="15" height="4" rx="1.3"/><rect x="15" y="10" width="15" height="4" rx="1.3"/><rect x="15" y="17" width="15" height="4" rx="1.3"/></svg>',
     alignLeft: '<span class="niw-align-icon left"><i></i><i></i><i></i><i></i></span>',
     alignCenter: '<span class="niw-align-icon center"><i></i><i></i><i></i><i></i></span>',
     alignRight: '<span class="niw-align-icon right"><i></i><i></i><i></i><i></i></span>',
@@ -64,15 +64,8 @@ export function renderNativeWriteView({
     .niw-btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 10px;font-weight:800;cursor:pointer;font-family:inherit}
     .niw-icon-btn{width:34px;padding:0}
     .niw-glyph{display:block;font-size:22px;line-height:1;font-weight:700}
-    .niw-list-icon{width:24px;display:grid;grid-template-columns:6px 1fr;gap:3px 4px;align-items:center;margin:auto;color:currentColor}
-    .niw-list-icon b{display:block;text-align:center;font-size:8px;font-weight:900;line-height:1;color:currentColor}
-    .niw-list-icon.bullets b{font-size:13px;line-height:.65}
-    .niw-list-icon i{display:block;width:15px;height:3px;background:currentColor;border-radius:2px}
-    .niw-indent-icon{width:25px;display:grid;grid-template-columns:9px 1fr;gap:3px 3px;align-items:center;margin:auto;color:currentColor}
-    .niw-indent-icon b{grid-row:1 / span 3;width:0;height:0;align-self:center}
-    .niw-indent-icon.outdent b{border-top:6px solid transparent;border-bottom:6px solid transparent;border-right:8px solid currentColor}
-    .niw-indent-icon.indent b{border-top:6px solid transparent;border-bottom:6px solid transparent;border-left:8px solid currentColor}
-    .niw-indent-icon i{display:block;width:14px;height:3px;background:currentColor;border-radius:2px}
+    .niw-doc-icon{display:block;width:28px;height:22px;margin:auto;color:#566170;fill:currentColor}
+    .niw-doc-icon text{fill:currentColor;font:800 8px Arial,sans-serif}
     .niw-align-icon{width:22px;display:grid;gap:4px;margin:auto}
     .niw-align-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
     .niw-align-icon.left i:nth-child(odd),.niw-align-icon.right i:nth-child(odd){width:100%}
@@ -223,7 +216,7 @@ export function renderNativeWriteView({
           </span>
         </span>
         <div class="niw-divider"></div>
-        <label class="niw-zoom">Zoom <input id="zoomSlider" type="range" min="80" max="125" step="5" value="100"><span id="zoomLabel">100%</span></label>
+        <label class="niw-zoom">Zoom <input id="zoomSlider" type="range" min="70" max="150" step="5" value="100"><span id="zoomLabel">100%</span></label>
       </div>
       <div class="niw-editor-stage">
         <div class="niw-page-zoom-frame" id="pageZoomFrame">
@@ -310,7 +303,7 @@ export function renderNativeWriteView({
     }
     function clamp(value, min, max){ return Math.max(min, Math.min(max, value)); }
     function applyLayoutSettings(){
-      editorZoom = clamp(editorZoom, 0.8, 1.25);
+      editorZoom = clamp(editorZoom, 0.7, 1.5);
       readerWidth = clamp(readerWidth, 260, Math.min(Math.floor(window.innerWidth * 0.6), 820));
       shell.style.setProperty('--page-width', pageWidth + 'px');
       shell.style.setProperty('--editor-zoom', editorZoom.toFixed(2));

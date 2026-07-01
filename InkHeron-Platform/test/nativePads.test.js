@@ -696,7 +696,7 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /Drag to resize panels/);
   assert.match(response.body, /id="saveBtn"/);
   assert.match(response.body, /id="zoomSlider"/);
-  assert.match(response.body, /id="zoomSlider"[^>]+max="125"/);
+  assert.match(response.body, /id="zoomSlider"[^>]+min="70"[^>]+max="150"/);
   assert.doesNotMatch(response.body, /zoom:var\(--editor-zoom\)/);
   assert.match(response.body, /transform:scale\(var\(--editor-zoom\)\)/);
   assert.match(response.body, /transform-origin:top center/);
@@ -715,7 +715,7 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /data-fore-color="#2f6f4e"/);
   assert.match(response.body, /data-hilite-color="#fff0a6"/);
   assert.match(response.body, /niw-align-icon center/);
-  assert.match(response.body, /niw-list-icon numbered/);
+  assert.match(response.body, /niw-doc-icon/);
   assert.match(response.body, /niw-glyph/);
   assert.match(response.body, /font-family:var\(--font\)/);
   assert.match(response.body, /type:'html'/);

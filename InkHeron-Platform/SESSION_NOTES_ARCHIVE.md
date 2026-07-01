@@ -4,6 +4,21 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-06-29 — Flexible column-picker for student import
+- Phase/Step worked: Phase 8 teacher UX polish
+- Built: Reworked spreadsheet import in students.html. After dropping a file,
+  two dropdowns let the teacher pick which column is the name and which is the
+  class. Auto-guesses column from header text ("English Name", "Admin Class" etc).
+  Class cells matched case-insensitively against existing classes — green tick if
+  matched, red X with manual fallback picker if not. Import blocked until all
+  students have a class. Username auto-generated from name.
+- Decisions: class match is exact case-insensitive; no fuzzy match to avoid
+  false positives across similar class names.
+- Open / next: Strengths and Targets upload + AI marking suggestions (Phase 8.6)
+- Gotchas hit: none.
+
+---
+
 ## 2026-07-01 - Native InkPad Phase 7 rubrics
 - Asked: Build the next two native InkPad phases, starting with rubric grading beside strengths, targets, comments and literacy codes.
 - Built: Added `014_native_rubrics.sql` with assignment rubric criteria, score bands and per-native-pad rubric scores. Added teacher APIs to create assignment rubrics and save half-step pad scores. Review payload now includes rubric criteria and scores.

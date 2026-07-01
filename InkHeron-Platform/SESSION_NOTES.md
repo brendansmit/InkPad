@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Replace toolbar icons with reference-style SVGs
+- Asked: Make the numbered list, bullet list, indent and outdent buttons match the provided reference image and widen the zoom range.
+- Built: Replaced the four CSS-built toolbar symbols with direct SVG shapes for dots/numbers, bars and triangles. Widened visual-only zoom to 70-150%.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: The four reference controls now use fixed SVG geometry instead of browser-rendered CSS/text approximations.
+
 ## 2026-07-01 - Fix native writer font size and resize affordance
 - Asked: Fix broken font size, make the panels obviously draggable, match list/indent icons to the provided standard style and make zoom expand from the centre.
 - Built: Font size now restores the editor selection and applies real `font-size:Npx` spans, list/indent icons use filled number/bullet/triangle line forms, the divider has a visible drag grip and zoom uses `transform-origin:top center`.
@@ -363,19 +369,6 @@ Entry format:
   if any POSTs fail. No backend change needed.
 - Decisions: One assignment row per class (existing schema, no migration). Last created
   ID used for the `?highlight` redirect.
-- Open / next: Strengths and Targets upload + AI marking suggestions (Phase 8.6)
-- Gotchas hit: none.
-
-## 2026-06-29 — Flexible column-picker for student import
-- Phase/Step worked: Phase 8 teacher UX polish
-- Built: Reworked spreadsheet import in students.html. After dropping a file,
-  two dropdowns let the teacher pick which column is the name and which is the
-  class. Auto-guesses column from header text ("English Name", "Admin Class" etc).
-  Class cells matched case-insensitively against existing classes — green tick if
-  matched, red X with manual fallback picker if not. Import blocked until all
-  students have a class. Username auto-generated from name.
-- Decisions: class match is exact case-insensitive; no fuzzy match to avoid
-  false positives across similar class names.
 - Open / next: Strengths and Targets upload + AI marking suggestions (Phase 8.6)
 - Gotchas hit: none.
 
