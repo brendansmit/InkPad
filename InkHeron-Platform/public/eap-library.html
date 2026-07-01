@@ -39,10 +39,13 @@
     .empty{display:none;min-height:360px;align-items:center;justify-content:center;flex-direction:column;text-align:center;color:var(--text-3);background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);}
     .empty strong{color:var(--text-2);font-size:16px;margin-bottom:6px;}
     .viewer{position:fixed;inset:0;background:var(--bg);z-index:50;display:none;flex-direction:column;}
-    .viewer-bar{height:52px;display:flex;align-items:center;gap:10px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 16px;}
-    .viewer-title{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
-    .viewer button,.viewer a{border:1px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);color:var(--text);text-decoration:none;font:700 13px/1 var(--font);padding:9px 12px;cursor:pointer;}
-    .viewer iframe{border:0;width:100%;height:calc(100vh - 52px);background:#fff;}
+    .viewer-bar{min-height:52px;display:flex;align-items:center;gap:8px;background:var(--surface);border-bottom:1px solid var(--border);padding:0 14px;flex-wrap:wrap;}
+    .viewer-title{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;font-size:14px;}
+    .viewer button,.viewer a{border:1px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);color:var(--text);text-decoration:none;font:700 13px/1 var(--font);padding:10px 14px;cursor:pointer;white-space:nowrap;min-height:40px;display:inline-flex;align-items:center;}
+    .viewer iframe{border:0;width:100%;flex:1;background:#fff;}
+    .pdf-mobile-view{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px 24px;text-align:center;background:var(--bg);}
+    .pdf-mobile-view p{color:var(--text-2);font-size:15px;line-height:1.5;max-width:300px;}
+    .pdf-mobile-view a{background:var(--green-600);color:#fff;border-radius:var(--r-sm);padding:13px 24px;font-weight:700;font-size:15px;text-decoration:none;display:inline-block;}
     .modal{position:fixed;inset:0;background:rgba(20,20,18,.42);z-index:80;display:none;align-items:center;justify-content:center;padding:20px;}
     .modal-box{width:min(100%,360px);background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-lift);padding:28px;text-align:center;}
     .modal-box h2{margin:0 0 8px;font-size:20px;}
@@ -51,7 +54,18 @@
     .modal-box button{width:100%;border:0;border-radius:var(--r-sm);background:var(--green-600);color:#fff;min-height:42px;font-weight:800;cursor:pointer;}
     .toast{position:fixed;right:18px;bottom:18px;background:var(--maroon-700);color:#fff;border-radius:var(--r-sm);padding:10px 14px;box-shadow:var(--shadow-lift);}
     @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
-    @media(max-width:680px){.sidebar{position:static;width:auto;height:auto;display:block;border-right:0;border-bottom:1px solid var(--border);}.sidebar-footer{display:none;}.main{margin-left:0;}.topbar{align-items:stretch;flex-direction:column;padding:14px 16px;}.count{margin-left:0;}.search{max-width:none;}.content{padding:16px;}.grid{grid-template-columns:1fr;}.viewer-bar{height:auto;min-height:52px;flex-wrap:wrap;padding:10px;}.viewer iframe{height:calc(100vh - 88px);}}
+    @media(max-width:680px){
+      .sidebar{position:static;width:auto;height:auto;display:block;border-right:0;border-bottom:1px solid var(--border);}
+      .sidebar-footer{display:none;}
+      .main{margin-left:0;}
+      .topbar{align-items:stretch;flex-direction:column;padding:14px 16px;}
+      .count{margin-left:0;}
+      .search{max-width:none;}
+      .content{padding:16px;}
+      .grid{grid-template-columns:1fr;}
+      .viewer-bar{padding:10px 12px;gap:8px;}
+      .viewer button,.viewer a{padding:10px 12px;font-size:13px;}
+    }
   </style>
 </head>
 <body>
@@ -79,12 +93,16 @@
 
   <div class="viewer" id="viewer">
     <div class="viewer-bar">
-      <button type="button" id="viewer-back">Back</button>
+      <button type="button" id="viewer-back">← Back</button>
       <div class="viewer-title" id="viewer-title"></div>
-      <a id="viewer-open" href="#" target="_blank" rel="noopener">Open</a>
+      <a id="viewer-open" href="#" target="_blank" rel="noopener">Open in tab</a>
       <a id="viewer-download" href="#">Download</a>
     </div>
     <iframe id="viewer-frame" title="Document viewer" src="about:blank"></iframe>
+    <div class="pdf-mobile-view" id="pdf-mobile-view">
+      <p>PDFs open in your device's PDF viewer for the best reading experience.</p>
+      <a id="pdf-mobile-open" href="#">Open PDF</a>
+    </div>
   </div>
 
   <div class="modal" id="identity">
@@ -174,6 +192,8 @@
 
     function applyFilters(){renderGrid(activeDocs());}
 
+    function isMobile(){return window.innerWidth<=680||/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);}
+
     function openDoc(card){
       const releaseAt=card.dataset.release;
       const today=new Date().toISOString().slice(0,10);
@@ -186,13 +206,34 @@
       const filename=card.dataset.filename;
       const url=`/library/uploads/${filename}`;
       const downloadable=card.dataset.downloadable==='1';
-      const isViewOnlyPdf=card.dataset.type==='pdf'&&!downloadable;
+      const isPdf=card.dataset.type==='pdf';
+      const frame=document.getElementById('viewer-frame');
+      const pdfMobile=document.getElementById('pdf-mobile-view');
+      const pdfMobileOpen=document.getElementById('pdf-mobile-open');
+      const viewerOpen=document.getElementById('viewer-open');
+      const viewerDownload=document.getElementById('viewer-download');
+
       document.getElementById('viewer-title').textContent=card.dataset.title;
-      document.getElementById('viewer-frame').src=isViewOnlyPdf?`${url}#toolbar=0&navpanes=0`:url;
-      document.getElementById('viewer-open').href=url;
-      document.getElementById('viewer-open').style.display=downloadable?'inline-flex':'none';
-      document.getElementById('viewer-download').href=`/api/library/docs/${viewingDocId}/download`;
-      document.getElementById('viewer-download').style.display=downloadable?'inline-flex':'none';
+
+      if(isPdf&&isMobile()){
+        // iOS and Android can't reliably render PDFs in iframes — use native viewer
+        frame.src='about:blank';
+        frame.style.display='none';
+        pdfMobile.style.display='flex';
+        pdfMobileOpen.href=url;
+        viewerOpen.style.display='none';
+        viewerDownload.style.display=downloadable?'inline-flex':'none';
+        if(downloadable) viewerDownload.href=`/api/library/docs/${viewingDocId}/download`;
+      }else{
+        frame.style.display='block';
+        pdfMobile.style.display='none';
+        frame.src=(isPdf&&!downloadable)?`${url}#toolbar=0&navpanes=0`:url;
+        viewerOpen.href=url;
+        viewerOpen.style.display=downloadable?'inline-flex':'none';
+        viewerDownload.href=`/api/library/docs/${viewingDocId}/download`;
+        viewerDownload.style.display=downloadable?'inline-flex':'none';
+      }
+
       document.getElementById('viewer').style.display='flex';
       document.body.style.overflow='hidden';
     }
@@ -212,6 +253,8 @@
       logView();
       document.getElementById('viewer').style.display='none';
       document.getElementById('viewer-frame').src='about:blank';
+      document.getElementById('viewer-frame').style.display='block';
+      document.getElementById('pdf-mobile-view').style.display='none';
       document.body.style.overflow='';
     }
 
