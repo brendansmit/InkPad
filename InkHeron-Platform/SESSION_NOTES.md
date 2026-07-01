@@ -22,7 +22,7 @@ Entry format:
 
 ## 2026-07-01 - Rebuild native PDF zoom and marking
 - Asked: Replace bad PDF marking, make PDF zoom centre on the document and stop right-side zoom from changing font size.
-- Built: Replaced embedded browser PDF with PDF.js page rendering, selectable text layers and canvas-based selected-text highlight/underline.
+- Built: Replaced embedded browser PDF with PDF.js page rendering, selectable text layers and locally persisted canvas-based selected-text highlight/underline.
 - Built: PDF zoom rerenders pages at true scale and restores scroll centre. Right writer zoom now changes page width instead of transform-scaling the editable DOM.
 - Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 11/11. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
 

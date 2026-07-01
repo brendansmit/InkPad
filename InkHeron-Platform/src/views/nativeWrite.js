@@ -812,6 +812,7 @@ export function renderNativeWriteView({
     let rendering = false;
     let pdfMarks = [];
     const pdfZoomKey = 'nativePadPdfZoom:${assignmentId}';
+    const pdfMarkKey = 'nativePdfMarks:${assignmentId}';
     try {
       const savedZoom = Number(localStorage.getItem(pdfZoomKey));
       if(Number.isFinite(savedZoom) && pdfSlider){
@@ -819,9 +820,17 @@ export function renderNativeWriteView({
         if(pdfLabel) pdfLabel.textContent = pdfSlider.value + '%';
       }
     } catch (_) {}
+    try {
+      pdfMarks = JSON.parse(localStorage.getItem(pdfMarkKey) || '[]').filter(mark => mark && Number.isFinite(mark.page));
+    } catch (_) {
+      pdfMarks = [];
+    }
 
     function currentScale(){
       return fitScale * ((pdfSlider ? Number(pdfSlider.value) : 100) / 100);
+    }
+    function savePdfMarks(){
+      try{ localStorage.setItem(pdfMarkKey, JSON.stringify(pdfMarks)); }catch(_){}
     }
     function scrollCenter(){
       if(!pdfFrame) return { x:.5, y:.5 };
@@ -921,6 +930,7 @@ export function renderNativeWriteView({
         });
         drawStoredMarks(pageNum, pageEl);
       });
+      savePdfMarks();
       selection.removeAllRanges();
     }
     document.querySelectorAll('[data-pdf-highlight]').forEach(button => {
