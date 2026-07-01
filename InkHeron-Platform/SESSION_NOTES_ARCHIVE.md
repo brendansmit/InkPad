@@ -4,6 +4,13 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-07-01 - Native InkPad local preview
+- Asked: Show what the custom native pad looks like compared with Etherpad.
+- Did: Started `scripts/native-smoke-server.mjs` on `http://127.0.0.1:3476` with a temp SQLite database and seeded native assignment.
+- Decision: This preview is local temp data only and does not touch live student work.
+
+---
+
 ## 2026-07-01 - Native InkPad default for new assignments
 - Asked: Get the custom pad usable for students ASAP because Etherpad has been breaking down.
 - Built: New assignments now default to Native InkPad in the API and teacher form. Etherpad remains an explicit fallback and existing Etherpad assignments are not silently flipped.

@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Import Etherpad essays to Native InkPad
+- Asked: ASAP copy current Etherpad essays into Native InkPad without preserving revision history.
+- Built: Added `scripts/import-etherpad-to-native.mjs` with dry-run, `--apply`, no-overwrite default, optional `--overwrite` and assignment-native flipping.
+- Verified: Imported live assignments `9`, `8`, `7`, `4` and `3`, creating 21 native pads; tests passed, live counts match and public health returned 200.
+
 ## 2026-07-01 - Native writer counters, formatting and resizing
 - Asked: Add more formatting options, character and sentence counters, working reader/pad resizing and working zoom.
 - Built: Added character and sentence counters, more formatting buttons, persisted simple HTML formatting, draggable reader split, page width controls and zoom controls.
@@ -393,8 +398,3 @@ Entry format:
 - Built: Added `scripts/native-smoke-server.mjs`, a temp-data local smoke server that seeds one teacher, one student and one green-pen native assignment for real browser checks.
 - Verified: In the in-app browser, student login/password reset, native write, autosave, submit lock, teacher review, return feedback, green-pen rewrite, resubmit lock and teacher comparison anchors all worked against the local server.
 - Decision: This is a smoke tool, not a production route. It uses a temp SQLite database and does not touch live data.
-
-## 2026-07-01 - Native InkPad local preview
-- Asked: Show what the custom native pad looks like compared with Etherpad.
-- Did: Started `scripts/native-smoke-server.mjs` on `http://127.0.0.1:3476` with a temp SQLite database and seeded native assignment.
-- Decision: This preview is local temp data only and does not touch live student work.
