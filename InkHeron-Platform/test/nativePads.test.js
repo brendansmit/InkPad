@@ -334,6 +334,79 @@ test('teacher can review native pad, add comments and change live paste policy',
   await app.close();
 });
 
+test('teacher can configure and score a native rubric with half steps', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app);
+  const { cookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const rubric = await app.inject({
+    method: 'PUT',
+    url: `/api/native/assignments/${assignmentId}/rubric`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      criteria: [
+        {
+          label: 'Evidence',
+          description: 'Use relevant examples.',
+          weight: 1,
+          bands: [
+            { score_value: 0, label: '0', descriptor: 'Missing' },
+            { score_value: 1, label: '1', descriptor: 'Limited' },
+            { score_value: 2, label: '2', descriptor: 'Developing' },
+            { score_value: 3, label: '3', descriptor: 'Secure' },
+            { score_value: 4, label: '4', descriptor: 'Strong' },
+          ],
+        },
+      ],
+    },
+  });
+  assert.equal(rubric.statusCode, 200);
+  assert.equal(rubric.json().rubric.criteria.length, 1);
+  const criterionId = rubric.json().rubric.criteria[0].id;
+
+  const scored = await app.inject({
+    method: 'PUT',
+    url: `/api/native/pads/${padId}/rubric-scores`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      scores: [{ criterion_id: criterionId, selected_score: 3.5, note: 'Strong evidence but explanation is thin.' }],
+    },
+  });
+  assert.equal(scored.statusCode, 200);
+  assert.equal(scored.json().scores[0].selected_score, 3.5);
+
+  const invalid = await app.inject({
+    method: 'PUT',
+    url: `/api/native/pads/${padId}/rubric-scores`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      scores: [{ criterion_id: criterionId, selected_score: 3.25, note: 'Invalid score.' }],
+    },
+  });
+  assert.equal(invalid.statusCode, 400);
+
+  const review = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/review`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(review.statusCode, 200);
+  assert.equal(review.json().rubric.criteria[0].label, 'Evidence');
+  assert.equal(review.json().rubric.scores[0].selected_score, 3.5);
+  assert.equal(review.json().rubric.scores[0].note, 'Strong evidence but explanation is thin.');
+
+  await app.close();
+});
+
 test('native write view renders without touching Etherpad', async () => {
   const databasePath = temporaryDatabasePath();
   const app = await buildApp({ databasePath, logger: false });
@@ -375,6 +448,8 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /pasteMode/);
   assert.match(page.body, /literacy_code/);
   assert.match(page.body, /showRevision/);
+  assert.match(page.body, /rubricPanel/);
+  assert.match(page.body, /saveRubricScores/);
 
   await app.close();
 });

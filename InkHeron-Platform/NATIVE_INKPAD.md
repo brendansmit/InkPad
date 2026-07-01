@@ -48,6 +48,13 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Native review page revision list has `View` buttons.
 - Teachers can inspect saved snapshots in the main paper pane and return to the marked current text.
 
+## Phase 7 Rubrics
+
+- Assignment rubrics store criteria, descriptors, weights and score bands.
+- Native review payloads include rubric criteria and per-pad rubric scores.
+- Teachers can create a default rubric, mark whole or half scores and add score notes.
+- Rubric scoring is stored separately from grades so it can later feed student feedback packages and progress profiles.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:

@@ -49,6 +49,15 @@
     .meta{font-family:var(--mono);font-size:12px;color:var(--text-3)}
     .tabs{display:flex;gap:6px;margin-bottom:10px}
     .tab{min-height:32px;padding:0 10px}
+    .rubric-table{display:grid;gap:10px}
+    .rubric-row{border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;background:var(--surface)}
+    .rubric-row header{display:flex;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .rubric-row header strong{font-size:13px}
+    .score-grid{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:3px;margin:8px 0}
+    .score-btn{min-height:30px;padding:0;border-radius:6px;border:1px solid var(--border-2);background:var(--bg);font-size:12px;font-weight:800;cursor:pointer}
+    .score-btn.half{background:linear-gradient(90deg,transparent 45%,var(--border-2) 45%,var(--border-2) 55%,transparent 55%)}
+    .score-btn.selected{background:var(--green-600);border-color:var(--green-600);color:#fff}
+    .score-btn.half.selected{background:linear-gradient(90deg,var(--green-600) 45%,#fff 45%,#fff 55%,var(--green-600) 55%);color:#fff}
     .empty{padding:30px;text-align:center;color:var(--text-3)}
     @media(max-width:1080px){.layout{grid-template-columns:1fr}.rail,.side{position:static}.paper{min-height:50vh}.topline{display:block}}
   </style>
@@ -170,6 +179,10 @@
             <span class="sub" id="rangeMsg"></span>
           </section>
           <section class="panel box">
+            <span class="label">Rubric</span>
+            <div id="rubricPanel">${rubricPanel()}</div>
+          </section>
+          <section class="panel box">
             <div class="tabs">
               <button class="btn tab" type="button" data-filter="all">All</button>
               <button class="btn tab" type="button" data-filter="inline_comment">Inline</button>
@@ -186,6 +199,9 @@
       document.getElementById('saveGeneralBtn').addEventListener('click', saveGeneralComment);
       document.getElementById('addRangeBtn').addEventListener('click', addRangeAnnotation);
       document.getElementById('rangeType').addEventListener('change', updateRangeForm);
+      document.getElementById('createRubricBtn')?.addEventListener('click', createDefaultRubric);
+      document.getElementById('saveRubricScoresBtn')?.addEventListener('click', saveRubricScores);
+      document.querySelectorAll('[data-rubric-score]').forEach(btn=>btn.addEventListener('click',()=>selectRubricScore(btn)));
       document.querySelectorAll('[data-filter]').forEach(btn=>btn.addEventListener('click',()=> {
         document.getElementById('annotationList').innerHTML=annotationList(btn.dataset.filter);
       }));
@@ -203,6 +219,58 @@
 
     function revisionItem(revision){
       return `<div class="comment"><strong>${escapeHtml(revision.reason)}</strong><p>${revision.word_count} words · v${revision.document_version}</p><span class="meta">${escapeHtml(formatDate(revision.created_at))}</span><button class="btn" type="button" data-revision="${revision.id}" style="margin-top:8px">View</button></div>`;
+    }
+
+    function rubricPanel(){
+      const criteria=reviewData.rubric?.criteria || [];
+      if(!criteria.length){
+        return `<div class="empty" style="padding:12px">No rubric yet.</div><button class="btn primary" id="createRubricBtn" type="button">Create default rubric</button><span class="sub" id="rubricMsg"></span>`;
+      }
+      return `
+        <div class="rubric-table">
+          ${criteria.map(rubricRow).join('')}
+        </div>
+        <button class="btn primary" id="saveRubricScoresBtn" type="button" style="margin-top:10px">Save rubric</button>
+        <span class="sub" id="rubricMsg"></span>
+      `;
+    }
+
+    function rubricRow(criterion){
+      const selected=rubricScoreFor(criterion.id);
+      return `
+        <div class="rubric-row" data-rubric-criterion="${criterion.id}" data-selected-score="${selected?.selected_score ?? ''}">
+          <header><strong>${escapeHtml(criterion.label)}</strong><span class="meta">x${criterion.weight}</span></header>
+          ${criterion.description?`<p class="sub">${escapeHtml(criterion.description)}</p>`:''}
+          <div class="score-grid">
+            ${scoreValuesFor(criterion).map(score=>`
+              <button class="score-btn ${score % 1 === 0 ? '' : 'half'} ${selected && Number(selected.selected_score)===score ? 'selected' : ''}" type="button" data-rubric-score="${score}" data-criterion-id="${criterion.id}">${selected && Number(selected.selected_score)===score ? 'X' : score}</button>
+            `).join('')}
+          </div>
+          <textarea data-rubric-note="${criterion.id}" placeholder="Why this score">${escapeHtml(selected?.note || '')}</textarea>
+        </div>
+      `;
+    }
+
+    function scoreValuesFor(criterion){
+      const whole=(criterion.bands || []).map(band=>Number(band.score_value)).filter(score=>Number.isFinite(score));
+      const max=whole.length ? Math.max(...whole) : 5;
+      const values=[];
+      for(let score=0;score<=max;score+=0.5) values.push(score);
+      return values;
+    }
+
+    function rubricScoreFor(criterionId){
+      return (reviewData.rubric?.scores || []).find(score=>Number(score.criterion_id)===Number(criterionId));
+    }
+
+    function selectRubricScore(button){
+      const row=button.closest('[data-rubric-criterion]');
+      row.dataset.selectedScore=button.dataset.rubricScore;
+      row.querySelectorAll('[data-rubric-score]').forEach(item=>{
+        const selected=item===button;
+        item.classList.toggle('selected', selected);
+        item.textContent=selected ? 'X' : item.dataset.rubricScore;
+      });
     }
 
     function showRevision(id){
@@ -345,6 +413,33 @@
       });
       document.getElementById('rangeMsg').textContent=response.ok?'Annotation saved.':'Annotation failed.';
       if(response.ok){ selectedRange=null; await loadReview(); }
+    }
+
+    async function createDefaultRubric(){
+      const response=await fetch('/api/native/assignments/'+reviewData.assignment.id+'/rubric',{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({}),
+      });
+      document.getElementById('rubricMsg').textContent=response.ok?'Rubric created.':'Rubric failed.';
+      if(response.ok) await loadReview();
+    }
+
+    async function saveRubricScores(){
+      const scores=[...document.querySelectorAll('[data-rubric-criterion]')]
+        .filter(row=>row.dataset.selectedScore !== '')
+        .map(row=>({
+          criterion_id:Number(row.dataset.rubricCriterion),
+          selected_score:Number(row.dataset.selectedScore),
+          note:document.querySelector('[data-rubric-note="'+row.dataset.rubricCriterion+'"]').value,
+        }));
+      const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/rubric-scores',{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({scores}),
+      });
+      document.getElementById('rubricMsg').textContent=response.ok?'Rubric saved.':'Rubric failed.';
+      if(response.ok){ reviewData.rubric.scores=(await response.json()).scores; }
     }
 
     async function resolveAnnotation(id){

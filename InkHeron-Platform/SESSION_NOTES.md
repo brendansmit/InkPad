@@ -319,3 +319,10 @@ Entry format:
   false positives across similar class names.
 - Open / next: Strengths and Targets upload + AI marking suggestions (Phase 8.6)
 - Gotchas hit: none.
+
+## 2026-07-01 - Native InkPad Phase 7 rubrics
+- Asked: Build the next two native InkPad phases, starting with rubric grading beside strengths, targets, comments and literacy codes.
+- Built: Added `014_native_rubrics.sql` with assignment rubric criteria, score bands and per-native-pad rubric scores. Added teacher APIs to create assignment rubrics and save half-step pad scores. Review payload now includes rubric criteria and scores.
+- UI: Native review page can create a default five-criterion rubric, choose whole or half scores with an X marker and save notes for each criterion.
+- Verified: `node --check src/routes/nativePads.js` and Node 24 `--test test/migration.test.js test/nativePads.test.js` passed 8/8.
+- Decision: Rubric scores stay separate from numeric grades for now so they can later feed visible feedback packages and student profiles.

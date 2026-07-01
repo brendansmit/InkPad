@@ -18,6 +18,9 @@ const expectedColumns = {
   native_pad_policies: ['id', 'native_pad_id', 'paste_mode', 'spellcheck_enabled', 'updated_by_teacher_id', 'updated_at'],
   native_annotations: ['id', 'native_pad_id', 'teacher_id', 'type', 'start_offset', 'end_offset', 'selected_text', 'body', 'metadata_json', 'resolved', 'document_version', 'created_at', 'updated_at'],
   native_teacher_events: ['id', 'native_pad_id', 'teacher_id', 'action', 'metadata_json', 'created_at'],
+  assignment_rubric_criteria: ['id', 'assignment_id', 'label', 'description', 'weight', 'sort_order', 'created_at', 'updated_at'],
+  assignment_rubric_bands: ['id', 'criterion_id', 'score_value', 'label', 'descriptor', 'sort_order', 'created_at'],
+  native_rubric_scores: ['id', 'native_pad_id', 'criterion_id', 'selected_score', 'note', 'updated_by_teacher_id', 'updated_at'],
   submissions: ['id', 'pad_id', 'submitted_at', 'is_graded', 'released'],
   grades: ['id', 'submission_id', 'score', 'released', 'graded_at'],
   paste_events: ['id', 'pad_id', 'at', 'length', 'input_type'],
@@ -47,6 +50,7 @@ const migrationFiles = [
   '011_pad_allocations.sql',
   '012_native_inkpad.sql',
   '013_native_review_policy.sql',
+  '014_native_rubrics.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

@@ -11,8 +11,17 @@ const EMPTY_META = '{}';
 const MAX_PLAIN_TEXT_LENGTH = 200000;
 const MAX_DOCUMENT_JSON_LENGTH = 1000000;
 const MAX_COMMENT_LENGTH = 8000;
+const MAX_RUBRIC_LABEL_LENGTH = 120;
+const MAX_RUBRIC_DESCRIPTION_LENGTH = 1200;
 const ANNOTATION_TYPES = new Set(['general_comment', 'inline_comment', 'literacy_code', 'highlight']);
 const PASTE_MODES = new Set(['allow', 'log', 'block']);
+const DEFAULT_RUBRIC = [
+  { label: 'Thesis', description: 'Clear central idea and control of argument.', weight: 1 },
+  { label: 'Evidence', description: 'Relevant examples, quotations or details.', weight: 1 },
+  { label: 'Commentary', description: 'Explanation of how evidence supports the idea.', weight: 1 },
+  { label: 'Organisation', description: 'Logical sequencing, paragraphing and transitions.', weight: 1 },
+  { label: 'Language control', description: 'Sentence control, grammar and word choice.', weight: 1 },
+];
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -77,6 +86,21 @@ function normalizeComment(value) {
   return text;
 }
 
+function normalizeRubricText(value, maxLength, fallback = '') {
+  const text = typeof value === 'string' ? value.trim() : fallback;
+  return text.slice(0, maxLength);
+}
+
+function normalizeHalfScore(value, field) {
+  const score = Number(value);
+  if (!Number.isFinite(score) || score < 0 || !Number.isInteger(score * 2)) {
+    const error = new Error(`${field}_must_be_half_step_score`);
+    error.statusCode = 400;
+    throw error;
+  }
+  return score;
+}
+
 function normalizeMetadata(value) {
   const metadata = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   return JSON.stringify(metadata);
@@ -123,6 +147,105 @@ function publicAnnotation(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+function publicRubricScore(row) {
+  return {
+    criterion_id: row.criterion_id,
+    selected_score: Number(row.selected_score),
+    note: row.note ?? '',
+    updated_by_teacher_id: row.updated_by_teacher_id ?? null,
+    updated_at: row.updated_at,
+  };
+}
+
+function loadAssignmentRubric(db, assignmentId) {
+  const criteria = db.prepare(`
+    SELECT *
+    FROM assignment_rubric_criteria
+    WHERE assignment_id = ?
+    ORDER BY sort_order ASC, id ASC
+  `).all(assignmentId);
+  if (!criteria.length) return { criteria: [] };
+
+  const bandRows = db.prepare(`
+    SELECT b.*
+    FROM assignment_rubric_bands b
+    JOIN assignment_rubric_criteria c ON c.id = b.criterion_id
+    WHERE c.assignment_id = ?
+    ORDER BY b.sort_order ASC, b.score_value ASC, b.id ASC
+  `).all(assignmentId);
+  const bandsByCriterion = new Map();
+  for (const band of bandRows) {
+    const list = bandsByCriterion.get(band.criterion_id) ?? [];
+    list.push({
+      id: band.id,
+      score_value: Number(band.score_value),
+      label: band.label ?? '',
+      descriptor: band.descriptor ?? '',
+    });
+    bandsByCriterion.set(band.criterion_id, list);
+  }
+
+  return {
+    criteria: criteria.map((criterion) => ({
+      id: criterion.id,
+      assignment_id: criterion.assignment_id,
+      label: criterion.label,
+      description: criterion.description ?? '',
+      weight: Number(criterion.weight ?? 1),
+      sort_order: Number(criterion.sort_order ?? 0),
+      bands: bandsByCriterion.get(criterion.id) ?? [],
+    })),
+  };
+}
+
+function loadRubricScores(db, padId) {
+  return db.prepare(`
+    SELECT *
+    FROM native_rubric_scores
+    WHERE native_pad_id = ?
+    ORDER BY criterion_id ASC
+  `).all(padId).map(publicRubricScore);
+}
+
+function normalizeRubricCriteria(body) {
+  const source = Array.isArray(body?.criteria) && body.criteria.length ? body.criteria : DEFAULT_RUBRIC;
+  if (source.length > 20) {
+    const error = new Error('too_many_rubric_criteria');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return source.map((item, index) => {
+    const label = normalizeRubricText(item?.label, MAX_RUBRIC_LABEL_LENGTH, DEFAULT_RUBRIC[index]?.label || `Criterion ${index + 1}`);
+    if (!label) {
+      const error = new Error('rubric_label_required');
+      error.statusCode = 400;
+      throw error;
+    }
+    const weight = Number(item?.weight ?? 1);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      const error = new Error('invalid_rubric_weight');
+      error.statusCode = 400;
+      throw error;
+    }
+    const bands = Array.isArray(item?.bands) && item.bands.length
+      ? item.bands
+      : [0, 1, 2, 3, 4, 5].map((score) => ({ score_value: score, label: String(score), descriptor: '' }));
+    return {
+      label,
+      description: normalizeRubricText(item?.description, MAX_RUBRIC_DESCRIPTION_LENGTH),
+      weight,
+      sortOrder: Number.isInteger(Number(item?.sort_order)) ? Number(item.sort_order) : index,
+      bands: bands.slice(0, 20).map((band, bandIndex) => ({
+        scoreValue: normalizeHalfScore(band?.score_value ?? band?.score ?? bandIndex, 'rubric_band_score'),
+        label: normalizeRubricText(band?.label, MAX_RUBRIC_LABEL_LENGTH, String(band?.score_value ?? band?.score ?? bandIndex)),
+        descriptor: normalizeRubricText(band?.descriptor, MAX_RUBRIC_DESCRIPTION_LENGTH),
+        sortOrder: Number.isInteger(Number(band?.sort_order)) ? Number(band.sort_order) : bandIndex,
+      })),
+    };
+  });
 }
 
 async function resolveNativeAssignmentAndStudent(db, assignmentId, studentId) {
@@ -400,6 +523,74 @@ export async function registerNativePadRoutes(app, { db }) {
     }
   );
 
+  app.put('/api/native/assignments/:assignmentId/rubric',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = db.prepare('SELECT id, settings_json FROM assignments WHERE id = ?').get(assignmentId);
+      if (!assignment || !nativeEnabled(assignment)) return reply.code(404).send({ error: 'assignment_not_found' });
+      const criteria = normalizeRubricCriteria(request.body);
+
+      db.exec('BEGIN');
+      try {
+        db.prepare('DELETE FROM assignment_rubric_criteria WHERE assignment_id = ?').run(assignmentId);
+        const insertCriterion = db.prepare(`
+          INSERT INTO assignment_rubric_criteria (assignment_id, label, description, weight, sort_order)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        const insertBand = db.prepare(`
+          INSERT INTO assignment_rubric_bands (criterion_id, score_value, label, descriptor, sort_order)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        for (const criterion of criteria) {
+          const result = insertCriterion.run(assignmentId, criterion.label, criterion.description, criterion.weight, criterion.sortOrder);
+          for (const band of criterion.bands) {
+            insertBand.run(result.lastInsertRowid, band.scoreValue, band.label, band.descriptor, band.sortOrder);
+          }
+        }
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+
+      return { rubric: loadAssignmentRubric(db, assignmentId) };
+    }
+  );
+
+  app.put('/api/native/pads/:padId/rubric-scores',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const rubric = loadAssignmentRubric(db, pad.assignment_id);
+      const allowedCriteria = new Set(rubric.criteria.map((criterion) => criterion.id));
+      if (!allowedCriteria.size) return reply.code(409).send({ error: 'rubric_not_configured' });
+      const scores = Array.isArray(request.body?.scores) ? request.body.scores : [];
+      if (!scores.length) return reply.code(400).send({ error: 'scores_required' });
+
+      const upsert = db.prepare(`
+        INSERT INTO native_rubric_scores (native_pad_id, criterion_id, selected_score, note, updated_by_teacher_id, updated_at)
+        VALUES (?, ?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(native_pad_id, criterion_id) DO UPDATE SET
+          selected_score = excluded.selected_score,
+          note = excluded.note,
+          updated_by_teacher_id = excluded.updated_by_teacher_id,
+          updated_at = datetime('now')
+      `);
+      for (const item of scores) {
+        const criterionId = requirePositiveInteger(item?.criterion_id, 'criterion_id');
+        if (!allowedCriteria.has(criterionId)) return reply.code(400).send({ error: 'invalid_criterion_id' });
+        const selectedScore = normalizeHalfScore(item?.selected_score, 'selected_score');
+        const note = normalizeComment(item?.note);
+        upsert.run(padId, criterionId, selectedScore, note, request.session.user.id);
+      }
+      logTeacherEvent(db, padId, request.session.user.id, 'rubric_scores_saved', { count: scores.length });
+      return { scores: loadRubricScores(db, padId) };
+    }
+  );
+
   app.get('/api/native/pads/:padId/review',
     { preValidation: [app.requireTeacherSession] },
     async (request, reply) => {
@@ -425,6 +616,7 @@ export async function registerNativePadRoutes(app, { db }) {
         WHERE native_pad_id = ?
         ORDER BY id ASC
       `).all(padId);
+      const rubric = loadAssignmentRubric(db, pad.assignment_id);
       return {
         pad: publicNativePad(pad),
         assignment: {
@@ -439,6 +631,10 @@ export async function registerNativePadRoutes(app, { db }) {
         annotations,
         paste_events: pasteEvents,
         revisions,
+        rubric: {
+          criteria: rubric.criteria,
+          scores: loadRubricScores(db, padId),
+        },
       };
     }
   );
