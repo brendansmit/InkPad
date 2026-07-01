@@ -381,3 +381,8 @@ Entry format:
 - Asked: Get the custom pad usable for students ASAP because Etherpad has been breaking down.
 - Built: New assignments now default to Native InkPad in the API and teacher form. Etherpad remains an explicit fallback and existing Etherpad assignments are not silently flipped.
 - Verified: Node 24 syntax and whitespace checks passed. Focused assignment/native suite passed 21/21. Broader stable suite passed 31/31.
+
+## 2026-07-01 - Native InkPad default deployed
+- Asked: Move ASAP toward student usability after Etherpad instability.
+- Deployed: `src/routes/assignments.js`, `public/teacher/new-assignment.html` and `public/teacher/assignments.html` to `/opt/inkheron-platform`, then restarted `inkheron-wrapper.service`.
+- Verified: Wrapper active. Droplet local `/healthz` returned 200 in about 3 ms. Public `https://inkpad.inkheron.app/healthz` returned 200 in about 0.69 s. Teacher page remains auth-protected with 401 when unauthenticated.
