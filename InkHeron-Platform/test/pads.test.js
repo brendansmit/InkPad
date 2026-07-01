@@ -28,7 +28,7 @@ async function createTeacherSession(app, { username = 'teacher', password = 'tea
   return { cookies: login.headers['set-cookie'], csrfToken: login.json().user.csrf_token };
 }
 
-async function seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf }) {
+async function seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf, settings } = {}) {
   const classResponse = await app.inject({
     method: 'POST',
     url: '/api/classes',
@@ -51,7 +51,7 @@ async function seedClassStudentAndAssignment(app, { teacherCookies, teacherCsrf 
   const assignmentResult = db.prepare(`
     INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
     VALUES (?, ?, 'essay', ?, datetime('now', '-1 day'), datetime('now', '+7 days'))
-  `).run(classId, 'First essay', JSON.stringify({ type: 'essay', spellcheck: true, green_pen: true }));
+  `).run(classId, 'First essay', JSON.stringify(settings ?? { type: 'essay', spellcheck: true, green_pen: true }));
   const assignmentId = assignmentResult.lastInsertRowid;
   db.close();
 
@@ -332,6 +332,39 @@ test('GET /write/:id renders wrapper shell with iframe and sets sessionID cookie
   const setCookie = response.headers['set-cookie'];
   const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
   assert.ok(cookies.some(c => c.startsWith('sessionID=')), 'sessionID cookie must be set');
+
+  await app.close();
+});
+
+test('GET /write/:id redirects native assignments before creating an Etherpad pad', async () => {
+  const databasePath = temporaryDatabasePath();
+  const fakeEtherpad = makeFakeEtherpadService();
+  const app = await buildApp({ databasePath, logger: false, etherpadService: fakeEtherpad });
+
+  const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
+  const { assignmentId } = await seedClassStudentAndAssignment(app, {
+    teacherCookies,
+    teacherCsrf,
+    settings: { type: 'essay', spellcheck: true, green_pen: true, native_inkpad: true },
+  });
+  const { cookies: studentCookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const response = await app.inject({
+    method: 'GET',
+    url: `/write/${assignmentId}`,
+    headers: { cookie: studentCookies },
+  });
+
+  assert.equal(response.statusCode, 302);
+  assert.equal(response.headers.location, `/native/write/${assignmentId}`);
+  assert.equal(fakeEtherpad.calls.length, 0);
+
+  const db = new DatabaseSync(databasePath);
+  try {
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM pads').get().count, 0);
+  } finally {
+    db.close();
+  }
 
   await app.close();
 });

@@ -141,6 +141,10 @@ function parseAssignmentSettings(settingsJson) {
   }
 }
 
+function isNativeAssignment(assignment) {
+  return parseAssignmentSettings(assignment.settings_json).native_inkpad === true;
+}
+
 function publicFeedback(row) {
   return {
     id: row.id,
@@ -339,6 +343,9 @@ export async function registerPadRoutes(app, { db, etherpadService, padSuffixGen
       const studentId = request.session.user.id;
 
       const { assignment, student } = await resolveAssignmentAndStudent(db, assignmentId, studentId);
+      if (isNativeAssignment(assignment)) {
+        return reply.redirect(`/native/write/${assignmentId}`);
+      }
 
       const now = new Date().toISOString();
       if (assignment.opens_at && assignment.opens_at > now) {
@@ -378,6 +385,9 @@ export async function registerPadRoutes(app, { db, etherpadService, padSuffixGen
       const studentId = request.session.user.id;
 
       const { assignment, student } = await resolveAssignmentAndStudent(db, assignmentId, studentId);
+      if (isNativeAssignment(assignment)) {
+        return reply.redirect(`/native/write/${assignmentId}`);
+      }
 
       const now = new Date().toISOString();
 

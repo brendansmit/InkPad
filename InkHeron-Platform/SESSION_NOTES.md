@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Fix native assignment opening Etherpad
+- Asked: Native assignment still opened Etherpad despite Use Native InkPad being on.
+- Fixed: Added a `/write/:assignmentId` guard that redirects native assignments to `/native/write/:assignmentId` before Etherpad pad provisioning; deployed `src/routes/pads.js` and restarted the wrapper.
+- Verified: Local direct inject and regression test passed. Live wrapper restarted at 14:06:19 CST, public health returned 200 and logs showed no new missing-table or SQLite 500s.
+
 ## 2026-06-30 - Kill EP toolbar flash permanently
 
 - Built: Three-layer suppression. (1) applyOuterCleanup() fires synchronously on iframe load with no delay, so toolbar never renders. (2) MutationObserver on padDoc forces display:none on EP chrome elements the instant EP adds them. (3) aceOuter load listener re-runs inner frame injection when EP reloads ace_outer mid-session, which was the main cause of recurring flashes.
