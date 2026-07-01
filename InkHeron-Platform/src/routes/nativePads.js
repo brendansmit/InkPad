@@ -365,6 +365,178 @@ function loadRubricScores(db, padId) {
   `).all(padId).map(publicRubricScore);
 }
 
+function copyAssignmentRubric(db, sourceAssignmentId, targetAssignmentId) {
+  const criteria = db.prepare(`
+    SELECT *
+    FROM assignment_rubric_criteria
+    WHERE assignment_id = ?
+    ORDER BY sort_order ASC, id ASC
+  `).all(sourceAssignmentId);
+  if (!criteria.length) return 0;
+
+  const insertCriterion = db.prepare(`
+    INSERT INTO assignment_rubric_criteria (assignment_id, label, description, weight, sort_order)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  const insertBand = db.prepare(`
+    INSERT INTO assignment_rubric_bands (criterion_id, score_value, label, descriptor, sort_order)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  let copied = 0;
+  for (const criterion of criteria) {
+    const result = insertCriterion.run(
+      targetAssignmentId,
+      criterion.label,
+      criterion.description ?? '',
+      Number(criterion.weight ?? 1),
+      Number(criterion.sort_order ?? copied)
+    );
+    const bands = db.prepare(`
+      SELECT *
+      FROM assignment_rubric_bands
+      WHERE criterion_id = ?
+      ORDER BY sort_order ASC, score_value ASC, id ASC
+    `).all(criterion.id);
+    for (const band of bands) {
+      insertBand.run(
+        result.lastInsertRowid,
+        Number(band.score_value),
+        band.label ?? '',
+        band.descriptor ?? '',
+        Number(band.sort_order ?? 0)
+      );
+    }
+    copied += 1;
+  }
+  return copied;
+}
+
+function copyPassagePdf(sourceAssignmentId, targetAssignmentId) {
+  const source = path.join(PASSAGES_DIR, `${sourceAssignmentId}.pdf`);
+  const target = path.join(PASSAGES_DIR, `${targetAssignmentId}.pdf`);
+  try {
+    fs.copyFileSync(source, target);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requestedTitle) {
+  const source = db.prepare(`
+    SELECT *
+    FROM assignments
+    WHERE id = ?
+  `).get(sourceAssignmentId);
+  if (!source || !nativeEnabled(source)) {
+    const error = new Error('assignment_not_found');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const settings = parseSettings(source.settings_json);
+  const title = normalizeRubricText(
+    requestedTitle,
+    180,
+    `Greenpen rewrite: ${source.title}`
+  ) || `Greenpen rewrite: ${source.title}`;
+  const rewriteSettings = {
+    ...settings,
+    native_inkpad: true,
+    green_pen: false,
+    source_assignment_id: source.id,
+    greenpen_rewrite: true,
+    prompt: settings.prompt || `Rewrite ${source.title} using your feedback.`,
+  };
+
+  let targetAssignmentId = null;
+  let copiedPads = 0;
+  let copiedAnnotations = 0;
+  db.exec('BEGIN');
+  try {
+    const assignmentResult = db.prepare(`
+      INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
+      VALUES (?, ?, ?, ?, datetime('now'), ?)
+    `).run(source.class_id, title, source.type, JSON.stringify(rewriteSettings), source.due_at ?? null);
+    targetAssignmentId = assignmentResult.lastInsertRowid;
+
+    const overrideRows = db.prepare('SELECT student_id FROM assignment_students WHERE assignment_id = ?').all(source.id);
+    if (overrideRows.length) {
+      const insertOverride = db.prepare('INSERT OR IGNORE INTO assignment_students (assignment_id, student_id) VALUES (?, ?)');
+      for (const row of overrideRows) insertOverride.run(targetAssignmentId, row.student_id);
+    }
+
+    copyAssignmentRubric(db, source.id, targetAssignmentId);
+
+    const sourcePads = db.prepare(`
+      SELECT *
+      FROM native_pads
+      WHERE assignment_id = ?
+      ORDER BY student_id ASC, id ASC
+    `).all(source.id);
+    const insertPad = db.prepare(`
+      INSERT INTO native_pads (student_id, assignment_id, state, document_json, plain_text, word_count, version)
+      VALUES (?, ?, 'writing', ?, ?, ?, 1)
+    `);
+    const insertAnnotation = db.prepare(`
+      INSERT INTO native_annotations (
+        native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, resolved, document_version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const sourceAnnotationRows = db.prepare(`
+      SELECT *
+      FROM native_annotations
+      WHERE native_pad_id = ?
+      ORDER BY id ASC
+    `);
+    for (const pad of sourcePads) {
+      const result = insertPad.run(
+        pad.student_id,
+        targetAssignmentId,
+        pad.document_json,
+        pad.plain_text ?? '',
+        Number(pad.word_count ?? 0)
+      );
+      const newPadId = result.lastInsertRowid;
+      const newPad = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(newPadId);
+      insertRevision(db, newPadId, 'create', newPad);
+      ensurePolicy(db, newPadId, rewriteSettings, teacherId);
+      copiedPads += 1;
+
+      for (const annotation of sourceAnnotationRows.all(pad.id)) {
+        const metadata = parseMetadataJson(annotation.metadata_json);
+        metadata.source_annotation_id = annotation.id;
+        metadata.source_assignment_id = source.id;
+        insertAnnotation.run(
+          newPadId,
+          annotation.teacher_id ?? teacherId,
+          annotation.type,
+          annotation.start_offset,
+          annotation.end_offset,
+          annotation.selected_text ?? '',
+          annotation.body ?? '',
+          normalizeMetadata(metadata),
+          annotation.resolved === 1 ? 1 : 0,
+          1
+        );
+        copiedAnnotations += 1;
+      }
+      logTeacherEvent(db, newPadId, teacherId, 'greenpen_rewrite_created', {
+        source_assignment_id: source.id,
+        source_native_pad_id: pad.id,
+      });
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+
+  copyPassagePdf(source.id, targetAssignmentId);
+  const assignment = db.prepare('SELECT * FROM assignments WHERE id = ?').get(targetAssignmentId);
+  return { assignment, copiedPads, copiedAnnotations };
+}
+
 function loadBackupRubricScores(db, padIds) {
   if (!padIds.length) return new Map();
   const placeholders = padIds.map(() => '?').join(',');
@@ -742,6 +914,30 @@ export async function registerNativePadRoutes(app, { db }) {
       });
       const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
       return { pad: publicNativePad(updated), returned_for_revision: true };
+    }
+  );
+
+  app.post('/api/native/assignments/:assignmentId/greenpen-rewrite',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const title = request.body?.title;
+      const result = createGreenpenRewriteAssignment(db, assignmentId, request.session.user.id, title);
+      return reply.code(201).send({
+        assignment: {
+          id: result.assignment.id,
+          class_id: result.assignment.class_id,
+          title: result.assignment.title,
+          type: result.assignment.type,
+          settings_json: result.assignment.settings_json,
+          opens_at: result.assignment.opens_at ?? null,
+          due_at: result.assignment.due_at ?? null,
+          created_at: result.assignment.created_at,
+          is_archived: result.assignment.is_archived === 1,
+        },
+        copied_pads: result.copiedPads,
+        copied_annotations: result.copiedAnnotations,
+      });
     }
   );
 

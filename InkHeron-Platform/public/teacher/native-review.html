@@ -128,7 +128,7 @@
             <span class="label">State</span>
             <span class="pill">${escapeHtml(reviewData.pad.state)}</span>
             <span class="sub">Version ${reviewData.pad.version} · ${reviewData.pad.word_count} words</span>
-            <button class="btn primary" id="finishMarkingBtn" type="button" style="margin-top:10px">Return feedback</button>
+            <button class="btn primary" id="greenpenRewriteBtn" type="button" style="margin-top:10px">Greenpen rewrite</button>
             <button class="btn" id="returnRevisionBtn" type="button" style="margin-top:8px">Return for revision</button>
             <span class="sub" id="finishMsg"></span>
           </div>
@@ -223,7 +223,7 @@
       document.getElementById('essayText').addEventListener('keyup', captureSelection);
       document.getElementById('currentTextBtn').addEventListener('click', showCurrentText);
       document.getElementById('savePolicyBtn').addEventListener('click', savePolicy);
-      document.getElementById('finishMarkingBtn').addEventListener('click', finishMarking);
+      document.getElementById('greenpenRewriteBtn').addEventListener('click', createGreenpenRewrite);
       document.getElementById('returnRevisionBtn').addEventListener('click', returnForRevision);
       document.getElementById('revisionHistoryBtn').addEventListener('click',()=> {
         document.getElementById('revisionHistoryPanel').classList.toggle('open');
@@ -440,15 +440,22 @@
       if(response.ok){ reviewData.policy=(await response.json()).policy; }
     }
 
-    async function finishMarking(){
-      if(!confirm('Return feedback to this student?')) return;
-      const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/finish-marking',{
+    async function createGreenpenRewrite(){
+      const fallback='Greenpen rewrite: '+reviewData.assignment.title;
+      const title=prompt('Name for the greenpen rewrite assignment', fallback);
+      if(title===null) return;
+      const response=await fetch('/api/native/assignments/'+reviewData.assignment.id+'/greenpen-rewrite',{
         method:'POST',
         headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-        body:JSON.stringify({}),
+        body:JSON.stringify({title:title.trim() || fallback}),
       });
-      document.getElementById('finishMsg').textContent=response.ok?'Feedback returned.':'Return failed.';
-      if(response.ok) await loadReview();
+      if(!response.ok){
+        document.getElementById('finishMsg').textContent='Greenpen rewrite failed.';
+        return;
+      }
+      const data=await response.json();
+      document.getElementById('finishMsg').textContent='Greenpen rewrite created for '+data.copied_pads+' student'+(data.copied_pads===1?'':'s')+'.';
+      window.location.href='/teacher/assignments?id='+data.assignment.id;
     }
 
     async function returnForRevision(){

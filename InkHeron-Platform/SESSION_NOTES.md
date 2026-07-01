@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Greenpen rewrite assignment flow
+- Asked: Replace confusing feedback-return action with Greenpen rewrite that creates a new native assignment carrying work and feedback.
+- Built: Added teacher endpoint `/api/native/assignments/:assignmentId/greenpen-rewrite`. It creates a new native assignment, copies current native pad text, annotations, assignment roster overrides, rubric criteria and passage PDF when present.
+- UI: Native review now shows `Greenpen rewrite` and prompts for a rewrite assignment name, defaulting to `Greenpen rewrite: <original title>`.
+- Verified: `node --check src/routes/nativePads.js` and `node --test test/nativePads.test.js` passed 14/14.
+
 ## 2026-07-02 - Native assignment and review cleanup
 - Asked: Fix the PDF regression, move paste blocking into assignment settings, remove Etherpad choice from teacher assignment pages, stop showing autosaves as an always-open list, preserve assignment filters, fix timestamps and hide non-current student assignments.
 - Built: Native writer PDFs are true embedded PDF documents again, not PDF.js-rendered page canvases. Removed fake PDF highlight/underline controls from the PDF pane.
