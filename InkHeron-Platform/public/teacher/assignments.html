@@ -103,6 +103,13 @@
     .passage-tabs{display:flex;gap:4px;margin-bottom:14px;}
     .ptab{padding:5px 14px;font-size:13px;font-weight:600;border:1.5px solid var(--border-2);border-radius:6px;background:var(--surface);color:var(--text-2);cursor:pointer;}
     .ptab.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+    .advanced{padding:0;overflow:hidden;}
+    .advanced summary{list-style:none;cursor:pointer;padding:18px 24px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);display:flex;align-items:center;justify-content:space-between;}
+    .advanced summary::-webkit-details-marker{display:none;}
+    .advanced summary::after{content:'+';font-size:20px;line-height:1;color:var(--green-600);letter-spacing:0;text-transform:none;}
+    .advanced[open] summary{border-bottom:1px solid var(--border);}
+    .advanced[open] summary::after{content:'-';}
+    .advanced-body{padding:20px 24px 24px;}
     /* ── Student modal ── */
     .modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.42);overflow-y:auto;display:flex;align-items:flex-start;justify-content:center;padding:48px 16px;}
     .modal-box{background:var(--surface);border-radius:var(--r-lg);box-shadow:0 20px 60px rgba(0,0,0,.22);padding:28px;width:100%;max-width:560px;}
@@ -239,9 +246,9 @@
       </div>
 
       <div class="edit-card">
-        <h3>Settings</h3>
+        <h3>Submit behaviour</h3>
         <div class="field">
-          <label>Submit behaviour</label>
+          <label>Mode</label>
           <div class="radio-group">
             <input type="radio" name="eSb" id="eSbDraft" value="draft">
             <span class="opt" onclick="document.getElementById('eSbDraft').checked=true">Draft</span>
@@ -250,6 +257,11 @@
           </div>
           <p class="hint">Draft: students can keep editing until due date. Exam: submitting locks the pad permanently.</p>
         </div>
+      </div>
+
+      <details class="edit-card advanced">
+        <summary>Advanced options</summary>
+        <div class="advanced-body">
         <div class="field">
           <label for="ePasteMode">Outside paste</label>
           <select id="ePasteMode">
@@ -280,7 +292,8 @@
             <span class="toggle-label">Create or reset default rubric<small>Replaces this assignment group's rubric with the default rubric.</small></span>
           </label>
         </div>
-      </div>
+        </div>
+      </details>
 
       <div class="edit-card">
         <h3>Add to another class</h3>

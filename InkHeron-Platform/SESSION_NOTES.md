@@ -20,6 +20,18 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Simple and advanced assignment setup
+- Asked: Make assignment setup simple by default, with heavier options behind Simple and Advanced.
+- Built: New assignment now shows the core setup first and moves outside paste, strengths and targets, spellcheck, green pen and default rubric creation into a collapsed Advanced options section.
+- Built: Edit assignment now follows the same pattern, with submit behaviour visible and advanced native settings collapsed.
+- Verified: `node --test test/assignments.test.js` passed 13/13.
+
+## 2026-07-02 - Native review pane suggestions
+- Asked: Make the grader window more useful and less half-finished, with tools and suggestions available at a click.
+- Built: Native review now receives the strengths and targets library, shows a Suggested targets panel and can append a suggested target directly into the general comment box.
+- UI: Widened the review side rail and added an editor-style paper header hint while preserving existing annotations, rubric scoring, recovery and revision tools.
+- Verified: `node --check src/routes/nativePads.js` and `node --test test/nativePads.test.js` passed 14/14.
+
 ## 2026-07-02 - Greenpen rewrite assignment flow
 - Asked: Replace confusing feedback-return action with Greenpen rewrite that creates a new native assignment carrying work and feedback.
 - Built: Added teacher endpoint `/api/native/assignments/:assignmentId/greenpen-rewrite`. It creates a new native assignment, copies current native pad text, annotations, assignment roster overrides, rubric criteria and passage PDF when present.
@@ -371,22 +383,3 @@ Entry format:
 - Decisions: ep_countable and ep_headings2 are in `src/node_modules` but not loaded; only `plugin_packages` plugins load. Alignment buttons from ep_align auto-inject (don't add to toolbar config or they fail). Case-insensitive login added in previous session.
 - Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions.
 - Gotchas hit: ep_align in `src/node_modules` is NOT loaded — only `plugin_packages`. ep_align installed via tsx but permissions were root after install, blocking load. ep_colors template uses `#color-selection` (not `#font-color`).
-
-## 2026-06-29 — Prompt button + reference passage panel
-- Phase/Step worked: Phase 8 student write view polish
-- Built:
-  - "Task" button in pad chrome opens a slide-down panel showing the assignment prompt. Panel closes/reopens on click; button label toggles between "Task" and "Hide task". No prompt = no button.
-  - Reference passage: if an assignment has `passage_text` or a PDF, the write view splits into a left 340px passage panel and a right pad area.
-  - Passage text stored in `settings_json.passage_text` (up to 20k chars).
-  - PDF stored at `data/passages/{id}.pdf` via `PUT/DELETE/GET /api/assignments/:id/passage-pdf`. PDF endpoint accepts student or teacher sessions (no auth = 401).
-  - Content type parser registered for `application/pdf` in assignments plugin.
-  - Teacher edit view: new "Reference passage" card with Text tab (textarea) and PDF tab (file input + remove button). `openEdit` HEAD-checks for existing PDF; `saveEdit` includes `passage_text` in settings PATCH, then separately PUT-uploads PDF if a file is selected.
-  - Prompt hint text updated: students can read it via the Task button (was "Students do not see this").
-- Decisions: PDF uploaded only to the primary assignment in a multi-class group (first in editGroup). passage_text cleared from settings_json if textarea is empty on save — correct, expected behaviour.
-- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions. Also: Server酱 pricing.
-- Gotchas hit: SSH key not loaded in agent; needed `ssh-add` + `-i` flag; root user is the correct login.
-## 2026-07-02 - Native review pane suggestions
-- Asked: Make the grader window more useful and less half-finished, with tools and suggestions available at a click.
-- Built: Native review now receives the strengths and targets library, shows a Suggested targets panel and can append a suggested target directly into the general comment box.
-- UI: Widened the review side rail and added an editor-style paper header hint while preserving existing annotations, rubric scoring, recovery and revision tools.
-- Verified: `node --check src/routes/nativePads.js` and `node --test test/nativePads.test.js` passed 14/14.

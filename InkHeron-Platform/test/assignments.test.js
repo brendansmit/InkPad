@@ -22,6 +22,8 @@ test('teacher assignment forms are native-only and expose outside paste policy',
   assert.match(assignments, /id="eFeedbackTable"/);
   assert.match(newAssignment, /id="fCreateRubric"/);
   assert.match(assignments, /id="eCreateRubric"/);
+  assert.match(newAssignment, /<summary>Advanced options<\/summary>[\s\S]*id="fPasteMode"[\s\S]*id="fFeedbackTable"[\s\S]*id="fCreateRubric"/);
+  assert.match(assignments, /<summary>Advanced options<\/summary>[\s\S]*id="ePasteMode"[\s\S]*id="eFeedbackTable"[\s\S]*id="eCreateRubric"/);
   assert.match(newAssignment, /api\/native\/assignments\/\$\{id\}\/rubric/);
   assert.match(assignments, /api\/native\/assignments\/\$\{ga\.id\}\/rubric/);
   assert.match(newAssignment, /Controls paste from outside the InkPad screen/);

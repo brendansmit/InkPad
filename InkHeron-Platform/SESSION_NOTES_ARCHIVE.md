@@ -1030,3 +1030,18 @@ Color picker code ran BEFORE `setInterval(syncWordCount, 500)` and `iframe.addEv
 - UI/API: Native review page now has an assignment backup download link, pasted-text recovery and `.txt` upload recovery. Imports can create a manual revision only or replace current pad text.
 - Verified: Node 24 `--check src/routes/nativePads.js` and `--test test/migration.test.js test/nativePads.test.js` passed 9/9. Broader stable suite `--test test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 29/29.
 - Decision: Recovery revisions use existing `manual` reason because the schema check does not allow `teacher_import`; detailed source is recorded in `native_teacher_events`.
+
+## Archived from SESSION_NOTES.md on 2026-07-02
+## 2026-06-29 — Prompt button + reference passage panel
+- Phase/Step worked: Phase 8 student write view polish
+- Built:
+  - "Task" button in pad chrome opens a slide-down panel showing the assignment prompt. Panel closes/reopens on click; button label toggles between "Task" and "Hide task". No prompt = no button.
+  - Reference passage: if an assignment has `passage_text` or a PDF, the write view splits into a left 340px passage panel and a right pad area.
+  - Passage text stored in `settings_json.passage_text` (up to 20k chars).
+  - PDF stored at `data/passages/{id}.pdf` via `PUT/DELETE/GET /api/assignments/:id/passage-pdf`. PDF endpoint accepts student or teacher sessions (no auth = 401).
+  - Content type parser registered for `application/pdf` in assignments plugin.
+  - Teacher edit view: new "Reference passage" card with Text tab (textarea) and PDF tab (file input + remove button). `openEdit` HEAD-checks for existing PDF; `saveEdit` includes `passage_text` in settings PATCH, then separately PUT-uploads PDF if a file is selected.
+  - Prompt hint text updated: students can read it via the Task button (was "Students do not see this").
+- Decisions: PDF uploaded only to the primary assignment in a multi-class group (first in editGroup). passage_text cleared from settings_json if textarea is empty on save — correct, expected behaviour.
+- Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions. Also: Server酱 pricing.
+- Gotchas hit: SSH key not loaded in agent; needed `ssh-add` + `-i` flag; root user is the correct login.

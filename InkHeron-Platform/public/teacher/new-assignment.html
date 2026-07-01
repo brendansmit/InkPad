@@ -56,6 +56,13 @@
     .radio-group .opt:first-of-type{border-radius:var(--r-sm) 0 0 var(--r-sm);}
     .radio-group .opt:last-of-type{border-radius:0 var(--r-sm) var(--r-sm) 0;margin-left:-1.5px;}
     .radio-group input[type=radio]:checked+.opt{background:var(--green-600);color:#fff;border-color:var(--green-600);z-index:1;position:relative;}
+    .advanced{padding:0;overflow:hidden;}
+    .advanced summary{list-style:none;cursor:pointer;padding:18px 24px;font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:space-between;}
+    .advanced summary::-webkit-details-marker{display:none;}
+    .advanced summary::after{content:'+';font-size:20px;line-height:1;color:var(--green-600);}
+    .advanced[open] summary{border-bottom:1px solid var(--border);}
+    .advanced[open] summary::after{content:'-';}
+    .advanced-body{padding:20px 24px 24px;}
   </style>
 </head>
 <body>
@@ -140,9 +147,9 @@
       </div>
 
       <div class="card">
-        <h2>Settings</h2>
+        <h2>Submit behaviour</h2>
         <div class="field">
-          <label>Submit behaviour</label>
+          <label>Mode</label>
           <div class="radio-group">
             <input type="radio" name="submit_behaviour" id="sbDraft" value="draft" checked>
             <span class="opt" onclick="document.getElementById('sbDraft').checked=true">Draft</span>
@@ -151,6 +158,11 @@
           </div>
           <p class="hint">Draft: students can keep editing until due date. Exam: submitting locks the pad permanently.</p>
         </div>
+      </div>
+
+      <details class="card advanced">
+        <summary>Advanced options</summary>
+        <div class="advanced-body">
         <div class="field">
           <label for="fPasteMode">Outside paste</label>
           <select id="fPasteMode">
@@ -181,7 +193,8 @@
             <span class="toggle-label">Create default rubric<small>Adds thesis, evidence, commentary, organisation and language-control criteria.</small></span>
           </label>
         </div>
-      </div>
+        </div>
+      </details>
 
       <div class="footer">
         <a class="btn" href="/teacher/assignments">Cancel</a>
