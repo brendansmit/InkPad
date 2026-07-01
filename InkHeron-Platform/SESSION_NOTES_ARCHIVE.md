@@ -4,6 +4,15 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-07-01 - Native InkPad Phase 10 student feedback loop
+- Asked: Run a health check, continue the build and report replacement readiness.
+- Health check: Droplet services were active, load recovered to near zero, swap active and public `inkpad.inkheron.app` timings were about 0.65-0.72 s.
+- Built: Added native `finish-marking` endpoint, student native feedback API, `/native/feedback/:assignmentId` page and dashboard feedback links for returned native work.
+- UI: Teacher review can return feedback. Student feedback page shows marked text, general comment, inline comments, literacy codes, highlights, rubric scores and an `Open rewrite` button when green pen is open.
+- Verified: Node 24 syntax checks passed. Focused suite `test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 21/21. Broader stable suite `test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
+
+---
+
 ## 2026-07-01 - Native InkPad Phase 11 green-pen resubmission
 - Asked: Keep plodding on toward native replacement after the student feedback loop.
 - Built: Native submit now accepts `green_pen_open` pads, preserves first submission time, moves the pad to `resubmitted` and records another submit revision snapshot.

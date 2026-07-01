@@ -11,6 +11,24 @@ function jsonScript(value) {
   return JSON.stringify(value).replaceAll('</', '<\\/');
 }
 
+function iconSvg(name) {
+  const icons = {
+    undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7H4v5"/><path d="M4 12c2.5-3.5 5.7-5.2 9.4-4.9 3.8.3 6.6 3.2 6.6 6.9 0 3.3-2.5 6-6 6h-3"/></svg>',
+    redo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 7h5v5"/><path d="M20 12c-2.5-3.5-5.7-5.2-9.4-4.9C6.8 7.4 4 10.3 4 14c0 3.3 2.5 6 6 6h3"/></svg>',
+    bullets: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11"/><path d="M9 12h11"/><path d="M9 18h11"/><circle cx="4" cy="6" r="1.5"/><circle cx="4" cy="12" r="1.5"/><circle cx="4" cy="18" r="1.5"/></svg>',
+    numbers: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6h10"/><path d="M10 12h10"/><path d="M10 18h10"/><path d="M4 5h1v4"/><path d="M3.5 9h3"/><path d="M3 12.5c.4-.7 1-1 1.8-1 .9 0 1.6.5 1.6 1.4 0 .7-.5 1.2-1.2 1.7L3 16h3.5"/><path d="M3.5 18h2a1 1 0 0 1 0 2h-1a1 1 0 0 0 0 2h2"/></svg>',
+    outdent: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6h8"/><path d="M12 12h8"/><path d="M12 18h8"/><path d="M4 12h5"/><path d="M7 9l-3 3 3 3"/></svg>',
+    indent: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6h8"/><path d="M12 12h8"/><path d="M12 18h8"/><path d="M4 12h5"/><path d="M6 9l3 3-3 3"/></svg>',
+    alignLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M4 10h10"/><path d="M4 14h16"/><path d="M4 18h10"/></svg>',
+    alignCenter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M7 10h10"/><path d="M4 14h16"/><path d="M7 18h10"/></svg>',
+    alignRight: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16"/><path d="M10 10h10"/><path d="M4 14h16"/><path d="M10 18h10"/></svg>',
+    textColor: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h14"/><path d="M8 16l4-12 4 12"/><path d="M9.5 12h5"/></svg>',
+    highlight: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16"/><path d="M8 15l8-8 3 3-8 8H8v-3z"/><path d="M14 9l3 3"/></svg>',
+    eraser: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l8-8 7 7-5 5H8l-4-4z"/><path d="M9 20h11"/></svg>',
+  };
+  return icons[name] ?? '';
+}
+
 export function renderNativeWriteView({
   title,
   assignmentId,
@@ -45,6 +63,9 @@ export function renderNativeWriteView({
     .niw-stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums;white-space:nowrap}
     .niw-stat.warn{color:#a75432;font-weight:800}
     .niw-btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 10px;font-weight:800;cursor:pointer;font-family:inherit}
+    .niw-icon-btn{width:36px;padding:0}
+    .niw-icon{width:20px;height:20px;display:block}
+    .niw-icon path,.niw-icon circle{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .niw-btn.active{background:#dfe9df;border-color:#2f6f4e;color:#183d2a}
     .niw-btn.primary{background:#2f6f4e;color:#fff;border-color:#2f6f4e}
     .niw-btn:disabled{opacity:.5;cursor:not-allowed}
@@ -60,6 +81,8 @@ export function renderNativeWriteView({
     .niw-source-head h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#657268}
     .niw-source-tools{margin-left:auto;display:flex;gap:5px}
     .niw-source-btn{min-height:28px;padding:0 8px;border-radius:6px;border:1px solid #b8c2b9;background:#fff;font-weight:800;cursor:pointer}
+    .niw-source-btn svg{width:17px;height:17px;display:block}
+    .niw-source-btn path,.niw-source-btn circle{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
     .niw-passage .niw-text{white-space:pre-wrap;font-family:var(--font);font-size:15px;line-height:1.65;outline:none}
     .niw-local-underline{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#2f6f4e}
     .niw-local-highlight{background:#fff0a6}
@@ -76,6 +99,13 @@ export function renderNativeWriteView({
     #nativeEditor ul,#nativeEditor ol{margin:0 0 1em 1.3em;padding:0}
     #nativeEditor[contenteditable="false"]{background:#f7f7f4;color:#59635d}
     .niw-swatch{width:24px;min-height:24px;border-radius:5px;border:1px solid #9ba89f;cursor:pointer;padding:0}
+    .niw-popover{position:relative}
+    .niw-palette{position:absolute;top:40px;left:0;z-index:20;display:none;grid-template-columns:repeat(3,24px);gap:6px;padding:8px;background:#fff;border:1px solid #b8c2b9;border-radius:8px;box-shadow:0 12px 24px rgba(31,42,36,.16)}
+    .niw-popover.open .niw-palette{display:grid}
+    .niw-local-highlight-yellow{background:#fff0a6}
+    .niw-local-highlight-green{background:#c7f9cc}
+    .niw-local-highlight-blue{background:#bfdbfe}
+    .niw-local-highlight-pink{background:#fecaca}
     .empty{color:#8a938d}
     @media(max-width:1080px){.niw-bar{gap:9px}.niw-stat{font-size:12px}.niw-btn{padding:0 10px}}
     @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-shell{width:100%;grid-template-columns:34px minmax(0,1fr)}.niw-line-numbers{font-size:11px;padding-right:6px}#nativeEditor{min-height:60vh;padding:22px}}
@@ -101,8 +131,16 @@ export function renderNativeWriteView({
           <h2>Task</h2>
           <div class="niw-source-tools">
             <button class="niw-source-btn" type="button" data-source-mark="underline" title="Underline selected task/reference text">U</button>
-            <button class="niw-source-btn" type="button" data-source-mark="highlight" title="Highlight selected task/reference text">H</button>
-            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">Clear</button>
+            <span class="niw-popover">
+              <button class="niw-source-btn" type="button" data-toggle-palette="sourceHighlightPalette" title="Highlight selected task/reference text">${iconSvg('highlight')}</button>
+              <span class="niw-palette" id="sourceHighlightPalette">
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-yellow" title="Yellow highlight" style="background:#fff0a6"></button>
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-green" title="Green highlight" style="background:#c7f9cc"></button>
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-blue" title="Blue highlight" style="background:#bfdbfe"></button>
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-pink" title="Pink highlight" style="background:#fecaca"></button>
+              </span>
+            </span>
+            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${iconSvg('eraser')}</button>
           </div>
         </div>
         <div class="niw-text" id="taskText">${escapeHtml(prompt || 'No prompt added.')}</div>
@@ -112,8 +150,16 @@ export function renderNativeWriteView({
           <h2>Reference</h2>
           <div class="niw-source-tools">
             <button class="niw-source-btn" type="button" data-source-mark="underline" title="Underline selected task/reference text">U</button>
-            <button class="niw-source-btn" type="button" data-source-mark="highlight" title="Highlight selected task/reference text">H</button>
-            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">Clear</button>
+            <span class="niw-popover">
+              <button class="niw-source-btn" type="button" data-toggle-palette="referenceHighlightPalette" title="Highlight selected task/reference text">${iconSvg('highlight')}</button>
+              <span class="niw-palette" id="referenceHighlightPalette">
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-yellow" title="Yellow highlight" style="background:#fff0a6"></button>
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-green" title="Green highlight" style="background:#c7f9cc"></button>
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-blue" title="Blue highlight" style="background:#bfdbfe"></button>
+                <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-pink" title="Pink highlight" style="background:#fecaca"></button>
+              </span>
+            </span>
+            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${iconSvg('eraser')}</button>
           </div>
         </div>
         <div class="niw-text" id="referenceText">${escapeHtml(passageText)}</div>
@@ -124,8 +170,8 @@ export function renderNativeWriteView({
     <div class="niw-resizer" id="readerResizer" role="separator" aria-orientation="vertical" aria-label="Resize reader"></div>
     <section class="niw-editor-wrap">
       <div class="niw-tools">
-        <button class="niw-btn" type="button" data-command="undo" title="Undo">Undo</button>
-        <button class="niw-btn" type="button" data-command="redo" title="Redo">Redo</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="undo" title="Undo">${iconSvg('undo')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="redo" title="Redo">${iconSvg('redo')}</button>
         <div class="niw-divider"></div>
         <button class="niw-btn" type="button" data-command="bold" title="Bold">B</button>
         <button class="niw-btn" type="button" data-command="italic" title="Italic">I</button>
@@ -135,18 +181,27 @@ export function renderNativeWriteView({
           ${[8,10,12,14,16,18,20,22].map((size) => `<option value="${size}" ${size === 18 ? 'selected' : ''}>${size}</option>`).join('')}
         </select>
         <div class="niw-divider"></div>
-        <button class="niw-btn" type="button" data-command="insertUnorderedList" title="Bulleted list">UL</button>
-        <button class="niw-btn" type="button" data-command="insertOrderedList" title="Numbered list">OL</button>
-        <button class="niw-btn" type="button" data-command="outdent" title="Outdent">Out</button>
-        <button class="niw-btn" type="button" data-command="indent" title="Indent">In</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="insertUnorderedList" title="Bulleted list">${iconSvg('bullets')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="insertOrderedList" title="Numbered list">${iconSvg('numbers')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="outdent" title="Outdent">${iconSvg('outdent')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="indent" title="Indent">${iconSvg('indent')}</button>
         <div class="niw-divider"></div>
-        <button class="niw-btn" type="button" data-command="justifyLeft" title="Align left">L</button>
-        <button class="niw-btn" type="button" data-command="justifyCenter" title="Align centre">C</button>
-        <button class="niw-btn" type="button" data-command="justifyRight" title="Align right">R</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyLeft" title="Align left">${iconSvg('alignLeft')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyCenter" title="Align centre">${iconSvg('alignCenter')}</button>
+        <button class="niw-btn niw-icon-btn" type="button" data-command="justifyRight" title="Align right">${iconSvg('alignRight')}</button>
         <div class="niw-divider"></div>
-        ${['#1f2a24','#2f6f4e','#1d4ed8','#991b1b','#7c2d12','#6b21a8'].map((color) => `<button class="niw-swatch" type="button" data-fore-color="${color}" title="Text colour ${color}" style="background:${color}"></button>`).join('')}
-        <div class="niw-divider"></div>
-        ${['#fff0a6','#c7f9cc','#bfdbfe','#fecaca','#e9d5ff','#ffffff'].map((color) => `<button class="niw-swatch" type="button" data-hilite-color="${color}" title="Highlight ${color}" style="background:${color}"></button>`).join('')}
+        <span class="niw-popover">
+          <button class="niw-btn niw-icon-btn" type="button" data-toggle-palette="textColorPalette" title="Text colour">${iconSvg('textColor')}</button>
+          <span class="niw-palette" id="textColorPalette">
+            ${['#1f2a24','#2f6f4e','#1d4ed8','#991b1b','#7c2d12','#6b21a8'].map((color) => `<button class="niw-swatch" type="button" data-fore-color="${color}" title="Text colour ${color}" style="background:${color}"></button>`).join('')}
+          </span>
+        </span>
+        <span class="niw-popover">
+          <button class="niw-btn niw-icon-btn" type="button" data-toggle-palette="highlightPalette" title="Highlight colour">${iconSvg('highlight')}</button>
+          <span class="niw-palette" id="highlightPalette">
+            ${['#fff0a6','#c7f9cc','#bfdbfe','#fecaca','#e9d5ff','#ffffff'].map((color) => `<button class="niw-swatch" type="button" data-hilite-color="${color}" title="Highlight ${color}" style="background:${color}"></button>`).join('')}
+          </span>
+        </span>
         <div class="niw-divider"></div>
         <label class="niw-zoom">Zoom <input id="zoomSlider" type="range" min="80" max="160" step="5" value="100"><span id="zoomLabel">100%</span></label>
       </div>
@@ -306,7 +361,14 @@ export function renderNativeWriteView({
           return;
         }
         if(node.tagName === 'SPAN'){
-          const cls = [...node.classList].filter(name => name === 'niw-local-underline' || name === 'niw-local-highlight').join(' ');
+          const cls = [...node.classList].filter(name => [
+            'niw-local-underline',
+            'niw-local-highlight',
+            'niw-local-highlight-yellow',
+            'niw-local-highlight-green',
+            'niw-local-highlight-blue',
+            'niw-local-highlight-pink',
+          ].includes(name)).join(' ');
           if(cls) node.setAttribute('class', cls);
           else node.replaceWith(document.createTextNode(node.textContent || ''));
         }
@@ -432,6 +494,7 @@ export function renderNativeWriteView({
         document.execCommand('foreColor', false, button.dataset.foreColor);
         dirty = true;
         saveState.textContent = 'Unsaved';
+        closePalettes();
         syncToolbarState();
       });
     });
@@ -442,8 +505,22 @@ export function renderNativeWriteView({
         document.execCommand('hiliteColor', false, button.dataset.hiliteColor);
         dirty = true;
         saveState.textContent = 'Unsaved';
+        closePalettes();
         syncToolbarState();
       });
+    });
+
+    document.querySelectorAll('[data-toggle-palette]').forEach(button => {
+      button.addEventListener('click', event => {
+        event.stopPropagation();
+        const popover = button.closest('.niw-popover');
+        const wasOpen = popover.classList.contains('open');
+        closePalettes();
+        if(!wasOpen) popover.classList.add('open');
+      });
+    });
+    document.addEventListener('click', event => {
+      if(!event.target.closest('.niw-popover')) closePalettes();
     });
 
     zoomSlider.addEventListener('input', () => {
@@ -461,7 +538,10 @@ export function renderNativeWriteView({
     });
 
     document.querySelectorAll('[data-source-mark]').forEach(button => {
-      button.addEventListener('click', () => applySourceMark(button.dataset.sourceMark));
+      button.addEventListener('click', () => {
+        applySourceMark(button.dataset.sourceMark, button.dataset.sourceClass || '');
+        closePalettes();
+      });
     });
 
     readerResizer.addEventListener('pointerdown', event => {
@@ -506,6 +586,9 @@ export function renderNativeWriteView({
       const lines = Math.max(30, currentText().split('\\n').length);
       lineNumbers.textContent = Array.from({length:lines}, (_, index) => String(index + 1)).join('\\n');
     }
+    function closePalettes(){
+      document.querySelectorAll('.niw-popover.open').forEach(popover => popover.classList.remove('open'));
+    }
     function syncToolbarState(){
       ['bold','italic','underline','strikeThrough','insertUnorderedList','insertOrderedList','justifyLeft','justifyCenter','justifyRight'].forEach(command => {
         const button = document.querySelector('[data-command="' + command + '"]');
@@ -537,12 +620,12 @@ export function renderNativeWriteView({
       }
       return null;
     }
-    function applySourceMark(kind){
+    function applySourceMark(kind, sourceClass = ''){
       const selection = window.getSelection();
       const sourceRoot = selection && selection.rangeCount ? sourceRootFor(selection.getRangeAt(0)) : null;
       if(!sourceRoot) return;
       if(kind === 'clear'){
-        sourceRoot.querySelectorAll('.niw-local-underline,.niw-local-highlight').forEach(node => node.replaceWith(document.createTextNode(node.textContent || '')));
+        sourceRoot.querySelectorAll('.niw-local-underline,.niw-local-highlight,.niw-local-highlight-yellow,.niw-local-highlight-green,.niw-local-highlight-blue,.niw-local-highlight-pink').forEach(node => node.replaceWith(document.createTextNode(node.textContent || '')));
         sourceRoot.normalize();
         saveLocalSourceMarks();
         return;
@@ -550,7 +633,7 @@ export function renderNativeWriteView({
       if(selection.isCollapsed) return;
       const range = selection.getRangeAt(0);
       const span = document.createElement('span');
-      span.className = kind === 'underline' ? 'niw-local-underline' : 'niw-local-highlight';
+      span.className = kind === 'underline' ? 'niw-local-underline' : 'niw-local-highlight ' + (sourceClass || 'niw-local-highlight-yellow');
       try{
         span.appendChild(range.extractContents());
         range.insertNode(span);

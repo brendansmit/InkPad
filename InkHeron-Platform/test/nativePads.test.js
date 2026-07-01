@@ -698,9 +698,16 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /id="lineNumbers"/);
   assert.match(response.body, /id="fontSizeSelect"/);
   assert.match(response.body, /data-command="undo"/);
+  assert.match(response.body, /data-command="redo"/);
   assert.match(response.body, /data-command="indent"/);
+  assert.match(response.body, /data-command="insertUnorderedList"/);
+  assert.match(response.body, /data-command="justifyCenter"/);
+  assert.match(response.body, /data-toggle-palette="textColorPalette"/);
+  assert.match(response.body, /data-toggle-palette="highlightPalette"/);
+  assert.match(response.body, /data-toggle-palette="sourceHighlightPalette"/);
   assert.match(response.body, /data-fore-color="#2f6f4e"/);
   assert.match(response.body, /data-hilite-color="#fff0a6"/);
+  assert.match(response.body, /viewBox="0 0 24 24"/);
   assert.match(response.body, /font-family:var\(--font\)/);
   assert.match(response.body, /type:'html'/);
 
