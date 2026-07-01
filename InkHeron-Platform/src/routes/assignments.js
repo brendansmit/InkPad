@@ -50,6 +50,7 @@ function buildSettingsJson(settings = {}, type = 'essay', { nativeDefault = fals
     base.focus_warning = settings.focus_warning !== false;
     base.timer_minutes = settings.timer_minutes ?? null;
   }
+  if (settings.feedback_table) base.feedback_table = String(settings.feedback_table).slice(0, 80);
   if (settings.prompt) base.prompt = String(settings.prompt).slice(0, 4000);
   if (settings.passage_text) base.passage_text = String(settings.passage_text).slice(0, 20000);
   return JSON.stringify(base);

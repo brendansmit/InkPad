@@ -26,6 +26,12 @@ Entry format:
 - UI: Native review now shows `Greenpen rewrite` and prompts for a rewrite assignment name, defaulting to `Greenpen rewrite: <original title>`.
 - Verified: `node --check src/routes/nativePads.js` and `node --test test/nativePads.test.js` passed 14/14.
 
+## 2026-07-02 - Assignment setup rubric and feedback table controls
+- Asked: Add rubric setup and strengths/targets table selection to assignment setup.
+- Built: New assignment and edit assignment settings now include a default strengths/targets table selector and a default rubric creation/reset control.
+- Built: New assignments can create the default native rubric immediately for every selected class. Edit settings can create/reset the default rubric across the assignment group.
+- Verified: `node --check src/routes/assignments.js` and `node --test test/assignments.test.js` passed 13/13.
+
 ## 2026-07-02 - Native assignment and review cleanup
 - Asked: Fix the PDF regression, move paste blocking into assignment settings, remove Etherpad choice from teacher assignment pages, stop showing autosaves as an always-open list, preserve assignment filters, fix timestamps and hide non-current student assignments.
 - Built: Native writer PDFs are true embedded PDF documents again, not PDF.js-rendered page canvases. Removed fake PDF highlight/underline controls from the PDF pane.

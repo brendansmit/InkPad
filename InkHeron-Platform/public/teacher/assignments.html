@@ -259,6 +259,13 @@
           </select>
           <p class="hint">Controls paste from outside the InkPad screen. Copying within the writing screen can still be pasted.</p>
         </div>
+        <div class="field">
+          <label for="eFeedbackTable">Strengths and targets</label>
+          <select id="eFeedbackTable">
+            <option value="default">Default InkHeron table</option>
+          </select>
+          <p class="hint">Stores which strengths and targets table this assignment should use during review.</p>
+        </div>
         <div class="toggle-group">
           <label class="toggle">
             <input type="checkbox" id="eSpellcheck">
@@ -267,6 +274,10 @@
           <label class="toggle">
             <input type="checkbox" id="eGreenPen">
             <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="eCreateRubric">
+            <span class="toggle-label">Create or reset default rubric<small>Replaces this assignment group's rubric with the default rubric.</small></span>
           </label>
         </div>
       </div>
@@ -645,8 +656,10 @@
       document.getElementById('eSbDraft').checked=(s.submit_behaviour||'draft')==='draft';
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
       document.getElementById('ePasteMode').value=s.paste_mode||'log';
+      document.getElementById('eFeedbackTable').value=s.feedback_table||'default';
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
       document.getElementById('eGreenPen').checked=s.green_pen===true;
+      document.getElementById('eCreateRubric').checked=false;
       document.getElementById('editMsg').className='msg';
 
       // render date rows — one per class in the group
@@ -684,9 +697,11 @@
       const passagePdfFile=document.getElementById('ePassagePdf').files[0];
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
       const paste_mode=document.getElementById('ePasteMode').value;
+      const feedback_table=document.getElementById('eFeedbackTable').value;
+      const createRubric=document.getElementById('eCreateRubric').checked;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
-      const settings={submit_behaviour,paste_mode,spellcheck,green_pen,native_inkpad:true};
+      const settings={submit_behaviour,paste_mode,feedback_table,spellcheck,green_pen,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 
@@ -708,6 +723,18 @@
           const idx=assignments.findIndex(a=>a.id===ga.id);
           if(idx>=0) assignments[idx]=data.assignment;
         } else failed++;
+      }
+
+      if(!failed && createRubric){
+        btn.textContent='Saving rubric…';
+        for(const ga of editGroup){
+          const rr=await fetch(`/api/native/assignments/${ga.id}/rubric`,{
+            method:'PUT',
+            headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+            body:JSON.stringify({}),
+          });
+          if(!rr.ok) failed++;
+        }
       }
 
       // Upload PDF to the primary assignment (first in group)

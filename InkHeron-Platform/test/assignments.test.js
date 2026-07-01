@@ -18,6 +18,12 @@ test('teacher assignment forms are native-only and expose outside paste policy',
   assert.doesNotMatch(assignments, /Use Native InkPad|keep this assignment on Etherpad|id="eNativeInkpad"/);
   assert.match(newAssignment, /id="fPasteMode"/);
   assert.match(assignments, /id="ePasteMode"/);
+  assert.match(newAssignment, /id="fFeedbackTable"/);
+  assert.match(assignments, /id="eFeedbackTable"/);
+  assert.match(newAssignment, /id="fCreateRubric"/);
+  assert.match(assignments, /id="eCreateRubric"/);
+  assert.match(newAssignment, /api\/native\/assignments\/\$\{id\}\/rubric/);
+  assert.match(assignments, /api\/native\/assignments\/\$\{ga\.id\}\/rubric/);
   assert.match(newAssignment, /Controls paste from outside the InkPad screen/);
   assert.match(assignments, /Controls paste from outside the InkPad screen/);
 });
@@ -74,7 +80,7 @@ test('teacher can create an assignment with settings_json', async () => {
   const res = await app.inject({ method: 'POST', url: '/api/assignments',
     payload: {
       class_id: classId, title: 'First essay', type: 'essay',
-      settings: { submit_behaviour: 'draft', spellcheck: true, green_pen: true },
+      settings: { submit_behaviour: 'draft', spellcheck: true, green_pen: true, feedback_table: 'default' },
       opens_at: '2026-01-01T00:00:00Z', due_at: '2026-12-31T23:59:59Z',
     },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
@@ -88,6 +94,7 @@ test('teacher can create an assignment with settings_json', async () => {
   assert.equal(settings.word_count, true);
   assert.equal(settings.paste_detection, true);
   assert.equal(settings.paste_mode, 'log');
+  assert.equal(settings.feedback_table, 'default');
   assert.equal(settings.green_pen, true);
 
   await app.close();

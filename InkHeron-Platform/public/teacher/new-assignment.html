@@ -160,6 +160,13 @@
           </select>
           <p class="hint">Controls paste from outside the InkPad screen. Copying within the writing screen can still be pasted.</p>
         </div>
+        <div class="field">
+          <label for="fFeedbackTable">Strengths and targets</label>
+          <select id="fFeedbackTable">
+            <option value="default" selected>Default InkHeron table</option>
+          </select>
+          <p class="hint">Stores which strengths and targets table this assignment should use during review.</p>
+        </div>
         <div class="toggle-group">
           <label class="toggle">
             <input type="checkbox" id="fSpellcheck" checked>
@@ -168,6 +175,10 @@
           <label class="toggle">
             <input type="checkbox" id="fGreenPen">
             <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
+          </label>
+          <label class="toggle">
+            <input type="checkbox" id="fCreateRubric" checked>
+            <span class="toggle-label">Create default rubric<small>Adds thesis, evidence, commentary, organisation and language-control criteria.</small></span>
           </label>
         </div>
       </div>
@@ -231,12 +242,14 @@
       const spellcheck=document.getElementById('fSpellcheck').checked;
       const green_pen=document.getElementById('fGreenPen').checked;
       const paste_mode=document.getElementById('fPasteMode').value;
+      const feedback_table=document.getElementById('fFeedbackTable').value;
+      const createRubric=document.getElementById('fCreateRubric').checked;
       const opens=document.getElementById('fOpens').value;
       const due=document.getElementById('fDue').value;
       const prompt=document.getElementById('fPrompt').value.trim();
       const passageText=document.getElementById('fPassageText').value.trim();
       const passagePdfFile=document.getElementById('fPassagePdf').files[0];
-      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,native_inkpad:true};
+      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,feedback_table,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 
@@ -244,6 +257,7 @@
       btn.disabled=true;btn.textContent=`Creating${selectedClasses.length>1?' ('+selectedClasses.length+' classes)':''}…`;
 
       let lastId='';
+      const createdIds=[];
       let failed=0;
       for(const classId of selectedClasses){
         const r=await fetch('/api/assignments',{
@@ -251,11 +265,24 @@
           headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
           body:JSON.stringify({title,class_id:classId,type,settings,opens_at:opens||null,due_at:due||null}),
         });
-        if(r.ok){const d=await r.json();lastId=d.assignment?.id||'';}
+        if(r.ok){const d=await r.json();lastId=d.assignment?.id||''; if(lastId) createdIds.push(lastId);}
         else failed++;
       }
 
       if(failed){btn.disabled=false;btn.textContent='Create assignment';showMsg(`${failed} class${failed!==1?'es':''} failed to create.`,true);return;}
+
+      if(createRubric&&createdIds.length){
+        btn.textContent='Creating rubric…';
+        for(const id of createdIds){
+          const rr=await fetch(`/api/native/assignments/${id}/rubric`,{
+            method:'PUT',
+            headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+            body:JSON.stringify({}),
+          });
+          if(!rr.ok) failed++;
+        }
+      }
+      if(failed){btn.disabled=false;btn.textContent='Create assignment';showMsg(`${failed} rubric setup${failed!==1?'s':''} failed.`,true);return;}
 
       if(passagePdfFile&&lastId){
         btn.textContent='Uploading PDF…';
