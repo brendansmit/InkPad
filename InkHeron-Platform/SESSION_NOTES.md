@@ -334,14 +334,21 @@ Entry format:
 - Verified: `node --check src/routes/nativePads.js` and Node 24 `--test test/migration.test.js test/nativePads.test.js` passed 8/8.
 - Decision: This phase stores structured evidence only. AI-written summaries, voice analysis and personalised exam practice stay later phases built on these tables.
 
-## 2026-07-01 - Live InkPad slowness check
-- Asked: Check `inkpad.inkheron.app` because it felt very slow and determine whether the server or China traffic throttling was likely.
-- Checked: Timed live HTTPS requests from the Codex environment. DNS and TCP connect were fast, but HTTPS page requests had 8-45 s time to first byte. Plain HTTP redirect was fast at about 0.46 s.
-- Decision: This points to the HTTPS origin/app path, likely nginx proxy to Fastify or the small droplet under load, not primarily China throttling. Browser navigation also failed to complete inside the timeout.
-
 ## 2026-07-01 - Native InkPad Phase 9 backup and recovery
 - Asked: Add a backup of student work in case the server goes down and allow a teacher to upload or paste recovered student work.
 - Built: Added teacher-only JSON backup export for all native pads or one assignment. Backup includes current pad data, revisions, annotations, paste events, rubric data and profile evidence.
 - UI/API: Native review page now has an assignment backup download link, pasted-text recovery and `.txt` upload recovery. Imports can create a manual revision only or replace current pad text.
 - Verified: Node 24 `--check src/routes/nativePads.js` and `--test test/migration.test.js test/nativePads.test.js` passed 9/9. Broader stable suite `--test test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 29/29.
 - Decision: Recovery revisions use existing `manual` reason because the schema check does not allow `teacher_import`; detailed source is recorded in `native_teacher_events`.
+
+## 2026-07-01 - Live InkPad slowness check
+- Asked: Check `inkpad.inkheron.app` because it felt very slow and determine whether the server or China traffic throttling was likely.
+- Checked: Timed live HTTPS requests from the Codex environment. DNS and TCP connect were fast, but HTTPS page requests had 8-45 s time to first byte. Plain HTTP redirect was fast at about 0.46 s.
+- Decision: This points to the HTTPS origin/app path, likely nginx proxy to Fastify or the small droplet under load, not primarily China throttling. Browser navigation also failed to complete inside the timeout.
+
+## 2026-07-01 - Live InkPad slowness fix
+- Asked: Fix the live slowness before doing more feature work.
+- Found: Droplet load was around 10-14 on a 1 GB server with no swap. `apt-daily-upgrade.service` had been stuck for over 2 hours, with orphaned unattended-upgrade and apt-check processes holding dpkg locks and driving CPU system time to about 95-97%.
+- Fixed: Killed the orphaned apt/unattended-upgrade process tree, added a persistent 2 GB `/swapfile`, set `vm.swappiness=10` and disabled `apt-daily.timer` plus `apt-daily-upgrade.timer` to prevent surprise upgrades during class use.
+- Verified: Local upstream timings recovered to 1-28 ms and local nginx HTTPS to 7-20 ms. Public HTTPS checks recovered to about 0.63-0.72 s total for `/`, `/assets/styles.css` and `/api/me`.
+- Decision: This was server resource exhaustion, not primarily China throttling. Manual OS updates are now needed because daily apt timers are disabled.
