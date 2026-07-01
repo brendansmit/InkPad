@@ -499,6 +499,51 @@ test('teacher can configure and score a native rubric with half steps', async ()
   await app.close();
 });
 
+test('native review uses selected saved feedback table', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app);
+  const { cookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const asset = await app.inject({
+    method: 'POST',
+    url: '/api/feedback-assets',
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      kind: 'strength_target',
+      title: 'Personal statement table',
+      assignment_type: 'Personal statement',
+      content_text: 'Strengths\n- Specific voice: The writing sounds personal.\n\nTargets\n- Add concrete detail: Use one exact moment.',
+    },
+  });
+  assert.equal(asset.statusCode, 201);
+
+  const db = new DatabaseSync(databasePath);
+  const assignment = db.prepare('SELECT settings_json FROM assignments WHERE id = ?').get(assignmentId);
+  const settings = JSON.parse(assignment.settings_json);
+  settings.feedback_table = `asset:${asset.json().asset.id}`;
+  db.prepare('UPDATE assignments SET settings_json = ? WHERE id = ?').run(JSON.stringify(settings), assignmentId);
+  db.close();
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+
+  const review = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${created.json().pad.id}/review`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(review.statusCode, 200);
+  assert.equal(review.json().feedback_options.strengths[0].title, 'Specific voice');
+  assert.equal(review.json().feedback_options.targets[0].title, 'Add concrete detail');
+
+  await app.close();
+});
+
 test('teacher can export native backups and import recovered student work', async () => {
   const databasePath = temporaryDatabasePath();
   const app = await buildApp({ databasePath, logger: false });

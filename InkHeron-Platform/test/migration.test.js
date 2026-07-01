@@ -24,6 +24,7 @@ const expectedColumns = {
   student_writing_profiles: ['id', 'student_id', 'writing_summary', 'voice_summary', 'targets_json', 'created_at', 'updated_at'],
   student_literacy_issue_stats: ['id', 'student_id', 'code', 'category', 'label', 'evidence_count', 'open_count', 'resolved_count', 'first_seen_at', 'last_seen_at', 'updated_at'],
   student_literacy_evidence: ['id', 'student_id', 'assignment_id', 'native_pad_id', 'annotation_id', 'code', 'category', 'label', 'selected_text', 'teacher_note', 'document_version', 'resolved', 'created_at', 'updated_at'],
+  feedback_assets: ['id', 'teacher_id', 'kind', 'title', 'assignment_type', 'content_text', 'parsed_json', 'is_archived', 'created_at', 'updated_at'],
   submissions: ['id', 'pad_id', 'submitted_at', 'is_graded', 'released'],
   grades: ['id', 'submission_id', 'score', 'released', 'graded_at'],
   paste_events: ['id', 'pad_id', 'at', 'length', 'input_type'],
@@ -55,6 +56,7 @@ const migrationFiles = [
   '013_native_review_policy.sql',
   '014_native_rubrics.sql',
   '015_student_writing_profiles.sql',
+  '016_feedback_assets.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

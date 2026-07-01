@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>InkHeron - Feedback</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--r-sm:10px;--r-md:14px;--r-lg:20px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);min-height:100vh}
+    .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,0.9);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+    .glyph{width:32px;height:32px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;font-weight:600;transform:rotate(-4deg)}
+    .nm{font-family:var(--serif);font-size:17px;font-weight:600}
+    .sp{flex:1}
+    .container{max-width:1080px;margin:0 auto;padding:30px 26px 80px}
+    .back{color:var(--text-2);font-size:13px;text-decoration:none;display:inline-flex;margin-bottom:12px}
+    h1{font-family:var(--serif);font-size:28px;line-height:1.12;margin:0 0 8px;color:var(--ink)}
+    .lead,.hint{color:var(--text-2)}
+    .lead{font-size:15px;margin:0 0 24px}
+    .grid{display:grid;grid-template-columns:minmax(320px,420px) minmax(0,1fr);gap:18px;align-items:start}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow-card)}
+    .card h2{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+    label{display:block;color:var(--text-2);font-size:11.5px;font-weight:700;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em}
+    input[type=text],select,textarea{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 12px;font:inherit;background:var(--surface);color:var(--text)}
+    textarea{resize:vertical;min-height:240px}
+    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green-600)}
+    .field{margin-bottom:15px}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:0 16px;border-radius:var(--r-sm);font-weight:700;text-decoration:none;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-family:inherit}
+    .btn:hover{box-shadow:var(--shadow-lift);transform:translateY(-2px)}
+    .btn.p{background:var(--green-600);color:#fff;border:none}
+    .btn.sm{min-height:32px;padding:0 11px;font-size:13px}
+    .btn.danger{color:var(--maroon-500);border-color:rgba(140,47,59,.35)}
+    .asset-list{display:grid;gap:10px}
+    .asset{border:1px solid var(--border);border-radius:var(--r-md);padding:14px;background:var(--surface)}
+    .asset header{display:flex;align-items:flex-start;gap:10px}
+    .asset h3{margin:0;font-size:15px}
+    .asset p{margin:4px 0 0;color:var(--text-2);font-size:13px}
+    .pill{display:inline-flex;align-items:center;min-height:24px;border-radius:999px;padding:0 9px;font-size:12px;font-weight:700;background:var(--surface-2);color:var(--text-2)}
+    .msg{display:none;padding:11px 14px;border-radius:var(--r-sm);margin-bottom:14px}
+    .msg.on{display:block;background:var(--green-50);color:var(--green-700)}
+    .msg.err{background:var(--maroon-50);color:var(--maroon-500)}
+    @media(max-width:860px){.grid{grid-template-columns:1fr}.row2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="appbar">
+    <div class="glyph">i</div><div class="nm">InkHeron</div>
+    <span class="sp"></span>
+    <button class="btn" id="logoutBtn" type="button">Sign out</button>
+  </div>
+
+  <main class="container">
+    <a class="back" href="/teacher">&lt; Back to dashboard</a>
+    <h1>Feedback</h1>
+    <p class="lead">Save rubrics, strengths and targets for different kinds of assignments.</p>
+    <div class="msg" id="msg"></div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Add feedback asset</h2>
+        <form id="assetForm">
+          <div class="row2">
+            <div class="field">
+              <label for="kind">Kind</label>
+              <select id="kind">
+                <option value="strength_target">Strengths and targets</option>
+                <option value="rubric">Rubric</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="assignmentType">Assignment type</label>
+              <input type="text" id="assignmentType" placeholder="Personal statement">
+            </div>
+          </div>
+          <div class="field">
+            <label for="title">Name</label>
+            <input type="text" id="title" placeholder="Personal statement feedback">
+          </div>
+          <div class="field">
+            <label for="upload">Upload text, CSV or JSON</label>
+            <input type="file" id="upload" accept=".txt,.csv,.json,text/plain,application/json,text/csv">
+            <p class="hint">Uploads are read into the text box before saving.</p>
+          </div>
+          <div class="field">
+            <label for="contentText">Content</label>
+            <textarea id="contentText" placeholder="Strengths&#10;- Clear voice: The writing sounds personal and specific.&#10;&#10;Targets&#10;- Add concrete evidence: Use a precise moment or detail."></textarea>
+          </div>
+          <button class="btn p" id="saveBtn" type="submit">Save feedback asset</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Saved assets</h2>
+        <div class="asset-list" id="assetList"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+  (function(){
+    'use strict';
+    let csrfToken='';
+    let assets=[];
+
+    async function init(){
+      const me=await fetch('/api/me');
+      if(!me.ok){window.location.href='/teacher-login';return;}
+      const data=await me.json();
+      if(data.user.type!=='teacher'){window.location.href='/';return;}
+      csrfToken=data.user.csrf_token;
+      await loadAssets();
+    }
+
+    async function loadAssets(){
+      const r=await fetch('/api/feedback-assets');
+      if(!r.ok){showMsg('Could not load feedback assets.',true);return;}
+      assets=(await r.json()).assets||[];
+      renderAssets();
+    }
+
+    function renderAssets(){
+      const box=document.getElementById('assetList');
+      if(!assets.length){
+        box.innerHTML='<p class="hint">No saved feedback assets yet.</p>';
+        return;
+      }
+      box.innerHTML=assets.map(asset=>{
+        const parsed=asset.parsed||{};
+        const count=asset.kind==='rubric'
+          ? `${(parsed.criteria||[]).length} criteria`
+          : `${(parsed.strengths||[]).length} strengths, ${(parsed.targets||[]).length} targets`;
+        return `<article class="asset">
+          <header>
+            <div style="flex:1">
+              <h3>${escapeHtml(asset.title)}</h3>
+              <p>${escapeHtml(asset.assignment_type||'General')} - ${count}</p>
+            </div>
+            <span class="pill">${asset.kind==='rubric'?'Rubric':'Feedback table'}</span>
+          </header>
+          <div style="margin-top:12px">
+            <button class="btn sm danger" type="button" data-delete="${asset.id}">Archive</button>
+          </div>
+        </article>`;
+      }).join('');
+      box.querySelectorAll('[data-delete]').forEach(btn=>btn.addEventListener('click',()=>archiveAsset(Number(btn.dataset.delete))));
+    }
+
+    async function archiveAsset(id){
+      const asset=assets.find(item=>item.id===id);
+      if(!asset||!confirm(`Archive "${asset.title}"?`)) return;
+      const r=await fetch('/api/feedback-assets/'+id,{method:'DELETE',headers:{'X-CSRF-Token':csrfToken}});
+      if(!r.ok){showMsg('Could not archive asset.',true);return;}
+      await loadAssets();
+      showMsg('Archived.',false);
+    }
+
+    document.getElementById('upload').addEventListener('change',async event=>{
+      const file=event.target.files[0];
+      if(!file) return;
+      document.getElementById('contentText').value=await file.text();
+      if(!document.getElementById('title').value.trim()){
+        document.getElementById('title').value=file.name.replace(/\.[^.]+$/,'');
+      }
+    });
+
+    document.getElementById('assetForm').addEventListener('submit',async event=>{
+      event.preventDefault();
+      const payload={
+        kind:document.getElementById('kind').value,
+        title:document.getElementById('title').value.trim(),
+        assignment_type:document.getElementById('assignmentType').value.trim(),
+        content_text:document.getElementById('contentText').value,
+      };
+      if(!payload.title){showMsg('Name is required.',true);return;}
+      const btn=document.getElementById('saveBtn');
+      btn.disabled=true;btn.textContent='Saving...';
+      const r=await fetch('/api/feedback-assets',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify(payload),
+      });
+      btn.disabled=false;btn.textContent='Save feedback asset';
+      if(!r.ok){showMsg('Could not save feedback asset.',true);return;}
+      document.getElementById('assetForm').reset();
+      await loadAssets();
+      showMsg('Saved.',false);
+    });
+
+    function showMsg(text,isError){
+      const el=document.getElementById('msg');
+      el.textContent=text;
+      el.className=isError?'msg on err':'msg on';
+    }
+
+    function escapeHtml(value){
+      return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    }
+
+    document.getElementById('logoutBtn').addEventListener('click',async()=>{
+      await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+      window.location.href='/teacher-login';
+    });
+
+    init();
+  }());
+  </script>
+</body>
+</html>

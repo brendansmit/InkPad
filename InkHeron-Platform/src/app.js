@@ -13,6 +13,7 @@ import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerSettingsTestRoutes } from './routes/settingsTests.js';
 import { registerLibraryRoutes } from './routes/library.js';
+import { registerFeedbackAssetRoutes } from './routes/feedbackAssets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,6 +86,7 @@ export async function buildApp(options = {}) {
   await registerSettingsRoutes(app, { db });
   await registerSettingsTestRoutes(app, { db });
   await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });
+  await registerFeedbackAssetRoutes(app, { db });
   await registerPadRoutes(app, { db, etherpadService: options.etherpadService, padSuffixGenerator: options.padSuffixGenerator });
   await registerNativePadRoutes(app, { db });
 
@@ -99,6 +101,7 @@ export async function buildApp(options = {}) {
   app.get('/teacher/timeslider', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/timeslider.html', publicDir));
   app.get('/teacher/new-assignment', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/new-assignment.html', publicDir));
   app.get('/teacher/settings', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/settings.html', publicDir));
+  app.get('/teacher/feedback', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/feedback.html', publicDir));
   app.get('/student', async (_request, reply) => reply.sendFile('student-dashboard.html', publicDir));
   app.get('/native/feedback/:assignmentId', { preValidation: [app.requireStudentSession] }, async (_request, reply) => reply.sendFile('native-feedback.html', publicDir));
   app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));

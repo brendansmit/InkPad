@@ -179,6 +179,13 @@
           </select>
           <p class="hint">Stores which strengths and targets table this assignment should use during review.</p>
         </div>
+        <div class="field">
+          <label for="fRubricTemplate">Rubric template</label>
+          <select id="fRubricTemplate">
+            <option value="default" selected>Default InkHeron rubric</option>
+          </select>
+          <p class="hint">Structured JSON rubric templates can create rubric criteria automatically.</p>
+        </div>
         <div class="toggle-group">
           <label class="toggle">
             <input type="checkbox" id="fSpellcheck" checked>
@@ -207,6 +214,7 @@
   (function(){
     'use strict';
     let csrfToken='';
+    let feedbackAssets=[];
 
     async function init(){
       const me=await fetch('/api/me');
@@ -214,7 +222,27 @@
       const data=await me.json();
       if(data.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=data.user.csrf_token;
-      await loadClasses();
+      await Promise.all([loadClasses(),loadFeedbackAssets()]);
+    }
+
+    async function loadFeedbackAssets(){
+      const r=await fetch('/api/feedback-assets');
+      if(!r.ok) return;
+      feedbackAssets=(await r.json()).assets||[];
+      populateFeedbackSelects();
+    }
+
+    function populateFeedbackSelects(){
+      const table=document.getElementById('fFeedbackTable');
+      const rubric=document.getElementById('fRubricTemplate');
+      table.innerHTML='<option value="default" selected>Default InkHeron table</option>'+
+        feedbackAssets.filter(asset=>asset.kind==='strength_target').map(asset=>
+          `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
+        ).join('');
+      rubric.innerHTML='<option value="default" selected>Default InkHeron rubric</option>'+
+        feedbackAssets.filter(asset=>asset.kind==='rubric').map(asset=>
+          `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
+        ).join('');
     }
 
     async function loadClasses(){
@@ -256,6 +284,7 @@
       const green_pen=document.getElementById('fGreenPen').checked;
       const paste_mode=document.getElementById('fPasteMode').value;
       const feedback_table=document.getElementById('fFeedbackTable').value;
+      const rubric_template=document.getElementById('fRubricTemplate').value;
       const createRubric=document.getElementById('fCreateRubric').checked;
       const opens=document.getElementById('fOpens').value;
       const due=document.getElementById('fDue').value;
@@ -286,11 +315,13 @@
 
       if(createRubric&&createdIds.length){
         btn.textContent='Creating rubric…';
+        const rubricAsset=feedbackAssets.find(asset=>`asset:${asset.id}`===rubric_template);
+        const rubricPayload=rubricAsset?.parsed?.criteria?.length ? { criteria: rubricAsset.parsed.criteria } : {};
         for(const id of createdIds){
           const rr=await fetch(`/api/native/assignments/${id}/rubric`,{
             method:'PUT',
             headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-            body:JSON.stringify({}),
+            body:JSON.stringify(rubricPayload),
           });
           if(!rr.ok) failed++;
         }
@@ -313,6 +344,10 @@
       const el=document.getElementById('msg');
       el.textContent=text;el.className=isError?'msg on err':'msg on';
       el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    }
+
+    function escapeHtml(value){
+      return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
 
     document.getElementById('logoutBtn').addEventListener('click',async()=>{

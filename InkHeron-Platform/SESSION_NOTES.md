@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Feedback asset library
+- Asked: Add a home feedback area where rubric templates, strengths and targets can be uploaded for different assignment types.
+- Built: Added `/teacher/feedback`, a Feedback tile on teacher home and teacher-only `/api/feedback-assets` routes for listing, saving and archiving rubric or strengths/targets assets.
+- Built: Added `feedback_assets` migration, parser helpers, assignment setup dropdowns for saved strengths/targets and rubric templates and native review now uses the selected saved feedback table.
+- Verified: `node --test test/migration.test.js test/feedbackAssets.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
+
 ## 2026-07-02 - Simple and advanced assignment setup
 - Asked: Make assignment setup simple by default, with heavier options behind Simple and Advanced.
 - Built: New assignment now shows the core setup first and moves outside paste, strengths and targets, spellcheck, green pen and default rubric creation into a collapsed Advanced options section.

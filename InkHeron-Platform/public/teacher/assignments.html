@@ -278,6 +278,13 @@
           </select>
           <p class="hint">Stores which strengths and targets table this assignment should use during review.</p>
         </div>
+        <div class="field">
+          <label for="eRubricTemplate">Rubric template</label>
+          <select id="eRubricTemplate">
+            <option value="default">Default InkHeron rubric</option>
+          </select>
+          <p class="hint">Structured JSON rubric templates can create or reset rubric criteria automatically.</p>
+        </div>
         <div class="toggle-group">
           <label class="toggle">
             <input type="checkbox" id="eSpellcheck">
@@ -340,6 +347,7 @@
     let csrfToken='';
     let assignments=[];
     let classes=[];
+    let feedbackAssets=[];
     let currentId=null;
     let showingArchived=false;
     let editFromDetail=false;
@@ -384,7 +392,7 @@
       csrfToken=user.user.csrf_token;
       restoreFilterState();
       fetch('/api/teacher/notifications/clear',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-      const [,cr]=await Promise.all([fetchAssignments(),fetch('/api/classes')]);
+      const [,cr]=await Promise.all([fetchAssignments(),fetch('/api/classes'),fetchFeedbackAssets()]);
       const cd=await cr.json(); classes=cd.classes||[];
       renderList();
       const params=new URLSearchParams(window.location.search);
@@ -395,6 +403,28 @@
         openGroup(grp);
       }
       bindControls();
+    }
+
+    async function fetchFeedbackAssets(){
+      const r=await fetch('/api/feedback-assets');
+      if(!r.ok) return;
+      feedbackAssets=(await r.json()).assets||[];
+      populateFeedbackSelects();
+    }
+
+    function populateFeedbackSelects(){
+      const feedbackOptions='<option value="default">Default InkHeron table</option>'+
+        feedbackAssets.filter(asset=>asset.kind==='strength_target').map(asset=>
+          `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
+        ).join('');
+      const rubricOptions='<option value="default">Default InkHeron rubric</option>'+
+        feedbackAssets.filter(asset=>asset.kind==='rubric').map(asset=>
+          `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
+        ).join('');
+      const eFeedback=document.getElementById('eFeedbackTable');
+      const eRubric=document.getElementById('eRubricTemplate');
+      if(eFeedback) eFeedback.innerHTML=feedbackOptions;
+      if(eRubric) eRubric.innerHTML=rubricOptions;
     }
 
     function classNameFor(classId){
@@ -670,6 +700,7 @@
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
       document.getElementById('ePasteMode').value=s.paste_mode||'log';
       document.getElementById('eFeedbackTable').value=s.feedback_table||'default';
+      document.getElementById('eRubricTemplate').value='default';
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
       document.getElementById('eGreenPen').checked=s.green_pen===true;
       document.getElementById('eCreateRubric').checked=false;
@@ -711,6 +742,7 @@
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
       const paste_mode=document.getElementById('ePasteMode').value;
       const feedback_table=document.getElementById('eFeedbackTable').value;
+      const rubric_template=document.getElementById('eRubricTemplate').value;
       const createRubric=document.getElementById('eCreateRubric').checked;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
@@ -740,11 +772,13 @@
 
       if(!failed && createRubric){
         btn.textContent='Saving rubric…';
+        const rubricAsset=feedbackAssets.find(asset=>`asset:${asset.id}`===rubric_template);
+        const rubricPayload=rubricAsset?.parsed?.criteria?.length ? { criteria: rubricAsset.parsed.criteria } : {};
         for(const ga of editGroup){
           const rr=await fetch(`/api/native/assignments/${ga.id}/rubric`,{
             method:'PUT',
             headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-            body:JSON.stringify({}),
+            body:JSON.stringify(rubricPayload),
           });
           if(!rr.ok) failed++;
         }
