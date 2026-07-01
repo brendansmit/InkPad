@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-07-01 - EAP Library mobile + CDN fix
+
+- Built:
+  - `eap-library.html`: PDF mobile detection — on iOS/narrow screens, hides iframe and shows "Open PDF" button that opens the URL directly (iOS can't render PDFs in iframes). Viewer bar uses flex-wrap and 40px touch targets. Media query cleans up layout.
+  - `eap-library-admin.html`: Mobile sidebar with slide-in transform, backdrop overlay, hamburger button in topbar; nav taps close sidebar.
+  - Self-hosted Font Awesome 5.15.4 (CSS + woff2) at `public/static/fa/`. Added `/static/` fastifyStatic route in `src/app.js`. Both pages updated from CDN href to `/static/fa/css/all.min.css`. CDN was blocked by Great Firewall for students.
+- Commits: 155b012 (mobile), d786084 (FA self-host), 87ec4b8 (/static/ route)
+- Decisions: FA webfonts only include woff2 (modern browsers only — no .woff fallback needed given student device landscape).
+- Open / next: Deploy to server to verify on real mobile device.
+
+---
 
 ## 2026-07-01 - Network access question
 
