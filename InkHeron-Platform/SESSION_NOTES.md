@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Make native writer zoom visual-only
+- Asked: Limit native writer zoom to 80-125% and ensure zoom never changes the actual font size or text positioning.
+- Built: Replaced browser `zoom` with transform-based visual scaling inside a sizing frame, capped stored and slider zoom at 125% and refreshed the frame as line count/page height changes.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: Zoom is now a viewport-only aid. Formatting and saved document HTML remain controlled by the actual editor commands, not the zoom slider.
+
 ## 2026-07-01 - Refine native toolbar and line-number gutter
 - Asked: Keep the left-panel clear button as text, improve the standard-style toolbar icons and remove the coloured line-number gutter.
 - Built: Restored `Clear` text in the task/reference marking toolbar, replaced indent/outdent with cleaner arrow-and-line CSS icons and removed the boxed background from line numbers.

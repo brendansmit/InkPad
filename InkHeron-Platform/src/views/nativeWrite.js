@@ -107,7 +107,8 @@ export function renderNativeWriteView({
     .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4;flex-wrap:wrap}
     .niw-divider{width:1px;height:28px;background:#d8d4c8;margin:0 3px}
     .niw-editor-stage{flex:1;overflow:auto;padding:36px 32px}
-    .niw-page-shell{width:var(--page-width);max-width:100%;margin:0 auto;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;zoom:var(--editor-zoom)}
+    .niw-page-zoom-frame{width:var(--page-width);max-width:max-content;margin:0 auto;position:relative}
+    .niw-page-shell{width:var(--page-width);max-width:100%;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;transform:scale(var(--editor-zoom));transform-origin:top left}
     .niw-line-numbers{border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;line-height:31.5px;text-align:right;padding:35px 7px 34px 0;user-select:none;white-space:pre;min-height:0}
     #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background:#fff;border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor p,#nativeEditor div{margin:0 0 1em}
@@ -123,7 +124,7 @@ export function renderNativeWriteView({
     .niw-local-highlight-pink{background:#fecaca}
     .empty{color:#8a938d}
     @media(max-width:1080px){.niw-bar{gap:9px}.niw-stat{font-size:12px}.niw-btn{padding:0 10px}}
-    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-shell{width:100%;grid-template-columns:22px minmax(0,1fr)}.niw-line-numbers{font-size:10px;padding:23px 5px 22px 0}#nativeEditor{min-height:60vh;padding:22px}}
+    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-zoom-frame,.niw-page-shell{width:100%;max-width:100%}.niw-page-shell{grid-template-columns:22px minmax(0,1fr)}.niw-line-numbers{font-size:10px;padding:23px 5px 22px 0}#nativeEditor{min-height:60vh;padding:22px}}
   </style>
 </head>
 <body>
@@ -218,12 +219,14 @@ export function renderNativeWriteView({
           </span>
         </span>
         <div class="niw-divider"></div>
-        <label class="niw-zoom">Zoom <input id="zoomSlider" type="range" min="80" max="160" step="5" value="100"><span id="zoomLabel">100%</span></label>
+        <label class="niw-zoom">Zoom <input id="zoomSlider" type="range" min="80" max="125" step="5" value="100"><span id="zoomLabel">100%</span></label>
       </div>
       <div class="niw-editor-stage">
-        <div class="niw-page-shell">
-          <div class="niw-line-numbers" id="lineNumbers"></div>
-          <div id="nativeEditor" contenteditable="${locked ? 'false' : 'true'}" spellcheck="${spellcheck ? 'true' : 'false'}"></div>
+        <div class="niw-page-zoom-frame" id="pageZoomFrame">
+          <div class="niw-page-shell" id="pageShell">
+            <div class="niw-line-numbers" id="lineNumbers"></div>
+            <div id="nativeEditor" contenteditable="${locked ? 'false' : 'true'}" spellcheck="${spellcheck ? 'true' : 'false'}"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -247,6 +250,8 @@ export function renderNativeWriteView({
     const fontSizeSelect = document.getElementById('fontSizeSelect');
     const zoomSlider = document.getElementById('zoomSlider');
     const zoomLabel = document.getElementById('zoomLabel');
+    const pageZoomFrame = document.getElementById('pageZoomFrame');
+    const pageShell = document.getElementById('pageShell');
     const lineNumbers = document.getElementById('lineNumbers');
     let dirty = false;
     let saving = false;
@@ -300,15 +305,22 @@ export function renderNativeWriteView({
     }
     function clamp(value, min, max){ return Math.max(min, Math.min(max, value)); }
     function applyLayoutSettings(){
-      editorZoom = clamp(editorZoom, 0.8, 1.6);
+      editorZoom = clamp(editorZoom, 0.8, 1.25);
       readerWidth = clamp(readerWidth, 260, Math.min(Math.floor(window.innerWidth * 0.6), 820));
       shell.style.setProperty('--page-width', pageWidth + 'px');
       shell.style.setProperty('--editor-zoom', editorZoom.toFixed(2));
       shell.style.setProperty('--reader-width', readerWidth + 'px');
+      syncZoomFrame();
       saveNumberSetting('nativePadZoom', editorZoom);
       saveNumberSetting('nativePadReaderWidth', readerWidth);
       zoomSlider.value = String(Math.round(editorZoom * 100));
       zoomLabel.textContent = Math.round(editorZoom * 100) + '%';
+    }
+    function syncZoomFrame(){
+      requestAnimationFrame(() => {
+        pageZoomFrame.style.width = Math.ceil(pageShell.offsetWidth * editorZoom) + 'px';
+        pageZoomFrame.style.height = Math.ceil(pageShell.offsetHeight * editorZoom) + 'px';
+      });
     }
     function sanitizeEditorHtml(html){
       const template = document.createElement('template');
@@ -601,6 +613,7 @@ export function renderNativeWriteView({
       const text = currentText();
       const lines = text.trim() ? text.split('\\n').length : 0;
       lineNumbers.textContent = Array.from({length:lines}, (_, index) => String(index + 1)).join('\\n');
+      syncZoomFrame();
     }
     function closePalettes(){
       document.querySelectorAll('.niw-popover.open').forEach(popover => popover.classList.remove('open'));
