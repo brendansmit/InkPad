@@ -127,6 +127,10 @@
             <span class="pill">${escapeHtml(reviewData.pad.state)}</span>
             <span class="sub">Version ${reviewData.pad.version} · ${reviewData.pad.word_count} words</span>
           </div>
+          <div class="section">
+            <span class="label">Profile issues</span>
+            ${profileIssueList()}
+          </div>
           <div class="section stack">
             <label class="label" for="pasteMode">Paste</label>
             <select id="pasteMode">
@@ -219,6 +223,17 @@
 
     function revisionItem(revision){
       return `<div class="comment"><strong>${escapeHtml(revision.reason)}</strong><p>${revision.word_count} words · v${revision.document_version}</p><span class="meta">${escapeHtml(formatDate(revision.created_at))}</span><button class="btn" type="button" data-revision="${revision.id}" style="margin-top:8px">View</button></div>`;
+    }
+
+    function profileIssueList(){
+      const issues=(reviewData.student_profile?.literacy_issues || []).slice(0,5);
+      if(!issues.length) return '<span class="sub">No tracked issues yet.</span>';
+      return `<div class="stack">${issues.map(issue=>`
+        <div class="comment">
+          <strong>${escapeHtml(issue.label || issue.code || issue.category)}</strong>
+          <p>${issue.open_count} open · ${issue.resolved_count} resolved · ${issue.evidence_count} total</p>
+        </div>
+      `).join('')}</div>`;
     }
 
     function rubricPanel(){

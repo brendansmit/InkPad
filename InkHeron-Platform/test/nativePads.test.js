@@ -305,6 +305,24 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(code.json().annotation.type, 'literacy_code');
   assert.equal(code.json().annotation.metadata.code, 'EV');
 
+  const profileAfterCode = await app.inject({
+    method: 'GET',
+    url: `/api/native/students/${created.json().pad.student_id}/profile`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(profileAfterCode.statusCode, 200);
+  assert.equal(profileAfterCode.json().profile.literacy_issues[0].code, 'EV');
+  assert.equal(profileAfterCode.json().profile.literacy_issues[0].open_count, 1);
+  assert.equal(profileAfterCode.json().profile.recent_evidence[0].selected_text, 'Sentence two');
+
+  const resolvedCode = await app.inject({
+    method: 'PATCH',
+    url: `/api/native/annotations/${code.json().annotation.id}`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { resolved: true },
+  });
+  assert.equal(resolvedCode.statusCode, 200);
+
   const highlight = await app.inject({
     method: 'POST',
     url: `/api/native/pads/${padId}/annotations`,
@@ -330,6 +348,8 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(review.json().policy.paste_mode, 'block');
   assert.equal(review.json().paste_events.length, 1);
   assert.deepEqual(review.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment', 'literacy_code', 'highlight']);
+  assert.equal(review.json().student_profile.literacy_issues[0].resolved_count, 1);
+  assert.equal(review.json().student_profile.literacy_issues[0].open_count, 0);
 
   await app.close();
 });
@@ -450,6 +470,7 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /showRevision/);
   assert.match(page.body, /rubricPanel/);
   assert.match(page.body, /saveRubricScores/);
+  assert.match(page.body, /profileIssueList/);
 
   await app.close();
 });

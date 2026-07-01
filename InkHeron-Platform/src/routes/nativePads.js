@@ -159,6 +159,151 @@ function publicRubricScore(row) {
   };
 }
 
+function parseMetadataJson(value) {
+  try {
+    return JSON.parse(value || EMPTY_META);
+  } catch (_) {
+    return {};
+  }
+}
+
+function ensureStudentWritingProfile(db, studentId) {
+  db.prepare('INSERT OR IGNORE INTO student_writing_profiles (student_id) VALUES (?)').run(studentId);
+  const profile = db.prepare('SELECT * FROM student_writing_profiles WHERE student_id = ?').get(studentId);
+  return {
+    student_id: profile.student_id,
+    writing_summary: profile.writing_summary ?? '',
+    voice_summary: profile.voice_summary ?? '',
+    targets: JSON.parse(profile.targets_json || '[]'),
+    created_at: profile.created_at,
+    updated_at: profile.updated_at,
+  };
+}
+
+function normalizeLiteracyKey(row) {
+  const metadata = parseMetadataJson(row.metadata_json);
+  const code = normalizeRubricText(metadata.code, 40);
+  const category = normalizeRubricText(metadata.category, 120);
+  const label = normalizeRubricText(metadata.label, 180, code || category || 'Literacy issue');
+  return { code, category, label };
+}
+
+function recomputeStudentLiteracyStat(db, studentId, code, category, label) {
+  const aggregate = db.prepare(`
+    SELECT
+      COUNT(*) AS evidence_count,
+      SUM(CASE WHEN resolved = 0 THEN 1 ELSE 0 END) AS open_count,
+      SUM(CASE WHEN resolved = 1 THEN 1 ELSE 0 END) AS resolved_count,
+      MIN(created_at) AS first_seen_at,
+      MAX(created_at) AS last_seen_at
+    FROM student_literacy_evidence
+    WHERE student_id = ? AND code = ? AND category = ?
+  `).get(studentId, code, category);
+
+  if (!aggregate || Number(aggregate.evidence_count ?? 0) === 0) {
+    db.prepare('DELETE FROM student_literacy_issue_stats WHERE student_id = ? AND code = ? AND category = ?').run(studentId, code, category);
+    return;
+  }
+
+  db.prepare(`
+    INSERT INTO student_literacy_issue_stats (
+      student_id, code, category, label, evidence_count, open_count, resolved_count, first_seen_at, last_seen_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(student_id, code, category) DO UPDATE SET
+      label = excluded.label,
+      evidence_count = excluded.evidence_count,
+      open_count = excluded.open_count,
+      resolved_count = excluded.resolved_count,
+      first_seen_at = excluded.first_seen_at,
+      last_seen_at = excluded.last_seen_at,
+      updated_at = datetime('now')
+  `).run(
+    studentId,
+    code,
+    category,
+    label,
+    Number(aggregate.evidence_count ?? 0),
+    Number(aggregate.open_count ?? 0),
+    Number(aggregate.resolved_count ?? 0),
+    aggregate.first_seen_at,
+    aggregate.last_seen_at
+  );
+}
+
+function syncLiteracyEvidence(db, pad, annotationRow) {
+  if (annotationRow.type !== 'literacy_code') return;
+  ensureStudentWritingProfile(db, pad.student_id);
+  const key = normalizeLiteracyKey(annotationRow);
+  db.prepare(`
+    INSERT INTO student_literacy_evidence (
+      student_id, assignment_id, native_pad_id, annotation_id, code, category, label,
+      selected_text, teacher_note, document_version, resolved, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(annotation_id) DO UPDATE SET
+      code = excluded.code,
+      category = excluded.category,
+      label = excluded.label,
+      selected_text = excluded.selected_text,
+      teacher_note = excluded.teacher_note,
+      document_version = excluded.document_version,
+      resolved = excluded.resolved,
+      updated_at = datetime('now')
+  `).run(
+    pad.student_id,
+    pad.assignment_id,
+    pad.id,
+    annotationRow.id,
+    key.code,
+    key.category,
+    key.label,
+    annotationRow.selected_text ?? '',
+    annotationRow.body ?? '',
+    Number(annotationRow.document_version ?? 1),
+    annotationRow.resolved === 1 ? 1 : 0
+  );
+  recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);
+}
+
+function loadStudentWritingProfile(db, studentId) {
+  const profile = ensureStudentWritingProfile(db, studentId);
+  const issues = db.prepare(`
+    SELECT code, category, label, evidence_count, open_count, resolved_count, first_seen_at, last_seen_at, updated_at
+    FROM student_literacy_issue_stats
+    WHERE student_id = ?
+    ORDER BY open_count DESC, evidence_count DESC, last_seen_at DESC
+  `).all(studentId).map((issue) => ({
+    code: issue.code,
+    category: issue.category,
+    label: issue.label,
+    evidence_count: Number(issue.evidence_count ?? 0),
+    open_count: Number(issue.open_count ?? 0),
+    resolved_count: Number(issue.resolved_count ?? 0),
+    first_seen_at: issue.first_seen_at,
+    last_seen_at: issue.last_seen_at,
+    updated_at: issue.updated_at,
+  }));
+  const evidence = db.prepare(`
+    SELECT assignment_id, native_pad_id, annotation_id, code, category, label, selected_text, teacher_note, document_version, resolved, created_at
+    FROM student_literacy_evidence
+    WHERE student_id = ?
+    ORDER BY created_at DESC, id DESC
+    LIMIT 30
+  `).all(studentId).map((row) => ({
+    assignment_id: row.assignment_id,
+    native_pad_id: row.native_pad_id,
+    annotation_id: row.annotation_id,
+    code: row.code,
+    category: row.category,
+    label: row.label,
+    selected_text: row.selected_text,
+    teacher_note: row.teacher_note,
+    document_version: Number(row.document_version ?? 1),
+    resolved: row.resolved === 1,
+    created_at: row.created_at,
+  }));
+  return { ...profile, literacy_issues: issues, recent_evidence: evidence };
+}
+
 function loadAssignmentRubric(db, assignmentId) {
   const criteria = db.prepare(`
     SELECT *
@@ -591,6 +736,16 @@ export async function registerNativePadRoutes(app, { db }) {
     }
   );
 
+  app.get('/api/native/students/:studentId/profile',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const studentId = requirePositiveInteger(request.params.studentId, 'studentId');
+      const student = db.prepare('SELECT id FROM students WHERE id = ?').get(studentId);
+      if (!student) return reply.code(404).send({ error: 'student_not_found' });
+      return { profile: loadStudentWritingProfile(db, studentId) };
+    }
+  );
+
   app.get('/api/native/pads/:padId/review',
     { preValidation: [app.requireTeacherSession] },
     async (request, reply) => {
@@ -635,6 +790,7 @@ export async function registerNativePadRoutes(app, { db }) {
           criteria: rubric.criteria,
           scores: loadRubricScores(db, padId),
         },
+        student_profile: loadStudentWritingProfile(db, pad.student_id),
       };
     }
   );
@@ -663,6 +819,7 @@ export async function registerNativePadRoutes(app, { db }) {
       );
       logTeacherEvent(db, padId, request.session.user.id, 'annotation_created', { type: annotation.type });
       const row = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(result.lastInsertRowid);
+      syncLiteracyEvidence(db, pad, row);
       return reply.code(201).send({ annotation: publicAnnotation(row) });
     }
   );
@@ -676,6 +833,7 @@ export async function registerNativePadRoutes(app, { db }) {
       const body = request.body?.body !== undefined ? normalizeComment(request.body.body) : existing.body;
       const resolved = request.body?.resolved !== undefined ? (request.body.resolved ? 1 : 0) : existing.resolved;
       const metadataJson = request.body?.metadata !== undefined ? normalizeMetadata(request.body.metadata) : existing.metadata_json;
+      const previousKey = existing.type === 'literacy_code' ? normalizeLiteracyKey(existing) : null;
       db.prepare(`
         UPDATE native_annotations
         SET body = ?, resolved = ?, metadata_json = ?, updated_at = datetime('now')
@@ -683,6 +841,11 @@ export async function registerNativePadRoutes(app, { db }) {
       `).run(body, resolved, metadataJson, annotationId);
       logTeacherEvent(db, existing.native_pad_id, request.session.user.id, 'annotation_updated', { annotation_id: annotationId });
       const row = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annotationId);
+      const pad = loadTeacherNativePad(db, existing.native_pad_id);
+      if (pad) {
+        syncLiteracyEvidence(db, pad, row);
+        if (previousKey) recomputeStudentLiteracyStat(db, pad.student_id, previousKey.code, previousKey.category, previousKey.label);
+      }
       return { annotation: publicAnnotation(row) };
     }
   );

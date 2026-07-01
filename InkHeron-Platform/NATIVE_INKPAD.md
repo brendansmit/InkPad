@@ -55,6 +55,13 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Teachers can create a default rubric, mark whole or half scores and add score notes.
 - Rubric scoring is stored separately from grades so it can later feed student feedback packages and progress profiles.
 
+## Phase 8 Student Writing Profiles
+
+- `student_writing_profiles` creates the long-term student profile record for writing and voice summaries.
+- Literacy-code annotations now create structured profile evidence for the student.
+- Profile issue stats track total, open and resolved evidence counts per code/category.
+- Native review payloads include the student profile and the review page shows the current top issue counts while marking.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:

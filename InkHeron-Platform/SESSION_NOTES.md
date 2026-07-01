@@ -326,3 +326,10 @@ Entry format:
 - UI: Native review page can create a default five-criterion rubric, choose whole or half scores with an X marker and save notes for each criterion.
 - Verified: `node --check src/routes/nativePads.js` and Node 24 `--test test/migration.test.js test/nativePads.test.js` passed 8/8.
 - Decision: Rubric scores stay separate from numeric grades for now so they can later feed visible feedback packages and student profiles.
+
+## 2026-07-01 - Native InkPad Phase 8 student writing profiles
+- Asked: Keep the long-term student writing and voice profile goal built into the native InkPad work.
+- Built: Added `015_student_writing_profiles.sql` with student writing profiles, literacy issue stats and literacy evidence. Literacy-code annotations now sync into student profile evidence and update total/open/resolved counts.
+- UI/API: Review payloads include `student_profile`, teachers can fetch `/api/native/students/:studentId/profile` and the native review rail shows top tracked profile issues while marking.
+- Verified: `node --check src/routes/nativePads.js` and Node 24 `--test test/migration.test.js test/nativePads.test.js` passed 8/8.
+- Decision: This phase stores structured evidence only. AI-written summaries, voice analysis and personalised exam practice stay later phases built on these tables.
