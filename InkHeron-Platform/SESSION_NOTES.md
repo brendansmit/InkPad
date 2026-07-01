@@ -338,3 +338,10 @@ Entry format:
 - Asked: Check `inkpad.inkheron.app` because it felt very slow and determine whether the server or China traffic throttling was likely.
 - Checked: Timed live HTTPS requests from the Codex environment. DNS and TCP connect were fast, but HTTPS page requests had 8-45 s time to first byte. Plain HTTP redirect was fast at about 0.46 s.
 - Decision: This points to the HTTPS origin/app path, likely nginx proxy to Fastify or the small droplet under load, not primarily China throttling. Browser navigation also failed to complete inside the timeout.
+
+## 2026-07-01 - Native InkPad Phase 9 backup and recovery
+- Asked: Add a backup of student work in case the server goes down and allow a teacher to upload or paste recovered student work.
+- Built: Added teacher-only JSON backup export for all native pads or one assignment. Backup includes current pad data, revisions, annotations, paste events, rubric data and profile evidence.
+- UI/API: Native review page now has an assignment backup download link, pasted-text recovery and `.txt` upload recovery. Imports can create a manual revision only or replace current pad text.
+- Verified: Node 24 `--check src/routes/nativePads.js` and `--test test/migration.test.js test/nativePads.test.js` passed 9/9. Broader stable suite `--test test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 29/29.
+- Decision: Recovery revisions use existing `manual` reason because the schema check does not allow `teacher_import`; detailed source is recorded in `native_teacher_events`.
