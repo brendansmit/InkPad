@@ -85,16 +85,25 @@ export function renderNativeWriteView({
     .niw-select{border:1px solid #b8c2b9;border-radius:7px;min-height:34px;background:#fff;color:#17221b;font:inherit;font-weight:800;padding:0 8px;width:auto}
     .niw-zoom{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#657268}
     .niw-zoom input{width:116px}
-    .niw-shell{--reader-width:420px;--page-width:794px;--editor-zoom:1;height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(260px,var(--reader-width)) 10px minmax(0,1fr)}
-    .niw-passage{border-right:1px solid #d8d4c8;background:#f0eee7;overflow:auto;padding:18px;display:grid;gap:14px;align-content:start}
+    .niw-shell{--reader-width:420px;--page-width:794px;--editor-zoom:1;--task-height:220px;height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(260px,var(--reader-width)) 10px minmax(0,1fr)}
+    .niw-passage{border-right:1px solid #d8d4c8;background:#f0eee7;overflow:hidden;padding:18px;display:grid;grid-template-rows:minmax(130px,var(--task-height)) 10px minmax(220px,1fr);gap:0;min-height:0}
     .niw-source-card{background:#fff;border:1px solid #d8d4c8;border-radius:8px;padding:16px;box-shadow:0 5px 18px rgba(31,42,36,.06)}
+    .niw-source-card.task{min-height:0;overflow:auto}
     .niw-source-card.reference{background:#f8fbff;border-color:#bfd0df}
+    .niw-source-card.reference{min-height:0;overflow:hidden;display:flex;flex-direction:column}
     .niw-source-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;border-bottom:1px solid #e4e0d6;padding-bottom:8px}
     .niw-source-card.reference .niw-source-head{border-color:#d5e2ec}
     .niw-source-head h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:#657268}
     .niw-source-tools{margin-left:auto;display:flex;gap:5px}
     .niw-source-btn{min-height:28px;padding:0 8px;border-radius:6px;border:1px solid #b8c2b9;background:#fff;font-weight:800;cursor:pointer}
     .niw-passage .niw-text{white-space:pre-wrap;font-family:var(--font);font-size:15px;line-height:1.65;outline:none}
+    .niw-panel-resizer{height:10px;cursor:row-resize;position:relative}
+    .niw-panel-resizer::before{content:'';position:absolute;left:34%;right:34%;top:4px;height:2px;background:#9aa39d;border-radius:99px}
+    .niw-panel-resizer:hover::before{background:#2f6f4e}
+    .niw-pdf-tools{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;font-weight:800;color:#657268}
+    .niw-pdf-tools input{width:92px}
+    .niw-pdf-frame{flex:1;min-height:0;overflow:auto;border:1px solid #d5e2ec;border-radius:6px;background:#eef3f8}
+    .niw-pdf-frame embed{display:block;width:100%;height:100%;min-height:100%;border:0;background:#fff}
     .niw-local-underline{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#2f6f4e}
     .niw-local-highlight{background:#fff0a6}
     .niw-resizer{background:#e5e1d6;cursor:col-resize;position:relative}
@@ -123,7 +132,7 @@ export function renderNativeWriteView({
     .niw-local-highlight-pink{background:#fecaca}
     .empty{color:#8a938d}
     @media(max-width:1080px){.niw-bar{gap:9px}.niw-stat{font-size:12px}.niw-btn{padding:0 10px}}
-    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-zoom-frame,.niw-page-shell{width:100%;max-width:100%}.niw-page-shell{grid-template-columns:22px minmax(0,1fr)}.niw-line-numbers{font-size:10px;padding:23px 5px 22px 0}#nativeEditor{min-height:60vh;padding:22px}}
+    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{height:70vh;border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-zoom-frame,.niw-page-shell{width:100%;max-width:100%}.niw-page-shell{grid-template-columns:22px minmax(0,1fr)}.niw-line-numbers{font-size:10px;padding:23px 5px 22px 0}#nativeEditor{min-height:60vh;padding:22px}}
   </style>
 </head>
 <body>
@@ -161,10 +170,12 @@ export function renderNativeWriteView({
         </div>
         <div class="niw-text" id="taskText">${escapeHtml(prompt || 'No prompt added.')}</div>
       </section>
-      ${passageText ? `<section class="niw-source-card reference">
+      <div class="niw-panel-resizer" id="sourcePanelResizer" role="separator" aria-orientation="horizontal" aria-label="Resize task and reference panels" title="Drag to resize task/reference panels"></div>
+      ${passageText || passagePdf ? `<section class="niw-source-card reference">
         <div class="niw-source-head">
-          <h2>Reference</h2>
-          <div class="niw-source-tools">
+          <h2>${passagePdf ? 'PDF reference' : 'Reference'}</h2>
+          ${passagePdf ? `<label class="niw-pdf-tools">Zoom <input id="pdfZoomSlider" type="range" min="75" max="175" step="5" value="100"><span id="pdfZoomLabel">100%</span></label>` : ''}
+          ${passageText ? `<div class="niw-source-tools">
             <button class="niw-source-btn" type="button" data-source-mark="underline" title="Underline selected task/reference text">U</button>
             <span class="niw-popover">
               <button class="niw-source-btn" type="button" data-toggle-palette="referenceHighlightPalette" title="Highlight selected task/reference text">${toolIcon('highlight')}</button>
@@ -176,11 +187,10 @@ export function renderNativeWriteView({
               </span>
             </span>
             <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">Clear</button>
-          </div>
+          </div>` : ''}
         </div>
-        <div class="niw-text" id="referenceText">${escapeHtml(passageText)}</div>
-      </section>` : ''}
-      ${passagePdf ? `<section class="niw-source-card reference"><a href="/api/assignments/${assignmentId}/passage-pdf" target="_blank" rel="noopener">Open PDF passage</a></section>` : ''}
+        ${passagePdf ? `<div class="niw-pdf-frame" id="pdfFrame"><embed id="pdfEmbed" src="/api/assignments/${assignmentId}/passage-pdf#toolbar=0&navpanes=0&view=FitH&zoom=100" type="application/pdf"></div>` : `<div class="niw-text" id="referenceText">${escapeHtml(passageText)}</div>`}
+      </section>` : '<section class="niw-source-card reference"><div class="empty">No reference added.</div></section>'}
       ${dueAt ? `<p class="niw-stat">Due ${escapeHtml(dueAt)}</p>` : ''}
     </aside>
     <div class="niw-resizer" id="readerResizer" role="separator" aria-orientation="vertical" aria-label="Drag to resize panels" title="Drag to resize panels"></div>
@@ -247,6 +257,10 @@ export function renderNativeWriteView({
     const submitBtn = document.getElementById('submitBtn');
     const shell = document.querySelector('.niw-shell');
     const readerResizer = document.getElementById('readerResizer');
+    const sourcePanelResizer = document.getElementById('sourcePanelResizer');
+    const pdfZoomSlider = document.getElementById('pdfZoomSlider');
+    const pdfZoomLabel = document.getElementById('pdfZoomLabel');
+    const pdfEmbed = document.getElementById('pdfEmbed');
     const fontSizeSelect = document.getElementById('fontSizeSelect');
     const zoomSlider = document.getElementById('zoomSlider');
     const zoomLabel = document.getElementById('zoomLabel');
@@ -262,6 +276,8 @@ export function renderNativeWriteView({
     const pageWidth = 794;
     let editorZoom = loadNumberSetting('nativePadZoom', 1);
     let readerWidth = loadNumberSetting('nativePadReaderWidth', 420);
+    let taskHeight = loadNumberSetting('nativePadTaskHeight', 220);
+    let pdfZoom = loadNumberSetting('nativePadPdfZoom:${assignmentId}', 1);
     const localMarkKey = 'nativeSourceMarks:' + ${jsonScript(assignmentId)};
 
     document.execCommand('styleWithCSS', false, true);
@@ -269,6 +285,7 @@ export function renderNativeWriteView({
     if(!editor.innerText.trim()) editor.innerText = initialPad.plain_text || '';
     restoreLocalSourceMarks();
     applyLayoutSettings();
+    applyPdfZoom();
     applyPolicy(currentPolicy);
     updateCount();
     updateLineNumbers();
@@ -308,12 +325,15 @@ export function renderNativeWriteView({
     function applyLayoutSettings(){
       editorZoom = clamp(editorZoom, 0.7, 1.5);
       readerWidth = clamp(readerWidth, 260, Math.min(Math.floor(window.innerWidth * 0.6), 820));
+      taskHeight = clamp(taskHeight, 130, Math.max(130, Math.floor(window.innerHeight - 260)));
       shell.style.setProperty('--page-width', pageWidth + 'px');
       shell.style.setProperty('--editor-zoom', editorZoom.toFixed(2));
       shell.style.setProperty('--reader-width', readerWidth + 'px');
+      shell.style.setProperty('--task-height', taskHeight + 'px');
       syncZoomFrame();
       saveNumberSetting('nativePadZoom', editorZoom);
       saveNumberSetting('nativePadReaderWidth', readerWidth);
+      saveNumberSetting('nativePadTaskHeight', taskHeight);
       zoomSlider.value = String(Math.round(editorZoom * 100));
       zoomLabel.textContent = Math.round(editorZoom * 100) + '%';
     }
@@ -322,6 +342,15 @@ export function renderNativeWriteView({
         pageZoomFrame.style.width = Math.ceil(pageShell.offsetWidth * editorZoom) + 'px';
         pageZoomFrame.style.height = Math.ceil(pageShell.offsetHeight * editorZoom) + 'px';
       });
+    }
+    function applyPdfZoom(){
+      if(!pdfEmbed || !pdfZoomSlider || !pdfZoomLabel) return;
+      pdfZoom = clamp(pdfZoom, 0.75, 1.75);
+      const percent = Math.round(pdfZoom * 100);
+      pdfEmbed.src = '/api/assignments/${assignmentId}/passage-pdf#toolbar=0&navpanes=0&view=FitH&zoom=' + percent;
+      pdfZoomSlider.value = String(percent);
+      pdfZoomLabel.textContent = percent + '%';
+      saveNumberSetting('nativePadPdfZoom:${assignmentId}', pdfZoom);
     }
     function editorOwnsNode(node){
       return !!node && (node === editor || editor.contains(node));
@@ -568,6 +597,12 @@ export function renderNativeWriteView({
       editorZoom = Number(zoomSlider.value) / 100;
       applyLayoutSettings();
     });
+    if(pdfZoomSlider){
+      pdfZoomSlider.addEventListener('input', () => {
+        pdfZoom = Number(pdfZoomSlider.value) / 100;
+        applyPdfZoom();
+      });
+    }
 
     saveBtn.addEventListener('click', async () => {
       await saveNow(true);
@@ -587,6 +622,26 @@ export function renderNativeWriteView({
         closePalettes();
       });
     });
+
+    if(sourcePanelResizer){
+      sourcePanelResizer.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        sourcePanelResizer.setPointerCapture(event.pointerId);
+        const startY = event.clientY;
+        const startHeight = taskHeight;
+        const onMove = moveEvent => {
+          taskHeight = startHeight + (moveEvent.clientY - startY);
+          applyLayoutSettings();
+        };
+        const onUp = upEvent => {
+          sourcePanelResizer.releasePointerCapture(upEvent.pointerId);
+          window.removeEventListener('pointermove', onMove);
+          window.removeEventListener('pointerup', onUp);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+      });
+    }
 
     readerResizer.addEventListener('pointerdown', event => {
       event.preventDefault();

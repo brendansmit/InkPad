@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Embed PDF reference in native writer
+- Asked: Show PDF passages inside the actual left panel, keep them scrollable without extending the page, allow PDF zoom and resize the task/reference area.
+- Built: Replaced the PDF new-tab link with a contained embedded PDF frame, added PDF zoom controls and added a horizontal drag handle to give either task or reference more vertical space.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 11/11. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: Browser PDF content is contained in an internal scroll frame so the writer page does not grow with the PDF.
+
 ## 2026-07-01 - Add native writer assignments back button
 - Asked: Add a back button from the native writer to the assignments page.
 - Built: Added a small `/student` assignments back link in the native writer header and a render test assertion.

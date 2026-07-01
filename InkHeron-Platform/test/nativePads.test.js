@@ -5,6 +5,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
+import { renderNativeWriteView } from '../src/views/nativeWrite.js';
 
 function temporaryDatabasePath() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-native-pads-'));
@@ -694,6 +695,7 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /id="charCount"/);
   assert.match(response.body, /id="sentenceCount"/);
   assert.match(response.body, /id="readerResizer"/);
+  assert.match(response.body, /id="sourcePanelResizer"/);
   assert.match(response.body, /Drag to resize panels/);
   assert.match(response.body, /id="saveBtn"/);
   assert.match(response.body, /id="zoomSlider"/);
@@ -722,6 +724,36 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /type:'html'/);
 
   await app.close();
+});
+
+test('native write view embeds PDF reference inside contained scroll panel', () => {
+  const html = renderNativeWriteView({
+    title: 'PDF essay',
+    assignmentId: 42,
+    pad: {
+      id: 7,
+      state: 'writing',
+      word_count: 0,
+      plain_text: '',
+      version: 1,
+      document: { type: 'html', html: '', text: '' },
+    },
+    policy: { paste_mode: 'log', spellcheck_enabled: true },
+    csrfToken: 'csrf',
+    dueAt: null,
+    spellcheck: true,
+    prompt: 'Read the PDF.',
+    passageText: '',
+    passagePdf: true,
+  });
+
+  assert.match(html, /id="pdfFrame"/);
+  assert.match(html, /id="pdfEmbed"/);
+  assert.match(html, /type="application\/pdf"/);
+  assert.match(html, /\/api\/assignments\/42\/passage-pdf#toolbar=0/);
+  assert.match(html, /id="pdfZoomSlider"[^>]+min="75"[^>]+max="175"/);
+  assert.match(html, /\.niw-pdf-frame\{[^}]*overflow:auto/);
+  assert.doesNotMatch(html, /target="_blank" rel="noopener">Open PDF passage/);
 });
 
 test('teacher can return a native pad for revision after the deadline', async () => {
