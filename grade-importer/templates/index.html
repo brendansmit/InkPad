@@ -116,11 +116,13 @@
     font-size: 0.72rem;
     font-weight: 600;
   }
-  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-green  { background: #dcfce7; color: #166534; }
   .badge-yellow { background: #fef9c3; color: #854d0e; }
-  .badge-red { background: #fee2e2; color: #991b1b; }
-  .badge-blue { background: #dbeafe; color: #1e40af; }
-  .badge-gray { background: #f1f5f9; color: #475569; }
+  .badge-orange { background: #ffedd5; color: #9a3412; }
+  .badge-pink   { background: #fce7f3; color: #9d174d; }
+  .badge-red    { background: #fee2e2; color: #991b1b; }
+  .badge-blue   { background: #dbeafe; color: #1e40af; }
+  .badge-gray   { background: #f1f5f9; color: #475569; }
   .badge-purple { background: #f3e8ff; color: #6b21a8; }
 
   .alert { padding: 12px 16px; border-radius: 8px; font-size: 0.875rem; margin-bottom: 12px; }
@@ -571,6 +573,17 @@ let syncKey = '';
 let syncOnline = false;
 let syncBusy = false;
 
+function classColor(cls) {
+  if (!cls) return 'badge-gray';
+  if (cls.includes('Lang'))  return 'badge-yellow';
+  if (cls.includes('EAP3')) return 'badge-orange';
+  if (cls.includes('EAP2')) return 'badge-green';
+  if (cls.includes('EAP1')) return 'badge-pink';
+  if (cls.includes('EAP'))  return 'badge-blue';
+  if (cls.includes('AP'))   return 'badge-yellow';
+  return 'badge-gray';
+}
+
 async function initSync() {
   try {
     const res = await fetch('/api/config');
@@ -771,7 +784,7 @@ async function loadRosterTable(filterClass) {
       html += `<tr><td colspan="6" class="section-divider">${sec}</td></tr>`;
     }
     studs.forEach(s => {
-      const classBadge = s.task_class && s.task_class.includes('AP') ? 'badge-purple' : 'badge-blue';
+      const classBadge = classColor(s.task_class);
       html += `<tr>
         <td><b>${s.english_name}</b></td>
         <td>${s.chinese_name || '—'}</td>
@@ -852,7 +865,7 @@ async function loadAssignments() {
   }
   el.innerHTML = list.map(a => {
     const filterLabel = a.class_filter && a.class_filter !== 'All' ? a.class_filter : 'All';
-    const filterBadge = filterLabel === 'All' ? 'badge-gray' : filterLabel.includes('AP') ? 'badge-purple' : 'badge-blue';
+    const filterBadge = filterLabel === 'All' ? 'badge-gray' : classColor(filterLabel);
     return `
     <div class="assignment-item ${a.id === currentAid ? 'selected' : ''}" id="alist-${a.id}">
       <div style="flex:1;cursor:pointer" onclick="selectAssignment(${a.id})">
@@ -1170,7 +1183,7 @@ function renderScoreTable(scores, assignmentSections) {
     }
     studs.forEach(s => {
       const pending = pendingScores[s.student_id];
-      const classBadge = cls.includes('AP') ? 'badge-purple' : 'badge-gray';
+      const classBadge = classColor(cls);
       const highlight = pending !== undefined ? 'background:#fffbeb;' : '';
       html += `<tr style="${highlight}">
         <td><b>${s.english_name}</b></td>
