@@ -24,6 +24,9 @@ export function renderNativeWriteView({
   passagePdf,
 }) {
   const locked = pad.state !== 'writing' && pad.state !== 'green_pen_open';
+  const submitLabel = pad.state === 'green_pen_open' ? 'Resubmit' : 'Submit';
+  const submitConfirm = pad.state === 'green_pen_open' ? 'Resubmit this rewrite?' : 'Submit this writing?';
+  const submitDoneLabel = pad.state === 'green_pen_open' ? 'Resubmitted' : 'Submitted';
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -65,7 +68,7 @@ export function renderNativeWriteView({
     <div class="stat" id="pastePolicy">Paste ${escapeHtml(policy?.paste_mode ?? 'log')}</div>
     <div class="stat" id="saveState">Saved</div>
     <div class="stat"><span id="wordCount">${pad.word_count}</span> words</div>
-    <button class="btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>Submit</button>
+    <button class="btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitLabel)}</button>
   </header>
   <main class="shell">
     <aside class="passage">
@@ -91,6 +94,8 @@ export function renderNativeWriteView({
     const initialPad = ${jsonScript(pad)};
     let currentPolicy = ${jsonScript(policy ?? { paste_mode: 'log', spellcheck_enabled: spellcheck !== false })};
     const csrfToken = ${jsonScript(csrfToken)};
+    const submitConfirm = ${jsonScript(submitConfirm)};
+    const submitDoneLabel = ${jsonScript(submitDoneLabel)};
     const editor = document.getElementById('nativeEditor');
     const pastePolicy = document.getElementById('pastePolicy');
     const saveState = document.getElementById('saveState');
@@ -201,7 +206,7 @@ export function renderNativeWriteView({
 
     submitBtn.addEventListener('click', async () => {
       await saveNow();
-      if(!confirm('Submit this writing?')) return;
+      if(!confirm(submitConfirm)) return;
       const response = await fetch('/api/native/pads/' + initialPad.id + '/submit', {
         method:'POST',
         headers:{ 'X-CSRF-Token':csrfToken }
@@ -209,7 +214,7 @@ export function renderNativeWriteView({
       if(response.ok){
         editor.setAttribute('contenteditable', 'false');
         submitBtn.disabled = true;
-        saveState.textContent = 'Submitted';
+        saveState.textContent = submitDoneLabel;
       }else{
         saveState.textContent = 'Submit failed';
       }

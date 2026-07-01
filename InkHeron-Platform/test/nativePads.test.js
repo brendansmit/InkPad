@@ -604,6 +604,64 @@ test('teacher can return native feedback and student can view it', async () => {
   assert.equal(feedback.json().rewrite_url, `/native/write/${assignmentId}`);
   assert.deepEqual(feedback.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment']);
 
+  const rewritePage = await app.inject({
+    method: 'GET',
+    url: `/native/write/${assignmentId}`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(rewritePage.statusCode, 200);
+  assert.match(rewritePage.body, /Resubmit/);
+
+  const rewriteSaved = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Feedback text sample. Revised ending.' }] },
+      plain_text: 'Feedback text sample. Revised ending.',
+      expected_version: 2,
+    },
+  });
+  assert.equal(rewriteSaved.statusCode, 200);
+
+  const resubmitted = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/submit`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+  });
+  assert.equal(resubmitted.statusCode, 201);
+  assert.equal(resubmitted.json().pad.state, 'resubmitted');
+  assert.equal(resubmitted.json().resubmitted, true);
+
+  const blockedRewriteSave = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: { document: { type: 'doc' }, plain_text: 'late rewrite' },
+  });
+  assert.equal(blockedRewriteSave.statusCode, 409);
+
+  const resubmittedDashboard = await app.inject({
+    method: 'GET',
+    url: '/api/student/assignments',
+    headers: { cookie: cookies },
+  });
+  assert.equal(resubmittedDashboard.statusCode, 200);
+  const resubmittedAssignment = resubmittedDashboard.json().assignments.find(item => item.id === assignmentId);
+  assert.equal(resubmittedAssignment.status, 'resubmitted');
+
+  const resubmittedReview = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/review`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(resubmittedReview.statusCode, 200);
+  assert.equal(resubmittedReview.json().pad.plain_text, 'Feedback text sample. Revised ending.');
+  assert.equal(resubmittedReview.json().comparison.rewrite_available, true);
+  assert.equal(resubmittedReview.json().comparison.submission_count, 2);
+  assert.equal(resubmittedReview.json().comparison.original_submission.plain_text, 'Feedback text sample.');
+  assert.equal(resubmittedReview.json().comparison.latest_submission.plain_text, 'Feedback text sample. Revised ending.');
+
   const page = await app.inject({
     method: 'GET',
     url: `/native/feedback/${assignmentId}`,

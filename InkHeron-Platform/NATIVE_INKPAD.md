@@ -77,6 +77,14 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Student dashboard opens returned native work in a feedback package page.
 - Native feedback page shows marked text, general comments, inline comments, literacy codes, highlights, rubric scores and a rewrite link when green pen is open.
 
+## Phase 11 Green-Pen Resubmission
+
+- Students can edit returned green-pen work and resubmit it through the native writer.
+- Resubmitted pads move from `green_pen_open` to `resubmitted` and lock again.
+- First submission time is preserved while each submit still creates a revision snapshot.
+- Teacher review payloads include comparison anchors for the original submission and latest rewrite.
+- Teacher review page exposes quick buttons for original submission and latest rewrite when both exist.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:

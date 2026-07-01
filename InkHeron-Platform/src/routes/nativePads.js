@@ -473,6 +473,16 @@ function insertImportedRevision(db, padId, reason, documentJson, plainText, word
   `).run(padId, reason, documentJson, plainText, wordCount, documentVersion);
 }
 
+function comparisonForRevisions(revisions) {
+  const submissions = revisions.filter(revision => revision.reason === 'submit');
+  return {
+    rewrite_available: submissions.length > 1,
+    original_submission: submissions[0] ?? null,
+    latest_submission: submissions.at(-1) ?? null,
+    submission_count: submissions.length,
+  };
+}
+
 function importTeacherText(db, pad, teacherId, { plainText, replaceCurrent, source }) {
   const documentJson = normalizeDocumentJson(documentForPlainText(plainText));
   const wordCount = countWords(plainText);
@@ -681,16 +691,19 @@ export async function registerNativePadRoutes(app, { db }) {
       const studentId = request.session.user.id;
       const pad = loadOwnedNativePad(db, padId, studentId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
-      if (pad.state !== 'writing') return reply.code(409).send({ error: 'already_submitted' });
+      if (pad.state !== 'writing' && pad.state !== 'green_pen_open') {
+        return reply.code(409).send({ error: 'already_submitted' });
+      }
 
+      const nextState = pad.state === 'green_pen_open' ? 'resubmitted' : 'submitted';
       db.prepare(`
         UPDATE native_pads
-        SET state = 'submitted', submitted_at = datetime('now'), updated_at = datetime('now')
+        SET state = ?, submitted_at = COALESCE(submitted_at, datetime('now')), updated_at = datetime('now')
         WHERE id = ?
-      `).run(padId);
+      `).run(nextState, padId);
       const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
       insertRevision(db, padId, 'submit', updated);
-      return reply.code(201).send({ pad: publicNativePad(updated), locked: true });
+      return reply.code(201).send({ pad: publicNativePad(updated), locked: true, resubmitted: nextState === 'resubmitted' });
     }
   );
 
@@ -1058,6 +1071,7 @@ export async function registerNativePadRoutes(app, { db }) {
         annotations,
         paste_events: pasteEvents,
         revisions,
+        comparison: comparisonForRevisions(revisions),
         rubric: {
           criteria: rubric.criteria,
           scores: loadRubricScores(db, padId),

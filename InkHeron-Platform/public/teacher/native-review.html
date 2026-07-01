@@ -150,6 +150,10 @@
             <div class="stack" style="margin-top:8px">${reviewData.paste_events.map(pasteEvent).join('')}</div>
           </div>
           <div class="section">
+            <span class="label">Rewrite comparison</span>
+            ${comparisonPanel()}
+          </div>
+          <div class="section">
             <span class="label">Revisions</span>
             <div class="stack">${reviewData.revisions.map(revisionItem).join('')}</div>
           </div>
@@ -241,6 +245,19 @@
 
     function revisionItem(revision){
       return `<div class="comment"><strong>${escapeHtml(revision.reason)}</strong><p>${revision.word_count} words · v${revision.document_version}</p><span class="meta">${escapeHtml(formatDate(revision.created_at))}</span><button class="btn" type="button" data-revision="${revision.id}" style="margin-top:8px">View</button></div>`;
+    }
+
+    function comparisonPanel(){
+      const comparison=reviewData.comparison || {};
+      if(!comparison.original_submission) return '<span class="sub">No submission yet.</span>';
+      if(!comparison.rewrite_available) return '<span class="sub">No rewrite submitted yet.</span>';
+      return `
+        <div class="stack">
+          <button class="btn" type="button" data-revision="${comparison.original_submission.id}">Original submission</button>
+          <button class="btn" type="button" data-revision="${comparison.latest_submission.id}">Latest rewrite</button>
+          <span class="sub">${comparison.submission_count} submissions saved</span>
+        </div>
+      `;
     }
 
     function profileIssueList(){
