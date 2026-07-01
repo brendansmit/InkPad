@@ -20,25 +20,6 @@ Entry format:
 
 ---
 
-## 2026-07-01 - EAP Library mobile + CDN fix
-
-- Built:
-  - `eap-library.html`: PDF mobile detection — on iOS/narrow screens, hides iframe and shows "Open PDF" button that opens the URL directly (iOS can't render PDFs in iframes). Viewer bar uses flex-wrap and 40px touch targets. Media query cleans up layout.
-  - `eap-library-admin.html`: Mobile sidebar with slide-in transform, backdrop overlay, hamburger button in topbar; nav taps close sidebar.
-  - Self-hosted Font Awesome 5.15.4 (CSS + woff2) at `public/static/fa/`. Added `/static/` fastifyStatic route in `src/app.js`. Both pages updated from CDN href to `/static/fa/css/all.min.css`. CDN was blocked by Great Firewall for students.
-- Commits: 155b012 (mobile), d786084 (FA self-host), 87ec4b8 (/static/ route)
-- Decisions: FA webfonts only include woff2 (modern browsers only — no .woff fallback needed given student device landscape).
-- Open / next: Deploy to server to verify on real mobile device.
-
----
-
-## 2026-07-01 - Network access question
-
-- Asked: Whether Codex was struggling to connect to the network.
-- Did: Explained that shell network access is restricted in this environment unless approval is granted, while other browsing tools may still be available depending on the task.
-- Decisions: No project code changed.
-
----
 ## 2026-06-30 - Kill EP toolbar flash permanently
 
 - Built: Three-layer suppression. (1) applyOuterCleanup() fires synchronously on iframe load with no delay, so toolbar never renders. (2) MutationObserver on padDoc forces display:none on EP chrome elements the instant EP adds them. (3) aceOuter load listener re-runs inner frame injection when EP reloads ace_outer mid-session, which was the main cause of recurring flashes.
@@ -395,3 +376,8 @@ Entry format:
 - Asked: Show what the custom native pad looks like compared with Etherpad.
 - Did: Started `scripts/native-smoke-server.mjs` on `http://127.0.0.1:3476` with a temp SQLite database and seeded native assignment.
 - Decision: This preview is local temp data only and does not touch live student work.
+
+## 2026-07-01 - Native InkPad default for new assignments
+- Asked: Get the custom pad usable for students ASAP because Etherpad has been breaking down.
+- Built: New assignments now default to Native InkPad in the API and teacher form. Etherpad remains an explicit fallback and existing Etherpad assignments are not silently flipped.
+- Verified: Node 24 syntax and whitespace checks passed. Focused assignment/native suite passed 21/21. Broader stable suite passed 31/31.

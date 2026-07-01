@@ -1,12 +1,13 @@
 # Native InkPad Sidecar
 
-Native InkPad is being built beside Etherpad. Etherpad remains the default editor until this sidecar is tested enough to replace it for new assignments.
+Native InkPad is being built beside Etherpad. Native InkPad is now the default for new assignments, while existing Etherpad assignments remain on Etherpad unless explicitly switched.
 
 ## Switch
 
-- Native routes only activate for assignments whose `settings_json` includes `"native_inkpad": true`.
+- Native routes activate for assignments whose `settings_json` includes `"native_inkpad": true`.
 - Existing `/write/:assignmentId` and `pads` routes remain Etherpad.
 - Test native assignments use `/native/write/:assignmentId`.
+- New assignments created through the teacher form default to Native InkPad. Etherpad is available as an explicit fallback by turning Native InkPad off.
 
 ## Phase 1 Foundation
 
@@ -91,9 +92,16 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Browser smoke covered student login, password reset, native write, autosave, submit lock, teacher native review, return feedback, green-pen rewrite, resubmit lock and teacher comparison anchors.
 - The smoke server uses a temp SQLite database and does not touch live or development data.
 
+## Phase 13 Student-Ready Default
+
+- New assignments now default to Native InkPad at the API and teacher form level.
+- Existing Etherpad assignments are not silently flipped to Native InkPad.
+- Teachers can still turn Native InkPad off on the assignment form to use Etherpad as fallback.
+- Tests cover default-native creation plus explicit Etherpad fallback preservation.
+
 ## Cutover Rule
 
-Do not route ordinary assignments to Native InkPad until:
+Do not remove Etherpad fallback until:
 
 - autosave has survived repeated browser reload tests
 - submit and lock states are covered by tests

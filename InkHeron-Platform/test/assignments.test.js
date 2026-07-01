@@ -209,6 +209,37 @@ test('student assignment API links native assignments to native writer', async (
   await app.close();
 });
 
+test('new assignments default to native InkPad without flipping existing Etherpad assignments', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Default native', settings: { prompt: 'Write clearly.' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(created.statusCode, 201);
+  assert.equal(JSON.parse(created.json().assignment.settings_json).native_inkpad, true);
+
+  const etherpad = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Etherpad fallback', settings: { native_inkpad: false } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(etherpad.statusCode, 201);
+  const etherpadId = etherpad.json().assignment.id;
+  assert.equal(JSON.parse(etherpad.json().assignment.settings_json).native_inkpad, undefined);
+
+  const patched = await app.inject({ method: 'PATCH', url: `/api/assignments/${etherpadId}`,
+    payload: { settings: { prompt: 'Updated prompt.' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(patched.statusCode, 200);
+  const settings = JSON.parse(patched.json().assignment.settings_json);
+  assert.equal(settings.native_inkpad, undefined);
+  assert.equal(settings.prompt, 'Updated prompt.');
+
+  await app.close();
+});
+
 test('editing assignment settings preserves hidden native InkPad flag', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);
@@ -268,6 +299,7 @@ test('teacher assignment dashboard shows status, submission time and paste flags
 
   const created = await app.inject({ method: 'POST', url: '/api/assignments',
     payload: { class_id: classId, title: 'Dashboard essay',
+      settings: { native_inkpad: false },
       opens_at: '2020-01-01T00:00:00Z', due_at: '2099-12-31T23:59:59Z' },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
   const assignmentId = created.json().assignment.id;
@@ -365,7 +397,7 @@ test('teacher assignment dashboard filters by status and paste flag', async () =
   const bob = await setupStudent(app, teacher, classId, { username: 'bob', display_name: 'Bob' });
 
   const created = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: classId, title: 'Filter essay' },
+    payload: { class_id: classId, title: 'Filter essay', settings: { native_inkpad: false } },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
   const assignmentId = created.json().assignment.id;
 

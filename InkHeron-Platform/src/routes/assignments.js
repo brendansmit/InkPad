@@ -30,7 +30,7 @@ function publicAssignment(row) {
   };
 }
 
-function buildSettingsJson(settings = {}, type = 'essay') {
+function buildSettingsJson(settings = {}, type = 'essay', { nativeDefault = false } = {}) {
   const base = {
     type,
     submit_behaviour: settings.submit_behaviour ?? 'draft',
@@ -39,7 +39,9 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     paste_detection: true,
     green_pen: settings.green_pen === true,
   };
-  if (settings.native_inkpad === true) base.native_inkpad = true;
+  if (settings.native_inkpad === true || (nativeDefault && settings.native_inkpad !== false)) {
+    base.native_inkpad = true;
+  }
   if (type === 'test') {
     base.shuffle = settings.shuffle !== false;
     base.pooling = settings.pooling ?? 'off';
@@ -232,7 +234,7 @@ export async function registerAssignmentRoutes(app, { db }) {
       const cls = db.prepare('SELECT id FROM classes WHERE id = ?').get(class_id);
       if (!cls) return reply.code(404).send({ error: 'class_not_found' });
 
-      const settings_json = buildSettingsJson(settings, type);
+      const settings_json = buildSettingsJson(settings, type, { nativeDefault: true });
       const result = db.prepare(`
         INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
         VALUES (?, ?, ?, ?, ?, ?)
