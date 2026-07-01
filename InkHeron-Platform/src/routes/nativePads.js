@@ -11,6 +11,7 @@ const EMPTY_META = '{}';
 const MAX_PLAIN_TEXT_LENGTH = 200000;
 const MAX_DOCUMENT_JSON_LENGTH = 1000000;
 const MAX_COMMENT_LENGTH = 8000;
+const MAX_IMPORT_FILE_BYTES = 220000;
 const MAX_RUBRIC_LABEL_LENGTH = 120;
 const MAX_RUBRIC_DESCRIPTION_LENGTH = 1200;
 const ANNOTATION_TYPES = new Set(['general_comment', 'inline_comment', 'literacy_code', 'highlight']);
@@ -64,6 +65,16 @@ function normalizeDocumentJson(value) {
     throw error;
   }
   return json;
+}
+
+function documentForPlainText(text) {
+  return {
+    type: 'doc',
+    content: String(text ?? '').split(/\n{2,}/).map((paragraph) => ({
+      type: 'paragraph',
+      content: paragraph ? [{ type: 'text', text: paragraph }] : [],
+    })),
+  };
 }
 
 function normalizePlainText(value) {
@@ -354,6 +365,24 @@ function loadRubricScores(db, padId) {
   `).all(padId).map(publicRubricScore);
 }
 
+function loadBackupRubricScores(db, padIds) {
+  if (!padIds.length) return new Map();
+  const placeholders = padIds.map(() => '?').join(',');
+  const rows = db.prepare(`
+    SELECT *
+    FROM native_rubric_scores
+    WHERE native_pad_id IN (${placeholders})
+    ORDER BY native_pad_id ASC, criterion_id ASC
+  `).all(...padIds);
+  const byPad = new Map();
+  for (const row of rows) {
+    const list = byPad.get(row.native_pad_id) ?? [];
+    list.push(publicRubricScore(row));
+    byPad.set(row.native_pad_id, list);
+  }
+  return byPad;
+}
+
 function normalizeRubricCriteria(body) {
   const source = Array.isArray(body?.criteria) && body.criteria.length ? body.criteria : DEFAULT_RUBRIC;
   if (source.length > 20) {
@@ -437,6 +466,33 @@ function insertRevision(db, padId, reason, row) {
   `).run(padId, reason, row.document_json, row.plain_text ?? '', Number(row.word_count ?? 0), Number(row.version ?? 1));
 }
 
+function insertImportedRevision(db, padId, reason, documentJson, plainText, wordCount, documentVersion) {
+  db.prepare(`
+    INSERT INTO native_pad_revisions (native_pad_id, reason, document_json, plain_text, word_count, document_version)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(padId, reason, documentJson, plainText, wordCount, documentVersion);
+}
+
+function importTeacherText(db, pad, teacherId, { plainText, replaceCurrent, source }) {
+  const documentJson = normalizeDocumentJson(documentForPlainText(plainText));
+  const wordCount = countWords(plainText);
+  if (replaceCurrent) {
+    db.prepare(`
+      UPDATE native_pads
+      SET document_json = ?, plain_text = ?, word_count = ?, version = version + 1, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(documentJson, plainText, wordCount, pad.id);
+    const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(pad.id);
+    insertRevision(db, pad.id, 'manual', updated);
+    logTeacherEvent(db, pad.id, teacherId, 'teacher_import_replace', { source, word_count: wordCount });
+    return updated;
+  }
+
+  insertImportedRevision(db, pad.id, 'manual', documentJson, plainText, wordCount, Number(pad.version ?? 1));
+  logTeacherEvent(db, pad.id, teacherId, 'teacher_import_revision_only', { source, word_count: wordCount });
+  return db.prepare('SELECT * FROM native_pads WHERE id = ?').get(pad.id);
+}
+
 function ensurePolicy(db, padId, settings = {}, teacherId = null) {
   const existing = db.prepare('SELECT * FROM native_pad_policies WHERE native_pad_id = ?').get(padId);
   if (existing) return existing;
@@ -503,6 +559,41 @@ function logTeacherEvent(db, padId, teacherId, action, metadata = {}) {
     INSERT INTO native_teacher_events (native_pad_id, teacher_id, action, metadata_json)
     VALUES (?, ?, ?, ?)
   `).run(padId, teacherId, action, normalizeMetadata(metadata));
+}
+
+function boolFlag(value) {
+  return value === true || value === 1 || value === '1' || value === 'true' || value === 'on';
+}
+
+async function readTxtImport(request, reply) {
+  const part = await request.file();
+  if (!part) {
+    return { errorReply: reply.code(400).send({ error: 'file_required' }) };
+  }
+  const ext = path.extname(part.filename || '').toLowerCase();
+  if (ext !== '.txt') {
+    part.file.resume();
+    return { errorReply: reply.code(400).send({ error: 'unsupported_file_type' }) };
+  }
+
+  const chunks = [];
+  let size = 0;
+  try {
+    for await (const chunk of part.file) {
+      size += chunk.length;
+      if (size > MAX_IMPORT_FILE_BYTES) {
+        part.file.resume();
+        return { errorReply: reply.code(413).send({ error: 'file_too_large' }) };
+      }
+      chunks.push(chunk);
+    }
+  } catch (error) {
+    if (error.code === 'FST_REQ_FILE_TOO_LARGE') {
+      return { errorReply: reply.code(413).send({ error: 'file_too_large' }) };
+    }
+    throw error;
+  }
+  return { text: normalizePlainText(Buffer.concat(chunks).toString('utf8')), filename: part.filename || 'upload.txt' };
 }
 
 function normalizeAnnotationInput(body, pad) {
@@ -743,6 +834,129 @@ export async function registerNativePadRoutes(app, { db }) {
       const student = db.prepare('SELECT id FROM students WHERE id = ?').get(studentId);
       if (!student) return reply.code(404).send({ error: 'student_not_found' });
       return { profile: loadStudentWritingProfile(db, studentId) };
+    }
+  );
+
+  app.get('/api/native/backups/export',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const assignmentId = request.query?.assignment_id === undefined ? null : requirePositiveInteger(request.query.assignment_id, 'assignment_id');
+      const pads = assignmentId
+        ? db.prepare(`
+          SELECT np.*,
+                 s.display_name AS student_name,
+                 s.username AS student_username,
+                 a.title AS assignment_title,
+                 a.type AS assignment_type,
+                 c.name AS class_name
+          FROM native_pads np
+          JOIN students s ON s.id = np.student_id
+          JOIN assignments a ON a.id = np.assignment_id
+          JOIN classes c ON c.id = a.class_id
+          WHERE np.assignment_id = ?
+          ORDER BY c.name ASC, s.display_name ASC, np.id ASC
+        `).all(assignmentId)
+        : db.prepare(`
+          SELECT np.*,
+                 s.display_name AS student_name,
+                 s.username AS student_username,
+                 a.title AS assignment_title,
+                 a.type AS assignment_type,
+                 c.name AS class_name
+          FROM native_pads np
+          JOIN students s ON s.id = np.student_id
+          JOIN assignments a ON a.id = np.assignment_id
+          JOIN classes c ON c.id = a.class_id
+          ORDER BY a.id ASC, c.name ASC, s.display_name ASC, np.id ASC
+        `).all();
+      const padIds = pads.map((pad) => pad.id);
+      const placeholders = padIds.map(() => '?').join(',');
+      const grouped = (rows, key) => {
+        const map = new Map();
+        for (const row of rows) {
+          const list = map.get(row[key]) ?? [];
+          list.push(row);
+          map.set(row[key], list);
+        }
+        return map;
+      };
+      const annotations = padIds.length ? grouped(db.prepare(`
+        SELECT *
+        FROM native_annotations
+        WHERE native_pad_id IN (${placeholders})
+        ORDER BY native_pad_id ASC, created_at ASC, id ASC
+      `).all(...padIds).map(publicAnnotation), 'native_pad_id') : new Map();
+      const revisions = padIds.length ? grouped(db.prepare(`
+        SELECT id, native_pad_id, reason, document_json, plain_text, word_count, document_version, created_at
+        FROM native_pad_revisions
+        WHERE native_pad_id IN (${placeholders})
+        ORDER BY native_pad_id ASC, id ASC
+      `).all(...padIds).map((revision) => ({
+        ...revision,
+        document: JSON.parse(revision.document_json || EMPTY_DOC),
+        document_json: undefined,
+      })), 'native_pad_id') : new Map();
+      const pasteEvents = padIds.length ? grouped(db.prepare(`
+        SELECT id, native_pad_id, at, length, input_type
+        FROM native_paste_events
+        WHERE native_pad_id IN (${placeholders})
+        ORDER BY native_pad_id ASC, at ASC, id ASC
+      `).all(...padIds), 'native_pad_id') : new Map();
+      const rubricScores = loadBackupRubricScores(db, padIds);
+
+      const payload = {
+        exported_at: new Date().toISOString(),
+        scope: assignmentId ? { assignment_id: assignmentId } : { assignment_id: null },
+        pad_count: pads.length,
+        pads: pads.map((pad) => ({
+          pad: publicNativePad(pad),
+          student: { id: pad.student_id, display_name: pad.student_name, username: pad.student_username },
+          assignment: { id: pad.assignment_id, title: pad.assignment_title, type: pad.assignment_type },
+          class: { name: pad.class_name },
+          annotations: annotations.get(pad.id) ?? [],
+          revisions: revisions.get(pad.id) ?? [],
+          paste_events: pasteEvents.get(pad.id) ?? [],
+          rubric: {
+            criteria: loadAssignmentRubric(db, pad.assignment_id).criteria,
+            scores: rubricScores.get(pad.id) ?? [],
+          },
+          student_profile: loadStudentWritingProfile(db, pad.student_id),
+        })),
+      };
+      const suffix = assignmentId ? `assignment-${assignmentId}` : 'all';
+      return reply
+        .header('Content-Disposition', `attachment; filename="inkheron-native-backup-${suffix}.json"`)
+        .type('application/json')
+        .send(JSON.stringify(payload, null, 2));
+    }
+  );
+
+  app.post('/api/native/pads/:padId/import-text',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const plainText = normalizePlainText(request.body?.plain_text);
+      if (!plainText.trim()) return reply.code(400).send({ error: 'plain_text_required' });
+      const replaceCurrent = boolFlag(request.body?.replace_current);
+      const updated = importTeacherText(db, pad, request.session.user.id, { plainText, replaceCurrent, source: 'paste' });
+      return { pad: publicNativePad(updated), replace_current: replaceCurrent };
+    }
+  );
+
+  app.post('/api/native/pads/:padId/import-file',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const parsed = await readTxtImport(request, reply);
+      if (parsed.errorReply) return parsed.errorReply;
+      if (!parsed.text.trim()) return reply.code(400).send({ error: 'plain_text_required' });
+      const replaceCurrent = boolFlag(request.query?.replace_current);
+      const updated = importTeacherText(db, pad, request.session.user.id, { plainText: parsed.text, replaceCurrent, source: parsed.filename });
+      return { pad: publicNativePad(updated), replace_current: replaceCurrent, filename: parsed.filename };
     }
   );
 

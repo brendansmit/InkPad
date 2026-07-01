@@ -333,3 +333,8 @@ Entry format:
 - UI/API: Review payloads include `student_profile`, teachers can fetch `/api/native/students/:studentId/profile` and the native review rail shows top tracked profile issues while marking.
 - Verified: `node --check src/routes/nativePads.js` and Node 24 `--test test/migration.test.js test/nativePads.test.js` passed 8/8.
 - Decision: This phase stores structured evidence only. AI-written summaries, voice analysis and personalised exam practice stay later phases built on these tables.
+
+## 2026-07-01 - Live InkPad slowness check
+- Asked: Check `inkpad.inkheron.app` because it felt very slow and determine whether the server or China traffic throttling was likely.
+- Checked: Timed live HTTPS requests from the Codex environment. DNS and TCP connect were fast, but HTTPS page requests had 8-45 s time to first byte. Plain HTTP redirect was fast at about 0.46 s.
+- Decision: This points to the HTTPS origin/app path, likely nginx proxy to Fastify or the small droplet under load, not primarily China throttling. Browser navigation also failed to complete inside the timeout.

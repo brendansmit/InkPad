@@ -151,6 +151,10 @@
             <span class="label">Revisions</span>
             <div class="stack">${reviewData.revisions.map(revisionItem).join('')}</div>
           </div>
+          <div class="section">
+            <span class="label">Backup</span>
+            <a class="btn" href="/api/native/backups/export?assignment_id=${reviewData.assignment.id}">Download assignment backup</a>
+          </div>
         </aside>
         <article class="panel paper">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
@@ -187,6 +191,15 @@
             <div id="rubricPanel">${rubricPanel()}</div>
           </section>
           <section class="panel box">
+            <span class="label">Recover work</span>
+            <textarea id="importText" placeholder="Paste recovered student work"></textarea>
+            <label style="display:block;margin-top:8px"><input id="replaceImportToggle" type="checkbox"> Replace current text</label>
+            <button class="btn primary" id="importTextBtn" type="button" style="margin-top:8px">Import pasted text</button>
+            <input id="importFile" type="file" accept=".txt,text/plain" style="margin-top:8px">
+            <button class="btn" id="importFileBtn" type="button" style="margin-top:8px">Upload .txt</button>
+            <span class="sub" id="importMsg"></span>
+          </section>
+          <section class="panel box">
             <div class="tabs">
               <button class="btn tab" type="button" data-filter="all">All</button>
               <button class="btn tab" type="button" data-filter="inline_comment">Inline</button>
@@ -205,6 +218,8 @@
       document.getElementById('rangeType').addEventListener('change', updateRangeForm);
       document.getElementById('createRubricBtn')?.addEventListener('click', createDefaultRubric);
       document.getElementById('saveRubricScoresBtn')?.addEventListener('click', saveRubricScores);
+      document.getElementById('importTextBtn').addEventListener('click', importPastedText);
+      document.getElementById('importFileBtn').addEventListener('click', importTextFile);
       document.querySelectorAll('[data-rubric-score]').forEach(btn=>btn.addEventListener('click',()=>selectRubricScore(btn)));
       document.querySelectorAll('[data-filter]').forEach(btn=>btn.addEventListener('click',()=> {
         document.getElementById('annotationList').innerHTML=annotationList(btn.dataset.filter);
@@ -455,6 +470,34 @@
       });
       document.getElementById('rubricMsg').textContent=response.ok?'Rubric saved.':'Rubric failed.';
       if(response.ok){ reviewData.rubric.scores=(await response.json()).scores; }
+    }
+
+    async function importPastedText(){
+      const plainText=document.getElementById('importText').value;
+      const replaceCurrent=document.getElementById('replaceImportToggle').checked;
+      const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/import-text',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({plain_text:plainText,replace_current:replaceCurrent}),
+      });
+      document.getElementById('importMsg').textContent=response.ok?'Import saved.':'Import failed.';
+      if(response.ok) await loadReview();
+    }
+
+    async function importTextFile(){
+      const input=document.getElementById('importFile');
+      const file=input.files && input.files[0];
+      if(!file){ document.getElementById('importMsg').textContent='Choose a .txt file.'; return; }
+      const replaceCurrent=document.getElementById('replaceImportToggle').checked;
+      const form=new FormData();
+      form.append('file',file);
+      const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/import-file?replace_current='+(replaceCurrent?'true':'false'),{
+        method:'POST',
+        headers:{'X-CSRF-Token':csrfToken},
+        body:form,
+      });
+      document.getElementById('importMsg').textContent=response.ok?'File imported.':'File import failed.';
+      if(response.ok) await loadReview();
     }
 
     async function resolveAnnotation(id){

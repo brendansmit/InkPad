@@ -62,6 +62,14 @@ Native InkPad is being built beside Etherpad. Etherpad remains the default edito
 - Profile issue stats track total, open and resolved evidence counts per code/category.
 - Native review payloads include the student profile and the review page shows the current top issue counts while marking.
 
+## Phase 9 Backup and Recovery
+
+- Teachers can download a JSON backup of all native pads or one assignment's native pads.
+- Backups include current pad text, document JSON, revisions, annotations, paste events, rubric data and student profile evidence.
+- Native review includes an assignment backup download link.
+- Teachers can recover work by pasting text or uploading a `.txt` file.
+- Recovery can either create a manual revision only or replace the current pad text while keeping a revision trail.
+
 ## Cutover Rule
 
 Do not route ordinary assignments to Native InkPad until:

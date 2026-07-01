@@ -38,6 +38,22 @@ async function loginStudent(app, username, password) {
   return { cookies: login.headers['set-cookie'], csrfToken: login.json().user.csrf_token };
 }
 
+function multipartPayload({ file }) {
+  const boundary = `----inkheron-native-${Date.now()}`;
+  const chunks = [
+    Buffer.from(`--${boundary}\r\n`),
+    Buffer.from(`Content-Disposition: form-data; name="${file.fieldName}"; filename="${file.filename}"\r\n`),
+    Buffer.from(`Content-Type: ${file.contentType}\r\n\r\n`),
+    Buffer.isBuffer(file.body) ? file.body : Buffer.from(file.body),
+    Buffer.from('\r\n'),
+    Buffer.from(`--${boundary}--\r\n`),
+  ];
+  return {
+    payload: Buffer.concat(chunks),
+    contentType: `multipart/form-data; boundary=${boundary}`,
+  };
+}
+
 async function seedNativeAssignment(app, { enabled = true } = {}) {
   const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
 
@@ -427,6 +443,82 @@ test('teacher can configure and score a native rubric with half steps', async ()
   await app.close();
 });
 
+test('teacher can export native backups and import recovered student work', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app);
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const saved = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Original native work' }] },
+      plain_text: 'Original native work',
+    },
+  });
+  assert.equal(saved.statusCode, 200);
+
+  const recoveryOnly = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/import-text`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { plain_text: 'Recovered pasted work', replace_current: false },
+  });
+  assert.equal(recoveryOnly.statusCode, 200);
+  assert.equal(recoveryOnly.json().pad.plain_text, 'Original native work');
+
+  const uploadBody = multipartPayload({
+    file: { fieldName: 'file', filename: 'recovered.txt', contentType: 'text/plain', body: 'Uploaded recovered work' },
+  });
+  const replaceFromFile = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/import-file?replace_current=true`,
+    headers: {
+      cookie: teacherCookies,
+      'X-CSRF-Token': teacherCsrf,
+      'Content-Type': uploadBody.contentType,
+    },
+    payload: uploadBody.payload,
+  });
+  assert.equal(replaceFromFile.statusCode, 200);
+  assert.equal(replaceFromFile.json().pad.plain_text, 'Uploaded recovered work');
+  assert.equal(replaceFromFile.json().pad.version, 3);
+
+  const revisions = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/revisions`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(revisions.statusCode, 200);
+  assert.deepEqual(revisions.json().revisions.map(revision => revision.reason), ['create', 'autosave', 'manual', 'manual']);
+  assert.equal(revisions.json().revisions.at(-2).plain_text, 'Recovered pasted work');
+  assert.equal(revisions.json().revisions.at(-1).plain_text, 'Uploaded recovered work');
+
+  const backup = await app.inject({
+    method: 'GET',
+    url: `/api/native/backups/export?assignment_id=${assignmentId}`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(backup.statusCode, 200);
+  assert.match(backup.headers['content-disposition'], /inkheron-native-backup-assignment/);
+  assert.equal(backup.json().pad_count, 1);
+  assert.equal(backup.json().pads[0].pad.plain_text, 'Uploaded recovered work');
+  assert.equal(backup.json().pads[0].revisions.length, 4);
+  assert.equal(backup.json().pads[0].student.display_name, 'Alice Chen');
+
+  await app.close();
+});
+
 test('native write view renders without touching Etherpad', async () => {
   const databasePath = temporaryDatabasePath();
   const app = await buildApp({ databasePath, logger: false });
@@ -471,6 +563,8 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /rubricPanel/);
   assert.match(page.body, /saveRubricScores/);
   assert.match(page.body, /profileIssueList/);
+  assert.match(page.body, /importPastedText/);
+  assert.match(page.body, /backups\/export/);
 
   await app.close();
 });
