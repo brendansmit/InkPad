@@ -399,6 +399,26 @@ def apply_sync_data(data):
     """Upsert remote records, keeping whichever side has a newer last_modified."""
     ts = time.time()
     with get_conn() as conn:
+        for st in data.get("students", []):
+            row = conn.execute(
+                "SELECT last_modified FROM students WHERE student_id=?", (st["student_id"],)
+            ).fetchone()
+            if row and (row["last_modified"] or 0) >= (st.get("last_modified") or 0):
+                continue
+            conn.execute("""
+                INSERT INTO students
+                    (student_id, english_name, chinese_name, admin_class, task_class, pinyin, last_modified)
+                VALUES (?,?,?,?,?,?,?)
+                ON CONFLICT(student_id) DO UPDATE SET
+                    english_name=excluded.english_name, chinese_name=excluded.chinese_name,
+                    admin_class=excluded.admin_class, task_class=excluded.task_class,
+                    pinyin=excluded.pinyin, last_modified=excluded.last_modified
+            """, (
+                st["student_id"], st["english_name"], st.get("chinese_name"),
+                st.get("admin_class"), st.get("task_class"), st.get("pinyin"),
+                st.get("last_modified", ts)
+            ))
+
         for a in data.get("assignments", []):
             row = conn.execute("SELECT last_modified FROM assignments WHERE id=?", (a["id"],)).fetchone()
             if row and (row["last_modified"] or 0) >= (a.get("last_modified") or 0):
@@ -442,25 +462,6 @@ def apply_sync_data(data):
                 s.get("extra_credit"), s.get("last_modified", ts)
             ))
 
-        for st in data.get("students", []):
-            row = conn.execute(
-                "SELECT last_modified FROM students WHERE student_id=?", (st["student_id"],)
-            ).fetchone()
-            if row and (row["last_modified"] or 0) >= (st.get("last_modified") or 0):
-                continue
-            conn.execute("""
-                INSERT INTO students
-                    (student_id, english_name, chinese_name, admin_class, task_class, pinyin, last_modified)
-                VALUES (?,?,?,?,?,?,?)
-                ON CONFLICT(student_id) DO UPDATE SET
-                    english_name=excluded.english_name, chinese_name=excluded.chinese_name,
-                    admin_class=excluded.admin_class, task_class=excluded.task_class,
-                    pinyin=excluded.pinyin, last_modified=excluded.last_modified
-            """, (
-                st["student_id"], st["english_name"], st.get("chinese_name", ""),
-                st.get("admin_class"), st.get("task_class"),
-                st.get("pinyin"), st.get("last_modified", ts)
-            ))
 
 
 def update_assignment_conversion(assignment_id, score_total, export_max, export_round=1):
