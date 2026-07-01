@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderNativeWriteView } from '../views/nativeWrite.js';
+import { feedbackLibrary } from '../feedback/library.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
@@ -1296,6 +1297,7 @@ export async function registerNativePadRoutes(app, { db }) {
           scores: loadRubricScores(db, padId),
         },
         student_profile: loadStudentWritingProfile(db, pad.student_id),
+        feedback_options: feedbackLibrary,
       };
     }
   );

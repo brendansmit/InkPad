@@ -18,7 +18,7 @@
     .back{color:var(--text-2);font-size:13px;text-decoration:none}
     h1{font-family:var(--serif);font-size:28px;line-height:1.1;margin:0 0 4px;color:var(--ink)}
     .lead{margin:0;color:var(--text-2)}
-    .layout{display:grid;grid-template-columns:250px minmax(0,1fr) 330px;gap:16px;align-items:start}
+    .layout{display:grid;grid-template-columns:270px minmax(0,1fr) 390px;gap:16px;align-items:start}
     .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card)}
     .rail{position:sticky;top:82px;padding:16px}
     .section{border-top:1px solid var(--border);padding-top:14px;margin-top:14px}
@@ -35,6 +35,8 @@
     select,textarea,input{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 11px;font:inherit;font-size:14px;background:var(--surface);color:var(--text)}
     textarea{resize:vertical;min-height:88px}
     .paper{padding:34px;min-height:70vh}
+    .paper-head{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+    .paper-head .hint{color:var(--text-3);font-size:12.5px}
     .essay{white-space:pre-wrap;font-family:var(--serif);font-size:18px;line-height:1.78;color:var(--ink);outline:none}
     .mark{border-bottom:2px solid var(--green-600);background:var(--green-50);padding:0 1px}
     .mark.comment{border-color:var(--blue-700);background:var(--blue-50)}
@@ -60,6 +62,10 @@
     .score-btn.half{background:linear-gradient(90deg,transparent 45%,var(--border-2) 45%,var(--border-2) 55%,transparent 55%)}
     .score-btn.selected{background:var(--green-600);border-color:var(--green-600);color:#fff}
     .score-btn.half.selected{background:linear-gradient(90deg,var(--green-600) 45%,#fff 45%,#fff 55%,var(--green-600) 55%);color:#fff}
+    .suggestion-list{display:grid;gap:8px}
+    .suggestion{width:100%;text-align:left;display:block;min-height:auto;padding:10px 11px}
+    .suggestion strong{display:block;font-size:12.5px}
+    .suggestion span{display:block;color:var(--text-3);font-size:12px;font-weight:600;margin-top:2px}
     .empty{padding:30px;text-align:center;color:var(--text-3)}
     @media(max-width:1080px){.layout{grid-template-columns:1fr}.rail,.side{position:static}.paper{min-height:50vh}.topline{display:block}}
   </style>
@@ -167,13 +173,18 @@
           </div>
         </aside>
         <article class="panel paper">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div class="paper-head">
             <span class="pill" id="paperMode">Current text</span>
             <button class="btn" id="currentTextBtn" type="button" style="display:none">Current text</button>
+            <span class="hint">Select text, choose a range type, then add the annotation.</span>
           </div>
           <div class="essay" id="essayText">${renderMarkedText(reviewData.pad.plain_text, reviewData.annotations)}</div>
         </article>
         <aside class="side">
+          <section class="panel box">
+            <span class="label">Suggested targets</span>
+            <div class="suggestion-list">${suggestionPanel()}</div>
+          </section>
           <section class="panel box">
             <span class="label">General comment</span>
             <textarea id="generalComment">${escapeHtml(general?.body || '')}</textarea>
@@ -240,6 +251,7 @@
         document.getElementById('annotationList').innerHTML=annotationList(btn.dataset.filter);
       }));
       document.querySelectorAll('[data-revision]').forEach(btn=>btn.addEventListener('click',()=>showRevision(Number(btn.dataset.revision))));
+      document.querySelectorAll('[data-suggestion]').forEach(btn=>btn.addEventListener('click',()=>applySuggestion(btn.dataset.suggestion)));
       updateRangeForm();
     }
 
@@ -277,6 +289,42 @@
           <p>${issue.open_count} open · ${issue.resolved_count} resolved · ${issue.evidence_count} total</p>
         </div>
       `).join('')}</div>`;
+    }
+
+    function suggestionPanel(){
+      const profileTargets=(reviewData.student_profile?.literacy_issues || []).slice(0,3).map(issue=>({
+        title: issue.label || issue.code || issue.category || 'Tracked writing issue',
+        body: 'Target: check '+(issue.label || issue.category || issue.code)+' carefully in the rewrite.',
+        source: `${issue.open_count} open · ${issue.evidence_count} seen`,
+      }));
+      const tableTargets=(reviewData.feedback_options?.targets || []).slice(0,3).map(target=>({
+        title: target.title,
+        body: 'Target: '+target.explanation,
+        source: 'Feedback table',
+      }));
+      const suggestions=[...profileTargets, ...tableTargets].slice(0,5);
+      if(!suggestions.length) return '<span class="sub">No suggestions yet.</span>';
+      return suggestions.map((item,index)=>`
+        <button class="btn suggestion" type="button" data-suggestion="${index}">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.source)}</span>
+        </button>
+      `).join('');
+    }
+
+    function applySuggestion(index){
+      const profileTargets=(reviewData.student_profile?.literacy_issues || []).slice(0,3).map(issue=>({
+        body: 'Target: check '+(issue.label || issue.category || issue.code)+' carefully in the rewrite.',
+      }));
+      const tableTargets=(reviewData.feedback_options?.targets || []).slice(0,3).map(target=>({
+        body: 'Target: '+target.explanation,
+      }));
+      const item=[...profileTargets, ...tableTargets][Number(index)];
+      if(!item) return;
+      const box=document.getElementById('generalComment');
+      const current=box.value.trim();
+      box.value=current ? current+'\\n\\n'+item.body : item.body;
+      box.focus();
     }
 
     function rubricPanel(){

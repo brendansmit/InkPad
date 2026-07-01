@@ -419,6 +419,7 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(review.json().policy.paste_mode, 'block');
   assert.equal(review.json().paste_events.length, 1);
   assert.deepEqual(review.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment', 'literacy_code', 'highlight']);
+  assert.ok(review.json().feedback_options.targets.some(target => target.id === 'develop_explanation'));
   assert.equal(review.json().student_profile.literacy_issues[0].resolved_count, 1);
   assert.equal(review.json().student_profile.literacy_issues[0].open_count, 0);
 
@@ -966,6 +967,9 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /rubricPanel/);
   assert.match(page.body, /saveRubricScores/);
   assert.match(page.body, /profileIssueList/);
+  assert.match(page.body, /Suggested targets/);
+  assert.match(page.body, /suggestionPanel/);
+  assert.match(page.body, /applySuggestion/);
   assert.match(page.body, /importPastedText/);
   assert.match(page.body, /backups\/export/);
   assert.match(page.body, /greenpenRewriteBtn/);

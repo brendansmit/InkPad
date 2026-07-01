@@ -385,3 +385,8 @@ Entry format:
 - Decisions: PDF uploaded only to the primary assignment in a multi-class group (first in editGroup). passage_text cleared from settings_json if textarea is empty on save — correct, expected behaviour.
 - Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions. Also: Server酱 pricing.
 - Gotchas hit: SSH key not loaded in agent; needed `ssh-add` + `-i` flag; root user is the correct login.
+## 2026-07-02 - Native review pane suggestions
+- Asked: Make the grader window more useful and less half-finished, with tools and suggestions available at a click.
+- Built: Native review now receives the strengths and targets library, shows a Suggested targets panel and can append a suggested target directly into the general comment box.
+- UI: Widened the review side rail and added an editor-style paper header hint while preserving existing annotations, rubric scoring, recovery and revision tools.
+- Verified: `node --check src/routes/nativePads.js` and `node --test test/nativePads.test.js` passed 14/14.
