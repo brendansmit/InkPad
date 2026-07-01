@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, render_template, make_response
 import io
 
 import database as db
@@ -83,7 +83,14 @@ def remove_student(student_id):
 def get_settings():
     key = db.get_setting("deepseek_api_key", "")
     masked = ("*" * (len(key) - 4) + key[-4:]) if len(key) > 4 else ("*" * len(key))
-    return jsonify({"deepseek_api_key_set": bool(key), "masked": masked})
+    sync_url = db.get_setting("sync_url", "")
+    sync_key = db.get_setting("sync_key", "")
+    sync_key_masked = ("*" * max(0, len(sync_key) - 4) + sync_key[-4:]) if len(sync_key) > 4 else ("*" * len(sync_key))
+    return jsonify({
+        "deepseek_api_key_set": bool(key), "masked": masked,
+        "sync_url": sync_url,
+        "sync_key_set": bool(sync_key), "sync_key_masked": sync_key_masked,
+    })
 
 
 @app.route("/api/settings", methods=["POST"])
@@ -92,7 +99,58 @@ def save_settings():
     key = body.get("deepseek_api_key", "").strip()
     if key:
         db.set_setting("deepseek_api_key", key)
+    sync_url = body.get("sync_url")
+    if sync_url is not None:
+        db.set_setting("sync_url", sync_url.strip())
+    sync_key = body.get("sync_key", "").strip()
+    if sync_key:
+        db.set_setting("sync_key", sync_key)
     return jsonify({"ok": True})
+
+
+# ── Sync ─────────────────────────────────────────────────────────────────────
+
+def _sync_auth_ok():
+    sync_key = db.get_setting("sync_key", "")
+    if not sync_key:
+        return False
+    return request.headers.get("Authorization", "") == f"Bearer {sync_key}"
+
+def _cors(resp):
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+    resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    return resp
+
+@app.route("/api/sync", methods=["OPTIONS"])
+def sync_preflight():
+    return _cors(make_response("", 204))
+
+@app.route("/api/sync", methods=["GET"])
+def sync_pull():
+    if not _sync_auth_ok():
+        return jsonify({"error": "unauthorized"}), 401
+    since = float(request.args.get("since", 0))
+    resp = make_response(jsonify(db.get_sync_data(since)))
+    return _cors(resp)
+
+@app.route("/api/sync", methods=["POST"])
+def sync_push():
+    if not _sync_auth_ok():
+        return jsonify({"error": "unauthorized"}), 401
+    db.apply_sync_data(request.json or {})
+    resp = make_response(jsonify({"ok": True}))
+    return _cors(resp)
+
+@app.route("/api/config")
+def get_app_config():
+    sync_url = db.get_setting("sync_url", "")
+    sync_key = db.get_setting("sync_key", "")
+    return jsonify({
+        "sync_url": sync_url,
+        "sync_key": sync_key,           # used by local JS — safe since port 5050 is localhost-only
+        "is_server": not bool(sync_url),
+    })
 
 
 # ── Assignments ───────────────────────────────────────────────────────────────
@@ -334,4 +392,5 @@ def index():
 
 if __name__ == "__main__":
     db.init_db()
-    app.run(debug=False, port=5050)
+    port = int(os.environ.get("PORT", 5050))
+    app.run(debug=False, port=port)

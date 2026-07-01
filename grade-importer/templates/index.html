@@ -515,23 +515,48 @@
 
 <!-- ═══════════════════════════════ SETTINGS ══════════════════════════════ -->
 <div class="panel" id="tab-settings">
-  <div class="card" style="max-width:600px">
-    <h2>DeepSeek API Key</h2>
-    <p style="font-size:0.85rem;color:#64748b;margin-bottom:16px">
-      Used as a fallback when fuzzy name matching is ambiguous. Not required — the app works without it for most cases.
-    </p>
-    <div class="form-group" style="margin-bottom:14px">
-      <label>API Key</label>
-      <div class="api-key-row">
-        <input type="password" id="api-key-input" placeholder="sk-…" autocomplete="off">
-        <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
-        <button class="btn btn-ghost" onclick="toggleShowKey()" id="show-key-btn">Show</button>
+  <div style="display:flex;flex-direction:column;gap:20px;max-width:600px">
+
+    <div class="card">
+      <h2>Sync</h2>
+      <p style="font-size:0.85rem;color:#64748b;margin-bottom:16px">
+        Mirror grades bidirectionally with <b>admin.inkheron.app</b>. After each save the local app pushes to the server; when you open an assignment it pulls the latest from the server first.
+      </p>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Server URL</label>
+        <input type="url" id="sync-url-input" placeholder="https://admin.inkheron.app" style="width:100%">
+        <p style="font-size:0.75rem;color:#94a3b8;margin:4px 0 0">Leave blank on the server itself.</p>
       </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Sync API key</label>
+        <div class="api-key-row">
+          <input type="password" id="sync-key-input" placeholder="shared secret" autocomplete="off">
+          <button class="btn btn-primary" onclick="saveSyncSettings()">Save</button>
+        </div>
+      </div>
+      <div id="sync-settings-status"></div>
+      <div id="sync-status-bar" style="font-size:0.78rem;color:#94a3b8;margin-top:8px"></div>
     </div>
-    <div id="api-key-status"></div>
-    <p style="font-size:0.78rem;color:#94a3b8;margin-top:12px">
-      Key is stored locally in the app database only. Get your key from <b>platform.deepseek.com</b>.
-    </p>
+
+    <div class="card">
+      <h2>DeepSeek API Key</h2>
+      <p style="font-size:0.85rem;color:#64748b;margin-bottom:16px">
+        Used as a fallback when fuzzy name matching is ambiguous. Not required.
+      </p>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>API Key</label>
+        <div class="api-key-row">
+          <input type="password" id="api-key-input" placeholder="sk-…" autocomplete="off">
+          <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
+          <button class="btn btn-ghost" onclick="toggleShowKey()" id="show-key-btn">Show</button>
+        </div>
+      </div>
+      <div id="api-key-status"></div>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:12px">
+        Key is stored locally in the app database only. Get your key from <b>platform.deepseek.com</b>.
+      </p>
+    </div>
+
   </div>
 </div>
 
@@ -539,6 +564,81 @@
 <script>
 let currentAid = null;
 let pendingScores = {};
+
+// ── sync globals ──────────────────────────────────────────────────────────────
+let syncUrl = '';
+let syncKey = '';
+let syncOnline = false;
+let syncBusy = false;
+
+async function initSync() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    syncUrl = cfg.sync_url || '';
+    syncKey = cfg.sync_key || '';
+    syncOnline = !!syncUrl;
+  } catch(e) { syncOnline = false; }
+  if (syncUrl) {
+    setSyncBar('Sync configured → ' + syncUrl);
+    setInterval(syncWithServer, 60000);
+  }
+}
+
+function setSyncBar(msg, ok = true) {
+  const el = document.getElementById('sync-status-bar');
+  if (!el) return;
+  el.style.color = ok ? '#10b981' : '#f59e0b';
+  el.textContent = msg;
+}
+
+async function syncWithServer() {
+  if (!syncUrl || !syncKey || syncBusy) return;
+  syncBusy = true;
+  try {
+    const since = parseFloat(localStorage.getItem('gi_lastSyncTs') || '0');
+
+    // 1. Pull: get changes from server since last sync
+    const pullRes = await fetch(`${syncUrl}/api/sync?since=${since}`, {
+      headers: { 'Authorization': `Bearer ${syncKey}` }
+    });
+    if (!pullRes.ok) { syncOnline = false; setSyncBar('Sync server unreachable', false); syncBusy = false; return; }
+    syncOnline = true;
+    const remote = await pullRes.json();
+    const hasRemote = ['assignments','scores','students'].some(k => (remote[k]||[]).length > 0);
+    if (hasRemote) {
+      await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${syncKey}` },
+        body: JSON.stringify(remote)
+      });
+    }
+
+    // 2. Push: send local changes to server
+    const lastPush = parseFloat(localStorage.getItem('gi_lastPushTs') || '0');
+    const localRes = await fetch(`/api/sync?since=${lastPush}`, {
+      headers: { 'Authorization': `Bearer ${syncKey}` }
+    });
+    const local = await localRes.json();
+    const hasLocal = ['assignments','scores','students'].some(k => (local[k]||[]).length > 0);
+    if (hasLocal) {
+      await fetch(`${syncUrl}/api/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${syncKey}` },
+        body: JSON.stringify(local)
+      });
+    }
+
+    const now = Date.now() / 1000;
+    localStorage.setItem('gi_lastSyncTs', now);
+    localStorage.setItem('gi_lastPushTs', now);
+    setSyncBar('Synced ' + new Date().toLocaleTimeString());
+  } catch(e) {
+    syncOnline = false;
+    setSyncBar('Sync offline — changes saved locally', false);
+  }
+  syncBusy = false;
+}
 let allStudents = [];
 let allClasses = [];
 let rosterViewClass = "all";
@@ -832,6 +932,9 @@ async function selectAssignment(aid) {
   if (item) item.classList.add('selected');
 
   document.getElementById('assignment-detail').style.display = 'block';
+
+  // Pull latest from server before rendering
+  await syncWithServer();
   document.getElementById('no-selection').style.display = 'none';
 
   const res = await fetch(`/api/assignments/${aid}`);
@@ -1199,6 +1302,9 @@ async function saveAllScores(silent = false) {
   await res.json();
   pendingScores = {};
 
+  // Push to server (non-blocking — don't await so UI stays fast)
+  syncWithServer();
+
   if (!silent) {
     await refreshDetailScores();
     const btn = document.querySelector('[onclick="saveAllScores()"]');
@@ -1317,6 +1423,19 @@ async function loadSettings() {
     statusEl.innerHTML = '<div class="alert alert-warn">No API key saved. DeepSeek fallback disabled.</div>';
     badge.innerHTML = '';
   }
+  // Populate sync fields
+  const urlEl = document.getElementById('sync-url-input');
+  const syncStatus = document.getElementById('sync-settings-status');
+  if (urlEl) urlEl.value = data.sync_url || '';
+  if (syncStatus) {
+    if (data.sync_url && data.sync_key_set) {
+      syncStatus.innerHTML = `<div class="alert alert-success">Sync active → <code>${data.sync_url}</code> &nbsp; Key: <code>${data.sync_key_masked}</code></div>`;
+    } else if (!data.sync_url) {
+      syncStatus.innerHTML = '<div class="alert alert-warn" style="font-size:0.8rem">No server URL — running as standalone (server mode if deployed to admin.inkheron.app).</div>';
+    } else {
+      syncStatus.innerHTML = '<div class="alert alert-warn">Server URL set but no sync key saved.</div>';
+    }
+  }
 }
 
 async function saveApiKey() {
@@ -1329,6 +1448,20 @@ async function saveApiKey() {
   });
   document.getElementById('api-key-input').value = '';
   await loadSettings();
+}
+
+async function saveSyncSettings() {
+  const url = (document.getElementById('sync-url-input')?.value || '').trim();
+  const key = (document.getElementById('sync-key-input')?.value || '').trim();
+  await fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ sync_url: url, ...(key ? { sync_key: key } : {}) })
+  });
+  document.getElementById('sync-key-input').value = '';
+  await loadSettings();
+  // Re-initialise sync with new config
+  await initSync();
 }
 
 function toggleShowKey() {
@@ -1561,6 +1694,7 @@ async function generatePinyin() {
   await loadAssignments();
   await loadTemplateLibrary();
   await loadSettings();
+  await initSync();
 })();
 </script>
 </body>

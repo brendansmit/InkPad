@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import json
+import time
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "grades.db")
 
@@ -71,6 +72,7 @@ def init_db():
             ("score_total",        "REAL"),
             ("export_max",         "REAL"),
             ("export_round",       "INTEGER DEFAULT 1"),
+            ("last_modified",      "REAL DEFAULT 0"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE assignments ADD COLUMN {col} {definition}")
@@ -79,31 +81,42 @@ def init_db():
         for col, definition in [
             ("section_scores", "TEXT DEFAULT '{}'"),
             ("extra_credit",   "REAL"),
+            ("last_modified",  "REAL DEFAULT 0"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE scores ADD COLUMN {col} {definition}")
             except Exception:
                 pass
         for col, definition in [
-            ("pinyin", "TEXT"),
+            ("pinyin",         "TEXT"),
+            ("last_modified",  "REAL DEFAULT 0"),
         ]:
             try:
                 conn.execute(f"ALTER TABLE students ADD COLUMN {col} {definition}")
             except Exception:
                 pass
 
+        # Stamp any rows that pre-date the last_modified column
+        ts = time.time()
+        conn.execute("UPDATE assignments SET last_modified=? WHERE last_modified=0 OR last_modified IS NULL", (ts,))
+        conn.execute("UPDATE scores SET last_modified=? WHERE last_modified=0 OR last_modified IS NULL", (ts,))
+        conn.execute("UPDATE students SET last_modified=? WHERE last_modified=0 OR last_modified IS NULL", (ts,))
+
 
 def upsert_students(students):
+    ts = time.time()
+    rows = [{**s, "last_modified": ts} for s in students]
     with get_conn() as conn:
         conn.executemany("""
-            INSERT INTO students (student_id, chinese_name, english_name, admin_class, task_class)
-            VALUES (:student_id, :chinese_name, :english_name, :admin_class, :task_class)
+            INSERT INTO students (student_id, chinese_name, english_name, admin_class, task_class, last_modified)
+            VALUES (:student_id, :chinese_name, :english_name, :admin_class, :task_class, :last_modified)
             ON CONFLICT(student_id) DO UPDATE SET
                 chinese_name=excluded.chinese_name,
                 english_name=excluded.english_name,
                 admin_class=excluded.admin_class,
-                task_class=excluded.task_class
-        """, students)
+                task_class=excluded.task_class,
+                last_modified=excluded.last_modified
+        """, rows)
 
 
 def get_all_students():
@@ -116,8 +129,8 @@ def get_all_students():
 def create_assignment(name, class_filter=None, sections=None):
     with get_conn() as conn:
         cur = conn.execute(
-            "INSERT INTO assignments (name, max_score, class_filter, sections) VALUES (?, ?, ?, ?)",
-            (name, 0, class_filter, json.dumps(sections or []))
+            "INSERT INTO assignments (name, max_score, class_filter, sections, last_modified) VALUES (?, ?, ?, ?, ?)",
+            (name, 0, class_filter, json.dumps(sections or []), time.time())
         )
         return cur.lastrowid
 
@@ -150,23 +163,25 @@ def get_all_assignments():
 def upsert_score(assignment_id, student_id, score, section_scores=None, extra_credit=None):
     with get_conn() as conn:
         conn.execute("""
-            INSERT INTO scores (assignment_id, student_id, score, section_scores, extra_credit)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO scores (assignment_id, student_id, score, section_scores, extra_credit, last_modified)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(assignment_id, student_id) DO UPDATE SET
                 score=excluded.score,
                 section_scores=excluded.section_scores,
-                extra_credit=excluded.extra_credit
-        """, (assignment_id, student_id, score, json.dumps(section_scores or {}), extra_credit))
+                extra_credit=excluded.extra_credit,
+                last_modified=excluded.last_modified
+        """, (assignment_id, student_id, score, json.dumps(section_scores or {}), extra_credit, time.time()))
 
 def upsert_extra_credit(assignment_id, student_id, extra_credit):
     """Update only the extra_credit field, leaving score/section_scores untouched."""
     with get_conn() as conn:
         conn.execute("""
-            INSERT INTO scores (assignment_id, student_id, score, section_scores, extra_credit)
-            VALUES (?, ?, NULL, '{}', ?)
+            INSERT INTO scores (assignment_id, student_id, score, section_scores, extra_credit, last_modified)
+            VALUES (?, ?, NULL, '{}', ?, ?)
             ON CONFLICT(assignment_id, student_id) DO UPDATE SET
-                extra_credit=excluded.extra_credit
-        """, (assignment_id, student_id, extra_credit))
+                extra_credit=excluded.extra_credit,
+                last_modified=excluded.last_modified
+        """, (assignment_id, student_id, extra_credit, time.time()))
 
 
 def get_scores_for_assignment(assignment_id, class_filter=None):
@@ -270,14 +285,15 @@ def get_classes():
 def add_student(student_id, english_name, chinese_name, admin_class, task_class):
     with get_conn() as conn:
         conn.execute("""
-            INSERT INTO students (student_id, english_name, chinese_name, admin_class, task_class)
-            VALUES (?,?,?,?,?)
+            INSERT INTO students (student_id, english_name, chinese_name, admin_class, task_class, last_modified)
+            VALUES (?,?,?,?,?,?)
             ON CONFLICT(student_id) DO UPDATE SET
                 english_name=excluded.english_name,
                 chinese_name=excluded.chinese_name,
                 admin_class=excluded.admin_class,
-                task_class=excluded.task_class
-        """, (student_id, english_name, chinese_name, admin_class, task_class))
+                task_class=excluded.task_class,
+                last_modified=excluded.last_modified
+        """, (student_id, english_name, chinese_name, admin_class, task_class, time.time()))
 
 
 def remove_student(student_id):
@@ -345,14 +361,111 @@ def set_assignment_library_template(assignment_id, library_template_id):
 def update_assignment_sections(assignment_id, sections):
     with get_conn() as conn:
         conn.execute(
-            "UPDATE assignments SET sections=? WHERE id=?",
-            (json.dumps(sections), assignment_id)
+            "UPDATE assignments SET sections=?, last_modified=? WHERE id=?",
+            (json.dumps(sections), time.time(), assignment_id)
         )
+
+
+def get_sync_data(since_ts=0.0):
+    """Return all assignments, scores, and students modified after since_ts."""
+    with get_conn() as conn:
+        assignments = [dict(r) for r in conn.execute(
+            """SELECT id, name, class_filter, sections, score_total, export_max, export_round,
+                      library_template_id, last_modified, created_at
+               FROM assignments WHERE last_modified > ?""",
+            (since_ts,)
+        ).fetchall()]
+        for a in assignments:
+            a["sections"] = json.loads(a.get("sections") or "[]")
+
+        scores = [dict(r) for r in conn.execute(
+            """SELECT assignment_id, student_id, score, section_scores, extra_credit, last_modified
+               FROM scores WHERE last_modified > ?""",
+            (since_ts,)
+        ).fetchall()]
+        for s in scores:
+            s["section_scores"] = json.loads(s.get("section_scores") or "{}")
+
+        students = [dict(r) for r in conn.execute(
+            """SELECT student_id, english_name, chinese_name, admin_class, task_class, pinyin, last_modified
+               FROM students WHERE last_modified > ?""",
+            (since_ts,)
+        ).fetchall()]
+
+    return {"assignments": assignments, "scores": scores, "students": students}
+
+
+def apply_sync_data(data):
+    """Upsert remote records, keeping whichever side has a newer last_modified."""
+    ts = time.time()
+    with get_conn() as conn:
+        for a in data.get("assignments", []):
+            row = conn.execute("SELECT last_modified FROM assignments WHERE id=?", (a["id"],)).fetchone()
+            if row and (row["last_modified"] or 0) >= (a.get("last_modified") or 0):
+                continue
+            conn.execute("""
+                INSERT INTO assignments
+                    (id, name, max_score, class_filter, sections, score_total, export_max,
+                     export_round, library_template_id, last_modified, created_at)
+                VALUES (?,?,0,?,?,?,?,?,?,?,?)
+                ON CONFLICT(id) DO UPDATE SET
+                    name=excluded.name, class_filter=excluded.class_filter,
+                    sections=excluded.sections, score_total=excluded.score_total,
+                    export_max=excluded.export_max, export_round=excluded.export_round,
+                    library_template_id=excluded.library_template_id,
+                    last_modified=excluded.last_modified
+            """, (
+                a["id"], a["name"], a.get("class_filter"),
+                json.dumps(a.get("sections", [])),
+                a.get("score_total"), a.get("export_max"),
+                int(a.get("export_round") or 1), a.get("library_template_id"),
+                a.get("last_modified", ts), a.get("created_at", "")
+            ))
+
+        for s in data.get("scores", []):
+            row = conn.execute(
+                "SELECT last_modified FROM scores WHERE assignment_id=? AND student_id=?",
+                (s["assignment_id"], s["student_id"])
+            ).fetchone()
+            if row and (row["last_modified"] or 0) >= (s.get("last_modified") or 0):
+                continue
+            conn.execute("""
+                INSERT INTO scores
+                    (assignment_id, student_id, score, section_scores, extra_credit, last_modified)
+                VALUES (?,?,?,?,?,?)
+                ON CONFLICT(assignment_id, student_id) DO UPDATE SET
+                    score=excluded.score, section_scores=excluded.section_scores,
+                    extra_credit=excluded.extra_credit, last_modified=excluded.last_modified
+            """, (
+                s["assignment_id"], s["student_id"], s.get("score"),
+                json.dumps(s.get("section_scores", {})),
+                s.get("extra_credit"), s.get("last_modified", ts)
+            ))
+
+        for st in data.get("students", []):
+            row = conn.execute(
+                "SELECT last_modified FROM students WHERE student_id=?", (st["student_id"],)
+            ).fetchone()
+            if row and (row["last_modified"] or 0) >= (st.get("last_modified") or 0):
+                continue
+            conn.execute("""
+                INSERT INTO students
+                    (student_id, english_name, chinese_name, admin_class, task_class, pinyin, last_modified)
+                VALUES (?,?,?,?,?,?,?)
+                ON CONFLICT(student_id) DO UPDATE SET
+                    english_name=excluded.english_name, chinese_name=excluded.chinese_name,
+                    admin_class=excluded.admin_class, task_class=excluded.task_class,
+                    pinyin=excluded.pinyin, last_modified=excluded.last_modified
+            """, (
+                st["student_id"], st["english_name"], st.get("chinese_name", ""),
+                st.get("admin_class"), st.get("task_class"),
+                st.get("pinyin"), st.get("last_modified", ts)
+            ))
 
 
 def update_assignment_conversion(assignment_id, score_total, export_max, export_round=1):
     with get_conn() as conn:
         conn.execute(
-            "UPDATE assignments SET score_total=?, export_max=?, export_round=? WHERE id=?",
-            (score_total, export_max, int(export_round) if export_round is not None else 1, assignment_id)
+            "UPDATE assignments SET score_total=?, export_max=?, export_round=?, last_modified=? WHERE id=?",
+            (score_total, export_max, int(export_round) if export_round is not None else 1, time.time(), assignment_id)
         )
