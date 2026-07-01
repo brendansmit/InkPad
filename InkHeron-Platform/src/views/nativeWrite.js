@@ -38,54 +38,54 @@ export function renderNativeWriteView({
   <style>
     *{box-sizing:border-box}
     body{margin:0;font-family:var(--font);background:#f6f5f0;color:#1f2a24;height:100vh;overflow:hidden}
-    .bar{height:58px;display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid #d8d4c8;background:#fff}
-    .brand{font-weight:800}
-    .title{font-family:var(--serif);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .spacer{flex:1}
-    .stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums}
-    .stat.warn{color:#a75432;font-weight:800}
-    .btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 12px;font-weight:800;cursor:pointer}
-    .btn.primary{background:#2f6f4e;color:#fff;border-color:#2f6f4e}
-    .btn:disabled{opacity:.5;cursor:not-allowed}
-    .shell{height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(280px,36%) 1fr}
-    .passage{border-right:1px solid #d8d4c8;background:#fbfaf6;overflow:auto;padding:18px}
-    .passage h2{margin:0 0 10px;font-size:14px}
-    .passage .text{white-space:pre-wrap;font-family:var(--serif);font-size:16px;line-height:1.7}
-    .editorWrap{display:flex;flex-direction:column;min-width:0;min-height:0}
-    .tools{display:flex;align-items:center;gap:8px;min-height:46px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4}
-    .editor{flex:1;overflow:auto;padding:34px 24px}
-    #nativeEditor{max-width:760px;min-height:calc(100vh - 180px);margin:0 auto;background:#fff;border:1px solid #ddd7ca;border-radius:8px;padding:32px 36px;font-family:var(--serif);font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
+    .niw-bar{height:58px;display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid #d8d4c8;background:#fff}
+    .niw-brand{font-weight:800}
+    .niw-title{font-family:var(--serif);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .niw-spacer{flex:1}
+    .niw-stat{font-size:13px;color:#657268;font-variant-numeric:tabular-nums}
+    .niw-stat.warn{color:#a75432;font-weight:800}
+    .niw-btn{border:1px solid #b8c2b9;background:#fff;color:#17221b;border-radius:7px;min-height:34px;padding:0 12px;font-weight:800;cursor:pointer;font-family:inherit}
+    .niw-btn.primary{background:#2f6f4e;color:#fff;border-color:#2f6f4e}
+    .niw-btn:disabled{opacity:.5;cursor:not-allowed}
+    .niw-shell{height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(300px,420px) minmax(0,1fr)}
+    .niw-passage{border-right:1px solid #d8d4c8;background:#fbfaf6;overflow:auto;padding:22px}
+    .niw-passage h2{margin:0 0 10px;font-size:14px}
+    .niw-passage .niw-text{white-space:pre-wrap;font-family:var(--serif);font-size:16px;line-height:1.7}
+    .niw-editor-wrap{display:flex;flex-direction:column;min-width:0;min-height:0}
+    .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4}
+    .niw-editor-stage{flex:1;overflow:auto;padding:36px 32px}
+    #nativeEditor{display:block;width:min(100%,860px);min-height:calc(100vh - 190px);margin:0 auto;background:#fff;border:1px solid #ddd7ca;border-radius:8px;padding:34px 38px;font-family:var(--serif);font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor[contenteditable="false"]{background:#f7f7f4;color:#59635d}
     .empty{color:#8a938d}
-    @media(max-width:820px){body{overflow:auto;height:auto}.shell{height:auto;display:block}.passage{border-right:0;border-bottom:1px solid #d8d4c8}.editor{padding:16px}#nativeEditor{min-height:60vh;padding:22px}}
+    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-editor-stage{padding:16px}#nativeEditor{min-height:60vh;padding:22px}}
   </style>
 </head>
 <body>
-  <header class="bar">
-    <div class="brand">InkPad</div>
-    <div class="title">${escapeHtml(title)}</div>
-    <div class="spacer"></div>
-    <div class="stat" id="pastePolicy">Paste ${escapeHtml(policy?.paste_mode ?? 'log')}</div>
-    <div class="stat" id="saveState">Saved</div>
-    <div class="stat"><span id="wordCount">${pad.word_count}</span> words</div>
-    <button class="btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitLabel)}</button>
+  <header class="niw-bar">
+    <div class="niw-brand">InkPad</div>
+    <div class="niw-title">${escapeHtml(title)}</div>
+    <div class="niw-spacer"></div>
+    <div class="niw-stat" id="pastePolicy">Paste ${escapeHtml(policy?.paste_mode ?? 'log')}</div>
+    <div class="niw-stat" id="saveState">Saved</div>
+    <div class="niw-stat"><span id="wordCount">${pad.word_count}</span> words</div>
+    <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitLabel)}</button>
   </header>
-  <main class="shell">
-    <aside class="passage">
+  <main class="niw-shell">
+    <aside class="niw-passage">
       <h2>Task</h2>
-      <div class="text">${escapeHtml(prompt || 'No prompt added.')}</div>
-      ${passageText ? `<h2 style="margin-top:22px">Reference</h2><div class="text">${escapeHtml(passageText)}</div>` : ''}
+      <div class="niw-text">${escapeHtml(prompt || 'No prompt added.')}</div>
+      ${passageText ? `<h2 style="margin-top:22px">Reference</h2><div class="niw-text">${escapeHtml(passageText)}</div>` : ''}
       ${passagePdf ? `<p><a href="/api/assignments/${assignmentId}/passage-pdf" target="_blank" rel="noopener">Open PDF passage</a></p>` : ''}
-      ${dueAt ? `<p class="stat">Due ${escapeHtml(dueAt)}</p>` : ''}
+      ${dueAt ? `<p class="niw-stat">Due ${escapeHtml(dueAt)}</p>` : ''}
     </aside>
-    <section class="editorWrap">
-      <div class="tools">
-        <button class="btn" type="button" data-command="bold">B</button>
-        <button class="btn" type="button" data-command="italic">I</button>
-        <button class="btn" type="button" data-command="underline">U</button>
-        <button class="btn" type="button" data-command="insertUnorderedList">List</button>
+    <section class="niw-editor-wrap">
+      <div class="niw-tools">
+        <button class="niw-btn" type="button" data-command="bold">B</button>
+        <button class="niw-btn" type="button" data-command="italic">I</button>
+        <button class="niw-btn" type="button" data-command="underline">U</button>
+        <button class="niw-btn" type="button" data-command="insertUnorderedList">List</button>
       </div>
-      <div class="editor">
+      <div class="niw-editor-stage">
         <div id="nativeEditor" contenteditable="${locked ? 'false' : 'true'}" spellcheck="${spellcheck ? 'true' : 'false'}"></div>
       </div>
     </section>

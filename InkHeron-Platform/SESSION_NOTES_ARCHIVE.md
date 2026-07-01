@@ -4,6 +4,13 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-07-01 - Native InkPad default deployed
+- Asked: Move ASAP toward student usability after Etherpad instability.
+- Deployed: `src/routes/assignments.js`, `public/teacher/new-assignment.html` and `public/teacher/assignments.html` to `/opt/inkheron-platform`, then restarted `inkheron-wrapper.service`.
+- Verified: Wrapper active. Droplet local `/healthz` returned 200 in about 3 ms. Public `https://inkpad.inkheron.app/healthz` returned 200 in about 0.69 s. Teacher page remains auth-protected with 401 when unauthenticated.
+
+---
+
 ## 2026-07-01 - Fix live student login loop
 - Asked: Fix InkPad showing logged in as student, then looping back to the login page.
 - Found: Live logs showed `/api/me` returning 200, then `/api/student/assignments` crashing with `no such table: native_pads`. The dashboard was failing after login, not losing the session.
