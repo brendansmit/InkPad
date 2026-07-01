@@ -4,6 +4,15 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-07-01 - Native InkPad Phase 11 green-pen resubmission
+- Asked: Keep plodding on toward native replacement after the student feedback loop.
+- Built: Native submit now accepts `green_pen_open` pads, preserves first submission time, moves the pad to `resubmitted` and records another submit revision snapshot.
+- UI/API: Student writer labels green-pen work as `Resubmit`. Teacher review payloads include original/latest submission comparison anchors and the review page shows quick buttons for original submission and latest rewrite.
+- Verified: Node 24 syntax checks passed. Focused suite `test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 21/21. Broader stable suite `test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
+- Decision: Resubmission reuses the existing `submit` revision reason to avoid a migration just for naming. Original versus rewrite is derived from first and latest submit snapshots.
+
+---
+
 ## 2026-07-01 - Native InkPad Phase 12 browser smoke confidence
 - Asked: Keep going toward native replacement readiness.
 - Built: Added `scripts/native-smoke-server.mjs`, a temp-data local smoke server that seeds one teacher, one student and one green-pen native assignment for real browser checks.

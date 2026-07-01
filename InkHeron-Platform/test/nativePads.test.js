@@ -693,10 +693,68 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /id="charCount"/);
   assert.match(response.body, /id="sentenceCount"/);
   assert.match(response.body, /id="readerResizer"/);
-  assert.match(response.body, /data-width-step="80"/);
-  assert.match(response.body, /data-zoom-step="0\.1"/);
-  assert.match(response.body, /width:min\(100%,var\(--page-width\)\)/);
+  assert.match(response.body, /id="saveBtn"/);
+  assert.match(response.body, /id="zoomSlider"/);
+  assert.match(response.body, /id="lineNumbers"/);
+  assert.match(response.body, /id="fontSizeSelect"/);
+  assert.match(response.body, /data-command="undo"/);
+  assert.match(response.body, /data-command="indent"/);
+  assert.match(response.body, /data-fore-color="#2f6f4e"/);
+  assert.match(response.body, /data-hilite-color="#fff0a6"/);
+  assert.match(response.body, /font-family:var\(--font\)/);
   assert.match(response.body, /type:'html'/);
+
+  await app.close();
+});
+
+test('teacher can return a native pad for revision after the deadline', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app);
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const db = new DatabaseSync(databasePath);
+  db.prepare("UPDATE assignments SET due_at = datetime('now', '-1 day') WHERE id = ?").run(assignmentId);
+  db.close();
+
+  const returned = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/return-revision`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { note: 'Revise this section.' },
+  });
+  assert.equal(returned.statusCode, 200);
+  assert.equal(returned.json().pad.state, 'writing');
+  assert.equal(returned.json().returned_for_revision, true);
+
+  const writePage = await app.inject({
+    method: 'GET',
+    url: `/native/write/${assignmentId}`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(writePage.statusCode, 200);
+  assert.match(writePage.body, /Submit/);
+
+  const saved = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'html', html: '<p>Revision after deadline.</p>', text: 'Revision after deadline.' },
+      plain_text: 'Revision after deadline.',
+      expected_version: 1,
+    },
+  });
+  assert.equal(saved.statusCode, 200);
+  assert.equal(saved.json().pad.plain_text, 'Revision after deadline.');
 
   await app.close();
 });

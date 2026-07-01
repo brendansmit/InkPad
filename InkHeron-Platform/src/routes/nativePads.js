@@ -535,6 +535,14 @@ function applyDueDateLock(db, pad, assignment) {
   const now = new Date().toISOString();
   if (!assignment.due_at || assignment.due_at > now) return false;
   if (pad.state !== 'writing') return false;
+  const revisionReturn = db.prepare(`
+    SELECT id
+    FROM native_teacher_events
+    WHERE native_pad_id = ? AND action = 'revision_returned'
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(pad.id);
+  if (revisionReturn) return false;
   db.prepare("UPDATE native_pads SET state = 'submitted', submitted_at = COALESCE(submitted_at, datetime('now')), updated_at = datetime('now') WHERE id = ?").run(pad.id);
   pad.state = 'submitted';
   pad.submitted_at = pad.submitted_at ?? now;
@@ -719,6 +727,21 @@ export async function registerNativePadRoutes(app, { db }) {
       logTeacherEvent(db, padId, request.session.user.id, 'feedback_released', { state: nextState });
       const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
       return { pad: publicNativePad(updated) };
+    }
+  );
+
+  app.post('/api/native/pads/:padId/return-revision',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      db.prepare("UPDATE native_pads SET state = 'writing', updated_at = datetime('now') WHERE id = ?").run(padId);
+      logTeacherEvent(db, padId, request.session.user.id, 'revision_returned', {
+        note: normalizeComment(request.body?.note ?? '').slice(0, 500),
+      });
+      const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
+      return { pad: publicNativePad(updated), returned_for_revision: true };
     }
   );
 

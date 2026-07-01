@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Native writer polish and revision return
+- Asked: Build the native writer polish batch and teacher return-for-revision.
+- Built: Added fixed A4-style page, sans serif default text, save button, zoom slider, line numbers, font size dropdown, text/highlight colours, undo/redo, indent/outdent, active toolbar state and local task/reference marking.
+- Built: Added teacher `return-revision` endpoint and review-page button, separate from green pen, allowing edits after deadline.
+- Verified: Full `test/nativePads.test.js` passed 10/10. Deployed writer/routes/review page and public health returned 200.
+
 ## 2026-07-01 - Verify Personal Statements import count
 - Asked: Check that `Personal Statements Second Draft` has 19 student works.
 - Found: Live DB has 19 Etherpad pads and 19 native pads across assignment IDs `3`, `4` and `7`; EAP 1 has 8, EAP 2 has 10 and Audit Class has 1.
@@ -390,10 +396,3 @@ Entry format:
 - Built: Added native `finish-marking` endpoint, student native feedback API, `/native/feedback/:assignmentId` page and dashboard feedback links for returned native work.
 - UI: Teacher review can return feedback. Student feedback page shows marked text, general comment, inline comments, literacy codes, highlights, rubric scores and an `Open rewrite` button when green pen is open.
 - Verified: Node 24 syntax checks passed. Focused suite `test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 21/21. Broader stable suite `test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
-
-## 2026-07-01 - Native InkPad Phase 11 green-pen resubmission
-- Asked: Keep plodding on toward native replacement after the student feedback loop.
-- Built: Native submit now accepts `green_pen_open` pads, preserves first submission time, moves the pad to `resubmitted` and records another submit revision snapshot.
-- UI/API: Student writer labels green-pen work as `Resubmit`. Teacher review payloads include original/latest submission comparison anchors and the review page shows quick buttons for original submission and latest rewrite.
-- Verified: Node 24 syntax checks passed. Focused suite `test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 21/21. Broader stable suite `test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
-- Decision: Resubmission reuses the existing `submit` revision reason to avoid a migration just for naming. Original versus rewrite is derived from first and latest submit snapshots.

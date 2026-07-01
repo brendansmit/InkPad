@@ -127,6 +127,7 @@
             <span class="pill">${escapeHtml(reviewData.pad.state)}</span>
             <span class="sub">Version ${reviewData.pad.version} · ${reviewData.pad.word_count} words</span>
             <button class="btn primary" id="finishMarkingBtn" type="button" style="margin-top:10px">Return feedback</button>
+            <button class="btn" id="returnRevisionBtn" type="button" style="margin-top:8px">Return for revision</button>
             <span class="sub" id="finishMsg"></span>
           </div>
           <div class="section">
@@ -220,6 +221,7 @@
       document.getElementById('currentTextBtn').addEventListener('click', showCurrentText);
       document.getElementById('savePolicyBtn').addEventListener('click', savePolicy);
       document.getElementById('finishMarkingBtn').addEventListener('click', finishMarking);
+      document.getElementById('returnRevisionBtn').addEventListener('click', returnForRevision);
       document.getElementById('saveGeneralBtn').addEventListener('click', saveGeneralComment);
       document.getElementById('addRangeBtn').addEventListener('click', addRangeAnnotation);
       document.getElementById('rangeType').addEventListener('change', updateRangeForm);
@@ -433,12 +435,24 @@
     }
 
     async function finishMarking(){
+      if(!confirm('Return feedback to this student?')) return;
       const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/finish-marking',{
         method:'POST',
         headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
         body:JSON.stringify({}),
       });
       document.getElementById('finishMsg').textContent=response.ok?'Feedback returned.':'Return failed.';
+      if(response.ok) await loadReview();
+    }
+
+    async function returnForRevision(){
+      if(!confirm('Return this work for revision? The student will be able to edit even if the deadline has passed.')) return;
+      const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/return-revision',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({}),
+      });
+      document.getElementById('finishMsg').textContent=response.ok?'Returned for revision.':'Revision return failed.';
       if(response.ok) await loadReview();
     }
 
