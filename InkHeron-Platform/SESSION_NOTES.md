@@ -352,3 +352,10 @@ Entry format:
 - Fixed: Killed the orphaned apt/unattended-upgrade process tree, added a persistent 2 GB `/swapfile`, set `vm.swappiness=10` and disabled `apt-daily.timer` plus `apt-daily-upgrade.timer` to prevent surprise upgrades during class use.
 - Verified: Local upstream timings recovered to 1-28 ms and local nginx HTTPS to 7-20 ms. Public HTTPS checks recovered to about 0.63-0.72 s total for `/`, `/assets/styles.css` and `/api/me`.
 - Decision: This was server resource exhaustion, not primarily China throttling. Manual OS updates are now needed because daily apt timers are disabled.
+
+## 2026-07-01 - Controlled update schedule and WeChat alerts
+- Asked: Schedule droplet updates for early China mornings, cancel stuck updates by 06:00 and alert through ServerChan/WeChat.
+- Built: Stored ServerChan send key in root-only `/etc/inkheron/serverchan.env`. Installed `/usr/local/sbin/inkheron-maintenance-update` and `/usr/local/sbin/inkheron-maintenance-watchdog`.
+- Schedule: systemd update timer checks daily at 02:00 with a 20 minute random delay. The script only runs on Wednesday, Sunday or when a retry marker exists. Watchdog runs daily at 06:00 and kills stuck apt/dpkg processes, then marks retry for the next morning.
+- Verified: Scripts pass `bash -n`, timers are enabled, Ubuntu `apt-daily` timers remain disabled and ServerChan test returned success.
+- Decision: Server maintenance now runs on the droplet without the MacBook. Manual update policy is controlled by these InkHeron timers rather than Ubuntu's default unattended update timers.
