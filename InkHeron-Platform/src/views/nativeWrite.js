@@ -13,18 +13,17 @@ function jsonScript(value) {
 
 function toolIcon(name) {
   const icons = {
-    undo: '<span class="niw-glyph">↶</span>',
-    redo: '<span class="niw-glyph">↷</span>',
+    undo: '<span class="niw-glyph">↺</span>',
+    redo: '<span class="niw-glyph">↻</span>',
     bullets: '<span class="niw-list-icon"><span>•</span><i></i><span>•</span><i></i><span>•</span><i></i></span>',
     numbers: '<span class="niw-list-icon numbered"><span>1</span><i></i><span>2</span><i></i><span>3</span><i></i></span>',
-    outdent: '<span class="niw-indent-icon"><b>‹</b><i></i><i></i><i></i></span>',
-    indent: '<span class="niw-indent-icon"><b>›</b><i></i><i></i><i></i></span>',
+    outdent: '<span class="niw-indent-icon outdent"><b></b><i></i><i></i><i></i></span>',
+    indent: '<span class="niw-indent-icon indent"><b></b><i></i><i></i><i></i></span>',
     alignLeft: '<span class="niw-align-icon left"><i></i><i></i><i></i><i></i></span>',
     alignCenter: '<span class="niw-align-icon center"><i></i><i></i><i></i><i></i></span>',
     alignRight: '<span class="niw-align-icon right"><i></i><i></i><i></i><i></i></span>',
     textColor: '<span class="niw-color-icon">A</span>',
     highlight: '<span class="niw-highlight-icon">H</span>',
-    eraser: '<span class="niw-glyph">⌫</span>',
   };
   return icons[name] ?? '';
 }
@@ -68,8 +67,10 @@ export function renderNativeWriteView({
     .niw-list-icon{width:20px;display:grid;grid-template-columns:5px 1fr;gap:3px 4px;align-items:center;margin:auto;font-size:10px;line-height:1;color:currentColor}
     .niw-list-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
     .niw-list-icon.numbered{font-size:9px;font-weight:800}
-    .niw-indent-icon{width:21px;display:grid;grid-template-columns:7px 1fr;gap:3px;align-items:center;margin:auto;color:currentColor}
-    .niw-indent-icon b{grid-row:1 / span 3;font-size:18px;line-height:1}
+    .niw-indent-icon{width:22px;display:grid;grid-template-columns:8px 1fr;gap:3px 4px;align-items:center;margin:auto;color:currentColor}
+    .niw-indent-icon b{grid-row:1 / span 3;width:0;height:0;align-self:center}
+    .niw-indent-icon.outdent b{border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:7px solid currentColor}
+    .niw-indent-icon.indent b{border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:7px solid currentColor}
     .niw-indent-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
     .niw-align-icon{width:22px;display:grid;gap:4px;margin:auto}
     .niw-align-icon i{display:block;height:2px;background:currentColor;border-radius:99px}
@@ -106,8 +107,8 @@ export function renderNativeWriteView({
     .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4;flex-wrap:wrap}
     .niw-divider{width:1px;height:28px;background:#d8d4c8;margin:0 3px}
     .niw-editor-stage{flex:1;overflow:auto;padding:36px 32px}
-    .niw-page-shell{width:var(--page-width);max-width:100%;margin:0 auto;display:grid;grid-template-columns:30px minmax(0,1fr);align-items:start;zoom:var(--editor-zoom)}
-    .niw-line-numbers{border:1px solid #ddd7ca;border-right:0;border-radius:8px 0 0 8px;background:#f3f1eb;color:#8a938d;font-family:var(--mono);font-size:11px;line-height:31.5px;text-align:right;padding:34px 6px 34px 0;user-select:none;white-space:pre;min-height:0}
+    .niw-page-shell{width:var(--page-width);max-width:100%;margin:0 auto;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;zoom:var(--editor-zoom)}
+    .niw-line-numbers{border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;line-height:31.5px;text-align:right;padding:35px 7px 34px 0;user-select:none;white-space:pre;min-height:0}
     #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background:#fff;border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor p,#nativeEditor div{margin:0 0 1em}
     #nativeEditor ul,#nativeEditor ol{margin:0 0 1em 1.3em;padding:0}
@@ -122,7 +123,7 @@ export function renderNativeWriteView({
     .niw-local-highlight-pink{background:#fecaca}
     .empty{color:#8a938d}
     @media(max-width:1080px){.niw-bar{gap:9px}.niw-stat{font-size:12px}.niw-btn{padding:0 10px}}
-    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-shell{width:100%;grid-template-columns:26px minmax(0,1fr)}.niw-line-numbers{font-size:10px;padding-right:5px}#nativeEditor{min-height:60vh;padding:22px}}
+    @media(max-width:820px){body{overflow:auto;height:auto}.niw-shell{height:auto;display:block}.niw-passage{border-right:0;border-bottom:1px solid #d8d4c8}.niw-resizer{display:none}.niw-editor-stage{padding:16px}.niw-page-shell{width:100%;grid-template-columns:22px minmax(0,1fr)}.niw-line-numbers{font-size:10px;padding:23px 5px 22px 0}#nativeEditor{min-height:60vh;padding:22px}}
   </style>
 </head>
 <body>
@@ -154,7 +155,7 @@ export function renderNativeWriteView({
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-pink" title="Pink highlight" style="background:#fecaca"></button>
               </span>
             </span>
-            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${toolIcon('eraser')}</button>
+            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">Clear</button>
           </div>
         </div>
         <div class="niw-text" id="taskText">${escapeHtml(prompt || 'No prompt added.')}</div>
@@ -173,7 +174,7 @@ export function renderNativeWriteView({
                 <button class="niw-swatch" type="button" data-source-mark="highlight" data-source-class="niw-local-highlight-pink" title="Pink highlight" style="background:#fecaca"></button>
               </span>
             </span>
-            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">${toolIcon('eraser')}</button>
+            <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">Clear</button>
           </div>
         </div>
         <div class="niw-text" id="referenceText">${escapeHtml(passageText)}</div>

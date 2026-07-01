@@ -4,6 +4,20 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-07-01 - Live InkPad slowness check
+- Asked: Check `inkpad.inkheron.app` because it felt very slow and determine whether the server or China traffic throttling was likely.
+- Checked: Timed live HTTPS requests from the Codex environment. DNS and TCP connect were fast, but HTTPS page requests had 8-45 s time to first byte. Plain HTTP redirect was fast at about 0.46 s.
+- Decision: This points to the HTTPS origin/app path, likely nginx proxy to Fastify or the small droplet under load, not primarily China throttling. Browser navigation also failed to complete inside the timeout.
+
+## 2026-07-01 - Live InkPad slowness fix
+- Asked: Fix the live slowness before doing more feature work.
+- Found: Droplet load was around 10-14 on a 1 GB server with no swap. `apt-daily-upgrade.service` had been stuck for over 2 hours, with orphaned unattended-upgrade and apt-check processes holding dpkg locks and driving CPU system time to about 95-97%.
+- Fixed: Killed the orphaned apt/unattended-upgrade process tree, added a persistent 2 GB `/swapfile`, set `vm.swappiness=10` and disabled `apt-daily.timer` plus `apt-daily-upgrade.timer` to prevent surprise upgrades during class use.
+- Verified: Local upstream timings recovered to 1-28 ms and local nginx HTTPS to 7-20 ms. Public HTTPS checks recovered to about 0.63-0.72 s total for `/`, `/assets/styles.css` and `/api/me`.
+- Decision: This was server resource exhaustion, not primarily China throttling. Manual OS updates are now needed because daily apt timers are disabled.
+
+---
+
 ## 2026-07-01 - Controlled update schedule and WeChat alerts
 - Asked: Schedule droplet updates for early China mornings, cancel stuck updates by 06:00 and alert through ServerChan/WeChat.
 - Built: Stored ServerChan send key in root-only `/etc/inkheron/serverchan.env`. Installed `/usr/local/sbin/inkheron-maintenance-update` and `/usr/local/sbin/inkheron-maintenance-watchdog`.
