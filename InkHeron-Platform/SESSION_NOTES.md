@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Fix nginx route for Native InkPad
+- Asked: `/native/write/9` showed `Cannot GET /native/write/9` after the native redirect fix.
+- Found: Nginx routed `/native/...` to Etherpad on port `9001` because only older wrapper paths were whitelisted for port `3000`.
+- Fixed: Updated both live nginx InkPad configs so `/native` and `/static` go to the InkPad wrapper, moved backups out of `sites-enabled`, tested config and reloaded nginx.
+- Verified: Public `/native/write/9` now returns wrapper `401 unauthenticated` instead of Etherpad `Cannot GET`, which means logged-in students should reach the native page.
+
 ## 2026-07-01 - Fix native assignment opening Etherpad
 - Asked: Native assignment still opened Etherpad despite Use Native InkPad being on.
 - Fixed: Added a `/write/:assignmentId` guard that redirects native assignments to `/native/write/:assignmentId` before Etherpad pad provisioning; deployed `src/routes/pads.js` and restarted the wrapper.
@@ -391,9 +397,3 @@ Entry format:
 - Asked: Move ASAP toward student usability after Etherpad instability.
 - Deployed: `src/routes/assignments.js`, `public/teacher/new-assignment.html` and `public/teacher/assignments.html` to `/opt/inkheron-platform`, then restarted `inkheron-wrapper.service`.
 - Verified: Wrapper active. Droplet local `/healthz` returned 200 in about 3 ms. Public `https://inkpad.inkheron.app/healthz` returned 200 in about 0.69 s. Teacher page remains auth-protected with 401 when unauthenticated.
-
-## 2026-07-01 - Fix live student login loop
-- Asked: Fix InkPad showing logged in as student, then looping back to the login page.
-- Found: Live logs showed `/api/me` returning 200, then `/api/student/assignments` crashing with `no such table: native_pads`. The dashboard was failing after login, not losing the session.
-- Fixed: Deployed missing Native InkPad migrations and native route/page files, ran migrations `012_native_inkpad.sql` through `015_student_writing_profiles.sql`, then restarted `inkheron-wrapper.service`.
-- Verified: Required native tables exist, wrapper health is 200, public health is 200 and no `no such table` or 500 errors appeared after the fixed restart.

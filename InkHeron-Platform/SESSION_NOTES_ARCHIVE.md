@@ -4,6 +4,14 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-07-01 - Fix live student login loop
+- Asked: Fix InkPad showing logged in as student, then looping back to the login page.
+- Found: Live logs showed `/api/me` returning 200, then `/api/student/assignments` crashing with `no such table: native_pads`. The dashboard was failing after login, not losing the session.
+- Fixed: Deployed missing Native InkPad migrations and native route/page files, ran migrations `012_native_inkpad.sql` through `015_student_writing_profiles.sql`, then restarted `inkheron-wrapper.service`.
+- Verified: Required native tables exist, wrapper health is 200, public health is 200 and no `no such table` or 500 errors appeared after the fixed restart.
+
+---
+
 ## 2026-06-26 — Add-on: demo & ghost accounts Step A
 - Phase/Step worked: Add-on Step A (account flags + shared filter)
 - Built: Added migration `003_student_demo_ghost_flags.sql` with `is_demo` and `is_ghost`
