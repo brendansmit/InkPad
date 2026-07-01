@@ -26,7 +26,7 @@ rsync -avz --exclude '*.pyc' --exclude '__pycache__' --exclude 'grades.db' --exc
   "$LOCAL_DIR/" "$SERVER:$REMOTE_DIR/"
 
 echo "==> Installing Python dependencies..."
-$SSH $SERVER "pip3 install flask xlrd xlutils pypinyin requests 2>&1 | tail -5"
+$SSH $SERVER "pip3 install --break-system-packages --ignore-installed flask xlrd xlutils pypinyin requests 2>&1 | tail -5"
 
 echo "==> Initialising database and setting sync key..."
 $SSH $SERVER "cd $REMOTE_DIR && python3 -c \"
