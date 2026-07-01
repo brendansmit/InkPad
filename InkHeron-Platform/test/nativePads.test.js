@@ -701,8 +701,8 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /id="zoomSlider"/);
   assert.match(response.body, /id="zoomSlider"[^>]+min="70"[^>]+max="150"/);
   assert.doesNotMatch(response.body, /zoom:var\(--editor-zoom\)/);
-  assert.match(response.body, /transform:scale\(var\(--editor-zoom\)\)/);
-  assert.match(response.body, /transform-origin:top center/);
+  assert.doesNotMatch(response.body, /transform:scale\(var\(--editor-zoom\)\)/);
+  assert.doesNotMatch(response.body, /transform-origin:top center/);
   assert.match(response.body, /id="lineNumbers"/);
   assert.match(response.body, /id="fontSizeSelect"/);
   assert.match(response.body, /function applyFontSize/);
@@ -748,15 +748,15 @@ test('native write view embeds PDF reference inside contained scroll panel', () 
   });
 
   assert.match(html, /id="pdfFrame"/);
-  assert.match(html, /id="pdfScale"/);
-  assert.match(html, /id="pdfEmbed"/);
-  assert.match(html, /id="pdfAnnotationLayer"/);
-  assert.match(html, /type="application\/pdf"/);
-  assert.match(html, /\/api\/assignments\/42\/passage-pdf#toolbar=0/);
+  assert.match(html, /id="pdfPages"/);
+  assert.match(html, /pdfjs\/pdf\.min\.mjs/);
+  assert.match(html, /getDocument\('\/api\/assignments\/42\/passage-pdf'\)/);
   assert.match(html, /id="pdfZoomSlider"[^>]+min="75"[^>]+max="175"/);
-  assert.match(html, /pdfScale\.style\.width = percent \+ '%'/);
-  assert.doesNotMatch(html, /pdfEmbed\.src = .*zoom/);
-  assert.match(html, /data-pdf-mark="highlight"/);
+  assert.match(html, /new TextLayer/);
+  assert.match(html, /data-pdf-highlight="rgba\(255,240,166,\.55\)"/);
+  assert.match(html, /data-pdf-highlight="underline"/);
+  assert.doesNotMatch(html, /id="pdfEmbed"/);
+  assert.doesNotMatch(html, /pdfEmbed\.src/);
   assert.match(html, /\.niw-pdf-frame\{[^}]*overflow:auto/);
   assert.doesNotMatch(html, /target="_blank" rel="noopener">Open PDF passage/);
 });
