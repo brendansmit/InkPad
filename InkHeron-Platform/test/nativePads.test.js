@@ -748,10 +748,15 @@ test('native write view embeds PDF reference inside contained scroll panel', () 
   });
 
   assert.match(html, /id="pdfFrame"/);
+  assert.match(html, /id="pdfScale"/);
   assert.match(html, /id="pdfEmbed"/);
+  assert.match(html, /id="pdfAnnotationLayer"/);
   assert.match(html, /type="application\/pdf"/);
   assert.match(html, /\/api\/assignments\/42\/passage-pdf#toolbar=0/);
   assert.match(html, /id="pdfZoomSlider"[^>]+min="75"[^>]+max="175"/);
+  assert.match(html, /pdfScale\.style\.width = percent \+ '%'/);
+  assert.doesNotMatch(html, /pdfEmbed\.src = .*zoom/);
+  assert.match(html, /data-pdf-mark="highlight"/);
   assert.match(html, /\.niw-pdf-frame\{[^}]*overflow:auto/);
   assert.doesNotMatch(html, /target="_blank" rel="noopener">Open PDF passage/);
 });

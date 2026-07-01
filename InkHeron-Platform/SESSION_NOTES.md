@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Fix native PDF zoom and marking
+- Asked: Fix PDF zoom turning white, make the left panel wider, reduce wasted PDF space, fix source highlight/underline and keep right zoom from changing document formatting.
+- Built: PDF zoom now resizes a stable embedded wrapper instead of reloading the PDF URL, left panel can expand to 78%/1100px, PDF padding is tighter and source text selections are restored before marking.
+- Built: Added local PDF highlight/underline rectangle marks as a fallback because embedded browser PDF text is not directly editable.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 11/11. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+
 ## 2026-07-01 - Embed PDF reference in native writer
 - Asked: Show PDF passages inside the actual left panel, keep them scrollable without extending the page, allow PDF zoom and resize the task/reference area.
 - Built: Replaced the PDF new-tab link with a contained embedded PDF frame, added PDF zoom controls and added a horizontal drag handle to give either task or reference more vertical space.
@@ -370,19 +376,6 @@ Entry format:
 - Decisions: Cross-class IDs are silently dropped on PUT rather than errored — the scoped GET means the UI should never send them; error would only confuse a race condition edge case.
 - Open / next: Phase 8.6 — Strengths and Targets upload + AI marking suggestions.
 - Gotchas hit: Session resumed from summary after context limit.
-
-## 2026-06-29 — Multi-class assignment creation
-- Phase/Step worked: Phase 8 teacher UX polish
-- Built: Updated `new-assignment.html` to replace the single class dropdown with a
-  checkbox list. `loadClasses()` renders one `<label><input type=checkbox>` per class
-  into `#classChecks`. Submit handler collects all checked IDs, validates at least one
-  is selected, then loops `POST /api/assignments` once per class. Button shows count
-  while creating. Redirects to assignments page on full success; shows error count
-  if any POSTs fail. No backend change needed.
-- Decisions: One assignment row per class (existing schema, no migration). Last created
-  ID used for the `?highlight` redirect.
-- Open / next: Strengths and Targets upload + AI marking suggestions (Phase 8.6)
-- Gotchas hit: none.
 
 ## 2026-07-01 - Native InkPad Phase 8 student writing profiles
 - Asked: Keep the long-term student writing and voice profile goal built into the native InkPad work.

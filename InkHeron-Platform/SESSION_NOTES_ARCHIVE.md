@@ -4,6 +4,21 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-06-29 — Multi-class assignment creation
+- Phase/Step worked: Phase 8 teacher UX polish
+- Built: Updated `new-assignment.html` to replace the single class dropdown with a
+  checkbox list. `loadClasses()` renders one `<label><input type=checkbox>` per class
+  into `#classChecks`. Submit handler collects all checked IDs, validates at least one
+  is selected, then loops `POST /api/assignments` once per class. Button shows count
+  while creating. Redirects to assignments page on full success; shows error count
+  if any POSTs fail. No backend change needed.
+- Decisions: One assignment row per class (existing schema, no migration). Last created
+  ID used for the `?highlight` redirect.
+- Open / next: Strengths and Targets upload + AI marking suggestions (Phase 8.6)
+- Gotchas hit: none.
+
+---
+
 ## 2026-06-29 — Flexible column-picker for student import
 - Phase/Step worked: Phase 8 teacher UX polish
 - Built: Reworked spreadsheet import in students.html. After dropping a file,
