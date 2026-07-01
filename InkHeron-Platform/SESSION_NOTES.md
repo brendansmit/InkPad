@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-01 - Verify Personal Statements import count
+- Asked: Check that `Personal Statements Second Draft` has 19 student works.
+- Found: Live DB has 19 Etherpad pads and 19 native pads across assignment IDs `3`, `4` and `7`; EAP 1 has 8, EAP 2 has 10 and Audit Class has 1.
+- Note: 17 of 19 native pads are non-empty. Empty imported pads are Carina in EAP 2 and Audit in Audit Class.
+
 ## 2026-07-01 - Import Etherpad essays to Native InkPad
 - Asked: ASAP copy current Etherpad essays into Native InkPad without preserving revision history.
 - Built: Added `scripts/import-etherpad-to-native.mjs` with dry-run, `--apply`, no-overwrite default, optional `--overwrite` and assignment-native flipping.
@@ -392,9 +397,3 @@ Entry format:
 - UI/API: Student writer labels green-pen work as `Resubmit`. Teacher review payloads include original/latest submission comparison anchors and the review page shows quick buttons for original submission and latest rewrite.
 - Verified: Node 24 syntax checks passed. Focused suite `test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 21/21. Broader stable suite `test/etherpad.test.js test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
 - Decision: Resubmission reuses the existing `submit` revision reason to avoid a migration just for naming. Original versus rewrite is derived from first and latest submit snapshots.
-
-## 2026-07-01 - Native InkPad Phase 12 browser smoke confidence
-- Asked: Keep going toward native replacement readiness.
-- Built: Added `scripts/native-smoke-server.mjs`, a temp-data local smoke server that seeds one teacher, one student and one green-pen native assignment for real browser checks.
-- Verified: In the in-app browser, student login/password reset, native write, autosave, submit lock, teacher review, return feedback, green-pen rewrite, resubmit lock and teacher comparison anchors all worked against the local server.
-- Decision: This is a smoke tool, not a production route. It uses a temp SQLite database and does not touch live data.
