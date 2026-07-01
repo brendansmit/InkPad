@@ -43,6 +43,13 @@ export async function buildApp(options = {}) {
     index: false,
   });
 
+  await app.register(fastifyStatic, {
+    root: publicDir,
+    prefix: '/static/',
+    decorateReply: false,
+    index: false,
+  });
+
   await app.register(fastifyMultipart, {
     limits: {
       fileSize: 20 * 1024 * 1024,
