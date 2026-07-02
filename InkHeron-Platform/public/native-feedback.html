@@ -83,6 +83,14 @@
             <span class="label">General comment</span>
             ${general?`<div class="item"><p>${escapeHtml(general.body)}</p></div>`:'<div class="empty">No general comment yet.</div>'}
           </section>
+          ${feedback.feedback?.strengths?.length ? `<section class="panel box">
+            <span class="label">Strengths</span>
+            ${feedbackItemsList(feedback.feedback.strengths, false)}
+          </section>` : ''}
+          ${feedback.feedback?.targets?.length ? `<section class="panel box">
+            <span class="label">Targets</span>
+            ${feedbackItemsList(feedback.feedback.targets, true)}
+          </section>` : ''}
           ${feedback.rubric?.criteria?.length ? `<section class="panel box">
             <span class="label">${escapeHtml(feedback.rubric?.name || 'Rubric 1')}</span>
             ${rubricList(feedback.rubric)}
@@ -116,6 +124,16 @@
         const score=(rubric?.scores || []).find(item=>Number(item.criterion_id)===Number(criterion.id));
         return `<div class="item"><strong>${escapeHtml(criterion.label)} ${score?`· ${score.selected_score}`:''}</strong><p>${escapeHtml(score?.note || criterion.description || '')}</p></div>`;
       }).join('')}</div>`;
+    }
+
+    function feedbackItemsList(items, withTryNow){
+      return `<div class="stack">${(items||[]).map(item=>`
+        <details class="item" style="cursor:pointer">
+          <summary><strong>${escapeHtml(item.title)}</strong></summary>
+          ${item.explanation?`<p>${escapeHtml(item.explanation)}</p>`:''}
+          ${withTryNow && item.try_now_prompt?`<p class="meta"><strong>Try now:</strong> ${escapeHtml(item.try_now_prompt)}</p>`:''}
+        </details>
+      `).join('')}</div>`;
     }
 
     function annotationList(){
