@@ -103,8 +103,17 @@ export function renderNativeWriteView({
     .niw-panel-resizer:hover::before{background:#2f6f4e}
     .niw-pdf-tools{display:flex;align-items:center;gap:8px;margin-left:auto;font-size:12px;font-weight:800;color:#657268}
     .niw-pdf-tools input{width:92px}
-    .niw-pdf-frame{flex:1;min-height:0;overflow:hidden;border:1px solid #d5e2ec;border-radius:6px;background:#eef3f8}
-    .niw-pdf-embed{display:block;width:100%;height:100%;min-height:100%;border:0;background:#fff}
+    .niw-pdf-frame{flex:1;min-height:0;overflow:auto;border:1px solid #d5e2ec;border-radius:6px;background:#eef3f8}
+    .niw-pdf-pages{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px}
+    .niw-pdf-page{position:relative;background:#fff;box-shadow:0 2px 10px rgba(31,42,36,.14);flex:none}
+    .niw-pdf-page canvas{display:block}
+    .niw-pdf-page .textLayer{position:absolute;inset:0;overflow:clip;opacity:1;line-height:1;text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;z-index:2}
+    .niw-pdf-page .textLayer span{position:absolute;white-space:pre;cursor:text;transform-origin:0 0;color:transparent}
+    .niw-pdf-page .textLayer ::selection{background:rgba(120,170,255,.4)}
+    .niw-pdf-mark{border-radius:2px}
+    .niw-pdf-highlight{padding:.05em 0}
+    .niw-pdf-underline{border-bottom:2px solid #2f6f4e}
+    .niw-pdf-loading{padding:24px;text-align:center;color:#657268;font-size:13px}
     .niw-local-underline{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#2f6f4e}
     .niw-local-highlight{background:#fff0a6}
     .niw-resizer{background:#e5e1d6;cursor:col-resize;position:relative}
@@ -177,6 +186,17 @@ export function renderNativeWriteView({
           <h2>${passagePdf ? 'PDF reference' : 'Reference'}</h2>
           ${passagePdf ? `<div class="niw-pdf-tools">
             <label>Zoom <input id="pdfZoomSlider" type="range" min="75" max="175" step="5" value="100"></label><span id="pdfZoomLabel">100%</span>
+            <button class="niw-source-btn" type="button" data-pdf-mark="underline" title="Underline selected PDF text">U</button>
+            <span class="niw-popover">
+              <button class="niw-source-btn" type="button" data-toggle-palette="pdfHighlightPalette" title="Highlight selected PDF text">${toolIcon('highlight')}</button>
+              <span class="niw-palette" id="pdfHighlightPalette">
+                <button class="niw-swatch" type="button" data-pdf-mark="highlight" data-pdf-color="#fff0a6" title="Yellow highlight" style="background:#fff0a6"></button>
+                <button class="niw-swatch" type="button" data-pdf-mark="highlight" data-pdf-color="#c7f9cc" title="Green highlight" style="background:#c7f9cc"></button>
+                <button class="niw-swatch" type="button" data-pdf-mark="highlight" data-pdf-color="#bfdbfe" title="Blue highlight" style="background:#bfdbfe"></button>
+                <button class="niw-swatch" type="button" data-pdf-mark="highlight" data-pdf-color="#fecaca" title="Pink highlight" style="background:#fecaca"></button>
+              </span>
+            </span>
+            <button class="niw-source-btn" type="button" data-pdf-mark="clear" title="Clear PDF marks">Clear</button>
           </div>` : ''}
           ${passageText ? `<div class="niw-source-tools">
             <button class="niw-source-btn" type="button" data-source-mark="underline" title="Underline selected task/reference text">U</button>
@@ -192,7 +212,7 @@ export function renderNativeWriteView({
             <button class="niw-source-btn" type="button" data-source-mark="clear" title="Clear local marks">Clear</button>
           </div>` : ''}
         </div>
-        ${passagePdf ? `<div class="niw-pdf-frame" id="pdfFrame"><iframe class="niw-pdf-embed" id="pdfEmbed" title="PDF reference" src="/api/assignments/${assignmentId}/passage-pdf#toolbar=1&navpanes=0&view=FitH&zoom=100"></iframe></div>` : `<div class="niw-text" id="referenceText">${escapeHtml(passageText)}</div>`}
+        ${passagePdf ? `<div class="niw-pdf-frame" id="pdfFrame"><div class="niw-pdf-pages" id="pdfPages"><div class="niw-pdf-loading">Loading PDF…</div></div></div>` : `<div class="niw-text" id="referenceText">${escapeHtml(passageText)}</div>`}
       </section>` : '<section class="niw-source-card reference"><div class="empty">No reference added.</div></section>'}
       ${dueAt ? `<p class="niw-stat">Due ${escapeHtml(dueAt)}</p>` : ''}
     </aside>
@@ -814,32 +834,232 @@ export function renderNativeWriteView({
       return roots.find(root => root.contains(range.commonAncestorContainer) || root === range.commonAncestorContainer);
     }
   </script>
-  ${passagePdf ? `<script>
-    const pdfEmbed = document.getElementById('pdfEmbed');
+  ${passagePdf ? `<script type="module">
+    import * as pdfjsLib from '/assets/static/pdfjs/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/assets/static/pdfjs/pdf.worker.min.mjs';
+
     const pdfSlider = document.getElementById('pdfZoomSlider');
     const pdfLabel = document.getElementById('pdfZoomLabel');
+    const pdfFrame = document.getElementById('pdfFrame');
+    const pdfPages = document.getElementById('pdfPages');
     const pdfZoomKey = 'nativePadPdfZoom:${assignmentId}';
+    const pdfMarksKey = 'nativePdfMarks:${assignmentId}';
     const pdfBaseUrl = '/api/assignments/${assignmentId}/passage-pdf';
-    function applyPdfZoom(){
-      if(!pdfEmbed || !pdfSlider) return;
-      const zoom = Math.max(75, Math.min(175, Number(pdfSlider.value) || 100));
-      if(pdfLabel) pdfLabel.textContent = zoom + '%';
-      pdfEmbed.src = pdfBaseUrl + '#toolbar=1&navpanes=0&view=FitH&zoom=' + zoom;
-      try{ localStorage.setItem(pdfZoomKey, String(zoom)); }catch(_){}
+    const UNDERLINE_COLOR = '#2f6f4e';
+
+    let pdfDoc = null;
+    let fitScale = 1;
+    let rendering = false;
+    let marks = [];
+    try {
+      const raw = localStorage.getItem(pdfMarksKey);
+      if(raw) marks = JSON.parse(raw) || [];
+    } catch(_) { marks = []; }
+
+    function saveMarks(){
+      try{ localStorage.setItem(pdfMarksKey, JSON.stringify(marks)); }catch(_){}
     }
+    function currentZoomPct(){
+      return Math.max(75, Math.min(175, Number(pdfSlider && pdfSlider.value) || 100));
+    }
+    function scaleFor(){
+      return fitScale * (currentZoomPct() / 100);
+    }
+
+    // ── Offset helpers (page-relative character offsets, stable across zoom) ──
+    function textNodesIn(pageEl){
+      const layer = pageEl.querySelector('.textLayer');
+      if(!layer) return [];
+      const walker = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT, null);
+      const out = []; let n;
+      while((n = walker.nextNode())) out.push(n);
+      return out;
+    }
+    function resolveTextNode(container, offset){
+      if(container.nodeType === 3) return { node: container, offset };
+      // element container: map child index to a text node
+      const child = container.childNodes[offset] || container.childNodes[container.childNodes.length - 1];
+      if(!child) return null;
+      if(child.nodeType === 3) return { node: child, offset: 0 };
+      const walker = document.createTreeWalker(child, NodeFilter.SHOW_TEXT, null);
+      const first = walker.nextNode();
+      return first ? { node: first, offset: 0 } : null;
+    }
+    function offsetInPage(pageEl, container, offset){
+      const resolved = resolveTextNode(container, offset);
+      if(!resolved) return null;
+      let acc = 0;
+      for(const node of textNodesIn(pageEl)){
+        if(node === resolved.node) return acc + resolved.offset;
+        acc += node.textContent.length;
+      }
+      return null;
+    }
+    function pageOf(node){
+      const el = node.nodeType === 3 ? node.parentElement : node;
+      return el ? el.closest('.niw-pdf-page') : null;
+    }
+
+    // ── Apply one stored mark to its page by wrapping the text runs ──
+    function applyMarkToPage(pageEl, mark){
+      const nodes = textNodesIn(pageEl);
+      let acc = 0;
+      const slices = [];
+      for(const node of nodes){
+        const len = node.textContent.length;
+        const nStart = acc, nEnd = acc + len; acc = nEnd;
+        const s = Math.max(mark.start, nStart);
+        const e = Math.min(mark.end, nEnd);
+        if(s < e) slices.push({ node, s: s - nStart, e: e - nStart });
+      }
+      for(let i = slices.length - 1; i >= 0; i--){
+        const { node, s, e } = slices[i];
+        const range = document.createRange();
+        try{
+          range.setStart(node, s);
+          range.setEnd(node, e);
+          const span = document.createElement('span');
+          span.className = 'niw-pdf-mark ' + (mark.kind === 'underline' ? 'niw-pdf-underline' : 'niw-pdf-highlight');
+          if(mark.kind === 'underline') span.style.borderBottomColor = mark.color || UNDERLINE_COLOR;
+          else span.style.background = mark.color || '#fff0a6';
+          span.dataset.markId = mark.id;
+          range.surroundContents(span);
+        }catch(_){}
+      }
+    }
+
+    // ── Create a mark from the current selection ──
+    function markSelection(kind, color){
+      const sel = window.getSelection();
+      if(!sel || !sel.rangeCount || sel.isCollapsed) return;
+      const range = sel.getRangeAt(0);
+      const pageEl = pageOf(range.startContainer);
+      if(!pageEl || pageEl !== pageOf(range.endContainer)) return; // single page per mark
+      const start = offsetInPage(pageEl, range.startContainer, range.startOffset);
+      const end = offsetInPage(pageEl, range.endContainer, range.endOffset);
+      if(start == null || end == null || start >= end) return;
+      const mark = {
+        id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        page: Number(pageEl.dataset.page),
+        start, end, kind,
+        color: kind === 'underline' ? UNDERLINE_COLOR : color
+      };
+      marks.push(mark);
+      applyMarkToPage(pageEl, mark);
+      saveMarks();
+      sel.removeAllRanges();
+    }
+    function clearMarks(){
+      marks = [];
+      saveMarks();
+      pdfPages.querySelectorAll('.niw-pdf-mark').forEach(span => {
+        const parent = span.parentNode;
+        while(span.firstChild) parent.insertBefore(span.firstChild, span);
+        parent.removeChild(span);
+        parent.normalize();
+      });
+    }
+
+    // ── Render ──
+    async function renderPage(page, scale){
+      const viewport = page.getViewport({ scale });
+      const pageEl = document.createElement('div');
+      pageEl.className = 'niw-pdf-page';
+      pageEl.dataset.page = String(page.pageNumber);
+      pageEl.style.width = viewport.width + 'px';
+      pageEl.style.height = viewport.height + 'px';
+
+      const canvas = document.createElement('canvas');
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(viewport.width * ratio);
+      canvas.height = Math.floor(viewport.height * ratio);
+      canvas.style.width = viewport.width + 'px';
+      canvas.style.height = viewport.height + 'px';
+      pageEl.appendChild(canvas);
+
+      const textLayerDiv = document.createElement('div');
+      textLayerDiv.className = 'textLayer';
+      textLayerDiv.style.setProperty('--scale-factor', String(scale));
+      textLayerDiv.style.width = viewport.width + 'px';
+      textLayerDiv.style.height = viewport.height + 'px';
+      pageEl.appendChild(textLayerDiv);
+
+      pdfPages.appendChild(pageEl);
+
+      await page.render({
+        canvasContext: canvas.getContext('2d'),
+        viewport,
+        transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : undefined
+      }).promise;
+
+      const textContent = await page.getTextContent();
+      const textLayer = new pdfjsLib.TextLayer({ textContentSource: textContent, container: textLayerDiv, viewport });
+      await textLayer.render();
+
+      marks.filter(m => m.page === page.pageNumber).forEach(m => applyMarkToPage(pageEl, m));
+    }
+
+    async function renderAll(){
+      if(rendering || !pdfDoc) return;
+      rendering = true;
+      const scale = scaleFor();
+      pdfPages.innerHTML = '';
+      try{
+        for(let i = 1; i <= pdfDoc.numPages; i++){
+          const page = await pdfDoc.getPage(i);
+          await renderPage(page, scale);
+        }
+      } finally {
+        rendering = false;
+      }
+    }
+
+    // Restore saved zoom
     try {
       const savedZoom = Number(localStorage.getItem(pdfZoomKey));
       if(Number.isFinite(savedZoom) && pdfSlider){
         pdfSlider.value = String(Math.max(75, Math.min(175, Math.round(savedZoom))));
       }
-    } catch (_) {}
+    } catch(_) {}
+    if(pdfLabel && pdfSlider) pdfLabel.textContent = pdfSlider.value + '%';
+
+    // Load the document
+    pdfjsLib.getDocument(pdfBaseUrl).promise.then(async doc => {
+      pdfDoc = doc;
+      const firstPage = await doc.getPage(1);
+      const baseViewport = firstPage.getViewport({ scale: 1 });
+      const avail = (pdfFrame ? pdfFrame.clientWidth : 400) - 24;
+      fitScale = Math.max(0.2, avail / baseViewport.width);
+      await renderAll();
+    }).catch(err => {
+      pdfPages.innerHTML = '<div class="niw-pdf-loading">Could not load PDF.</div>';
+      console.error('PDF load error', err);
+    });
+
+    // Zoom controls
     if(pdfSlider){
+      let zoomTimer = null;
       pdfSlider.addEventListener('input', () => {
         if(pdfLabel) pdfLabel.textContent = pdfSlider.value + '%';
       });
-      pdfSlider.addEventListener('change', applyPdfZoom);
-      applyPdfZoom();
+      pdfSlider.addEventListener('change', () => {
+        if(pdfLabel) pdfLabel.textContent = pdfSlider.value + '%';
+        try{ localStorage.setItem(pdfZoomKey, String(currentZoomPct())); }catch(_){}
+        clearTimeout(zoomTimer);
+        zoomTimer = setTimeout(renderAll, 30);
+      });
     }
+
+    // Mark buttons (keep selection alive by preventing default on mousedown)
+    document.querySelectorAll('[data-pdf-mark]').forEach(button => {
+      button.addEventListener('mousedown', event => { event.preventDefault(); });
+      button.addEventListener('click', () => {
+        const kind = button.dataset.pdfMark;
+        if(kind === 'clear') clearMarks();
+        else markSelection(kind, button.dataset.pdfColor || '#fff0a6');
+        document.querySelectorAll('.niw-popover.open').forEach(p => p.classList.remove('open'));
+      });
+    });
   </script>` : ''}
 </body>
 </html>`;
