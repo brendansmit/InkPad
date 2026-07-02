@@ -9,6 +9,7 @@ import { estimateRubric, recordTeacherScores } from '../services/markerProfile.j
 import { scoreRewrite } from '../services/implementationScorer.js';
 import { recordStyleMetrics } from '../services/styleMetrics.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
+import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
 
 // Fire-and-forget an async analysis seam without blocking the HTTP response.
 // A missing OpenRouter key or a stub is a clean no-op; errors are logged only.
@@ -1113,6 +1114,7 @@ export async function registerNativePadRoutes(app, { db }) {
         .then(() => autoPromoteSuggestions(db, padId)));
       runInBackground('style-metrics', () => recordStyleMetrics(db, { padId }));
       runInBackground('grade-estimate', () => estimateRubric(db, { padId }));
+      runInBackground('feedback-suggestions', () => suggestFeedbackItems(db, { padId }));
       if (nextState === 'resubmitted' && updated.rewrite_of_pad_id) {
         runInBackground('implementation', () => scoreRewrite(db, { rewritePadId: padId }));
       }
@@ -1813,6 +1815,64 @@ export async function registerNativePadRoutes(app, { db }) {
       }
       db.prepare("UPDATE ai_literacy_suggestions SET status = 'rejected', annotation_id = NULL, resolved_at = datetime('now') WHERE id = ?").run(suggestionId);
       logTeacherEvent(db, padId, request.session.user.id, 'suggestion_disagreed', { suggestion_id: suggestionId, code: suggestion.code });
+      return reply.code(204).send();
+    }
+  );
+
+  // ── Hidden AI strength/target suggestions (teacher accept promotes to a feedback item) ──
+
+  app.get('/api/native/pads/:padId/feedback-suggestions',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const status = ['pending', 'accepted', 'rejected'].includes(request.query?.status) ? request.query.status : 'pending';
+      const suggestions = db.prepare(`
+        SELECT id, kind, title, explanation, try_now_prompt, model, checker_json, status, feedback_item_id, created_at
+        FROM ai_feedback_item_suggestions
+        WHERE native_pad_id = ? AND status = ?
+        ORDER BY kind ASC, id ASC
+      `).all(padId, status);
+      return { suggestions };
+    }
+  );
+
+  app.post('/api/native/pads/:padId/feedback-suggestions/:suggestionId/accept',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const suggestionId = requirePositiveInteger(request.params.suggestionId, 'suggestionId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const suggestion = db.prepare('SELECT * FROM ai_feedback_item_suggestions WHERE id = ? AND native_pad_id = ?').get(suggestionId, padId);
+      if (!suggestion) return reply.code(404).send({ error: 'suggestion_not_found' });
+      if (suggestion.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
+
+      const result = db.prepare(`
+        INSERT INTO native_feedback_items (native_pad_id, kind, title, explanation, try_now_prompt, source)
+        VALUES (?, ?, ?, ?, ?, 'ai')
+      `).run(padId, suggestion.kind, suggestion.title, suggestion.explanation, suggestion.try_now_prompt);
+      const itemRow = db.prepare('SELECT * FROM native_feedback_items WHERE id = ?').get(result.lastInsertRowid);
+      db.prepare("UPDATE ai_feedback_item_suggestions SET status = 'accepted', feedback_item_id = ?, resolved_at = datetime('now') WHERE id = ?")
+        .run(itemRow.id, suggestionId);
+      logTeacherEvent(db, padId, request.session.user.id, 'feedback_suggestion_accepted', { suggestion_id: suggestionId, kind: suggestion.kind });
+      return reply.code(201).send({ item: publicFeedbackItem(itemRow) });
+    }
+  );
+
+  app.post('/api/native/pads/:padId/feedback-suggestions/:suggestionId/reject',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const suggestionId = requirePositiveInteger(request.params.suggestionId, 'suggestionId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const suggestion = db.prepare('SELECT id, status FROM ai_feedback_item_suggestions WHERE id = ? AND native_pad_id = ?').get(suggestionId, padId);
+      if (!suggestion) return reply.code(404).send({ error: 'suggestion_not_found' });
+      if (suggestion.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
+      db.prepare("UPDATE ai_feedback_item_suggestions SET status = 'rejected', resolved_at = datetime('now') WHERE id = ?").run(suggestionId);
+      logTeacherEvent(db, padId, request.session.user.id, 'feedback_suggestion_rejected', { suggestion_id: suggestionId });
       return reply.code(204).send();
     }
   );
