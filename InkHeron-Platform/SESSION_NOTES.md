@@ -20,6 +20,13 @@ Entry format:
 
 ---
 
+## 2026-07-02 — Two rubrics + two strengths/targets per assignment
+- Asked: let the teacher attach up to 2 uploaded rubrics and up to 2 uploaded strengths/targets tables per assignment. Remove the "Create default rubric" option (uploaded rubric or vibe grade only). AP Lang exam estimate should only appear in the reviewer for AP Lang classes.
+- Backend: settings gained feedback_tables[] (max 2), rubric_assets[]/rubric_names[] (positional, slot 1 = internal, slot 2 = secondary). Added 'secondary' rubric_kind plus secondary-rubric and secondary-rubric-scores endpoints. Migration 018 adds native_pads.applied_feedback_table; new applied-feedback-table endpoint sets which table applies per essay. Review/feedback responses now return both rubrics by name, exam_rubric.visible gated by isApLangClassName(class), both feedback tables and the applied choice.
+- UI: new + edit assignment now have two rubric dropdowns and two strengths/targets dropdowns; removed the create-default and manual AP toggles; AP exam estimate auto-applied when the class name is AP Lang. Reviewer scores both rubrics under their names, shows the AP section only for AP Lang, and has a per-essay table selector that swaps suggestions and saves the choice. Student feedback view shows both rubrics and gates AP.
+- Backward compatible with legacy feedback_table and existing internal/AP rubrics.
+- Verified: full suite 30/30 with Node 24 (local node is 20, tests need node:sqlite). Migration applied on server, column present, wrapper active, teacher route 401 (auth) as expected.
+
 ## 2026-07-02 — Remove Etherpad entirely, disentangle to native-only
 - Asked: remove the old Etherpad stuff, disentangle and remove, without deleting/losing any student data and without breaking anything. Confirmed by user: production writing already imported into native_pads; leave the 8 legacy tables inert (no drop).
 - Built (branch `remove-etherpad`, 3 commits):
