@@ -107,11 +107,11 @@ export function renderNativeWriteView({
     .niw-pdf-pages{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px}
     .niw-pdf-page{position:relative;background:#fff;box-shadow:0 2px 10px rgba(31,42,36,.14);flex:none}
     .niw-pdf-page canvas{display:block}
-    .niw-pdf-page .textLayer{position:absolute;inset:0;overflow:clip;opacity:1;line-height:1;text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;z-index:2}
+    .niw-pdf-page .textLayer{position:absolute;inset:0;overflow:clip;opacity:1;line-height:1;text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0}
     .niw-pdf-page .textLayer span{position:absolute;white-space:pre;cursor:text;transform-origin:0 0;color:transparent}
     .niw-pdf-page .textLayer ::selection{background:rgba(120,170,255,.4)}
     .niw-pdf-mark{border-radius:2px}
-    .niw-pdf-highlight{padding:.05em 0}
+    .niw-pdf-highlight{mix-blend-mode:multiply}
     .niw-pdf-underline{border-bottom:2px solid #2f6f4e}
     .niw-pdf-loading{padding:24px;text-align:center;color:#657268;font-size:13px}
     .niw-local-underline{text-decoration:underline;text-decoration-thickness:2px;text-decoration-color:#2f6f4e}
