@@ -465,6 +465,8 @@ function publicFeedbackItem(row) {
     try_now_prompt: row.try_now_prompt ?? '',
     source: row.source ?? 'teacher',
     sort_order: Number(row.sort_order ?? 0),
+    student_checked: row.student_checked === 1,
+    student_checked_at: row.student_checked_at ?? null,
     created_at: row.created_at,
   };
 }
@@ -1717,6 +1719,31 @@ export async function registerNativePadRoutes(app, { db }) {
       if (!existing) return reply.code(404).send({ error: 'feedback_item_not_found' });
       db.prepare('DELETE FROM native_feedback_items WHERE id = ?').run(itemId);
       return reply.code(204).send();
+    }
+  );
+
+  // Student tick-off: a lightweight "I have looked at this / applied this"
+  // marker on a target/strength, only while the pad is open for green pen
+  // revision (that is the round the tick-off is meant to track).
+  app.post('/api/native/pads/:padId/feedback-items/:itemId/toggle-check',
+    { preValidation: [app.requireStudentSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const itemId = requirePositiveInteger(request.params.itemId, 'itemId');
+      const studentId = request.session.user.id;
+      const pad = loadOwnedNativePad(db, padId, studentId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      if (pad.state !== 'green_pen_open') return reply.code(409).send({ error: 'green_pen_not_open' });
+      const item = db.prepare('SELECT * FROM native_feedback_items WHERE id = ? AND native_pad_id = ?').get(itemId, padId);
+      if (!item) return reply.code(404).send({ error: 'feedback_item_not_found' });
+      const nextChecked = item.student_checked === 1 ? 0 : 1;
+      db.prepare(`
+        UPDATE native_feedback_items
+        SET student_checked = ?, student_checked_at = CASE WHEN ? = 1 THEN datetime('now') ELSE NULL END
+        WHERE id = ?
+      `).run(nextChecked, nextChecked, itemId);
+      const updated = db.prepare('SELECT * FROM native_feedback_items WHERE id = ?').get(itemId);
+      return { item: publicFeedbackItem(updated) };
     }
   );
 
