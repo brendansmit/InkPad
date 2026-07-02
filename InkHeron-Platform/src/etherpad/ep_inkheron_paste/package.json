@@ -1,7 +1,0 @@
-{
-  "name": "ep_inkheron_paste",
-  "version": "1.0.0",
-  "description": "Paste detection for InkHeron writing platform",
-  "keywords": ["ep_"],
-  "license": "Apache-2.0"
-}

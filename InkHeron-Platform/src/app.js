@@ -7,7 +7,6 @@ import fastifyMultipart from '@fastify/multipart';
 import { openDatabase } from './db/database.js';
 import { registerIdentityRoutes } from './routes/identity.js';
 import { registerAuth } from './routes/auth.js';
-import { registerPadRoutes } from './routes/pads.js';
 import { registerNativePadRoutes } from './routes/nativePads.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
@@ -87,7 +86,6 @@ export async function buildApp(options = {}) {
   await registerSettingsTestRoutes(app, { db });
   await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });
   await registerFeedbackAssetRoutes(app, { db });
-  await registerPadRoutes(app, { db, etherpadService: options.etherpadService, padSuffixGenerator: options.padSuffixGenerator });
   await registerNativePadRoutes(app, { db });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
@@ -96,9 +94,7 @@ export async function buildApp(options = {}) {
   app.get('/teacher', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/index.html', publicDir));
   app.get('/teacher/students', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/students.html', publicDir));
   app.get('/teacher/assignments', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/assignments.html', publicDir));
-  app.get('/teacher/review', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/review.html', publicDir));
   app.get('/teacher/native-review', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/native-review.html', publicDir));
-  app.get('/teacher/timeslider', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/timeslider.html', publicDir));
   app.get('/teacher/new-assignment', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/new-assignment.html', publicDir));
   app.get('/teacher/settings', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/settings.html', publicDir));
   app.get('/teacher/feedback', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/feedback.html', publicDir));
