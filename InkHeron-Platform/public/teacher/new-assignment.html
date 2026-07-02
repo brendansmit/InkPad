@@ -173,19 +173,34 @@
           <p class="hint">Controls paste from outside the InkPad screen. Copying within the writing screen can still be pasted.</p>
         </div>
         <div class="field">
-          <label for="fFeedbackTable">Strengths and targets</label>
-          <select id="fFeedbackTable">
-            <option value="default" selected>Default InkHeron table</option>
+          <label for="fFeedbackTable1">Strengths and targets 1</label>
+          <select id="fFeedbackTable1">
+            <option value="" selected>None</option>
           </select>
-          <p class="hint">Stores which strengths and targets table this assignment should use during review.</p>
+          <p class="hint">Uploaded strengths and targets table. During review you pick which table to apply to each essay.</p>
         </div>
         <div class="field">
-          <label for="fRubricTemplate">Rubric template</label>
-          <select id="fRubricTemplate">
-            <option value="default" selected>Default InkHeron rubric</option>
+          <label for="fFeedbackTable2">Strengths and targets 2</label>
+          <select id="fFeedbackTable2">
+            <option value="" selected>None</option>
           </select>
-          <p class="hint">Analytic templates create multiple criteria. Holistic templates create one overall criterion. AP templates create the 3 AP rows.</p>
+          <p class="hint">Optional second table so you can switch per essay in the reviewer.</p>
         </div>
+        <div class="field">
+          <label for="fRubricTemplate1">Rubric 1</label>
+          <select id="fRubricTemplate1">
+            <option value="" selected>None (vibe grade)</option>
+          </select>
+          <p class="hint">Choose an uploaded rubric, or leave as None to grade without a rubric.</p>
+        </div>
+        <div class="field">
+          <label for="fRubricTemplate2">Rubric 2</label>
+          <select id="fRubricTemplate2">
+            <option value="" selected>None</option>
+          </select>
+          <p class="hint">Optional second uploaded rubric, scored separately in review.</p>
+        </div>
+        <p class="hint">The AP Lang exam estimate appears in the reviewer automatically for AP Lang classes.</p>
         <div class="toggle-group">
           <label class="toggle">
             <input type="checkbox" id="fSpellcheck" checked>
@@ -194,14 +209,6 @@
           <label class="toggle">
             <input type="checkbox" id="fGreenPen">
             <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="fCreateRubric" checked>
-            <span class="toggle-label">Create default rubric<small>Adds thesis, evidence, commentary, organisation and language-control criteria.</small></span>
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="fCreateExamRubric">
-            <span class="toggle-label">Add AP Lang exam estimate rubric<small>Creates the 3-row AP rubric students can see as an exam-style score estimate.</small></span>
           </label>
         </div>
         </div>
@@ -219,6 +226,8 @@
     'use strict';
     let csrfToken='';
     let feedbackAssets=[];
+    const classNameById={};
+    function isApLangName(name){ return /\bap\b[\s._-]*lang/i.test(String(name||'')); }
 
     async function init(){
       const me=await fetch('/api/me');
@@ -236,17 +245,25 @@
       populateFeedbackSelects();
     }
 
+    function assetLabel(asset){
+      return escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title);
+    }
     function populateFeedbackSelects(){
-      const table=document.getElementById('fFeedbackTable');
-      const rubric=document.getElementById('fRubricTemplate');
-      table.innerHTML='<option value="default" selected>Default InkHeron table</option>'+
-        feedbackAssets.filter(asset=>asset.kind==='strength_target').map(asset=>
-          `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
-        ).join('');
-      rubric.innerHTML='<option value="default" selected>Default InkHeron rubric</option>'+
-        feedbackAssets.filter(asset=>asset.kind==='rubric').map(asset=>
-          `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
-        ).join('');
+      const tableOpts=feedbackAssets.filter(asset=>asset.kind==='strength_target').map(asset=>
+        `<option value="asset:${asset.id}">${assetLabel(asset)}</option>`).join('');
+      const rubricOpts=feedbackAssets.filter(asset=>asset.kind==='rubric').map(asset=>
+        `<option value="asset:${asset.id}">${assetLabel(asset)}</option>`).join('');
+      document.getElementById('fFeedbackTable1').innerHTML='<option value="" selected>None</option>'+tableOpts;
+      document.getElementById('fFeedbackTable2').innerHTML='<option value="" selected>None</option>'+tableOpts;
+      document.getElementById('fRubricTemplate1').innerHTML='<option value="" selected>None (vibe grade)</option>'+rubricOpts;
+      document.getElementById('fRubricTemplate2').innerHTML='<option value="" selected>None</option>'+rubricOpts;
+    }
+    function rubricAssetFor(value){
+      return feedbackAssets.find(asset=>`asset:${asset.id}`===value) || null;
+    }
+    function rubricNameFor(value){
+      const asset=rubricAssetFor(value);
+      return asset ? (asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title) : '';
     }
 
     async function loadClasses(){
@@ -256,6 +273,7 @@
       const box=document.getElementById('classChecks');
       box.innerHTML='';
       (data.classes||[]).forEach(c=>{
+        classNameById[c.id]=c.name;
         const lbl=document.createElement('label');
         lbl.style.cssText='display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;';
         const cb=document.createElement('input');
@@ -287,16 +305,18 @@
       const spellcheck=document.getElementById('fSpellcheck').checked;
       const green_pen=document.getElementById('fGreenPen').checked;
       const paste_mode=document.getElementById('fPasteMode').value;
-      const feedback_table=document.getElementById('fFeedbackTable').value;
-      const rubric_template=document.getElementById('fRubricTemplate').value;
-      const createRubric=document.getElementById('fCreateRubric').checked;
-      const createExamRubric=document.getElementById('fCreateExamRubric').checked;
+      const feedbackTable1=document.getElementById('fFeedbackTable1').value;
+      const feedbackTable2=document.getElementById('fFeedbackTable2').value;
+      const rubric1=document.getElementById('fRubricTemplate1').value;
+      const rubric2=document.getElementById('fRubricTemplate2').value;
       const opens=document.getElementById('fOpens').value;
       const due=document.getElementById('fDue').value;
       const prompt=document.getElementById('fPrompt').value.trim();
       const passageText=document.getElementById('fPassageText').value.trim();
       const passagePdfFile=document.getElementById('fPassagePdf').files[0];
-      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,feedback_table,native_inkpad:true};
+      const feedback_tables=[feedbackTable1,feedbackTable2].filter(Boolean);
+      const rubric_names=[rubricNameFor(rubric1),rubricNameFor(rubric2)];
+      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,feedback_tables,rubric_names,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 
@@ -304,7 +324,7 @@
       btn.disabled=true;btn.textContent=`Creating${selectedClasses.length>1?' ('+selectedClasses.length+' classes)':''}…`;
 
       let lastId='';
-      const createdIds=[];
+      const created=[];
       let failed=0;
       for(const classId of selectedClasses){
         const r=await fetch('/api/assignments',{
@@ -312,31 +332,35 @@
           headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
           body:JSON.stringify({title,class_id:classId,type,settings,opens_at:opens||null,due_at:due||null}),
         });
-        if(r.ok){const d=await r.json();lastId=d.assignment?.id||''; if(lastId) createdIds.push(lastId);}
+        if(r.ok){const d=await r.json();lastId=d.assignment?.id||''; if(lastId) created.push({id:lastId,classId});}
         else failed++;
       }
 
       if(failed){btn.disabled=false;btn.textContent='Create assignment';showMsg(`${failed} class${failed!==1?'es':''} failed to create.`,true);return;}
 
-      if(createRubric&&createdIds.length){
-        btn.textContent='Creating rubric…';
-        const rubricAsset=feedbackAssets.find(asset=>`asset:${asset.id}`===rubric_template);
-        const rubricPayload=rubricAsset?.parsed?.criteria?.length ? { criteria: rubricAsset.parsed.criteria } : {};
-        for(const id of createdIds){
-          const rr=await fetch(`/api/native/assignments/${id}/rubric`,{
+      async function applyRubric(slotUrl, value){
+        const asset=rubricAssetFor(value);
+        if(!asset) return;
+        const payload=asset.parsed?.criteria?.length ? { criteria: asset.parsed.criteria } : {};
+        for(const item of created){
+          const rr=await fetch(`/api/native/assignments/${item.id}/${slotUrl}`,{
             method:'PUT',
             headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-            body:JSON.stringify(rubricPayload),
+            body:JSON.stringify(payload),
           });
           if(!rr.ok) failed++;
         }
       }
+      if(rubric1){btn.textContent='Creating rubric 1…';await applyRubric('rubric',rubric1);}
+      if(rubric2){btn.textContent='Creating rubric 2…';await applyRubric('secondary-rubric',rubric2);}
       if(failed){btn.disabled=false;btn.textContent='Create assignment';showMsg(`${failed} rubric setup${failed!==1?'s':''} failed.`,true);return;}
 
-      if(createExamRubric&&createdIds.length){
-        btn.textContent='Creating AP exam rubric…';
-        for(const id of createdIds){
-          const rr=await fetch(`/api/native/assignments/${id}/exam-rubric`,{
+      // AP Lang classes get the AP exam estimate rubric automatically.
+      const apItems=created.filter(item=>isApLangName(classNameById[item.classId]));
+      if(apItems.length){
+        btn.textContent='Adding AP exam estimate…';
+        for(const item of apItems){
+          const rr=await fetch(`/api/native/assignments/${item.id}/exam-rubric`,{
             method:'PUT',
             headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
             body:JSON.stringify({}),

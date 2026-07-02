@@ -83,14 +83,18 @@
             <span class="label">General comment</span>
             ${general?`<div class="item"><p>${escapeHtml(general.body)}</p></div>`:'<div class="empty">No general comment yet.</div>'}
           </section>
-          <section class="panel box">
-            <span class="label">Class rubric</span>
+          ${feedback.rubric?.criteria?.length ? `<section class="panel box">
+            <span class="label">${escapeHtml(feedback.rubric?.name || 'Rubric 1')}</span>
             ${rubricList(feedback.rubric)}
-          </section>
-          <section class="panel box">
+          </section>` : ''}
+          ${feedback.secondary_rubric?.criteria?.length ? `<section class="panel box">
+            <span class="label">${escapeHtml(feedback.secondary_rubric?.name || 'Rubric 2')}</span>
+            ${rubricList(feedback.secondary_rubric)}
+          </section>` : ''}
+          ${feedback.exam_rubric?.visible && feedback.exam_rubric?.criteria?.length ? `<section class="panel box">
             <span class="label">AP Lang exam estimate</span>
             ${rubricList(feedback.exam_rubric)}
-          </section>
+          </section>` : ''}
           <section class="panel box">
             <span class="label">Comments and codes</span>
             ${annotationList()}

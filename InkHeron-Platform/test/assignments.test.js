@@ -18,26 +18,31 @@ test('teacher assignment forms are native-only and expose outside paste policy',
   assert.doesNotMatch(assignments, /Use Native InkPad|keep this assignment on Etherpad|id="eNativeInkpad"/);
   assert.match(newAssignment, /id="fPasteMode"/);
   assert.match(assignments, /id="ePasteMode"/);
-  assert.match(newAssignment, /id="fFeedbackTable"/);
-  assert.match(assignments, /id="eFeedbackTable"/);
-  assert.match(newAssignment, /id="fRubricTemplate"/);
-  assert.match(assignments, /id="eRubricTemplate"/);
-  assert.match(newAssignment, /Holistic templates create one overall criterion/);
-  assert.match(assignments, /Holistic templates create one overall criterion/);
-  assert.match(newAssignment, /AP templates create the 3 AP rows/);
-  assert.match(assignments, /AP templates create the 3 AP rows/);
+  // Two strengths/targets tables and two rubric slots
+  assert.match(newAssignment, /id="fFeedbackTable1"/);
+  assert.match(newAssignment, /id="fFeedbackTable2"/);
+  assert.match(assignments, /id="eFeedbackTable1"/);
+  assert.match(assignments, /id="eFeedbackTable2"/);
+  assert.match(newAssignment, /id="fRubricTemplate1"/);
+  assert.match(newAssignment, /id="fRubricTemplate2"/);
+  assert.match(assignments, /id="eRubricTemplate1"/);
+  assert.match(assignments, /id="eRubricTemplate2"/);
   assert.match(newAssignment, /fetch\('\/api\/feedback-assets'\)/);
   assert.match(assignments, /fetch\('\/api\/feedback-assets'\)/);
-  assert.match(newAssignment, /id="fCreateRubric"/);
-  assert.match(assignments, /id="eCreateRubric"/);
-  assert.match(newAssignment, /id="fCreateExamRubric"/);
-  assert.match(assignments, /id="eCreateExamRubric"/);
+  // No "create default rubric" option any more
+  assert.doesNotMatch(newAssignment, /id="fCreateRubric"/);
+  assert.doesNotMatch(assignments, /id="eCreateRubric"/);
+  assert.doesNotMatch(newAssignment, /Create default rubric/);
+  // Second rubric slot uses the secondary-rubric endpoint
+  assert.match(newAssignment, /secondary-rubric/);
+  assert.match(assignments, /secondary-rubric/);
+  // AP exam estimate is auto-applied for AP Lang classes
   assert.match(newAssignment, /exam-rubric/);
   assert.match(assignments, /exam-rubric/);
-  assert.match(newAssignment, /<summary>Advanced options<\/summary>[\s\S]*id="fPasteMode"[\s\S]*id="fFeedbackTable"[\s\S]*id="fRubricTemplate"[\s\S]*id="fCreateRubric"/);
-  assert.match(assignments, /<summary>Advanced options<\/summary>[\s\S]*id="ePasteMode"[\s\S]*id="eFeedbackTable"[\s\S]*id="eRubricTemplate"[\s\S]*id="eCreateRubric"/);
-  assert.match(newAssignment, /api\/native\/assignments\/\$\{id\}\/rubric/);
-  assert.match(assignments, /api\/native\/assignments\/\$\{ga\.id\}\/rubric/);
+  assert.match(newAssignment, /isApLangName/);
+  assert.match(assignments, /isApLangName/);
+  assert.match(newAssignment, /api\/native\/assignments\/\$\{item\.id\}\/\$\{slotUrl\}/);
+  assert.match(assignments, /api\/native\/assignments\/\$\{ga\.id\}\/\$\{slotUrl\}/);
   assert.match(newAssignment, /Controls paste from outside the InkPad screen/);
   assert.match(assignments, /Controls paste from outside the InkPad screen/);
 });

@@ -271,19 +271,34 @@
           <p class="hint">Controls paste from outside the InkPad screen. Copying within the writing screen can still be pasted.</p>
         </div>
         <div class="field">
-          <label for="eFeedbackTable">Strengths and targets</label>
-          <select id="eFeedbackTable">
-            <option value="default">Default InkHeron table</option>
+          <label for="eFeedbackTable1">Strengths and targets 1</label>
+          <select id="eFeedbackTable1">
+            <option value="">None</option>
           </select>
-          <p class="hint">Stores which strengths and targets table this assignment should use during review.</p>
+          <p class="hint">Uploaded strengths and targets table. Pick which one applies per essay in review.</p>
         </div>
         <div class="field">
-          <label for="eRubricTemplate">Rubric template</label>
-          <select id="eRubricTemplate">
-            <option value="default">Default InkHeron rubric</option>
+          <label for="eFeedbackTable2">Strengths and targets 2</label>
+          <select id="eFeedbackTable2">
+            <option value="">None</option>
           </select>
-          <p class="hint">Analytic templates create multiple criteria. Holistic templates create one overall criterion. AP templates create the 3 AP rows.</p>
+          <p class="hint">Optional second table.</p>
         </div>
+        <div class="field">
+          <label for="eRubricTemplate1">Rubric 1</label>
+          <select id="eRubricTemplate1">
+            <option value="">None (vibe grade)</option>
+          </select>
+          <p class="hint">Choose an uploaded rubric, or None to grade without one. Saving replaces this slot.</p>
+        </div>
+        <div class="field">
+          <label for="eRubricTemplate2">Rubric 2</label>
+          <select id="eRubricTemplate2">
+            <option value="">None</option>
+          </select>
+          <p class="hint">Optional second uploaded rubric. Saving replaces this slot.</p>
+        </div>
+        <p class="hint">The AP Lang exam estimate is added automatically for AP Lang classes.</p>
         <div class="toggle-group">
           <label class="toggle">
             <input type="checkbox" id="eSpellcheck">
@@ -292,14 +307,6 @@
           <label class="toggle">
             <input type="checkbox" id="eGreenPen">
             <span class="toggle-label">Green pen (rewrite round)<small>After marking, students can revise based on your feedback.</small></span>
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="eCreateRubric">
-            <span class="toggle-label">Create or reset default rubric<small>Replaces this assignment group's rubric with the default rubric.</small></span>
-          </label>
-          <label class="toggle">
-            <input type="checkbox" id="eCreateExamRubric">
-            <span class="toggle-label">Create or reset AP Lang exam estimate rubric<small>Adds the 3-row AP rubric as a separate student-visible exam estimate.</small></span>
           </label>
         </div>
         </div>
@@ -416,18 +423,26 @@
     }
 
     function populateFeedbackSelects(){
-      const feedbackOptions='<option value="default">Default InkHeron table</option>'+
-        feedbackAssets.filter(asset=>asset.kind==='strength_target').map(asset=>
+      const feedbackOptions=feedbackAssets.filter(asset=>asset.kind==='strength_target').map(asset=>
           `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
         ).join('');
-      const rubricOptions='<option value="default">Default InkHeron rubric</option>'+
-        feedbackAssets.filter(asset=>asset.kind==='rubric').map(asset=>
+      const rubricOptions=feedbackAssets.filter(asset=>asset.kind==='rubric').map(asset=>
           `<option value="asset:${asset.id}">${escapeHtml(asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title)}</option>`
         ).join('');
-      const eFeedback=document.getElementById('eFeedbackTable');
-      const eRubric=document.getElementById('eRubricTemplate');
-      if(eFeedback) eFeedback.innerHTML=feedbackOptions;
-      if(eRubric) eRubric.innerHTML=rubricOptions;
+      const t1=document.getElementById('eFeedbackTable1');
+      const t2=document.getElementById('eFeedbackTable2');
+      const r1=document.getElementById('eRubricTemplate1');
+      const r2=document.getElementById('eRubricTemplate2');
+      if(t1) t1.innerHTML='<option value="">None</option>'+feedbackOptions;
+      if(t2) t2.innerHTML='<option value="">None</option>'+feedbackOptions;
+      if(r1) r1.innerHTML='<option value="">None (vibe grade)</option>'+rubricOptions;
+      if(r2) r2.innerHTML='<option value="">None</option>'+rubricOptions;
+    }
+    function isApLangName(name){ return /\bap\b[\s._-]*lang/i.test(String(name||'')); }
+    function rubricAssetFor(value){ return feedbackAssets.find(asset=>`asset:${asset.id}`===value)||null; }
+    function rubricNameFor(value){
+      const asset=rubricAssetFor(value);
+      return asset ? (asset.assignment_type?asset.assignment_type+' - '+asset.title:asset.title) : '';
     }
 
     function classNameFor(classId){
@@ -693,12 +708,14 @@
       document.getElementById('eSbDraft').checked=(s.submit_behaviour||'draft')==='draft';
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
       document.getElementById('ePasteMode').value=s.paste_mode||'log';
-      document.getElementById('eFeedbackTable').value=s.feedback_table||'default';
-      document.getElementById('eRubricTemplate').value='default';
+      const fbTables=Array.isArray(s.feedback_tables)?s.feedback_tables:(s.feedback_table?[s.feedback_table]:[]);
+      document.getElementById('eFeedbackTable1').value=fbTables[0]||'';
+      document.getElementById('eFeedbackTable2').value=fbTables[1]||'';
+      const rubricAssets=Array.isArray(s.rubric_assets)?s.rubric_assets:[];
+      document.getElementById('eRubricTemplate1').value=rubricAssets[0]||'';
+      document.getElementById('eRubricTemplate2').value=rubricAssets[1]||'';
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
       document.getElementById('eGreenPen').checked=s.green_pen===true;
-      document.getElementById('eCreateRubric').checked=false;
-      document.getElementById('eCreateExamRubric').checked=false;
       document.getElementById('editMsg').className='msg';
 
       // render date rows — one per class in the group
@@ -736,13 +753,16 @@
       const passagePdfFile=document.getElementById('ePassagePdf').files[0];
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
       const paste_mode=document.getElementById('ePasteMode').value;
-      const feedback_table=document.getElementById('eFeedbackTable').value;
-      const rubric_template=document.getElementById('eRubricTemplate').value;
-      const createRubric=document.getElementById('eCreateRubric').checked;
-      const createExamRubric=document.getElementById('eCreateExamRubric').checked;
+      const feedbackTable1=document.getElementById('eFeedbackTable1').value;
+      const feedbackTable2=document.getElementById('eFeedbackTable2').value;
+      const rubric1=document.getElementById('eRubricTemplate1').value;
+      const rubric2=document.getElementById('eRubricTemplate2').value;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
-      const settings={submit_behaviour,paste_mode,feedback_table,spellcheck,green_pen,native_inkpad:true};
+      const feedback_tables=[feedbackTable1,feedbackTable2].filter(Boolean);
+      const rubric_assets=[rubric1,rubric2];
+      const rubric_names=[rubricNameFor(rubric1),rubricNameFor(rubric2)];
+      const settings={submit_behaviour,paste_mode,feedback_tables,rubric_assets,rubric_names,spellcheck,green_pen,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 
@@ -766,29 +786,38 @@
         } else failed++;
       }
 
-      if(!failed && createRubric){
-        btn.textContent='Saving rubric…';
-        const rubricAsset=feedbackAssets.find(asset=>`asset:${asset.id}`===rubric_template);
-        const rubricPayload=rubricAsset?.parsed?.criteria?.length ? { criteria: rubricAsset.parsed.criteria } : {};
+      // Apply the two rubric slots. Choosing a rubric replaces that slot; the
+      // slot is left untouched when None is selected.
+      async function applyRubricSlot(slotUrl, value, label){
+        const asset=rubricAssetFor(value);
+        if(!asset) return;
+        btn.textContent=label;
+        const payload=asset.parsed?.criteria?.length ? { criteria: asset.parsed.criteria } : {};
         for(const ga of editGroup){
-          const rr=await fetch(`/api/native/assignments/${ga.id}/rubric`,{
+          const rr=await fetch(`/api/native/assignments/${ga.id}/${slotUrl}`,{
             method:'PUT',
             headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-            body:JSON.stringify(rubricPayload),
+            body:JSON.stringify(payload),
           });
           if(!rr.ok) failed++;
         }
       }
+      if(!failed) await applyRubricSlot('rubric',rubric1,'Saving rubric 1…');
+      if(!failed) await applyRubricSlot('secondary-rubric',rubric2,'Saving rubric 2…');
 
-      if(!failed && createExamRubric){
-        btn.textContent='Saving AP exam rubric…';
-        for(const ga of editGroup){
-          const rr=await fetch(`/api/native/assignments/${ga.id}/exam-rubric`,{
-            method:'PUT',
-            headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-            body:JSON.stringify({}),
-          });
-          if(!rr.ok) failed++;
+      // AP Lang classes get the AP exam estimate rubric automatically.
+      if(!failed){
+        const apGroup=editGroup.filter(ga=>isApLangName(classNameFor(ga.class_id)));
+        if(apGroup.length){
+          btn.textContent='Adding AP exam estimate…';
+          for(const ga of apGroup){
+            const rr=await fetch(`/api/native/assignments/${ga.id}/exam-rubric`,{
+              method:'PUT',
+              headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+              body:JSON.stringify({}),
+            });
+            if(!rr.ok) failed++;
+          }
         }
       }
 

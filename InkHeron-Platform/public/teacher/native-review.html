@@ -183,7 +183,8 @@
         <aside class="side">
           <section class="panel box">
             <span class="label">Suggested targets</span>
-            <div class="suggestion-list">${suggestionPanel()}</div>
+            ${feedbackTableSelector()}
+            <div class="suggestion-list" id="suggestionList">${suggestionPanel()}</div>
           </section>
           <section class="panel box">
             <span class="label">General comment</span>
@@ -208,13 +209,17 @@
             <span class="sub" id="rangeMsg"></span>
           </section>
           <section class="panel box">
-            <span class="label">Internal rubric</span>
+            <span class="label">${escapeHtml(reviewData.rubric?.name || 'Rubric 1')}</span>
             <div id="rubricPanel">${rubricPanel('internal')}</div>
           </section>
-          <section class="panel box">
+          ${reviewData.secondary_rubric?.criteria?.length ? `<section class="panel box">
+            <span class="label">${escapeHtml(reviewData.secondary_rubric?.name || 'Rubric 2')}</span>
+            <div id="secondaryRubricPanel">${rubricPanel('secondary')}</div>
+          </section>` : ''}
+          ${reviewData.exam_rubric?.visible && reviewData.exam_rubric?.criteria?.length ? `<section class="panel box">
             <span class="label">AP Lang exam estimate</span>
             <div id="examRubricPanel">${rubricPanel('exam')}</div>
-          </section>
+          </section>` : ''}
           <section class="panel box">
             <span class="label">Recover work</span>
             <textarea id="importText" placeholder="Paste recovered student work"></textarea>
@@ -246,10 +251,10 @@
       document.getElementById('saveGeneralBtn').addEventListener('click', saveGeneralComment);
       document.getElementById('addRangeBtn').addEventListener('click', addRangeAnnotation);
       document.getElementById('rangeType').addEventListener('change', updateRangeForm);
-      document.getElementById('createRubricBtn')?.addEventListener('click', createDefaultRubric);
-      document.getElementById('createExamRubricBtn')?.addEventListener('click', createExamRubric);
       document.getElementById('saveRubricScoresBtn')?.addEventListener('click',()=>saveRubricScores('internal'));
+      document.getElementById('saveSecondaryRubricScoresBtn')?.addEventListener('click',()=>saveRubricScores('secondary'));
       document.getElementById('saveExamRubricScoresBtn')?.addEventListener('click',()=>saveRubricScores('exam'));
+      document.getElementById('feedbackTableSelect')?.addEventListener('change', changeFeedbackTable);
       document.getElementById('importTextBtn').addEventListener('click', importPastedText);
       document.getElementById('importFileBtn').addEventListener('click', importTextFile);
       document.querySelectorAll('[data-rubric-score]').forEach(btn=>btn.addEventListener('click',()=>selectRubricScore(btn)));
@@ -297,6 +302,30 @@
       `).join('')}</div>`;
     }
 
+    function feedbackTableSelector(){
+      const tables=reviewData.feedback_tables || [];
+      if(tables.length<2) return '';
+      const applied=reviewData.applied_feedback_table;
+      return `<select id="feedbackTableSelect" style="margin-bottom:8px;width:100%">
+        ${tables.map(t=>`<option value="${escapeHtml(t.id)}" ${t.id===applied?'selected':''}>${escapeHtml(t.title)}</option>`).join('')}
+      </select>`;
+    }
+
+    async function changeFeedbackTable(){
+      const value=document.getElementById('feedbackTableSelect').value;
+      const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/applied-feedback-table',{
+        method:'PUT',
+        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+        body:JSON.stringify({table:value}),
+      });
+      if(!response.ok) return;
+      const data=await response.json();
+      reviewData.applied_feedback_table=data.applied_feedback_table;
+      reviewData.feedback_options=data.feedback_options;
+      document.getElementById('suggestionList').innerHTML=suggestionPanel();
+      document.querySelectorAll('#suggestionList [data-suggestion]').forEach(btn=>btn.addEventListener('click',()=>applySuggestion(btn.dataset.suggestion)));
+    }
+
     function suggestionPanel(){
       const profileTargets=(reviewData.student_profile?.literacy_issues || []).slice(0,3).map(issue=>({
         title: issue.label || issue.code || issue.category || 'Tracked writing issue',
@@ -333,23 +362,29 @@
       box.focus();
     }
 
+    function rubricDataFor(kind){
+      if(kind==='exam') return reviewData.exam_rubric;
+      if(kind==='secondary') return reviewData.secondary_rubric;
+      return reviewData.rubric;
+    }
+    function rubricIds(kind){
+      if(kind==='exam') return { save:'saveExamRubricScoresBtn', msg:'examRubricMsg', label:'exam estimate' };
+      if(kind==='secondary') return { save:'saveSecondaryRubricScoresBtn', msg:'secondaryRubricMsg', label:'rubric' };
+      return { save:'saveRubricScoresBtn', msg:'rubricMsg', label:'rubric' };
+    }
     function rubricPanel(kind){
-      const data=kind==='exam'?reviewData.exam_rubric:reviewData.rubric;
+      const data=rubricDataFor(kind);
       const criteria=data?.criteria || [];
+      const ids=rubricIds(kind);
       if(!criteria.length){
-        const buttonId=kind==='exam'?'createExamRubricBtn':'createRubricBtn';
-        const msgId=kind==='exam'?'examRubricMsg':'rubricMsg';
-        const label=kind==='exam'?'Create AP exam rubric':'Create default rubric';
-        return `<div class="empty" style="padding:12px">No rubric yet.</div><button class="btn primary" id="${buttonId}" type="button">${label}</button><span class="sub" id="${msgId}"></span>`;
+        return `<div class="empty" style="padding:12px">No rubric set. Add one in the assignment settings, or grade without a rubric.</div>`;
       }
-      const saveId=kind==='exam'?'saveExamRubricScoresBtn':'saveRubricScoresBtn';
-      const msgId=kind==='exam'?'examRubricMsg':'rubricMsg';
       return `
         <div class="rubric-table">
           ${criteria.map(criterion=>rubricRow(criterion,kind)).join('')}
         </div>
-        <button class="btn primary" id="${saveId}" type="button" style="margin-top:10px">Save ${kind==='exam'?'exam estimate':'rubric'}</button>
-        <span class="sub" id="${msgId}"></span>
+        <button class="btn primary" id="${ids.save}" type="button" style="margin-top:10px">Save ${ids.label}</button>
+        <span class="sub" id="${ids.msg}"></span>
       `;
     }
 
@@ -378,7 +413,7 @@
     }
 
     function rubricScoreFor(criterionId,kind){
-      const data=kind==='exam'?reviewData.exam_rubric:reviewData.rubric;
+      const data=rubricDataFor(kind);
       return (data?.scores || []).find(score=>Number(score.criterion_id)===Number(criterionId));
     }
 
@@ -563,26 +598,6 @@
       if(response.ok){ selectedRange=null; await loadReview(); }
     }
 
-    async function createDefaultRubric(){
-      const response=await fetch('/api/native/assignments/'+reviewData.assignment.id+'/rubric',{
-        method:'PUT',
-        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-        body:JSON.stringify({}),
-      });
-      document.getElementById('rubricMsg').textContent=response.ok?'Rubric created.':'Rubric failed.';
-      if(response.ok) await loadReview();
-    }
-
-    async function createExamRubric(){
-      const response=await fetch('/api/native/assignments/'+reviewData.assignment.id+'/exam-rubric',{
-        method:'PUT',
-        headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
-        body:JSON.stringify({}),
-      });
-      document.getElementById('examRubricMsg').textContent=response.ok?'AP exam rubric created.':'AP exam rubric failed.';
-      if(response.ok) await loadReview();
-    }
-
     async function saveRubricScores(kind){
       const scores=[...document.querySelectorAll('[data-rubric-kind="'+kind+'"][data-rubric-criterion]')]
         .filter(row=>row.dataset.selectedScore !== '')
@@ -591,18 +606,17 @@
           selected_score:Number(row.dataset.selectedScore),
           note:document.querySelector('[data-rubric-note="'+kind+'-'+row.dataset.rubricCriterion+'"]').value,
         }));
-      const endpoint=kind==='exam'?'exam-rubric-scores':'rubric-scores';
+      const endpoint=kind==='exam'?'exam-rubric-scores':(kind==='secondary'?'secondary-rubric-scores':'rubric-scores');
       const response=await fetch('/api/native/pads/'+reviewData.pad.id+'/'+endpoint,{
         method:'PUT',
         headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
         body:JSON.stringify({scores}),
       });
-      const msg=document.getElementById(kind==='exam'?'examRubricMsg':'rubricMsg');
-      msg.textContent=response.ok?(kind==='exam'?'Exam estimate saved.':'Rubric saved.'):'Rubric failed.';
+      const msg=document.getElementById(rubricIds(kind).msg);
+      if(msg) msg.textContent=response.ok?'Saved.':'Save failed.';
       if(response.ok){
         const body=await response.json();
-        if(kind==='exam') reviewData.exam_rubric.scores=body.scores;
-        else reviewData.rubric.scores=body.scores;
+        rubricDataFor(kind).scores=body.scores;
       }
     }
 

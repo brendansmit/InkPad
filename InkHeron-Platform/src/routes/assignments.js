@@ -42,6 +42,15 @@ function normalizeStringList(value, max, maxLen) {
   return out;
 }
 
+function positionalStringList(value, size, maxLen) {
+  const raw = Array.isArray(value) ? value : (value == null ? [] : [value]);
+  const out = [];
+  for (let i = 0; i < size; i += 1) {
+    out.push(String(raw[i] ?? '').trim().slice(0, maxLen));
+  }
+  return out;
+}
+
 function buildSettingsJson(settings = {}, type = 'essay') {
   const base = {
     type,
@@ -61,8 +70,12 @@ function buildSettingsJson(settings = {}, type = 'essay') {
   }
   const feedbackTables = normalizeStringList(settings.feedback_tables ?? settings.feedback_table, 2, 80);
   if (feedbackTables.length) base.feedback_tables = feedbackTables;
-  const rubricNames = normalizeStringList(settings.rubric_names, 2, 120);
-  if (rubricNames.length) base.rubric_names = rubricNames;
+  // Rubric slots are positional (slot 1 = internal, slot 2 = secondary): keep
+  // empty slots so an edit reload maps each rubric back to the right dropdown.
+  const rubricNames = positionalStringList(settings.rubric_names, 2, 120);
+  if (rubricNames.some((v) => v)) base.rubric_names = rubricNames;
+  const rubricAssets = positionalStringList(settings.rubric_assets, 2, 40);
+  if (rubricAssets.some((v) => v)) base.rubric_assets = rubricAssets;
   if (settings.prompt) base.prompt = String(settings.prompt).slice(0, 4000);
   if (settings.passage_text) base.passage_text = String(settings.passage_text).slice(0, 20000);
   return JSON.stringify(base);
