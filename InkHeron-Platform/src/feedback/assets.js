@@ -278,25 +278,67 @@ export function loadActiveFeedbackAssets(db, kind = '') {
   `).all(...params).map(publicFeedbackAsset);
 }
 
-export function feedbackOptionsForAssignment(db, settingsJson) {
-  let settings = {};
+function parseSettingsJson(settingsJson) {
   try {
-    settings = JSON.parse(settingsJson || '{}');
+    return JSON.parse(settingsJson || '{}');
   } catch (_) {
-    settings = {};
+    return {};
   }
-  const table = String(settings.feedback_table || '');
-  const match = table.match(/^asset:(\d+)$/);
-  if (!match) return feedbackLibrary;
+}
+
+// The list of strengths/targets table ids configured on an assignment (up to 2).
+function configuredFeedbackTableIds(settings) {
+  const raw = Array.isArray(settings.feedback_tables)
+    ? settings.feedback_tables
+    : (settings.feedback_table ? [settings.feedback_table] : []);
+  const ids = [];
+  for (const item of raw) {
+    const str = String(item || '').trim();
+    if (str && !ids.includes(str)) ids.push(str);
+    if (ids.length >= 2) break;
+  }
+  return ids;
+}
+
+// Resolve one table id ("asset:N" or "default"/"") to its strengths/targets set.
+export function resolveFeedbackTable(db, tableId) {
+  const id = String(tableId || '').trim();
+  const match = id.match(/^asset:(\d+)$/);
+  if (!match) {
+    return { id: 'default', title: 'Default InkHeron list', strengths: feedbackLibrary.strengths, targets: feedbackLibrary.targets };
+  }
   const row = db.prepare(`
     SELECT id, kind, title, assignment_type, content_text, parsed_json, is_archived, created_at, updated_at
     FROM feedback_assets
     WHERE id = ? AND kind = 'strength_target' AND is_archived = 0
   `).get(Number(match[1]));
-  if (!row) return feedbackLibrary;
-  const parsed = publicFeedbackAsset(row).parsed;
+  if (!row) {
+    return { id: 'default', title: 'Default InkHeron list', strengths: feedbackLibrary.strengths, targets: feedbackLibrary.targets };
+  }
+  const asset = publicFeedbackAsset(row);
+  const parsed = asset.parsed;
   return {
+    id,
+    title: asset.title || `Table ${asset.id}`,
     strengths: parsed.strengths?.length ? parsed.strengths : feedbackLibrary.strengths,
     targets: parsed.targets?.length ? parsed.targets : feedbackLibrary.targets,
   };
+}
+
+// All tables configured on an assignment, each resolved to its options. Always
+// returns at least the default list so a reviewer never sees an empty picker.
+export function feedbackTablesForAssignment(db, settingsJson) {
+  const settings = parseSettingsJson(settingsJson);
+  const ids = configuredFeedbackTableIds(settings);
+  if (!ids.length) return [resolveFeedbackTable(db, 'default')];
+  return ids.map((id) => resolveFeedbackTable(db, id));
+}
+
+// The strengths/targets set to use for a specific essay. Prefers the table the
+// reviewer applied to this pad, else the assignment's first table, else default.
+export function feedbackOptionsForAssignment(db, settingsJson, appliedTable = '') {
+  const tables = feedbackTablesForAssignment(db, settingsJson);
+  const applied = String(appliedTable || '').trim();
+  const chosen = (applied && tables.find((t) => t.id === applied)) || tables[0];
+  return { strengths: chosen.strengths, targets: chosen.targets };
 }

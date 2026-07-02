@@ -91,7 +91,7 @@ test('teacher can create an assignment with settings_json', async () => {
   assert.equal(settings.word_count, true);
   assert.equal(settings.paste_detection, true);
   assert.equal(settings.paste_mode, 'log');
-  assert.equal(settings.feedback_table, 'default');
+  assert.deepEqual(settings.feedback_tables, ['default']);
   assert.equal(settings.green_pen, true);
 
   await app.close();

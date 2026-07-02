@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderNativeWriteView } from '../views/nativeWrite.js';
-import { feedbackOptionsForAssignment } from '../feedback/assets.js';
+import { feedbackOptionsForAssignment, feedbackTablesForAssignment } from '../feedback/assets.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
@@ -54,7 +54,7 @@ const DEFAULT_AP_EXAM_RUBRIC = [
     ],
   },
 ];
-const RUBRIC_KINDS = new Set(['internal', 'exam']);
+const RUBRIC_KINDS = new Set(['internal', 'secondary', 'exam']);
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -349,6 +349,12 @@ function loadStudentWritingProfile(db, studentId) {
 
 function normalizeRubricKind(kind) {
   return RUBRIC_KINDS.has(kind) ? kind : 'internal';
+}
+
+// The AP Lang exam estimate only surfaces for AP Language classes, detected by
+// the class name (e.g. "AP Lang", "AP Language and Composition").
+function isApLangClassName(name) {
+  return /\bap\b[\s._-]*lang/i.test(String(name || ''));
 }
 
 function loadAssignmentRubric(db, assignmentId, rubricKind = 'internal') {
@@ -1086,6 +1092,18 @@ export async function registerNativePadRoutes(app, { db }) {
     }
   );
 
+  app.put('/api/native/assignments/:assignmentId/secondary-rubric',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = db.prepare('SELECT id, settings_json FROM assignments WHERE id = ?').get(assignmentId);
+      if (!assignment || !nativeEnabled(assignment)) return reply.code(404).send({ error: 'assignment_not_found' });
+      const criteria = normalizeRubricCriteria(request.body);
+      replaceAssignmentRubric(db, assignmentId, criteria, 'secondary');
+      return { rubric: loadAssignmentRubric(db, assignmentId, 'secondary') };
+    }
+  );
+
   app.put('/api/native/assignments/:assignmentId/exam-rubric',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
@@ -1134,9 +1152,29 @@ export async function registerNativePadRoutes(app, { db }) {
     async (request, reply) => saveRubricScoresForKind(request, reply, 'internal')
   );
 
+  app.put('/api/native/pads/:padId/secondary-rubric-scores',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => saveRubricScoresForKind(request, reply, 'secondary')
+  );
+
   app.put('/api/native/pads/:padId/exam-rubric-scores',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => saveRubricScoresForKind(request, reply, 'exam')
+  );
+
+  app.put('/api/native/pads/:padId/applied-feedback-table',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const tables = feedbackTablesForAssignment(db, pad.settings_json);
+      const requested = String(request.body?.table || '').trim();
+      const allowed = new Set(tables.map((t) => t.id));
+      const applied = allowed.has(requested) ? requested : (tables[0]?.id ?? 'default');
+      db.prepare('UPDATE native_pads SET applied_feedback_table = ? WHERE id = ?').run(applied, padId);
+      return { applied_feedback_table: applied, feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, applied) };
+    }
   );
 
   app.get('/api/native/students/:studentId/profile',
@@ -1293,7 +1331,11 @@ export async function registerNativePadRoutes(app, { db }) {
         ORDER BY id ASC
       `).all(pad.id);
       const rubric = loadAssignmentRubric(db, assignmentId);
+      const secondaryRubric = loadAssignmentRubric(db, assignmentId, 'secondary');
       const examRubric = loadAssignmentRubric(db, assignmentId, 'exam');
+      const rubricNames = Array.isArray(settings.rubric_names) ? settings.rubric_names : [];
+      const classRow = db.prepare('SELECT c.name AS class_name FROM assignments a JOIN classes c ON c.id = a.class_id WHERE a.id = ?').get(assignmentId);
+      const isApLang = isApLangClassName(classRow?.class_name);
       return {
         pad: publicNativePad(pad),
         assignment: {
@@ -1307,10 +1349,17 @@ export async function registerNativePadRoutes(app, { db }) {
         annotations,
         revisions,
         rubric: {
+          name: rubricNames[0] || 'Rubric 1',
           criteria: rubric.criteria,
           scores: loadRubricScores(db, pad.id),
         },
+        secondary_rubric: {
+          name: rubricNames[1] || 'Rubric 2',
+          criteria: secondaryRubric.criteria,
+          scores: loadRubricScores(db, pad.id, 'secondary'),
+        },
         exam_rubric: {
+          visible: isApLang,
           criteria: examRubric.criteria,
           scores: loadRubricScores(db, pad.id, 'exam'),
         },
@@ -1346,7 +1395,15 @@ export async function registerNativePadRoutes(app, { db }) {
         ORDER BY id ASC
       `).all(padId);
       const rubric = loadAssignmentRubric(db, pad.assignment_id);
+      const secondaryRubric = loadAssignmentRubric(db, pad.assignment_id, 'secondary');
       const examRubric = loadAssignmentRubric(db, pad.assignment_id, 'exam');
+      const settings = parseSettings(pad.settings_json);
+      const rubricNames = Array.isArray(settings.rubric_names) ? settings.rubric_names : [];
+      const isApLang = isApLangClassName(pad.class_name);
+      const feedbackTables = feedbackTablesForAssignment(db, pad.settings_json);
+      const appliedTable = pad.applied_feedback_table && feedbackTables.some((t) => t.id === pad.applied_feedback_table)
+        ? pad.applied_feedback_table
+        : (feedbackTables[0]?.id ?? 'default');
       return {
         pad: publicNativePad(pad),
         assignment: {
@@ -1355,7 +1412,7 @@ export async function registerNativePadRoutes(app, { db }) {
           type: pad.assignment_type,
           due_at: pad.due_at ?? null,
         },
-        class: { id: pad.class_id, name: pad.class_name },
+        class: { id: pad.class_id, name: pad.class_name, is_ap_lang: isApLang },
         student: { id: pad.student_id, display_name: pad.student_name, username: pad.student_username },
         policy: publicPolicy(policy),
         annotations,
@@ -1363,15 +1420,24 @@ export async function registerNativePadRoutes(app, { db }) {
         revisions,
         comparison: comparisonForRevisions(revisions),
         rubric: {
+          name: rubricNames[0] || 'Rubric 1',
           criteria: rubric.criteria,
           scores: loadRubricScores(db, padId),
         },
+        secondary_rubric: {
+          name: rubricNames[1] || 'Rubric 2',
+          criteria: secondaryRubric.criteria,
+          scores: loadRubricScores(db, padId, 'secondary'),
+        },
         exam_rubric: {
+          visible: isApLang,
           criteria: examRubric.criteria,
           scores: loadRubricScores(db, padId, 'exam'),
         },
         student_profile: loadStudentWritingProfile(db, pad.student_id),
-        feedback_options: feedbackOptionsForAssignment(db, pad.settings_json),
+        feedback_tables: feedbackTables.map((t) => ({ id: t.id, title: t.title })),
+        applied_feedback_table: appliedTable,
+        feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
       };
     }
   );

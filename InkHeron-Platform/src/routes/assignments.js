@@ -31,6 +31,17 @@ function publicAssignment(row) {
   };
 }
 
+function normalizeStringList(value, max, maxLen) {
+  const raw = Array.isArray(value) ? value : (value == null || value === '' ? [] : [value]);
+  const out = [];
+  for (const item of raw) {
+    const str = String(item ?? '').trim().slice(0, maxLen);
+    if (str) out.push(str);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 function buildSettingsJson(settings = {}, type = 'essay') {
   const base = {
     type,
@@ -48,7 +59,10 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     base.focus_warning = settings.focus_warning !== false;
     base.timer_minutes = settings.timer_minutes ?? null;
   }
-  if (settings.feedback_table) base.feedback_table = String(settings.feedback_table).slice(0, 80);
+  const feedbackTables = normalizeStringList(settings.feedback_tables ?? settings.feedback_table, 2, 80);
+  if (feedbackTables.length) base.feedback_tables = feedbackTables;
+  const rubricNames = normalizeStringList(settings.rubric_names, 2, 120);
+  if (rubricNames.length) base.rubric_names = rubricNames;
   if (settings.prompt) base.prompt = String(settings.prompt).slice(0, 4000);
   if (settings.passage_text) base.passage_text = String(settings.passage_text).slice(0, 20000);
   return JSON.stringify(base);

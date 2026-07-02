@@ -946,9 +946,7 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /id="saveBtn"/);
   assert.match(response.body, /id="zoomSlider"/);
   assert.match(response.body, /id="zoomSlider"[^>]+min="70"[^>]+max="150"/);
-  assert.doesNotMatch(response.body, /zoom:var\(--editor-zoom\)/);
-  assert.doesNotMatch(response.body, /transform:scale\(var\(--editor-zoom\)\)/);
-  assert.doesNotMatch(response.body, /transform-origin:top center/);
+  assert.match(response.body, /zoom:var\(--editor-zoom\)/);
   assert.match(response.body, /id="lineNumbers"/);
   assert.match(response.body, /id="fontSizeSelect"/);
   assert.match(response.body, /function applyFontSize/);
@@ -994,16 +992,18 @@ test('native write view embeds PDF reference inside contained scroll panel', () 
   });
 
   assert.match(html, /id="pdfFrame"/);
-  assert.match(html, /id="pdfEmbed"/);
-  assert.match(html, /\/api\/assignments\/42\/passage-pdf#toolbar=1/);
+  assert.match(html, /id="pdfPages"/);
   assert.match(html, /id="pdfZoomSlider"[^>]+min="75"[^>]+max="175"/);
-  assert.match(html, /pdfEmbed\.src = pdfBaseUrl \+ '#toolbar=1&navpanes=0&view=FitH&zoom=' \+ zoom/);
-  assert.match(html, /\.niw-pdf-frame\{[^}]*overflow:hidden/);
-  assert.doesNotMatch(html, /pdfjs\/pdf\.min\.mjs/);
-  assert.doesNotMatch(html, /new TextLayer/);
-  assert.doesNotMatch(html, /id="pdfPages"/);
-  assert.doesNotMatch(html, /data-pdf-highlight/);
-  assert.doesNotMatch(html, /target="_blank" rel="noopener">Open PDF passage/);
+  // PDF.js render path with a selectable text layer and text-level marks
+  assert.match(html, /pdfjs\/pdf\.min\.mjs/);
+  assert.match(html, /new pdfjsLib\.TextLayer/);
+  assert.match(html, /const pdfBaseUrl = '\/api\/assignments\/42\/passage-pdf'/);
+  assert.match(html, /pdfjsLib\.getDocument\(pdfBaseUrl\)/);
+  assert.match(html, /data-pdf-mark="underline"/);
+  assert.match(html, /data-pdf-mark="highlight"/);
+  assert.match(html, /\.niw-pdf-frame\{[^}]*overflow:auto/);
+  // No browser-native PDF iframe any more
+  assert.doesNotMatch(html, /id="pdfEmbed"/);
 });
 
 test('teacher can return a native pad for revision after the deadline', async () => {
