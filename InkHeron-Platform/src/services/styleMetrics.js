@@ -162,6 +162,46 @@ export function recordStyleMetrics(db, { padId } = {}) {
   }
 }
 
+// Features that scale with essay length; never used for anomaly z-scores.
+const LENGTH_FEATURES = new Set(['word_count', 'sentence_count', 'paragraph_count']);
+
+/**
+ * Compare one essay's fingerprint against the student's other essays.
+ * Returns per-feature z-scores where the essay sits far outside the
+ * student's own normal (|z| >= threshold). This is evidence for "does this
+ * homework essay sound like the writing I have watched them do", not proof:
+ * genre shifts also move these numbers, so surface it with the assignment
+ * type and provenance next to it, never as an accusation on its own.
+ */
+export function detectStyleAnomaly(db, { padId, threshold = 2 } = {}) {
+  const row = db.prepare('SELECT student_id, metrics_json FROM style_metrics WHERE native_pad_id = ?').get(padId);
+  if (!row) return { status: 'skipped', anomalies: [] };
+  const history = db.prepare(
+    'SELECT metrics_json FROM style_metrics WHERE student_id = ? AND native_pad_id != ? ORDER BY created_at, id'
+  ).all(row.student_id, padId);
+  const series = history.map((r) => { try { return JSON.parse(r.metrics_json); } catch { return null; } }).filter(Boolean);
+  if (series.length < 3) return { status: 'insufficient_history', essays: series.length, anomalies: [] };
+
+  let current;
+  try { current = JSON.parse(row.metrics_json); } catch { return { status: 'skipped', anomalies: [] }; }
+
+  const anomalies = [];
+  for (const key of Object.keys(current)) {
+    if (LENGTH_FEATURES.has(key)) continue;
+    const vals = series.map((m) => Number(m[key])).filter(Number.isFinite);
+    if (vals.length < 3) continue;
+    const m = mean(vals);
+    const sd = stdev(vals);
+    if (sd < 1e-9) continue;
+    const z = (Number(current[key]) - m) / sd;
+    if (Math.abs(z) >= threshold) {
+      anomalies.push({ feature: key, value: Number(current[key]), mean: round(m), sd: round(sd), z: round(z, 2) });
+    }
+  }
+  anomalies.sort((a, b) => Math.abs(b.z) - Math.abs(a.z));
+  return { status: 'ok', essays: series.length, anomalies };
+}
+
 /**
  * Aggregate a student's fingerprints for the profile/dashboard: per-feature
  * mean, spread and simple trend (first-half vs second-half mean) across pads

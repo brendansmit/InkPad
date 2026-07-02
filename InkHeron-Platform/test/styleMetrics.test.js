@@ -3,9 +3,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/database.js';
-import { computeStyleMetrics, recordStyleMetrics, aggregateStyleProfile, splitSentences } from '../src/services/styleMetrics.js';
+import { computeStyleMetrics, recordStyleMetrics, aggregateStyleProfile, detectStyleAnomaly, splitSentences } from '../src/services/styleMetrics.js';
 
 function tmpDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-style-'));
@@ -91,4 +92,45 @@ test('recordStyleMetrics stores and upserts a fingerprint per pad', async () => 
   assert.equal(recordStyleMetrics(db, { padId }).status, 'skipped');
 
   await app.close();
+});
+
+test('detectStyleAnomaly flags an essay that does not match the student voice', () => {
+  // Bare in-memory db with only the table the function touches, no FKs.
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE style_metrics (
+    id INTEGER PRIMARY KEY, native_pad_id INTEGER NOT NULL UNIQUE, student_id INTEGER NOT NULL,
+    assignment_id INTEGER NOT NULL, word_count INTEGER NOT NULL DEFAULT 0,
+    metrics_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+
+  // Their normal: short simple sentences. Slight natural variation.
+  const usual = 'I like my city. It is big. We walk to school. My friend comes too. The food is good. We eat noodles. Then we go home. My mother cooks rice.';
+  const insert = db.prepare('INSERT INTO style_metrics (native_pad_id, student_id, assignment_id, word_count, metrics_json) VALUES (?, 1, 1, ?, ?)');
+  const variants = [usual, usual + ' I sleep early.', usual + ' We play games. It is fun.', 'I like my town. It is small. We ride bikes. My cousin comes too. The tea is good. We drink it. Then we rest. My father cooks fish.'];
+  variants.forEach((textVariant, i) => {
+    const m = computeStyleMetrics(textVariant);
+    insert.run(i + 1, m.word_count, JSON.stringify(m));
+  });
+
+  // The homework essay: long subordinated academic prose. Not their voice.
+  const suspicious = 'Although urbanization has fundamentally transformed contemporary metropolitan environments, which increasingly exhibit unprecedented infrastructural complexity, residents nevertheless demonstrate remarkable adaptability because technological integration facilitates continuous connectivity; consequently, communities that historically depended upon localized interaction now negotiate hybridized social configurations, which scholars characterize as simultaneously liberating and alienating, although empirical assessments remain contested.';
+  const sm = computeStyleMetrics(suspicious);
+  insert.run(99, sm.word_count, JSON.stringify(sm));
+
+  const result = detectStyleAnomaly(db, { padId: 99 });
+  assert.equal(result.status, 'ok');
+  assert.equal(result.essays, 4);
+  assert.ok(result.anomalies.length >= 2, 'multiple features flag');
+  const features = result.anomalies.map((a) => a.feature);
+  assert.ok(features.includes('mean_sentence_length'), 'sentence length is wildly off their normal');
+  assert.ok(Math.abs(result.anomalies[0].z) >= 2);
+
+  // A normal essay does not flag.
+  insert.run(100, 30, JSON.stringify(computeStyleMetrics(usual + ' We like it here.')));
+  const calm = detectStyleAnomaly(db, { padId: 100 });
+  assert.equal(calm.status, 'ok');
+  assert.equal(calm.anomalies.some((a) => a.feature === 'mean_sentence_length'), false);
+
+  // Too little history is reported, not guessed.
+  db.exec('DELETE FROM style_metrics WHERE native_pad_id NOT IN (1, 99)');
+  assert.equal(detectStyleAnomaly(db, { padId: 99 }).status, 'insufficient_history');
 });
