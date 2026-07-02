@@ -3,6 +3,22 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderNativeWriteView } from '../views/nativeWrite.js';
 import { feedbackOptionsForAssignment, feedbackTablesForAssignment } from '../feedback/assets.js';
+import { notifyTeacher } from '../services/serverChan.js';
+import { runLiteracyAnalysis } from '../services/literacyCoder.js';
+import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
+import { scoreRewrite } from '../services/implementationScorer.js';
+
+// Fire-and-forget an async analysis seam without blocking the HTTP response.
+// A missing OpenRouter key or a stub is a clean no-op; errors are logged only.
+function runInBackground(label, promiseFactory) {
+  try {
+    Promise.resolve(promiseFactory()).catch((error) => {
+      console.warn(`[analysis:${label}]`, error?.message ?? error);
+    });
+  } catch (error) {
+    console.warn(`[analysis:${label}]`, error?.message ?? error);
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
@@ -411,6 +427,82 @@ function loadRubricScores(db, padId, rubricKind = 'internal') {
   `).all(padId, kind).map(publicRubricScore);
 }
 
+// Append a point-in-time snapshot of a pad's current rubric scores to
+// score_snapshots, so rubric and AP performance can be tracked over time.
+// Called on finish-marking. No-op when the rubric has no scores yet.
+function writeScoreSnapshot(db, pad, rubricKind = 'internal') {
+  const kind = normalizeRubricKind(rubricKind);
+  const rawScores = loadRubricScores(db, pad.id, kind);
+  if (!rawScores.length) return;
+  // Attach the criterion label so the snapshot is self-describing over time.
+  const labels = new Map(loadAssignmentRubric(db, pad.assignment_id, kind).criteria.map((c) => [c.id, c.label]));
+  const scores = rawScores.map((s) => ({ ...s, label: labels.get(s.criterion_id) ?? '' }));
+  const total = scores.reduce((sum, s) => sum + Number(s.selected_score ?? 0), 0);
+  db.prepare(`
+    INSERT INTO score_snapshots (native_pad_id, student_id, assignment_id, rubric_kind, scores_json, total, pad_state)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    pad.id,
+    pad.student_id,
+    pad.assignment_id,
+    kind,
+    JSON.stringify(scores),
+    total,
+    pad.state ?? ''
+  );
+}
+
+function publicFeedbackItem(row) {
+  return {
+    id: row.id,
+    kind: row.kind,
+    feedback_key: row.feedback_key ?? '',
+    title: row.title,
+    explanation: row.explanation ?? '',
+    try_now_prompt: row.try_now_prompt ?? '',
+    source: row.source ?? 'teacher',
+    sort_order: Number(row.sort_order ?? 0),
+    created_at: row.created_at,
+  };
+}
+
+function loadFeedbackItems(db, padId) {
+  const rows = db.prepare(`
+    SELECT * FROM native_feedback_items
+    WHERE native_pad_id = ?
+    ORDER BY kind ASC, sort_order ASC, id ASC
+  `).all(padId).map(publicFeedbackItem);
+  return {
+    strengths: rows.filter((item) => item.kind === 'strength'),
+    targets: rows.filter((item) => item.kind === 'target'),
+  };
+}
+
+function normalizeFeedbackItemInput(body) {
+  const kind = String(body?.kind ?? '');
+  if (kind !== 'strength' && kind !== 'target') {
+    const error = new Error('invalid_feedback_kind');
+    error.statusCode = 400;
+    throw error;
+  }
+  const title = normalizeRubricText(body?.title, 180);
+  if (!title) {
+    const error = new Error('title_required');
+    error.statusCode = 400;
+    throw error;
+  }
+  const source = body?.source === 'ai' ? 'ai' : 'teacher';
+  return {
+    kind,
+    title,
+    feedbackKey: normalizeRubricText(body?.feedback_key, 80),
+    explanation: normalizeComment(body?.explanation).slice(0, 4000),
+    tryNowPrompt: normalizeComment(body?.try_now_prompt).slice(0, 2000),
+    source,
+    sortOrder: Number.isInteger(Number(body?.sort_order)) ? Number(body.sort_order) : 0,
+  };
+}
+
 function copyAssignmentRubric(db, sourceAssignmentId, targetAssignmentId) {
   const criteria = db.prepare(`
     SELECT *
@@ -522,8 +614,8 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
       ORDER BY student_id ASC, id ASC
     `).all(source.id);
     const insertPad = db.prepare(`
-      INSERT INTO native_pads (student_id, assignment_id, state, document_json, plain_text, word_count, version)
-      VALUES (?, ?, 'writing', ?, ?, ?, 1)
+      INSERT INTO native_pads (student_id, assignment_id, state, document_json, plain_text, word_count, version, rewrite_of_pad_id)
+      VALUES (?, ?, 'writing', ?, ?, ?, 1, ?)
     `);
     const insertAnnotation = db.prepare(`
       INSERT INTO native_annotations (
@@ -542,7 +634,8 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
         targetAssignmentId,
         pad.document_json,
         pad.plain_text ?? '',
-        Number(pad.word_count ?? 0)
+        Number(pad.word_count ?? 0),
+        pad.id
       );
       const newPadId = result.lastInsertRowid;
       const newPad = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(newPadId);
@@ -956,6 +1049,28 @@ export async function registerNativePadRoutes(app, { db }) {
       `).run(nextState, padId);
       const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
       insertRevision(db, padId, 'submit', updated);
+
+      // Notify the teacher (WeChat via Server酱; no-op if no key configured).
+      const meta = db.prepare(`
+        SELECT s.display_name AS student_name, a.title AS assignment_title
+        FROM native_pads np
+        JOIN students s ON s.id = np.student_id
+        JOIN assignments a ON a.id = np.assignment_id
+        WHERE np.id = ?
+      `).get(padId);
+      runInBackground('notify', () => notifyTeacher(db, {
+        studentName: meta?.student_name ?? 'A student',
+        assignmentTitle: meta?.assignment_title ?? 'an assignment',
+        action: nextState === 'resubmitted' ? 'resubmitted work' : 'submitted work',
+      }));
+
+      // Background analysis seams (stubs until Fable fills phases B/D).
+      runInBackground('literacy', () => runLiteracyAnalysis(db, { padId }));
+      runInBackground('grade-estimate', () => estimateRubric(db, { padId }));
+      if (nextState === 'resubmitted' && updated.rewrite_of_pad_id) {
+        runInBackground('implementation', () => scoreRewrite(db, { rewritePadId: padId }));
+      }
+
       return reply.code(201).send({ pad: publicNativePad(updated), locked: true, resubmitted: nextState === 'resubmitted' });
     }
   );
@@ -971,6 +1086,8 @@ export async function registerNativePadRoutes(app, { db }) {
       db.prepare("UPDATE native_pads SET state = ?, updated_at = datetime('now') WHERE id = ?").run(nextState, padId);
       logTeacherEvent(db, padId, request.session.user.id, 'feedback_released', { state: nextState });
       const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
+      // Append rubric score history so performance can be tracked over time.
+      for (const kind of ['internal', 'secondary', 'exam']) writeScoreSnapshot(db, updated, kind);
       return { pad: publicNativePad(updated) };
     }
   );
@@ -1144,6 +1261,8 @@ export async function registerNativePadRoutes(app, { db }) {
         upsert.run(padId, criterionId, selectedScore, note, request.session.user.id);
       }
       logTeacherEvent(db, padId, request.session.user.id, kind === 'exam' ? 'exam_rubric_scores_saved' : 'rubric_scores_saved', { count: scores.length });
+      // Fill teacher_score + delta on any hidden AI estimate for the marker profile.
+      recordTeacherScores(db, { padId, rubricKind: kind, scores });
       return { scores: loadRubricScores(db, padId, kind) };
   }
 
@@ -1348,6 +1467,7 @@ export async function registerNativePadRoutes(app, { db }) {
         student: { id: student.id, display_name: student.display_name },
         annotations,
         revisions,
+        feedback: loadFeedbackItems(db, pad.id),
         rubric: {
           name: rubricNames[0] || 'Rubric 1',
           criteria: rubric.criteria,
@@ -1435,6 +1555,13 @@ export async function registerNativePadRoutes(app, { db }) {
           scores: loadRubricScores(db, padId, 'exam'),
         },
         student_profile: loadStudentWritingProfile(db, pad.student_id),
+        feedback: loadFeedbackItems(db, padId),
+        suggestions: db.prepare(`
+          SELECT id, document_version, start_offset, end_offset, quote, code, category, label, model, checker_json, status, created_at
+          FROM ai_literacy_suggestions
+          WHERE native_pad_id = ? AND status = 'pending'
+          ORDER BY start_offset ASC, id ASC
+        `).all(padId),
         feedback_tables: feedbackTables.map((t) => ({ id: t.id, title: t.title })),
         applied_feedback_table: appliedTable,
         feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
@@ -1494,6 +1621,122 @@ export async function registerNativePadRoutes(app, { db }) {
         if (previousKey) recomputeStudentLiteracyStat(db, pad.student_id, previousKey.code, previousKey.category, previousKey.label);
       }
       return { annotation: publicAnnotation(row) };
+    }
+  );
+
+  // ── Strengths and targets (structured feedback items) ──────────────────
+
+  app.get('/api/native/pads/:padId/feedback-items',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      return { feedback: loadFeedbackItems(db, padId) };
+    }
+  );
+
+  app.post('/api/native/pads/:padId/feedback-items',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const item = normalizeFeedbackItemInput(request.body);
+      const result = db.prepare(`
+        INSERT INTO native_feedback_items (
+          native_pad_id, kind, feedback_key, title, explanation, try_now_prompt, source, sort_order, created_by_teacher_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        padId, item.kind, item.feedbackKey, item.title, item.explanation,
+        item.tryNowPrompt, item.source, item.sortOrder, request.session.user.id
+      );
+      logTeacherEvent(db, padId, request.session.user.id, 'feedback_item_added', { kind: item.kind });
+      const row = db.prepare('SELECT * FROM native_feedback_items WHERE id = ?').get(result.lastInsertRowid);
+      return reply.code(201).send({ item: publicFeedbackItem(row) });
+    }
+  );
+
+  app.delete('/api/native/pads/:padId/feedback-items/:itemId',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const itemId = requirePositiveInteger(request.params.itemId, 'itemId');
+      const existing = db.prepare('SELECT id FROM native_feedback_items WHERE id = ? AND native_pad_id = ?').get(itemId, padId);
+      if (!existing) return reply.code(404).send({ error: 'feedback_item_not_found' });
+      db.prepare('DELETE FROM native_feedback_items WHERE id = ?').run(itemId);
+      return reply.code(204).send();
+    }
+  );
+
+  // ── Hidden AI literacy suggestions (teacher accept promotes to a mark) ──
+
+  app.get('/api/native/pads/:padId/suggestions',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const status = ['pending', 'accepted', 'rejected'].includes(request.query?.status) ? request.query.status : 'pending';
+      const suggestions = db.prepare(`
+        SELECT id, document_version, start_offset, end_offset, quote, code, category, label, model, checker_json, status, created_at
+        FROM ai_literacy_suggestions
+        WHERE native_pad_id = ? AND status = ?
+        ORDER BY start_offset ASC, id ASC
+      `).all(padId, status);
+      return { suggestions };
+    }
+  );
+
+  app.post('/api/native/pads/:padId/suggestions/:suggestionId/accept',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const suggestionId = requirePositiveInteger(request.params.suggestionId, 'suggestionId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const suggestion = db.prepare('SELECT * FROM ai_literacy_suggestions WHERE id = ? AND native_pad_id = ?').get(suggestionId, padId);
+      if (!suggestion) return reply.code(404).send({ error: 'suggestion_not_found' });
+      if (suggestion.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
+
+      // Promote the suggestion into a real literacy_code annotation so it
+      // becomes visible feedback and feeds the student profile.
+      const metadata = normalizeMetadata({
+        code: suggestion.code,
+        category: suggestion.category,
+        label: suggestion.label || suggestion.code,
+        source: 'ai_accepted',
+        suggestion_id: suggestion.id,
+      });
+      const annResult = db.prepare(`
+        INSERT INTO native_annotations (
+          native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, document_version
+        ) VALUES (?, ?, 'literacy_code', ?, ?, ?, '', ?, ?)
+      `).run(
+        padId, request.session.user.id, suggestion.start_offset, suggestion.end_offset,
+        (suggestion.quote ?? '').slice(0, 2000), metadata, suggestion.document_version
+      );
+      const annotationRow = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annResult.lastInsertRowid);
+      syncLiteracyEvidence(db, pad, annotationRow);
+      db.prepare("UPDATE ai_literacy_suggestions SET status = 'accepted', annotation_id = ?, resolved_at = datetime('now') WHERE id = ?").run(annotationRow.id, suggestionId);
+      logTeacherEvent(db, padId, request.session.user.id, 'suggestion_accepted', { suggestion_id: suggestionId, code: suggestion.code });
+      return reply.code(201).send({ annotation: publicAnnotation(annotationRow) });
+    }
+  );
+
+  app.post('/api/native/pads/:padId/suggestions/:suggestionId/reject',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const suggestionId = requirePositiveInteger(request.params.suggestionId, 'suggestionId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const suggestion = db.prepare('SELECT id, status FROM ai_literacy_suggestions WHERE id = ? AND native_pad_id = ?').get(suggestionId, padId);
+      if (!suggestion) return reply.code(404).send({ error: 'suggestion_not_found' });
+      if (suggestion.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
+      db.prepare("UPDATE ai_literacy_suggestions SET status = 'rejected', resolved_at = datetime('now') WHERE id = ?").run(suggestionId);
+      logTeacherEvent(db, padId, request.session.user.id, 'suggestion_rejected', { suggestion_id: suggestionId });
+      return reply.code(204).send();
     }
   );
 

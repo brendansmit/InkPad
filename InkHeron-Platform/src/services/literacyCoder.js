@@ -103,62 +103,38 @@ function codeCategory(code) {
   return 'other';
 }
 
-export async function analyseSubmission(db, { submissionId, text }) {
-  const paragraphs = text
-    .split(/\n+/)
-    .map(p => p.trim())
-    .filter(p => p.length > 10 && p.split(/\s+/).length >= 2);
-
-  if (!paragraphs.length) return;
-
-  const findings = [];
-  let searchFrom = 0;
-
-  for (const para of paragraphs) {
-    const paraStart = text.indexOf(para, searchFrom);
-    if (paraStart < 0) continue;
-    searchFrom = paraStart + para.length;
-
-    let raw;
-    try {
-      const result = await callChat(db, {
-        intent: 'anthropic claude haiku',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Paragraph:\n${para.slice(0, 3000)}\n\nAnswer:` },
-        ],
-        maxTokens: 1024,
-        temperature: 0.1,
-      });
-      raw = result.choices?.[0]?.message?.content ?? '';
-    } catch (e) {
-      console.warn(`[literacyCoder] callChat error for submission ${submissionId}:`, e.message);
-      continue;
-    }
-
-    for (const { sentence, quote, code } of parseLiteracyResponse(raw)) {
-      const span = findQuoteSpan(para, sentence, quote);
-      if (!span) continue;
-      findings.push({
-        start_offset: paraStart + span.start,
-        end_offset: paraStart + span.end,
-        code,
-        category: codeCategory(code),
-      });
-    }
-  }
-
-  if (!findings.length) {
-    console.log(`[literacyCoder] no findings for submission ${submissionId}`);
-    return;
-  }
-
-  db.prepare('DELETE FROM submission_codes WHERE submission_id = ?').run(submissionId);
-  const insert = db.prepare(
-    'INSERT INTO submission_codes (submission_id, start_offset, end_offset, code, category, label) VALUES (?, ?, ?, ?, ?, ?)'
-  );
-  for (const f of findings) {
-    insert.run(submissionId, f.start_offset, f.end_offset, f.code, f.category, '');
-  }
-  console.log(`[literacyCoder] saved ${findings.length} codes for submission ${submissionId}`);
+/**
+ * Analyse the current text of a native pad and write HIDDEN literacy
+ * suggestions to `ai_literacy_suggestions`. Suggestions are NOT visible as
+ * marks and do NOT touch the student profile until a teacher accepts one
+ * (POST /api/native/pads/:padId/suggestions/:id/accept in nativePads.js
+ * promotes an accepted suggestion into a real native_annotation).
+ *
+ * ============================ SEAM FOR FABLE ============================
+ * This is a documented STUB. Phase B fills the body. See FABLE_HANDOFF.md.
+ *
+ * Contract:
+ *   input  : db, { padId }
+ *   reads  : native_pads.plain_text and .version for padId
+ *   Doer   : per paragraph call callChat(db, { intent: 'anthropic claude haiku',
+ *            messages: [{role:'system',content:SYSTEM_PROMPT},{role:'user',...}] });
+ *            parse with parseLiteracyResponse; locate each quote with
+ *            findQuoteSpan for absolute offsets into plain_text.
+ *   Checker: verifyFindings from ./checker.js (a DIFFERENT model family)
+ *            confirms each quote is verbatim and drops false positives.
+ *   writes : one row per surviving finding into ai_literacy_suggestions
+ *            (native_pad_id, document_version, start_offset, end_offset,
+ *             quote, code, category=codeCategory(code), label, model,
+ *             checker_json, status='pending'). Clear prior 'pending' rows
+ *            for the pad first.
+ *   returns: { status, written }. Never throw to the caller: log and swallow
+ *            errors so a missing API key is a clean no-op (as in tests).
+ * =======================================================================
+ */
+export async function runLiteracyAnalysis(db, { padId } = {}) {
+  // STUB: no AI wired yet. Returns cleanly so submit/marking flows and tests
+  // without an OpenRouter key are unaffected. Fable implements phase B here.
+  void db; void padId; void callChat; void SYSTEM_PROMPT;
+  void parseLiteracyResponse; void findQuoteSpan; void codeCategory;
+  return { status: 'not_implemented', written: 0 };
 }
