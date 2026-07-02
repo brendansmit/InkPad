@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review redesign — Direction C: The margin</title>
+<style>
+:root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--surface-3:#E8E6DF;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-500:#2E7D52;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--blue-50:#E8F0F7;--blue-700:#1F5076;--amber-50:#FBF0DC;--amber-700:#8A5A12;--coral-50:#FDF1EE;--coral-100:#F9DDD7;--coral-500:#C96A4E;--r-sm:10px;--r-md:14px;--r-lg:20px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,'SF Mono',Menlo,monospace;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10)}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg)}
+.appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:10px 22px;background:rgba(247,246,242,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.glyph{width:30px;height:30px;border-radius:9px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;transform:rotate(-4deg)}
+.who{font-family:var(--serif);font-size:16px;font-weight:600}
+.crumb{color:var(--text-3);font-size:13px}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border-radius:var(--r-sm);font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text)}
+.btn.primary{background:var(--green-600);color:#fff;border-color:var(--green-600)}
+.wrap{max-width:950px;margin:0 auto;padding:22px 22px 120px}
+/* The sheet: essay + a real margin, like a printed page */
+.sheet{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-card);display:grid;grid-template-columns:minmax(0,1fr) 150px;overflow:hidden}
+.page{padding:42px 36px 42px 48px;border-right:2px solid var(--maroon-50)}
+.page h2{font-family:var(--serif);font-size:22px;margin:0 0 2px}
+.page .meta{color:var(--text-3);font-size:12px;font-family:var(--mono);margin-bottom:22px}
+.line{display:block;font-family:var(--serif);font-size:18px;line-height:2.05;color:var(--ink)}
+.gap{display:block;height:2.05em}
+.margin{padding:42px 14px;background:linear-gradient(to right,rgba(140,47,59,.03),transparent);position:relative}
+.margin .mhead{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:14px;text-align:center}
+/* stamps sit at line height */
+.stamp{position:absolute;left:12px;right:12px;display:flex;gap:5px;align-items:center}
+.stampchip{font-family:var(--mono);font-size:12px;font-weight:800;border-radius:7px;padding:3px 9px;border:1.5px solid var(--maroon-500);color:var(--maroon-500);background:var(--surface);transform:rotate(-2deg);box-shadow:0 1px 4px rgba(140,47,59,.15)}
+.stampchip.tick{border-color:var(--green-500);color:var(--green-700);transform:rotate(2deg)}
+/* AI ghosts: pencil, not ink */
+.stampchip.ghost{border:1.5px dashed var(--text-3);color:var(--text-3);background:var(--bg);box-shadow:none;transform:rotate(-1deg)}
+.ghost-act{display:flex;gap:3px}
+.ga{width:20px;height:20px;border-radius:6px;border:1px solid var(--border-2);background:var(--surface);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.ga.y{color:var(--green-700);border-color:var(--green-500);background:var(--green-50)}
+.ga.n{color:var(--text-3)}
+.u-ink{border-bottom:2px solid var(--maroon-500)}
+.u-ghost{border-bottom:2px dashed var(--text-3)}
+.u-tick{border-bottom:2px solid var(--green-500)}
+/* Bottom code tray = his physical codes sheet */
+.tray{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lift);padding:10px 14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;max-width:1060px}
+.tray .tlabel{font-size:10.5px;font-weight:800;text-transform:uppercase;color:var(--text-3);margin-right:4px}
+.code{font-family:var(--mono);font-size:12px;font-weight:800;border:1.5px solid var(--border-2);border-radius:8px;padding:4px 9px;background:var(--bg);cursor:pointer}
+.code:hover{border-color:var(--maroon-500);color:var(--maroon-500)}
+.code.active{border-color:var(--maroon-500);color:#fff;background:var(--maroon-500)}
+.tray .sep{width:1px;height:22px;background:var(--border)}
+.tray .mode{font-size:11.5px;font-weight:800;color:var(--text-2)}
+/* Flip cards under the sheet */
+.below{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:16px}
+.bcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:14px}
+.bcard h3{margin:0 0 8px;font-size:13px}
+.fb{border:1px solid var(--border);border-left:4px solid var(--green-500);border-radius:8px;padding:9px;font-size:12.5px;margin-bottom:7px}
+.fb.t{border-left-color:var(--blue-700)}
+.fb p{margin:3px 0 0;color:var(--text-2);font-size:12px}
+.rrow{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;padding:7px 0;border-bottom:1px solid var(--border)}
+.rrow:last-child{border:none}
+.dots{display:flex;gap:3px}
+.dots i{width:20px;height:20px;border-radius:5px;border:1px solid var(--border-2);background:var(--bg);font-style:normal;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:800}
+.dots i.sel{background:var(--green-600);border-color:var(--green-600);color:#fff}
+.hint{font-size:11.5px;color:var(--text-3);margin-top:8px}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="glyph">i</div>
+  <span class="who">Chen Yuxi</span>
+  <span class="crumb">The City and Me · 412 words · v6 · 0 paste events</span>
+  <span class="spacer"></span>
+  <button class="btn">Revision replay</button>
+  <button class="btn primary">Finish marking</button>
+</div>
+
+<div class="wrap">
+  <div class="sheet">
+    <div class="page">
+      <h2>The City and Me</h2>
+      <div class="meta">submitted 14:32 · marking in ink · AI drafts in pencil</div>
+      <span class="line">Hangzhou is a city that never stops moving. Every morning I</span>
+      <span class="line">watch the <span class="u-ink">busses</span> crawl across the bridge while the river stays</span>
+      <span class="line">calm underneath. My grandmother says the city <span class="u-ghost">have</span> changed</span>
+      <span class="line">more in ten years than in the hundred before.</span>
+      <span class="gap"></span>
+      <span class="line">When I was young we lived in a small lane house near the</span>
+      <span class="line">market, and <span class="u-tick">the smell of breakfast stalls was my alarm clock</span>.</span>
+      <span class="line">Now the lane is gone. In its place there is a shopping centre</span>
+      <span class="line">with glass walls that reflect the sky but hide the people inside.</span>
+      <span class="gap"></span>
+      <span class="line">I do not think the old city was better. I think it was</span>
+      <span class="line"><span class="u-ghost">more warmer</span>. The new city gives us speed and choice, but it</span>
+      <span class="line">asks us to pay with something we cannot name until it is gone.</span>
+    </div>
+    <div class="margin">
+      <div class="mhead">Margin</div>
+      <div class="stamp" style="top:154px"><span class="stampchip">Sp</span></div>
+      <div class="stamp" style="top:191px"><span class="stampchip ghost">Gra</span><span class="ghost-act"><span class="ga y">✓</span><span class="ga n">✕</span></span></div>
+      <div class="stamp" style="top:369px"><span class="stampchip tick">✓</span></div>
+      <div class="stamp" style="top:645px"><span class="stampchip ghost">AA/Adj</span><span class="ghost-act"><span class="ga y">✓</span><span class="ga n">✕</span></span></div>
+    </div>
+  </div>
+
+  <div class="below">
+    <div class="bcard">
+      <h3>How it works</h3>
+      <p style="margin:0;font-size:12.5px;color:var(--text-2)">Select any text, tap a code in the tray, and the code stamps into the margin on that line in ink. AI suggestions arrive already stamped in pencil (dashed, grey). Tap ✓ to ink one as your own mark or ✕ to rub it out. Pencil never reaches the student.</p>
+      <div class="hint">Hovering a stamp spotlights its span. Students later see category only on hover, never the fix.</div>
+    </div>
+    <div class="bcard">
+      <h3>Strengths and targets</h3>
+      <div class="fb"><strong>Strong closing image</strong><p>The final sentence lands an abstract idea in concrete words.</p></div>
+      <div class="fb t"><strong>Vary sentence openings</strong><p>Try now: rewrite paragraph two with a different opening.</p></div>
+    </div>
+    <div class="bcard">
+      <h3>Rubrics</h3>
+      <div class="rrow"><span>Ideas and development</span><div class="dots"><i>1</i><i>2</i><i class="sel">3</i><i>4</i><i>5</i></div></div>
+      <div class="rrow"><span>Organisation</span><div class="dots"><i>1</i><i>2</i><i>3</i><i class="sel">4</i><i>5</i></div></div>
+      <div class="rrow"><span>Language control</span><div class="dots"><i>1</i><i>2</i><i>3</i><i>4</i><i>5</i></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="tray">
+  <span class="tlabel">Your codes</span>
+  <span class="code">Sp</span><span class="code">Caps</span><span class="code">P</span><span class="code">^</span><span class="code">Exp</span><span class="code active">Gra</span><span class="code">Embed</span><span class="code">AA/Adj</span><span class="code">STR</span><span class="code">FOR</span><span class="code">WO</span><span class="code">WW</span><span class="code">V</span><span class="code">VT</span><span class="code">del</span><span class="code">inc</span><span class="code">RO</span><span class="code">Rep</span><span class="code">✓</span><span class="code">//</span>
+  <span class="sep"></span>
+  <span class="mode">Select text then tap a code · or tap a code then paint spans</span>
+</div>
+</body>
+</html>
