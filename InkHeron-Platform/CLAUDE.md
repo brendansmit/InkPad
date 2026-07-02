@@ -13,14 +13,16 @@ ClassIn / school systems for a teacher in Hangzhou, China, whose students are in
 Two sub-portals under one login, sharing student accounts, one database, one teacher
 dashboard:
 
-- **Writing portal** — Etherpad-based. Students write in the browser; every keystroke is
-  recorded (timeslider). This is the day-one build.
+- **Writing portal** — native InkPad (a custom in-browser editor, not Etherpad). Students
+  write in the browser; drafts, autosaves and submissions are stored as revisions in the
+  database (`native_pad_revisions`), which gives revision replay without Etherpad.
 - **Tests portal** — question bank, MCQ/SRQ/FRQ, exam integrity. Specced as a LATER phase,
   not day-one.
 
 The founding problem: Google Docs / Draftback (revision-history replay) are blocked in
-China. Etherpad is "Draftback on your own server" — open source, self-hosted, with a
-built-in timeslider that scrubs full keystroke history.
+China. The original build used Etherpad ("Draftback on your own server") for its timeslider.
+Etherpad was REMOVED on 2026-07-02 once the native pad proved stable; existing student
+writing was imported into `native_pads` first. Do not reintroduce Etherpad.
 
 ---
 
@@ -34,20 +36,16 @@ built-in timeslider that scrubs full keystroke history.
 - **Reverse proxy / HTTPS:** nginx (same as all other apps on this server). Do NOT install
   or configure Caddy — the server already runs nginx for speed-dating and grammar-arcade, and
   two reverse proxies cannot share ports 80/443. SSL via certbot (already installed, already
-  managing certs for other subdomains). Must pass WebSocket upgrade headers to Etherpad or
-  live editing breaks — use the standard nginx proxy config from SERVER_CONTEXT.md which
-  already includes Upgrade/Connection headers. (This is the classic first-time failure — get
-  it right early.)
-- **Writing surface:** Etherpad (Node.js).
-- **Wrapper app:** Node.js + Fastify. (Same runtime as Etherpad. Do NOT introduce Python in
-  the platform — Python belongs to the separate Writing Analyzer project, not here.)
+  managing certs for other subdomains).
+- **Writing surface:** native InkPad, served by the Fastify wrapper. (Etherpad removed — see §1.)
+- **App:** Node.js + Fastify (single service; no separate writing server any more). Do NOT
+  introduce Python in the platform — Python belongs to the separate Writing Analyzer project.
 - **Database:** SQLite (single file). Correct for this scale; do not reach for Postgres/MySQL.
 - **Domain / registrar:** inkheron.app via Porkbun. DNS-only. NO Cloudflare proxy (orange
   cloud) — its IP ranges are throttled by the Great Firewall. Grey-cloud only if Cloudflare
   DNS is ever used.
-- **Control panel:** Dokploy is the intended long-term panel, but for the 4-day build deploy
-  directly (nginx + Etherpad + wrapper) and add Dokploy later. Do not let Dokploy setup block
-  day one.
+- **Control panel:** Dokploy is the intended long-term panel, but for now deploy directly
+  (nginx + Fastify app) and add Dokploy later. Do not let Dokploy setup block progress.
 - **Notifications:** Server酱 (Server Chan) for WeChat alerts on submission.
 - **AI access:** OpenRouter (pay-per-token).
 
@@ -90,16 +88,30 @@ Use these exact table and field names. SQLite.
 - **classes** — `id`, `name`, `created_at`
 - **assignments** — `id`, `class_id`, `title`, `type` ('essay' | 'test'), `settings_json`
   (the assignment settings object — see §5), `opens_at`, `due_at`, `created_at`
-- **pads** — `id`, `student_id`, `assignment_id`, `etherpad_pad_id`, `state` (see §6),
-  `created_at`. UNIQUE on (`student_id`, `assignment_id`) — one pad per student per assignment.
-- **submissions** — `id`, `pad_id`, `submitted_at`, `is_graded` (bool), `released` (bool)
-- **grades** — `id`, `submission_id`, `score`, `released` (bool), `graded_at`
-- **paste_events** — `id`, `pad_id`, `at`, `length`, `input_type` ('insertFromPaste' etc.)
-- **codes** / **targets** / **strengths** — produced by the Writing Analyzer and attached to a
-  submission for the green-pen view. Stored so the student can see them; NOT generated inside
-  InkHeron. Treat as read-in data with a clean boundary.
+- **native_pads** — `id`, `student_id`, `assignment_id`, `state` (see §6), `document_json`,
+  `plain_text`, `word_count`, `version`, `created_at`, `updated_at`, `submitted_at`.
+  UNIQUE on (`student_id`, `assignment_id`) — one pad per student per assignment.
+- **native_pad_revisions** — `id`, `native_pad_id`, `reason` ('create'|'autosave'|'submit'|'manual'),
+  `document_json`, `plain_text`, `word_count`, `document_version`, `created_at`. The revision
+  trail; this is what replaces the Etherpad timeslider.
+- **native_paste_events** — `id`, `native_pad_id`, `at`, `length`, `input_type`.
+- **native_annotations** — teacher marking on a pad: `type` ('general_comment'|'inline_comment'|
+  'literacy_code'|'highlight'), offsets, `selected_text`, `body`, `resolved`, `document_version`.
+- **assignment_rubric_criteria** / **assignment_rubric_bands** / **native_rubric_scores** —
+  rubric definition and per-pad scores. Criteria carry `rubric_kind` ('internal' | AP estimate).
+- **student_writing_profiles** / **student_literacy_issue_stats** / **student_literacy_evidence** —
+  the long-term student profile, aggregated from `native_annotations` of type `literacy_code`.
 
-Key principle: everything keys off the (student, assignment) pair → its pad → its submission.
+Literacy codes, strengths and targets are now produced INSIDE InkHeron via native annotations
+and the profile tables, not read in from the Writing Analyzer (see §9).
+
+The 8 legacy Etherpad tables (`pads`, `submissions`, `grades`, `submission_codes`,
+`submission_feedback`, `submission_comments`, `paste_events`, `pad_allocations`) still exist in
+the schema but are INERT — retained only to preserve historical data. Do not read from or build
+on them.
+
+Key principle: everything keys off the (student, assignment) pair → its native_pad → its
+revisions, annotations and rubric scores → the student profile.
 
 ---
 
@@ -114,7 +126,7 @@ and NOT a per-student setting. Adding a future toggle = adding a field.
   "submit_behaviour": "draft",        // "exam" = terminal lock on submit;
                                        // "draft" = editable until due_at, then locks
   "spellcheck": true,                  // toggles browser-native spellcheck on the pad
-  "word_count": true,                  // ALWAYS true (ep_countable, always visible) — no UI toggle
+  "word_count": true,                  // ALWAYS true (native pad shows it, always visible) — no UI toggle
   "paste_detection": true,             // day-one, always on for writing
   "green_pen": true,                   // allow reopen-after-marking rewrite round
   // ---- test-phase fields (ignored for essays) ----
@@ -145,15 +157,18 @@ gated by state. Always check the state, never assume a boolean.
 
 ---
 
-## 7. Etherpad plugins
+## 7. Native pad capabilities (formerly Etherpad plugins)
 
-Confirmed: `ep_headings2`, `ep_align`, `ep_comments_page`, `ep_countable`, `ep_stable_authorid`.
-Plus a CUSTOM `ep_` paste-detection plugin (reads `inputType`: `insertFromPaste` vs `insertText`)
-— this is day-one scope and the single biggest time-risk (custom Etherpad plugins are fiddlier
-than app code). Build and test it EARLY, not on day 4.
+The native InkPad provides in the editor itself what Etherpad used plugins for:
+- Headings, alignment and basic formatting toolbar — built into the native editor.
+- Word/char count — always visible, driven by `native_pads.word_count`.
+- Paste detection — the editor reports paste gestures to `POST /api/native/pads/:id/paste-event`,
+  logged in `native_paste_events`. (Use the explicit `paste` DOM event, NOT `inputType`, because
+  Chinese IMEs route composition text through the clipboard and trip `insertFromPaste`.)
+- Teacher comments and highlights — `native_annotations`, not `ep_comments_page`.
+- Revision replay — `native_pad_revisions`, not the Etherpad timeslider.
 
-Formatting toolbar stays available (native Etherpad + ep_headings2 + ep_align). Word/char count
-always visible (ep_countable).
+No Etherpad plugins are installed or supported. Do not add any.
 
 ---
 
@@ -176,11 +191,12 @@ writing build.)
 
 ## 9. Boundary with the Writing Analyzer
 
-The Writing Analyzer is a SEPARATE local Python/Flet desktop app. It produces literacy codes,
-targets and strengths from marked essays. InkHeron does NOT do that analysis. The clean seam:
-Analyzer produces codes/targets/strengths → they attach to a submission → InkHeron's green-pen
-view displays them and reopens the pad. Do not build Analyzer logic inside InkHeron. Do not
-build InkHeron portal logic inside the Analyzer.
+The Writing Analyzer is a SEPARATE local Python/Flet desktop app for the teacher's own offline
+analysis. It is no longer in InkHeron's runtime path. Since the Etherpad removal, literacy codes,
+strengths and targets are captured INSIDE InkHeron: the teacher applies them as `native_annotations`
+during marking, the feedback/green-pen view reads those annotations, and they aggregate into the
+`student_writing_profiles` tables (§4). Do not reintroduce a dependency on the Analyzer importing
+codes into InkHeron, and do not build InkHeron portal logic inside the Analyzer.
 
 ---
 
