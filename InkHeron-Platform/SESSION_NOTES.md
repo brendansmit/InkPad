@@ -30,6 +30,7 @@ Entry format:
 - Review redesign mockups in `mockups/review-redesign/`: direction-a.html (marking desk: essay + right rail, dashed quiet AI-suggestion cards) and direction-b.html (guided flow: stepper Read → Suggestions → Feedback → Rubrics, one suggestion at a time, sticky finish bar). Both self-hosted tokens, category-only hover, no grade estimate anywhere. Screenshot-verified on port 3466 (`inkheron-mockups` launch config).
 - Suite after all commits: 83 tests, 79 pass, same 4 baseline failures.
 - Next: teacher picks a mockup direction; Sonnet does C, D3 and the chosen redesign.
+- Follow-up (e154ebf): added direction-b-flow.html (the guided flow shown as a 5-step storyboard: Read → Suggestions → Feedback → Rubrics → Finish, with the next-student loop as the payoff) and direction-c.html, a left-field "margin" concept: essay as a printed page, teacher codes stamp into a right margin in ink, AI suggestions arrive as dashed pencil ghosts with ✓/✕, full code tray (his real literacy codes) fixed at the bottom. Both screenshot-verified.
 
 ## 2026-07-02 — Submit button shows "Submitted" and greys out
 - Asked: after a student submits, the submit button should display "Submitted" and be greyed out.
