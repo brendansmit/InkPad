@@ -20,7 +20,14 @@ Entry format:
 
 ---
 
-## 2026-07-02 - Internal rubric plus AP exam estimate
+## 2026-07-02 - Native PDF reference rebuilt with PDF.js
+- Asked: PDF reference must be viewable, evenly zoomable, and support real text highlight and underline like the editor pad. Explicitly NOT an overlay layer with draggable coloured shapes (the reverted earlier attempt).
+- Built: Replaced the browser-native PDF iframe in nativeWrite.js with PDF.js canvas rendering plus a selectable transparent text layer per page.
+- Zoom: slider re-renders every page at the new scale (fit-to-width base), crisp, no iframe reload or scroll jump. Saved zoom kept in localStorage.
+- Marks: highlight and underline wrap the selected text-layer range in a styled span (background for highlight, bottom border for underline), aligned to the words. No overlay shapes.
+- Persistence: marks stored as page-relative character offsets (not pixels) in localStorage key nativePdfMarks:<assignmentId>, reapplied after each render so they survive zoom and reload.
+- Verified: node --check on the file and on the extracted browser module both pass; template renders valid HTML with all new elements and zero iframe tags; live pdfjs .mjs assets serve as application/javascript; wrapper active after deploy. Live browser highlight/zoom feel is for Brendan to confirm.
+- Commit: 3a0ddbf
 - Asked: For Lang essays, allow grading on the internal rubric and separately show what the student would score on the AP Lang rubric. Students must see both.
 - Built: Added `rubric_kind` migration so assignment rubrics can be separated into `internal` and `exam` tracks without overwriting each other.
 - Built: Added AP exam rubric creation and scoring endpoints, teacher review panels for internal rubric and AP Lang exam estimate and student feedback display for both rubric tracks.
