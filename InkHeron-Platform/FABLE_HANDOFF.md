@@ -9,10 +9,11 @@ rediscover context. Read CLAUDE.md first (it is the fixed contract), then this.
 - **Native only.** Etherpad is gone. The writing surface is the native pad.
   The 8 legacy tables (pads, submissions, grades, etc.) are INERT. Never read
   or write them.
-- **AI suggestions are hidden until a teacher accepts them.** Literacy findings
-  go to `ai_literacy_suggestions` (status pending), never straight to marks.
-  Grade estimates go to `ai_grade_estimates` and stay hidden from the teacher
-  so they cannot anchor marking. This is a hard product requirement.
+- **SUPERSEDED 2026-07-02 (see CLAUDE.md §8.1):** literacy findings now
+  auto-apply as marks at Checker confidence >= 0.75; contested ones stay
+  pending; the teacher can disagree/retract any mark. Grade estimates still
+  go to `ai_grade_estimates` and stay hidden from the teacher so they cannot
+  anchor marking — that half is unchanged and remains a hard requirement.
 - **Doer + Checker (CLAUDE.md §8).** Heavy extraction uses a capable model
   (Doer, e.g. `anthropic claude haiku` intent). A DIFFERENT, cheaper family
   validates it (Checker, e.g. `google gemini flash` or `deepseek`). The Checker

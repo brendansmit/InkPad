@@ -187,6 +187,25 @@ No Etherpad plugins are installed or supported. Do not add any.
 (These matter for the Tests portal AI extraction and any Analyzer touchpoints, not the day-one
 writing build.)
 
+### 8.1 Literacy AI policy (teacher decision, 2026-07-02 — supersedes "hidden until accepted")
+
+- Literacy codes are FORMATIVE, not grading factors. Students are L2 learners; codes exist to
+  build each student's error dataset and drive practice, never to punish. Grammar/spelling/
+  punctuation only affects a grade when it destroys meaning. Any AI prompt that estimates
+  grades must be told this explicitly.
+- AI literacy findings AUTO-APPLY as real marks when the Doer and Checker agree at
+  confidence >= 0.75 with no flag (`autoPromoteSuggestions` in nativePads.js). Contested
+  findings (low confidence or `code_questioned`) stay pending for the teacher. The teacher can
+  DISAGREE with any mark (pending or auto-applied): `POST .../suggestions/:id/disagree`
+  retracts the annotation and its profile evidence.
+- Completeness over caution: the coder flags EVERY genuine error (40-50 per essay is normal).
+  The dataset across essays is the product — it is what makes "these are YOUR typical errors"
+  possible.
+- The AI GRADE ESTIMATE anchoring rule is unchanged: never shown during marking.
+- Every submit also records a deterministic stylometric fingerprint (`style_metrics` table,
+  src/services/styleMetrics.js). The AI voice narrative may only describe patterns those
+  numbers support.
+
 ---
 
 ## 9. Boundary with the Writing Analyzer

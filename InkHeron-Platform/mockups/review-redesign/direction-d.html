@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review redesign — Direction D: Calm desk (A/C hybrid, real density)</title>
+<style>
+:root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--surface-3:#E8E6DF;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-500:#2E7D52;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--blue-50:#E8F0F7;--blue-700:#1F5076;--amber-50:#FBF0DC;--amber-700:#8A5A12;--coral-50:#FDF1EE;--coral-100:#F9DDD7;--coral-500:#C96A4E;--r-sm:10px;--r-md:14px;--r-lg:20px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,'SF Mono',Menlo,monospace;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10)}
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg)}
+.appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:10px 22px;background:rgba(247,246,242,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.glyph{width:30px;height:30px;border-radius:9px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;transform:rotate(-4deg)}
+.who{font-family:var(--serif);font-size:16px;font-weight:600}
+.crumb{color:var(--text-3);font-size:13px}
+.spacer{flex:1}
+.nextprev{display:flex;gap:4px;align-items:center;color:var(--text-3);font-size:12.5px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border-radius:var(--r-sm);font-weight:800;font-size:13px;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text)}
+.btn.primary{background:var(--green-600);color:#fff;border-color:var(--green-600)}
+.btn.sm{min-height:30px;padding:0 10px;font-size:12px;border-radius:8px}
+.wrap{max-width:1400px;margin:0 auto;padding:16px 22px 60px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+.paper{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-card);padding:38px 44px;min-height:78vh}
+.paper h2{font-family:var(--serif);font-size:21px;margin:0 0 2px}
+.paper .meta{color:var(--text-3);font-size:12px;font-family:var(--mono);margin-bottom:18px}
+.essay{font-family:var(--serif);font-size:17.5px;line-height:1.95;color:var(--ink);white-space:pre-wrap}
+/* Marks are calm: thin underline, category colour, no background wash */
+.mk{padding:0 1px;border-bottom:2px solid;cursor:help;position:relative;text-decoration:none}
+.mk.surface{border-color:var(--amber-700)}
+.mk.grammar{border-color:var(--maroon-500)}
+.mk.format{border-color:var(--blue-700)}
+.mk.contested{border-bottom-style:dotted;border-color:var(--coral-500);background:var(--coral-50)}
+.mk.comment{border-color:var(--green-500);background:var(--green-50)}
+.tip{position:absolute;bottom:125%;left:0;background:var(--ink);color:#fff;font-family:var(--font);font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:5}
+.rail{position:sticky;top:64px;display:grid;gap:10px;max-height:calc(100vh - 80px);overflow:auto;padding-bottom:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card)}
+.card>header{display:flex;align-items:center;gap:8px;padding:11px 13px;border-bottom:1px solid var(--border)}
+.card>header strong{font-size:13px}
+.count{font-size:11px;font-weight:800;background:var(--surface-2);border-radius:999px;padding:2px 8px;color:var(--text-2)}
+.count.warn{background:var(--coral-50);color:var(--coral-500)}
+.body{padding:11px 13px;display:grid;gap:8px}
+/* Auto-marked summary: grouped, calm, no per-item buttons */
+.grp{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg);border:1px solid var(--border);font-size:12.5px}
+.grp .cc{font-family:var(--mono);font-size:11px;font-weight:800;min-width:52px}
+.grp .cc.surface{color:var(--amber-700)}
+.grp .cc.grammar{color:var(--maroon-500)}
+.grp .cc.format{color:var(--blue-700)}
+.grp .lbl{flex:1;color:var(--text-2)}
+.grp .n{font-weight:800}
+.grp .x{color:var(--text-3);font-size:11px;cursor:pointer}
+.autonote{font-size:11px;color:var(--text-3);padding:2px 13px 11px}
+/* Contested pile */
+.cst{border:1px dashed var(--coral-500);border-radius:var(--r-sm);padding:9px 10px;background:var(--coral-50)}
+.cst .q{font-family:var(--serif);font-size:13.5px}
+.cst .why{font-size:11px;color:var(--text-2);margin:3px 0 7px}
+/* AI-suggested strengths/targets need a pick */
+.sug{border:1px dashed var(--border-2);border-radius:var(--r-sm);padding:9px 10px;background:var(--bg)}
+.sug strong{font-size:12.5px;display:block}
+.sug p{margin:3px 0 7px;color:var(--text-2);font-size:12px}
+.fb{border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 10px;background:var(--surface)}
+.fb.s{border-left:4px solid var(--green-500)}
+.fb.t{border-left:4px solid var(--blue-700)}
+.fb strong{font-size:12.5px;display:block}
+.fb p{margin:3px 0 0;color:var(--text-2);font-size:12px}
+/* Rubric with half points */
+.rtabs{display:flex;gap:4px;padding:9px 13px 0}
+.rtab{border:none;background:var(--surface-2);font:inherit;font-size:11.5px;font-weight:800;color:var(--text-3);padding:5px 10px;border-radius:8px;cursor:pointer}
+.rtab.on{background:var(--ink);color:#fff}
+.crit{padding:7px 0;border-bottom:1px solid var(--border)}
+.crit:last-child{border:none}
+.crit .nm{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
+.crit .nm b{font-variant-numeric:tabular-nums}
+.scale{display:flex;gap:2px}
+.pt{flex:1;min-height:26px;border:1px solid var(--border-2);background:var(--bg);border-radius:6px;font-size:10.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-2)}
+.pt.half{flex:.55;background:repeating-linear-gradient(45deg,var(--bg),var(--bg) 3px,var(--surface-3) 3px,var(--surface-3) 5px)}
+.pt.sel{background:var(--green-600);border-color:var(--green-600);color:#fff}
+.desc{font-size:11px;color:var(--text-3);margin-top:4px}
+.desc a{color:var(--blue-700);font-weight:700;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="glyph">i</div>
+  <span class="who">Chen Yuxi</span>
+  <span class="crumb">Why Statistics · 618 words · v9 · 1 paste event</span>
+  <span class="spacer"></span>
+  <span class="nextprev">7 of 50 marked</span>
+  <button class="btn">← Prev</button>
+  <button class="btn">Next →</button>
+  <button class="btn primary">Finish marking</button>
+</div>
+
+<div class="wrap">
+  <div class="paper">
+    <h2>Why Statistics</h2>
+    <div class="meta">AI placed 41 marks automatically · 3 need your decision · hover any mark for its category</div>
+    <div class="essay">If I had to describe myself in one word, <span class="mk grammar">I'll choose</span> a collector. My bedroom is usually messy and my things are scattered everywhere. <span class="mk grammar">That my normal life.</span> The only spot that is well-organized in my room is the <span class="mk surface">collect</span> cabinet. Inside it, I put full sets of collection cards, magazines and albums. <span class="mk surface">collectiing<span class="tip">Spelling</span></span> has trained me to sort and <span class="mk surface">category</span> items systematically. This process is <span class="mk grammar">closely</span> to how statisticians classify and <span class="mk surface">analysis</span> dataset. I have always excelled at math, but I didn't know how to use it until I learned statistics. It applies numbers to <span class="mk surface">alot</span> of <span class="mk grammar">area</span> like data and art market study. The <span class="mk contested">similarity thinking way</span> between my hobby and statistics <span class="mk surface">inpired</span> me to pick statistics as my major.
+
+<span class="mk surface">i'm</span> sensitive about numbers. Since I was in <span class="mk grammar">the elementary school</span>, math has always been my best subject. However, I never <span class="mk grammar">think</span> about choosing it as my major because I don't know <span class="mk grammar">how pure mathmatics student can do on the society</span>, maybe just <span class="mk surface">mathmatician</span> or teacher. Things <span class="mk grammar">became to change</span> when I <span class="mk grammar">meet</span> Statistics<span class="mk format">, this</span> subject is also related to numbers and <span class="mk grammar">connect</span> to many jobs across <span class="mk surface">differnt</span> sectors of society. <span class="mk comment">Statistics is similar ro collecting. As we gather datas and analysis them.</span> If my future work is connected to my hobby, I <span class="mk grammar">believed</span> I will stay more energetic at work.</div>
+  </div>
+
+  <div class="rail">
+    <div class="card">
+      <header><strong>Auto-marked</strong><span class="count">41 marks</span><span class="spacer" style="flex:1"></span><button class="btn sm">Show in text</button></header>
+      <div class="body">
+        <div class="grp"><span class="cc surface">Sp</span><span class="lbl">Spelling</span><span class="n">11</span><span class="x">review</span></div>
+        <div class="grp"><span class="cc grammar">Gra</span><span class="lbl">Grammar</span><span class="n">9</span><span class="x">review</span></div>
+        <div class="grp"><span class="cc grammar">VT</span><span class="lbl">Verb tense</span><span class="n">6</span><span class="x">review</span></div>
+        <div class="grp"><span class="cc surface">WW</span><span class="lbl">Wrong word</span><span class="n">5</span><span class="x">review</span></div>
+        <div class="grp"><span class="cc format">P</span><span class="lbl">Punctuation</span><span class="n">4</span><span class="x">review</span></div>
+        <div class="grp"><span class="cc grammar">RO</span><span class="lbl">Run-on</span><span class="n">3</span><span class="x">review</span></div>
+        <div class="grp"><span class="cc surface">Caps</span><span class="lbl">Capital letter</span><span class="n">3</span><span class="x">review</span></div>
+      </div>
+      <div class="autonote">Both models agreed on these at 75%+ confidence, so they are already live marks. Click a group to walk its spans in the text; disagree on any one to retract it.</div>
+    </div>
+
+    <div class="card">
+      <header><strong>Needs you</strong><span class="count warn">3</span></header>
+      <div class="body">
+        <div class="cst">
+          <div class="q">"similarity thinking way" <span class="count">STR</span></div>
+          <div class="why">Checker unsure (0.58): possibly WW instead</div>
+          <button class="btn sm">✓ Keep STR</button> <button class="btn sm">Change code</button> <button class="btn sm">✕ Not an error</button>
+        </div>
+        <div class="autonote" style="padding:0">+ 2 more after this one</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <header><strong>Strengths and targets</strong><span class="count">AI suggests 5</span></header>
+      <div class="body">
+        <div class="sug"><strong>Target · Link claims to evidence</strong><p>The rubric asks for supported claims. Three paragraphs state opinions without an example.</p><button class="btn sm">✓ Use</button> <button class="btn sm">Edit</button> <button class="btn sm">✕</button></div>
+        <div class="sug"><strong>Strength · Clear personal motivation</strong><p>The collector story gives the essay a genuine voice and a clear line to the major.</p><button class="btn sm">✓ Use</button> <button class="btn sm">Edit</button> <button class="btn sm">✕</button></div>
+        <div class="fb t"><strong>Fix run-on sentences</strong><p>Added by you · Try now: split the two run-ons in paragraph two.</p></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="rtabs"><button class="rtab on">My rubric</button><button class="rtab">AP Lang</button></div>
+      <div class="body">
+        <div class="crit">
+          <div class="nm"><span>Ideas and development</span><b>3.5 / 5</b></div>
+          <div class="scale"><span class="pt">1</span><span class="pt half"></span><span class="pt">2</span><span class="pt half"></span><span class="pt">3</span><span class="pt half sel"></span><span class="pt">4</span><span class="pt half"></span><span class="pt">5</span></div>
+          <div class="desc">Band 3-4: ideas are relevant and mostly developed... <a href="#">full band text</a></div>
+        </div>
+        <div class="crit">
+          <div class="nm"><span>Organisation</span><b>4 / 5</b></div>
+          <div class="scale"><span class="pt">1</span><span class="pt half"></span><span class="pt">2</span><span class="pt half"></span><span class="pt">3</span><span class="pt half"></span><span class="pt sel">4</span><span class="pt half"></span><span class="pt">5</span></div>
+        </div>
+        <div class="crit">
+          <div class="nm"><span>Language control</span><b>—</b></div>
+          <div class="scale"><span class="pt">1</span><span class="pt half"></span><span class="pt">2</span><span class="pt half"></span><span class="pt">3</span><span class="pt half"></span><span class="pt">4</span><span class="pt half"></span><span class="pt">5</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,8 +1,12 @@
-# SONNET_HANDOFF.md — phases C and D3 (follow the Phase B/D2 template exactly)
+# SONNET_HANDOFF.md — phases C, D3 and small backend seams
 
-You are Sonnet. Fable has already built phases B (literacy coder) and D2
-(implementation scorer) on branch `analysis-ai`. Your job is phases C and D3.
-They are formulaic: the pattern is fully established. Copy it, do not invent.
+You are Sonnet. Fable has built phases B (literacy coder with auto-accept),
+D2 (implementation scorer) and the stylometric voice layer
+(src/services/styleMetrics.js) on branch `analysis-ai`. Your job is phases C
+and D3 plus three small backend items. The pattern is fully established.
+Copy it, do not invent. Read CLAUDE.md §8.1 first: literacy codes are
+formative for L2 learners, NOT grading factors; confident findings auto-apply
+as marks; the AI grade estimate stays hidden during marking.
 
 Read first: `CLAUDE.md` (fixed contract), `FABLE_HANDOFF.md` (phase specs),
 then the two finished reference implementations:
@@ -48,8 +52,15 @@ then the two finished reference implementations:
 
 Reads for the student: `student_literacy_issue_stats` (code frequencies),
 `student_literacy_evidence` (example quotes), `native_feedback_items` where
-kind='target' across their pads, `score_snapshots` (score trajectory).
-If there is no evidence at all, return `{ status: 'skipped' }` without a call.
+kind='target' across their pads, `score_snapshots` (score trajectory), AND
+`aggregateStyleProfile(db, { studentId })` from styleMetrics.js (per-feature
+mean, spread, trend). If there is no evidence at all, return
+`{ status: 'skipped' }` without a call.
+
+The voice_summary MUST be grounded in the stylometric numbers: include the
+aggregate features in the Doer prompt and instruct it to describe only
+patterns the numbers show (e.g. long flowing sentences with heavy
+coordination, I-heavy personal register, few transitions). No vibes.
 
 One Doer call with all evidence in the user message. Ask for JSON:
 `{"writing_summary": "...", "voice_summary": "...", "targets": [{"title": "...", "explanation": "..."}]}`
@@ -107,6 +118,67 @@ CLAUDE.md and FABLE_HANDOFF).
 
 Deterministic guard even without the Checker: reject any score that is not a
 finite number inside the criterion's min/max band score.
+
+D3 prompt requirement (CLAUDE.md §8.1): tell the model explicitly that
+grammar, spelling and punctuation are NOT grading factors for these L2
+learners — they only lower a criterion score when errors destroy meaning.
+Score ideas, organisation and task fulfilment as the rubric bands describe.
+
+## New seam — strengths/targets suggester
+
+`src/services/feedbackSuggester.js`, `suggestFeedbackItems(db, { padId })`.
+Triangulate: the assignment prompt/instructions (check where the assignment
+stores its prompt — settings_json or the passage/prompt fields used by the
+write view), the essay `plain_text`, the rubric criteria + band descriptors,
+and the student's recurring issues (`student_literacy_issue_stats`). One Doer
+call returns ONLY JSON:
+`{"strengths":[{"title","explanation"}],"targets":[{"title","explanation","try_now_prompt"}]}`
+with 2 to 3 strengths and 3 to 5 targets, each tied to what the rubric
+expected versus what the essay did. Checker (gemini flash) verifies each item
+is supported by the essay; drop unsupported items at confidence >= 0.8.
+Student-facing copy rules apply (B1-C1, no em/en dashes, no Oxford commas).
+
+Storage: migration 026 creates `ai_feedback_item_suggestions`
+(id, native_pad_id, kind CHECK strength/target, title, explanation,
+try_now_prompt, model, checker_json, status pending/accepted/rejected,
+feedback_item_id nullable FK, created_at, resolved_at). These do NOT
+auto-apply — the teacher picks. Endpoints (teacher, CSRF):
+- `GET /api/native/pads/:padId/feedback-suggestions?status=pending`
+- `POST .../feedback-suggestions/:id/accept` → inserts a real
+  native_feedback_items row (source 'ai'), links it, marks accepted
+- `POST .../feedback-suggestions/:id/reject`
+Wire `suggestFeedbackItems` into the submit background chain in
+nativePads.js next to the other runInBackground calls.
+
+## New endpoint — student target tick-off
+
+Migration 025 added `student_checked` and `student_checked_at` to
+`native_feedback_items`. Add
+`POST /api/native/pads/:padId/feedback-items/:itemId/toggle-check`
+(student session, own pad only, only when the pad state allows green pen
+work) flipping student_checked and stamping the time. Include
+student_checked in the payloads the student feedback view and teacher
+review endpoint already return. Tests for auth (another student gets 404),
+toggle both ways, and appearance in both payloads.
+
+## New settings fields — essay type and supervision (no migration needed)
+
+`assignments.settings_json` gains two optional fields, both set in the
+assignment create/edit UI (add the two selects to the existing form):
+- `essay_type`: 'narrative' | 'argumentative' | 'personal' | 'analysis' |
+  'short_response' | 'rhetorical_analysis' | 'synthesis' | 'other'
+- `supervision`: 'in_class' (teacher watched the whole write) | 'mixed'
+  (started in class, finished at home) | 'homework' (unverified)
+Defaults when absent: essay_type 'other', supervision 'in_class'. Expose
+both in the review payload and the writing-profile endpoint (see
+OPUS_HANDOFF). They contextualise every profile number: anomaly detection
+and per-genre AP profiles depend on them.
+
+## Normalization rule (applies to phases C and the profile endpoint)
+
+Never present raw error counts across essays without the per-100-words rate
+(evidence count / pad word_count * 100). Essays range from 200 to 700+
+words; raw counts mislead. Phase C prompts must receive rates, not counts.
 
 ## Definition of done
 
