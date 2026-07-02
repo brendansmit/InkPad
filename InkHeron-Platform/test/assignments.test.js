@@ -102,6 +102,39 @@ test('teacher can create an assignment with settings_json', async () => {
   await app.close();
 });
 
+test('essay_type and supervision default when absent and are validated when given', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+
+  const noSettings = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'No settings given' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const defaults = JSON.parse(noSettings.json().assignment.settings_json);
+  assert.equal(defaults.essay_type, 'other');
+  assert.equal(defaults.supervision, 'in_class');
+
+  const valid = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Argumentative essay',
+      settings: { essay_type: 'argumentative', supervision: 'mixed' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const chosen = JSON.parse(valid.json().assignment.settings_json);
+  assert.equal(chosen.essay_type, 'argumentative');
+  assert.equal(chosen.supervision, 'mixed');
+
+  const invalid = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Bad values',
+      settings: { essay_type: 'not_a_real_type', supervision: 'unsupervised' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const fallback = JSON.parse(invalid.json().assignment.settings_json);
+  assert.equal(fallback.essay_type, 'other');
+  assert.equal(fallback.supervision, 'in_class');
+
+  await app.close();
+});
+
 test('word_count and paste_detection are always true regardless of input', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);

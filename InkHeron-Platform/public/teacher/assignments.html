@@ -271,6 +271,29 @@
           <p class="hint">Controls paste from outside the InkPad screen. Copying within the writing screen can still be pasted.</p>
         </div>
         <div class="field">
+          <label for="eEssayType">Essay type</label>
+          <select id="eEssayType">
+            <option value="narrative">Narrative</option>
+            <option value="argumentative">Argumentative</option>
+            <option value="personal">Personal</option>
+            <option value="analysis">Analysis</option>
+            <option value="short_response">Short response</option>
+            <option value="rhetorical_analysis">Rhetorical analysis</option>
+            <option value="synthesis">Synthesis</option>
+            <option value="other">Other</option>
+          </select>
+          <p class="hint">Groups this essay's profile numbers by genre.</p>
+        </div>
+        <div class="field">
+          <label for="eSupervision">Supervision</label>
+          <select id="eSupervision">
+            <option value="in_class">In class (teacher watched the whole write)</option>
+            <option value="mixed">Mixed (started in class, finished at home)</option>
+            <option value="homework">Homework (unverified)</option>
+          </select>
+          <p class="hint">Context for anomaly detection: unsupervised writing is more likely to have outside help.</p>
+        </div>
+        <div class="field">
           <label for="eFeedbackTable1">Strengths and targets 1</label>
           <select id="eFeedbackTable1">
             <option value="">None</option>
@@ -708,6 +731,8 @@
       document.getElementById('eSbDraft').checked=(s.submit_behaviour||'draft')==='draft';
       document.getElementById('eSbExam').checked=s.submit_behaviour==='exam';
       document.getElementById('ePasteMode').value=s.paste_mode||'log';
+      document.getElementById('eEssayType').value=s.essay_type||'other';
+      document.getElementById('eSupervision').value=s.supervision||'in_class';
       const fbTables=Array.isArray(s.feedback_tables)?s.feedback_tables:(s.feedback_table?[s.feedback_table]:[]);
       document.getElementById('eFeedbackTable1').value=fbTables[0]||'';
       document.getElementById('eFeedbackTable2').value=fbTables[1]||'';
@@ -753,6 +778,8 @@
       const passagePdfFile=document.getElementById('ePassagePdf').files[0];
       const submit_behaviour=document.querySelector('input[name="eSb"]:checked').value;
       const paste_mode=document.getElementById('ePasteMode').value;
+      const essay_type=document.getElementById('eEssayType').value;
+      const supervision=document.getElementById('eSupervision').value;
       const feedbackTable1=document.getElementById('eFeedbackTable1').value;
       const feedbackTable2=document.getElementById('eFeedbackTable2').value;
       const rubric1=document.getElementById('eRubricTemplate1').value;
@@ -762,7 +789,7 @@
       const feedback_tables=[feedbackTable1,feedbackTable2].filter(Boolean);
       const rubric_assets=[rubric1,rubric2];
       const rubric_names=[rubricNameFor(rubric1),rubricNameFor(rubric2)];
-      const settings={submit_behaviour,paste_mode,feedback_tables,rubric_assets,rubric_names,spellcheck,green_pen,native_inkpad:true};
+      const settings={submit_behaviour,paste_mode,essay_type,supervision,feedback_tables,rubric_assets,rubric_names,spellcheck,green_pen,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 

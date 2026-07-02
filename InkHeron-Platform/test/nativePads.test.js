@@ -385,6 +385,8 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(profileAfterCode.json().profile.literacy_issues[0].code, 'EV');
   assert.equal(profileAfterCode.json().profile.literacy_issues[0].open_count, 1);
   assert.equal(profileAfterCode.json().profile.recent_evidence[0].selected_text, 'Sentence two');
+  assert.equal(profileAfterCode.json().profile.recent_evidence[0].essay_type, 'other');
+  assert.equal(profileAfterCode.json().profile.recent_evidence[0].supervision, 'in_class');
 
   const resolvedCode = await app.inject({
     method: 'PATCH',
@@ -422,6 +424,8 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.ok(review.json().feedback_options.targets.some(target => target.id === 'develop_explanation'));
   assert.equal(review.json().student_profile.literacy_issues[0].resolved_count, 1);
   assert.equal(review.json().student_profile.literacy_issues[0].open_count, 0);
+  assert.equal(review.json().assignment.essay_type, 'other');
+  assert.equal(review.json().assignment.supervision, 'in_class');
 
   await app.close();
 });

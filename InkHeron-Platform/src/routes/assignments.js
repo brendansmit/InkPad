@@ -6,6 +6,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
 const PASSAGES_DIR = path.join(__routesDir, '..', '..', 'data', 'passages');
 const PASTE_MODES = new Set(['allow', 'log', 'block']);
+const ESSAY_TYPES = new Set([
+  'narrative', 'argumentative', 'personal', 'analysis',
+  'short_response', 'rhetorical_analysis', 'synthesis', 'other',
+]);
+const SUPERVISION_LEVELS = new Set(['in_class', 'mixed', 'homework']);
 
 function requirePositiveInteger(value, field) {
   const n = Number(value);
@@ -61,6 +66,8 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     paste_mode: PASTE_MODES.has(settings.paste_mode) ? settings.paste_mode : 'log',
     green_pen: settings.green_pen === true,
     native_inkpad: true,
+    essay_type: ESSAY_TYPES.has(settings.essay_type) ? settings.essay_type : 'other',
+    supervision: SUPERVISION_LEVELS.has(settings.supervision) ? settings.supervision : 'in_class',
   };
   if (type === 'test') {
     base.shuffle = settings.shuffle !== false;

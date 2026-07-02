@@ -345,24 +345,32 @@ function loadStudentWritingProfile(db, studentId) {
     updated_at: issue.updated_at,
   }));
   const evidence = db.prepare(`
-    SELECT assignment_id, native_pad_id, annotation_id, code, category, label, selected_text, teacher_note, document_version, resolved, created_at
-    FROM student_literacy_evidence
-    WHERE student_id = ?
-    ORDER BY created_at DESC, id DESC
+    SELECT sle.assignment_id, sle.native_pad_id, sle.annotation_id, sle.code, sle.category, sle.label,
+           sle.selected_text, sle.teacher_note, sle.document_version, sle.resolved, sle.created_at,
+           a.settings_json AS assignment_settings_json
+    FROM student_literacy_evidence sle
+    JOIN assignments a ON a.id = sle.assignment_id
+    WHERE sle.student_id = ?
+    ORDER BY sle.created_at DESC, sle.id DESC
     LIMIT 30
-  `).all(studentId).map((row) => ({
-    assignment_id: row.assignment_id,
-    native_pad_id: row.native_pad_id,
-    annotation_id: row.annotation_id,
-    code: row.code,
-    category: row.category,
-    label: row.label,
-    selected_text: row.selected_text,
-    teacher_note: row.teacher_note,
-    document_version: Number(row.document_version ?? 1),
-    resolved: row.resolved === 1,
-    created_at: row.created_at,
-  }));
+  `).all(studentId).map((row) => {
+    const assignmentSettings = parseSettings(row.assignment_settings_json);
+    return {
+      assignment_id: row.assignment_id,
+      native_pad_id: row.native_pad_id,
+      annotation_id: row.annotation_id,
+      code: row.code,
+      category: row.category,
+      label: row.label,
+      selected_text: row.selected_text,
+      teacher_note: row.teacher_note,
+      document_version: Number(row.document_version ?? 1),
+      resolved: row.resolved === 1,
+      created_at: row.created_at,
+      essay_type: assignmentSettings.essay_type ?? 'other',
+      supervision: assignmentSettings.supervision ?? 'in_class',
+    };
+  });
   return { ...profile, literacy_issues: issues, recent_evidence: evidence };
 }
 
@@ -1584,6 +1592,8 @@ export async function registerNativePadRoutes(app, { db }) {
           title: pad.assignment_title,
           type: pad.assignment_type,
           due_at: pad.due_at ?? null,
+          essay_type: settings.essay_type ?? 'other',
+          supervision: settings.supervision ?? 'in_class',
         },
         class: { id: pad.class_id, name: pad.class_name, is_ap_lang: isApLang },
         student: { id: pad.student_id, display_name: pad.student_name, username: pad.student_username },
