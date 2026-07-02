@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Fix line-number alignment
+- Asked: line numbers on the left did not line up with lines that have text.
+- Cause: gutter was a fixed 31.5px-spaced text column counting only newline lines, so wrapped lines and the 1em paragraph bottom margin drifted the numbers off the text.
+- Built: updateLineNumbers now measures each visual line via a Range over the editor content (getClientRects, deduped by top) and absolutely positions a number at each line top, dividing out the current editor zoom.
+- Verified: node --check passes, wrapper active after deploy. Live look for Brendan.
+
 ## 2026-07-02 - A4 paper, tighter padding, page-break line
 - Asked: reduce editor side padding, make the pad a true A4 ratio, add a faint dotted horizontal line at each A4 page break.
 - Built: editor stage padding cut 32px to 12px. Editor column set to exactly --page-width (794) so the paper is a true A4 794x1123 border-box (was 768 wide due to the line-number column eating width). Added a faint dotted page-break line every page-width*1.414 via two layered CSS backgrounds (thin line + white dash mask), behind text, scales with zoom.
