@@ -1075,3 +1075,101 @@ Color picker code ran BEFORE `setInterval(syncWordCount, 500)` and `iframe.addEv
 - Decisions: ep_align was causing a total Etherpad crash (all pads broken). Alignment persistence sacrificed temporarily; acceptable. ep_colors' changeset mechanism used for color so it persists properly.
 - Open / next: Try a compatible ep_align version for persistent alignment. Phase 8.6 — Strengths + Targets upload + AI marking suggestions.
 - Gotchas hit: ep_align was a symlink to .versions/ep_align@11.0.40 — needed to remove both symlink and .versions folder. The `grep` returning empty on ep_align caused exit code 1 but was actually success. The changeset null error in logs is a different pre-existing Etherpad bug, not ep_align.
+
+
+## 2026-06-30 — Fix word count (MutationObserver from parent frame)
+
+- Built: Replaced injected `<script>` approach with MutationObserver set up in parent frame observing `innerdocbody` directly via same-origin cross-frame DOM. The injected script was being blocked by aceInner's CSP (which allows `<style>` but not `<script>` injection). Joins `.ace-line` divs with space before counting so adjacent lines don't merge. Fallback poll reduced 2000ms → 500ms. Commit: 38ca4c4
+
+## 2026-06-30 — Fix Etherpad rate limiting disconnecting students
+
+- Built: Two changes to `/opt/etherpad-lite/settings.json` (not in repo):
+  - `trustProxy: false → true` — Etherpad was ignoring nginx's `X-Real-IP` header, treating all students as the same IP
+  - `commitRateLimiting.points: 10 → 100` — with all students sharing one IP bucket, 10 changes/sec was blown through instantly by simultaneous Chinese IME typing, causing mass disconnects every ~30s
+- Root cause: Alex's specific 30s reconnect loop was everyone's problem; teacher only noticed Alex as the demo student. All students were hitting the shared rate limit.
+- Gotcha: `settings.json` is NOT in the InkHeron repo — changes made directly on server. Backup at `settings.json.bak`.
+- Commit: none (server-only config file)
+
+## 2026-06-30 — Fix timeslider back nav + false paste events
+
+- Built:
+  - **Timeslider opens in new tab**: Changed `window.location.href` to `window.open(..., '_blank')` in review.html. Root cause: Etherpad timeslider uses `history.pushState` while scrubbing; those iframe navigations stack in the parent history, so `history.back()` stepped through timeslider positions instead of returning to review.
+  - **Paste plugin rewritten**: Switched from `beforeinput`/`input` + `inputType === 'insertFromPaste'` to the `paste` DOM event. Chinese IMEs (Sogou etc.) route composition text through the clipboard internally — browsers label this `insertFromPaste`, causing false positives. The `paste` event only fires for explicit user paste gestures (Ctrl+V, right-click > Paste), not IME input. Plugin deployed to `/opt/etherpad-lite/local_plugins/ep_inkheron_paste/static/js/index.js` and Etherpad restarted.
+- Commit: cce62c2
+
+## 2026-06-30 — Teacher preview-pad route for self-testing
+
+- Built:
+  - **`GET /teacher/preview-pad/:padId`** — teacher-only route that renders the full student write view using a teacher Etherpad author session. Sets the EP session cookie, opens the pad in the write shell, disables paste blocking (teacher shouldn't log their own keystrokes). `pasteBlock: false` prevents the student-facing paste event listener from firing.
+  - **"Preview pad" button** in `teacher/review.html` sidebar — opens the route in a new tab. Teacher can now test word count, line numbers, toolbar, and all write-view UI without needing a student account active.
+- Decision: Teacher edits in preview mode are attributed to the teacher EP author, not the student. Fine for debugging; teacher should not heavily edit student work via preview.
+- Commit: be94695
+
+## 2026-06-30 — Etherpad pad already exists error; session persistence; literacy analysis fix
+
+- Built:
+  - **Etherpad "already exists" fix**: `createGroupPad` now catches the "already exist" error and returns the existing pad id instead of throwing. Triggered when an assignment was deleted from InkHeron DB but the pad remained in Etherpad. Confirmed fixed by user.
+  - **Session persistence**: replaced in-memory session store with SQLite-backed store using existing `db`. Sessions survive restarts, last 30 days. Migration 009_sessions.sql added.
+  - **Literacy analysis method name fix**: `service.getText()` doesn't exist on `EtherpadService` — corrected to `service.getPadText()` in both the submit background handler and the new `/analyse` endpoint.
+- Commits: 258d417 (sessions), d1b4f60 (method fix), 0a87b9c (pad exists)
+
+## 2026-06-30 — Assignment card actions + manual literacy analysis trigger
+
+- Built:
+  - **Assignment list cards** now show Archive/Unarchive and Delete buttons alongside Students/Edit, so the teacher can act on a whole assignment from the list without opening the detail view. Archive toggles `is_archived` via the existing endpoint; Delete calls `DELETE /api/assignments/:id`. Both buttons call `fetchAssignments()` then `renderList()` to refresh in-place.
+  - **Manual literacy analysis**: Added "Run analysis" button to the Codes section in `teacher/review.html`. Calls new `POST /api/submissions/:id/analyse` endpoint which reads the Etherpad pad text via `service.getText()`, runs `analyseSubmission()`, and returns the fresh codes. Page reloads after 1 s on success.
+  - **New endpoint**: `POST /api/submissions/:submissionId/analyse` in `src/routes/pads.js` — teacher-auth + CSRF-protected. Needed for submissions that predated the auto-coding feature deployed on Jun 30.
+- Decisions: Analysis endpoint deletes existing codes and replaces them (handled inside `analyseSubmission` which calls `DELETE FROM submission_codes WHERE submission_id = ?` before inserting). Re-running is safe.
+- Commit: 9b118d3
+
+## 2026-06-29 — Add persistent font size; fix undo/redo icons
+
+- Built: Installed ep_font_size@0.3.19 (no ep_plugin_helpers dep). Added font size selector (10/12/14/16/18/24/40pt) to padchrome; routes through ep_font_size's hidden `#font-size select.size-selection` and dispatches `change` so size persists in changesets. Hides ep_font_size native toolbar element via CSS. Fixed undo/redo icons to Unicode ↶↷.
+
+- Built: Replaced broken SVG path arrows on undo/redo with Unicode ↶↷ (&#8630;/&#8631;). Removed font-size `<select>` — `execCommand('fontSize')` gets overwritten by Etherpad's changeset processor within ~1 second because no `ep_font_size` plugin is installed. Font size needs `ep_font_size` plugin to persist; noted for future phase.
+- Open / next: If persistent font size is needed, install ep_font_size compatible with EP 3.3.2.
+
+## 2026-06-29 — Fix timeslider (third attempt): #rev/latest hash on pad URL
+
+- Built: Switched timeslider redirect from `/timeslider?embed=1` to `/p/PADID#rev/latest`. The `?embed=1` timeslider is designed to run INSIDE the pad page's own iframe and fails standalone (controls flash then vanish because it can't reach parent socket.io). EP 3.3.2 `padMode.bootstrapFromHash()` reads the `#rev/latest` hash and auto-enters in-pad history mode on load. This is the correct standalone approach.
+
+## 2026-06-29 — Fix timeslider redirect + author color (purple) suppression
+
+- Phase/Step worked: Phase 8 — bug fixes post-toolbar merge
+- Built:
+  - **Timeslider fix**: EP 3.3.2 changed `/p/PADID/timeslider` to ALWAYS redirect back to the pad unless `?embed=1` is present (for iframe-embedded use). Direct visits are expected to use the in-pad history mode. Fixed by appending `?embed=1` to the redirect in `/api/pads/:padId/timeslider`. Confirmed 200 OK with curl after fix.
+  - **Author color fix**: Etherpad injects `.authorColors .author-XXX { background-color: purple }` (2-class specificity) which beat the old `span[class^="author-"]` selector. Replaced with `#innerdocbody span { background: none !important }` (id + element = higher specificity than any class-only rule).
+- Decisions: `?embed=1` is the EP 3.3.2 contract for standalone timeslider rendering in an iframe. Do not change this unless EP is upgraded.
+- Open / next: Verify author colors are gone in live pad. Phase 8.6.
+
+## 2026-06-29 — Single-row toolbar + paste field name fix
+
+- Phase/Step worked: Phase 8 write view — toolbar consolidation, paste blocking repair
+- Built:
+  - Merged all formatting into one padchrome row: added B/I/U/S, OL/UL/indent/outdent, undo/redo buttons alongside existing alignment/color/font-size controls. All in padchrome; Etherpad's `#editbar` hidden via `#editbar{display:none!important}` CSS injection in `applyPadUiCleanup`.
+  - B/I/U/S, list, indent/outdent, undo/redo wired via `clickEditbarBtn(key)` which finds `[data-key="..."]` in `padDoc` and clicks it — goes through Etherpad's changeset system.
+  - Fixed paste blocking field name mismatch: route was reading `settings.paste_block` (never set); assignments store `settings.paste_detection`. Changed to `settings.paste_detection !== false`.
+- Decisions: Route all text-format buttons through Etherpad's hidden editbar buttons (not execCommand) so formatting persists in changesets properly.
+- Open / next: Verify alignment + paste blocking + B/I/U/S in live pad. Phase 8.6 — Strengths + Targets.
+- Gotchas hit: rsync of individual files to a directory destination flattens paths — must rsync to explicit remote file path (`remote:/path/to/file.js`), not just the directory.
+
+## 2026-06-29 — Fix ep_colors crash; ep_align 0.3.121 installed, alignment persistent
+- Phase/Step worked: Phase 8 write view — plugin crash fixes
+- Built:
+  - Identified the real crash source: **ep_colors@0.0.3** not ep_align. Crash was `TypeError: U2 is not a function` in padbootstrap where `U2` = underscore `_`. ep_colors called `_(doInsertColors).bind(context)` but in EP 3.3.2 underscore is an ES module export (Object), not a callable wrapper. Patched line 89 on the server: `_(doInsertColors).bind(context)` → `doInsertColors.bind(context)`.
+  - ep_align@11.0.40 was also crashing for the same reason (ep_plugin_helpers dependency may have introduced similar patterns). Replaced with ep_align@0.3.121 which has no such issues.
+  - Etherpad now loads 3 plugins cleanly: ep_colors@0.0.3, ep_align@0.3.121, ep_plugin_helpers@0.6.7. No client TypeErrors observed.
+  - **Patch location**: `/opt/etherpad-lite/src/plugin_packages/.versions/ep_colors@0.0.3/static/js/index.js` line 89. Note: this patch is NOT in version control — if ep_colors is reinstalled it will revert. The fix is: remove `_(fn)` wrapper, use `fn.bind(context)` directly.
+- Decisions: Direct server-side patch rather than forking ep_colors. If ep_colors is ever reinstalled, re-apply patch.
+- Open / next: Verify alignment (L/C/R) and color swatches work in pad. Phase 8.6.
+
+## 2026-06-29 — ep_align 0.3.121 installed, alignment now persistent
+- Phase/Step worked: Phase 8 write view — alignment persistence fix
+- Built:
+  - Diagnosed why ep_align@11.0.40 crashed Etherpad 3.3.2: `postToolbarInit` hook uses `editbar.registerCommand()` which exists, but the combination with `ep_plugin_helpers` and some internal interaction triggered `TypeError: U2 is not a function` in padbootstrap.min.js.
+  - Installed ep_align@0.3.121 (no `ep_plugin_helpers` dep, uses `padInitToolbar` + `eejsBlock_editbarMenuLeft`). Loads cleanly, no crash.
+  - Updated write.js: padchrome L/C/R buttons now click ep_align's (hidden) `.ep_align_left/.ep_align_center/.ep_align_right` buttons programmatically. This routes through ep_align's changeset system so alignment PERSISTS across reloads.
+  - Fallback to execCommand if ep_align buttons aren't injected yet.
+  - ep_align's toolbar buttons hidden via CSS; padchrome is the only visible alignment UI.
+- Decisions: Route through ep_align's DOM buttons rather than execCommand; same result for user, but changeset-based persistence.
+- Open / next: Verify alignment works (student opens pad, selects text, clicks L/C/R). Phase 8.6 — Strengths + Targets.
