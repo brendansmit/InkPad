@@ -20,6 +20,18 @@ Entry format:
 
 ---
 
+## 2026-07-02 — Analysis backend foundations + Fable handoff
+- Asked: make the analysis backend work accurately. Build everything planned but never implemented (literacy coder, Server酱, etc). Division agreed: I build the non-AI foundations and seams, Fable builds the AI reasoning (phases B/C/D) and redesigns the teacher review window. AI suggestions hidden until teacher accepts.
+- Branch `analysis-backend` (off remove-etherpad). Built:
+  - 6 additive migrations (019-024, no data touched): native_feedback_items (structured strengths/targets), score_snapshots (rubric/AP history), ai_literacy_suggestions (hidden findings), native_pads.rewrite_of_pad_id (link rewrite to original), implementation_scores, ai_grade_estimates (marker preference). An existing 018_applied_feedback_table.sql had appeared since the earlier audit, so mine start at 019 to avoid a collision.
+  - Wiring: serverChan notify on submit/resubmit; feedback-items CRUD surfaced in teacher review + student feedback; suggestion accept (promotes hidden AI finding to a real literacy_code annotation + feeds profile) / reject; score_snapshots appended on finish-marking (self-describing with criterion labels); recordTeacherScores fills teacher_score+delta on hidden AI estimates; greenpen rewrite sets rewrite_of_pad_id.
+  - literacyCoder.js retargeted off the inert submission_codes table; its prompt/parse helpers kept for Fable to reuse.
+  - Seam stubs (documented no-ops, clean returns so keyless tests pass): runLiteracyAnalysis + verifyFindings (B), generateProfileSummary (C), scoreRewrite (D2), estimateRubric (D3).
+  - FABLE_HANDOFF.md: full contract per seam plus the review-window redesign brief.
+- Decisions: hidden-suggestion model per the vision (no anchoring). Left teacher-review UI wiring for Fable's redesign rather than building UI Fable will discard; student feedback view wiring is mine.
+- Verified: migrations apply on fresh DB and are idempotent; app boots; new test/analysisBackend.test.js 6/6 pass; full suite 66 pass / 4 fail, all 4 pre-existing baseline failures (EAP upload, classes CRUD, roster, student login), no new regressions.
+- Open / next: Fable builds B/C/D + review redesign per handoff. This work is on analysis-backend; remove-etherpad still not merged to main. SESSION_NOTES well over 400 lines, archive oldest soon.
+
 ## 2026-07-02 — Two rubrics + two strengths/targets per assignment
 - Asked: let the teacher attach up to 2 uploaded rubrics and up to 2 uploaded strengths/targets tables per assignment. Remove the "Create default rubric" option (uploaded rubric or vibe grade only). AP Lang exam estimate should only appear in the reviewer for AP Lang classes.
 - Backend: settings gained feedback_tables[] (max 2), rubric_assets[]/rubric_names[] (positional, slot 1 = internal, slot 2 = secondary). Added 'secondary' rubric_kind plus secondary-rubric and secondary-rubric-scores endpoints. Migration 018 adds native_pads.applied_feedback_table; new applied-feedback-table endpoint sets which table applies per essay. Review/feedback responses now return both rubrics by name, exam_rubric.visible gated by isApLangClassName(class), both feedback tables and the applied choice.
