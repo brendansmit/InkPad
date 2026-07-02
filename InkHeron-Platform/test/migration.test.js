@@ -38,7 +38,7 @@ const expectedColumns = {
   eap_library_view_log: ['id', 'doc_id', 'student_name', 'class_period', 'viewed_at', 'duration_seconds'],
   sessions: ['sid', 'data', 'expires_at'],
   submission_comments: ['id', 'submission_id', 'kind', 'body', 'created_at', 'updated_at'],
-  native_feedback_items: ['id', 'native_pad_id', 'kind', 'feedback_key', 'title', 'explanation', 'try_now_prompt', 'source', 'sort_order', 'created_by_teacher_id', 'created_at', 'updated_at'],
+  native_feedback_items: ['id', 'native_pad_id', 'kind', 'feedback_key', 'title', 'explanation', 'try_now_prompt', 'source', 'sort_order', 'created_by_teacher_id', 'created_at', 'updated_at', 'student_checked', 'student_checked_at'],
   score_snapshots: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'scores_json', 'total', 'pad_state', 'recorded_at'],
   ai_literacy_suggestions: ['id', 'native_pad_id', 'document_version', 'start_offset', 'end_offset', 'quote', 'code', 'category', 'label', 'model', 'checker_json', 'status', 'annotation_id', 'created_at', 'resolved_at'],
   implementation_scores: ['id', 'rewrite_pad_id', 'original_pad_id', 'student_id', 'addressed_json', 'cosmetic_ratio', 'meaningful', 'summary', 'model', 'created_at'],
