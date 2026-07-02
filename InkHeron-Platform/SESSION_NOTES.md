@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Uniform line spacing for clean empty-line numbers
+- Asked: line numbers looked buggy around empty Enter lines.
+- Cause: paragraphs/divs had a 1em bottom margin, so blank lines were taller than text lines and the gutter numbers spaced unevenly.
+- Built: dropped the paragraph/div bottom margin so every line is one uniform ruled-paper height; empty lines now number evenly. Lists keep left indent, lost bottom margin.
+- Verified: node --check passes, wrapper active after deploy.
+
 ## 2026-07-02 - Fix line-number alignment
 - Asked: line numbers on the left did not line up with lines that have text.
 - Cause: gutter was a fixed 31.5px-spaced text column counting only newline lines, so wrapped lines and the 1em paragraph bottom margin drifted the numbers off the text.
