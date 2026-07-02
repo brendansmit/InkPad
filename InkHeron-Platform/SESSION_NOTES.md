@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Deploy feedback area
+- Asked: Feedback area was not visible live and `/teacher/feedback` errored, so deploy it.
+- Deployed: Copied migration 016, feedback asset routes/helpers, app route registration and teacher dashboard/feedback/assignment pages to the droplet.
+- Fixed: Corrected a deploy path mistake for `src/app.js` and removed the stray remote `src/routes/app.js` copy created during deploy.
+- Verified: Production migration applied `016_feedback_assets.sql`, wrapper restarted active/running, root returned 200 and `/teacher/feedback` returned protected-route 401 when unauthenticated.
+
 ## 2026-07-02 - Feedback asset library
 - Asked: Add a home feedback area where rubric templates, strengths and targets can be uploaded for different assignment types.
 - Built: Added `/teacher/feedback`, a Feedback tile on teacher home and teacher-only `/api/feedback-assets` routes for listing, saving and archiving rubric or strengths/targets assets.
