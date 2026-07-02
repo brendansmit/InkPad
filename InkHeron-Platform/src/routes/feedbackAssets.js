@@ -1,6 +1,7 @@
-import { loadActiveFeedbackAssets, parseFeedbackAsset, publicFeedbackAsset } from '../feedback/assets.js';
+import { extractFeedbackUploadText, loadActiveFeedbackAssets, parseFeedbackAsset, publicFeedbackAsset } from '../feedback/assets.js';
 
 const VALID_KINDS = new Set(['strength_target', 'rubric']);
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 function cleanText(value, limit = 20000) {
   return String(value ?? '').trim().slice(0, limit);
@@ -51,6 +52,42 @@ export async function registerFeedbackAssetRoutes(app, { db }) {
         WHERE id = ?
       `).get(result.lastInsertRowid);
       return reply.code(201).send({ asset: publicFeedbackAsset(row) });
+    }
+  );
+
+  app.post('/api/feedback-assets/extract',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const part = await request.file();
+      if (!part) return reply.code(400).send({ error: 'file_required' });
+      const chunks = [];
+      let size = 0;
+      try {
+        for await (const chunk of part.file) {
+          size += chunk.length;
+          if (size > MAX_UPLOAD_BYTES) {
+            part.file.resume();
+            return reply.code(413).send({ error: 'file_too_large' });
+          }
+          chunks.push(chunk);
+        }
+      } catch (error) {
+        if (error.code === 'FST_REQ_FILE_TOO_LARGE') {
+          return reply.code(413).send({ error: 'file_too_large' });
+        }
+        throw error;
+      }
+      try {
+        const text = await extractFeedbackUploadText({
+          filename: part.filename || '',
+          mimeType: part.mimetype || '',
+          buffer: Buffer.concat(chunks),
+        });
+        if (!text) return reply.code(422).send({ error: 'no_extractable_text' });
+        return { filename: part.filename || '', text };
+      } catch (error) {
+        return reply.code(error.statusCode || 422).send({ error: error.message || 'extract_failed' });
+      }
     }
   );
 

@@ -1,3 +1,5 @@
+import zlib from 'node:zlib';
+import path from 'node:path';
 import { feedbackLibrary } from './library.js';
 
 const VALID_KINDS = new Set(['strength_target', 'rubric']);
@@ -86,6 +88,98 @@ export function parseFeedbackAsset(kind, contentText) {
     parsed = kind === 'strength_target' ? parseSectionedFeedback(text) : { criteria: [] };
   }
   return parsed;
+}
+
+function decodeXmlEntities(value) {
+  return value
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+function unzipEntries(buffer) {
+  const entries = new Map();
+  let eocd = -1;
+  const min = Math.max(0, buffer.length - 66000);
+  for (let i = buffer.length - 22; i >= min; i -= 1) {
+    if (buffer.readUInt32LE(i) === 0x06054b50) {
+      eocd = i;
+      break;
+    }
+  }
+  if (eocd < 0) throw new Error('invalid_zip');
+  const totalEntries = buffer.readUInt16LE(eocd + 10);
+  let offset = buffer.readUInt32LE(eocd + 16);
+  for (let i = 0; i < totalEntries; i += 1) {
+    if (buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error('invalid_zip_directory');
+    const method = buffer.readUInt16LE(offset + 10);
+    const compressedSize = buffer.readUInt32LE(offset + 20);
+    const filenameLength = buffer.readUInt16LE(offset + 28);
+    const extraLength = buffer.readUInt16LE(offset + 30);
+    const commentLength = buffer.readUInt16LE(offset + 32);
+    const localOffset = buffer.readUInt32LE(offset + 42);
+    const filename = buffer.toString('utf8', offset + 46, offset + 46 + filenameLength);
+    if (buffer.readUInt32LE(localOffset) !== 0x04034b50) throw new Error('invalid_zip_local_file');
+    const localNameLength = buffer.readUInt16LE(localOffset + 26);
+    const localExtraLength = buffer.readUInt16LE(localOffset + 28);
+    const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+    const compressed = buffer.subarray(dataStart, dataStart + compressedSize);
+    let data;
+    if (method === 0) data = compressed;
+    else if (method === 8) data = zlib.inflateRawSync(compressed);
+    else data = null;
+    if (data) entries.set(filename, data);
+    offset += 46 + filenameLength + extraLength + commentLength;
+  }
+  return entries;
+}
+
+export function extractDocxText(buffer) {
+  const entries = unzipEntries(buffer);
+  const xml = entries.get('word/document.xml');
+  if (!xml) throw new Error('docx_document_missing');
+  return decodeXmlEntities(
+    xml.toString('utf8')
+      .replace(/<w:tab\/>/g, '\t')
+      .replace(/<\/w:p>/g, '\n')
+      .replace(/<[^>]+>/g, '')
+  ).replace(/\n{3,}/g, '\n\n').trim();
+}
+
+export async function extractPdfText(buffer) {
+  const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  const document = await getDocument({
+    data: new Uint8Array(buffer),
+    disableWorker: true,
+    useWorkerFetch: false,
+    isEvalSupported: false,
+  }).promise;
+  const pages = [];
+  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
+    const page = await document.getPage(pageNumber);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(item => item.str).join(' ').replace(/\s+/g, ' ').trim());
+  }
+  await document.destroy();
+  return pages.filter(Boolean).join('\n\n').trim();
+}
+
+export async function extractFeedbackUploadText({ filename = '', mimeType = '', buffer }) {
+  const ext = path.extname(filename).toLowerCase();
+  if (['.txt', '.csv', '.json'].includes(ext) || /^text\//.test(mimeType) || mimeType === 'application/json') {
+    return buffer.toString('utf8').replace(/^\uFEFF/, '').trim();
+  }
+  if (ext === '.docx' || mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    return extractDocxText(buffer);
+  }
+  if (ext === '.pdf' || mimeType === 'application/pdf') {
+    return extractPdfText(buffer);
+  }
+  const err = new Error('unsupported_file_type');
+  err.statusCode = 400;
+  throw err;
 }
 
 export function publicFeedbackAsset(row) {
