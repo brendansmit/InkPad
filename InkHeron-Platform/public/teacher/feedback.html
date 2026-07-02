@@ -116,6 +116,40 @@ Holistic:
     { "score_value": 0, "label": "0", "descriptor": "Missing." },
     { "score_value": 1, "label": "1", "descriptor": "Limited." }
   ]
+}
+
+AP 3-row:
+{
+  "mode": "ap",
+  "rows": [
+    {
+      "label": "Thesis",
+      "description": "Responds to the prompt with a defensible thesis.",
+      "bands": [
+        { "score_value": 0, "label": "0", "descriptor": "No defensible thesis." },
+        { "score_value": 1, "label": "1", "descriptor": "Defensible thesis present." }
+      ]
+    },
+    {
+      "label": "Evidence and Commentary",
+      "description": "Uses evidence and commentary to develop the line of reasoning.",
+      "bands": [
+        { "score_value": 0, "label": "0", "descriptor": "Little or no evidence or commentary." },
+        { "score_value": 1, "label": "1", "descriptor": "Limited evidence or commentary." },
+        { "score_value": 2, "label": "2", "descriptor": "Some evidence and commentary." },
+        { "score_value": 3, "label": "3", "descriptor": "Sufficient evidence and commentary." },
+        { "score_value": 4, "label": "4", "descriptor": "Specific evidence and convincing commentary." }
+      ]
+    },
+    {
+      "label": "Sophistication",
+      "description": "Demonstrates sophistication of thought or style.",
+      "bands": [
+        { "score_value": 0, "label": "0", "descriptor": "No sophistication point." },
+        { "score_value": 1, "label": "1", "descriptor": "Sophistication point earned." }
+      ]
+    }
+  ]
 }</pre>
             </details>
           </div>
@@ -161,7 +195,7 @@ Holistic:
       box.innerHTML=assets.map(asset=>{
         const parsed=asset.parsed||{};
         const count=asset.kind==='rubric'
-          ? `${parsed.mode==='holistic'?'Holistic':'Analytic'} - ${(parsed.criteria||[]).length} criteria`
+          ? `${rubricModeLabel(parsed.mode)} - ${(parsed.criteria||[]).length} criteria`
           : `${(parsed.strengths||[]).length} strengths, ${(parsed.targets||[]).length} targets`;
         return `<article class="asset">
           <header>
@@ -177,6 +211,12 @@ Holistic:
         </article>`;
       }).join('');
       box.querySelectorAll('[data-delete]').forEach(btn=>btn.addEventListener('click',()=>archiveAsset(Number(btn.dataset.delete))));
+    }
+
+    function rubricModeLabel(mode){
+      if(mode==='holistic') return 'Holistic';
+      if(mode==='ap') return 'AP 3-row';
+      return 'Analytic';
     }
 
     async function archiveAsset(id){

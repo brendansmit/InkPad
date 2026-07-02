@@ -24,6 +24,8 @@ test('teacher assignment forms are native-only and expose outside paste policy',
   assert.match(assignments, /id="eRubricTemplate"/);
   assert.match(newAssignment, /Holistic templates create one overall criterion/);
   assert.match(assignments, /Holistic templates create one overall criterion/);
+  assert.match(newAssignment, /AP templates create the 3 AP rows/);
+  assert.match(assignments, /AP templates create the 3 AP rows/);
   assert.match(newAssignment, /fetch\('\/api\/feedback-assets'\)/);
   assert.match(assignments, /fetch\('\/api\/feedback-assets'\)/);
   assert.match(newAssignment, /id="fCreateRubric"/);

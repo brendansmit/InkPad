@@ -85,6 +85,46 @@ function normalizeHolisticRubric(json) {
   };
 }
 
+function defaultApRows() {
+  return [
+    {
+      label: 'Thesis',
+      description: 'Responds to the prompt with a defensible thesis.',
+      bands: [
+        { score_value: 0, label: '0', descriptor: 'No defensible thesis.' },
+        { score_value: 1, label: '1', descriptor: 'Defensible thesis present.' },
+      ],
+    },
+    {
+      label: 'Evidence and Commentary',
+      description: 'Uses evidence and explains how it supports the line of reasoning.',
+      bands: [0, 1, 2, 3, 4].map(score => ({
+        score_value: score,
+        label: String(score),
+        descriptor: score === 0 ? 'Little or no evidence or commentary.' : `AP row score ${score}.`,
+      })),
+    },
+    {
+      label: 'Sophistication',
+      description: 'Demonstrates sophistication of thought or style.',
+      bands: [
+        { score_value: 0, label: '0', descriptor: 'No sophistication point.' },
+        { score_value: 1, label: '1', descriptor: 'Sophistication point earned.' },
+      ],
+    },
+  ];
+}
+
+function normalizeApRubric(json) {
+  const rows = Array.isArray(json?.rows ?? json?.criteria) && (json.rows ?? json.criteria).length
+    ? normalizeCriteria(json.rows ?? json.criteria)
+    : normalizeCriteria(defaultApRows());
+  return {
+    mode: 'ap',
+    criteria: rows.slice(0, 3),
+  };
+}
+
 function normalizeAnalyticRubric(json) {
   return {
     mode: 'analytic',
@@ -107,8 +147,11 @@ export function parseFeedbackAsset(kind, contentText) {
         strengths: Array.isArray(json.strengths) ? json.strengths.map((item, index) => normalizeOption(item, 'strength', index)) : [],
         targets: Array.isArray(json.targets) ? json.targets.map((item, index) => normalizeOption(item, 'target', index)) : [],
       };
-    } else if (!Array.isArray(json) && String(json.mode ?? json.rubric_type ?? '').toLowerCase() === 'holistic') {
-      parsed = normalizeHolisticRubric(json);
+    } else if (!Array.isArray(json)) {
+      const rubricMode = String(json.mode ?? json.rubric_type ?? '').toLowerCase();
+      if (rubricMode === 'holistic') parsed = normalizeHolisticRubric(json);
+      else if (rubricMode === 'ap') parsed = normalizeApRubric(json);
+      else parsed = normalizeAnalyticRubric(json);
     } else {
       parsed = normalizeAnalyticRubric(json);
     }

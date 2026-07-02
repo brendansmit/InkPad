@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - AP 3-row rubric templates
+- Asked: Make rubric templates work with the AP 3-row rubric.
+- Built: Added `mode: "ap"` rubric parsing. AP templates normalize into three scoreable rows: Thesis, Evidence and Commentary and Sophistication.
+- Built: Feedback page now includes an AP 3-row JSON template and labels saved AP rubrics as `AP 3-row`. Assignment setup hints mention AP support.
+- Verified: `node --check src/feedback/assets.js` and `node --test test/feedbackAssets.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
+
 ## 2026-07-02 - Holistic and analytic rubric templates
 - Asked: Make sure the rubric module works with both holistic and analytic rubrics.
 - Built: Rubric assets now parse `mode: "analytic"` as multiple criteria and `mode: "holistic"` as one `Overall` scoreable criterion with bands.
@@ -378,18 +384,3 @@ Entry format:
   - ep_align's toolbar buttons hidden via CSS; padchrome is the only visible alignment UI.
 - Decisions: Route through ep_align's DOM buttons rather than execCommand; same result for user, but changeset-based persistence.
 - Open / next: Verify alignment works (student opens pad, selects text, clicks L/C/R). Phase 8.6 — Strengths + Targets.
-
-## 2026-06-29 — Write view: ep_align removal, custom formatting toolbar, paste fix
-- Phase/Step worked: Phase 8 write view fixes (session resumed from context summary)
-- Built:
-  - Removed ep_align@11.0.40 from plugin_packages (symlink + .versions folder). It was incompatible with EP 3.3.2 and caused `TypeError: U2 is not a function` crash for all students. Uninstall via tsx plugins.ts failed ("Expected at least one argument") — fixed by direct symlink removal.
-  - Replaced ep_align with 3 custom alignment buttons (L/C/R SVG icons) in padchrome. Use `execCommand('justifyLeft/Center/Right')` on ace_inner. Visual-only in current session (no changeset persistence without ep_align).
-  - Replaced ep_colors dropdown UI with 5 color swatches in padchrome (Black/Red/Green/Blue/Orange). Clicks programmatically set ep_colors' `#color-selection` select and dispatch `change` event, so color persists in Etherpad changesets.
-  - Added font size selector (Small/Normal/Large/X-Large) using `execCommand('fontSize')`.
-  - Fixed paste blocking: `lastCopyFromPage` flag tracks copy/cut in parent frame (passage panel). Both `lastCopyFromPad` (ace_inner) and `lastCopyFromPage` (parent) are accepted; everything else is blocked when `PASTE_BLOCK=true`.
-  - Consolidated two duplicate `getAceInnerDoc` functions into one `getAceInner()`.
-  - `onmousedown="return false"` on alignment/color buttons preserves ace_inner selection when buttons are clicked.
-  - ep_colors native UI hidden via `#color,#color-selection{display:none!important}`.
-- Decisions: ep_align was causing a total Etherpad crash (all pads broken). Alignment persistence sacrificed temporarily; acceptable. ep_colors' changeset mechanism used for color so it persists properly.
-- Open / next: Try a compatible ep_align version for persistent alignment. Phase 8.6 — Strengths + Targets upload + AI marking suggestions.
-- Gotchas hit: ep_align was a symlink to .versions/ep_align@11.0.40 — needed to remove both symlink and .versions folder. The `grep` returning empty on ep_align caused exit code 1 but was actually success. The changeset null error in logs is a different pre-existing Etherpad bug, not ep_align.

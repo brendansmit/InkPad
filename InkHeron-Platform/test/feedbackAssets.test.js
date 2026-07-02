@@ -196,9 +196,25 @@ test('teacher can manage feedback assets', async () => {
   assert.equal(holistic.json().asset.parsed.criteria[0].label, 'Overall');
   assert.equal(holistic.json().asset.parsed.criteria[0].bands[1].score_value, 1.5);
 
+  const ap = await app.inject({
+    method: 'POST',
+    url: '/api/feedback-assets',
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+    payload: {
+      kind: 'rubric',
+      title: 'AP Lang 3-row rubric',
+      assignment_type: 'AP Lang',
+      content_text: JSON.stringify({ mode: 'ap' }),
+    },
+  });
+  assert.equal(ap.statusCode, 201);
+  assert.equal(ap.json().asset.parsed.mode, 'ap');
+  assert.deepEqual(ap.json().asset.parsed.criteria.map(row => row.label), ['Thesis', 'Evidence and Commentary', 'Sophistication']);
+  assert.deepEqual(ap.json().asset.parsed.criteria.map(row => row.bands.map(band => band.score_value)), [[0, 1], [0, 1, 2, 3, 4], [0, 1]]);
+
   const listed = await app.inject({ method: 'GET', url: '/api/feedback-assets', headers: { cookie: teacher.cookies } });
   assert.equal(listed.statusCode, 200);
-  assert.equal(listed.json().assets.length, 3);
+  assert.equal(listed.json().assets.length, 4);
 
   const archived = await app.inject({
     method: 'DELETE',
@@ -208,7 +224,7 @@ test('teacher can manage feedback assets', async () => {
   assert.equal(archived.statusCode, 204);
 
   const remaining = await app.inject({ method: 'GET', url: '/api/feedback-assets', headers: { cookie: teacher.cookies } });
-  assert.deepEqual(remaining.json().assets.map(asset => asset.title), ['Holistic personal statement rubric', 'Personal statement rubric']);
+  assert.deepEqual(remaining.json().assets.map(asset => asset.title), ['AP Lang 3-row rubric', 'Holistic personal statement rubric', 'Personal statement rubric']);
 
   await app.close();
 });
