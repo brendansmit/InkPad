@@ -199,6 +199,10 @@
             <input type="checkbox" id="fCreateRubric" checked>
             <span class="toggle-label">Create default rubric<small>Adds thesis, evidence, commentary, organisation and language-control criteria.</small></span>
           </label>
+          <label class="toggle">
+            <input type="checkbox" id="fCreateExamRubric">
+            <span class="toggle-label">Add AP Lang exam estimate rubric<small>Creates the 3-row AP rubric students can see as an exam-style score estimate.</small></span>
+          </label>
         </div>
         </div>
       </details>
@@ -286,6 +290,7 @@
       const feedback_table=document.getElementById('fFeedbackTable').value;
       const rubric_template=document.getElementById('fRubricTemplate').value;
       const createRubric=document.getElementById('fCreateRubric').checked;
+      const createExamRubric=document.getElementById('fCreateExamRubric').checked;
       const opens=document.getElementById('fOpens').value;
       const due=document.getElementById('fDue').value;
       const prompt=document.getElementById('fPrompt').value.trim();
@@ -327,6 +332,19 @@
         }
       }
       if(failed){btn.disabled=false;btn.textContent='Create assignment';showMsg(`${failed} rubric setup${failed!==1?'s':''} failed.`,true);return;}
+
+      if(createExamRubric&&createdIds.length){
+        btn.textContent='Creating AP exam rubric…';
+        for(const id of createdIds){
+          const rr=await fetch(`/api/native/assignments/${id}/exam-rubric`,{
+            method:'PUT',
+            headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+            body:JSON.stringify({}),
+          });
+          if(!rr.ok) failed++;
+        }
+      }
+      if(failed){btn.disabled=false;btn.textContent='Create assignment';showMsg(`${failed} AP rubric setup${failed!==1?'s':''} failed.`,true);return;}
 
       if(passagePdfFile&&lastId){
         btn.textContent='Uploading PDF…';

@@ -24,6 +24,37 @@ const DEFAULT_RUBRIC = [
   { label: 'Organisation', description: 'Logical sequencing, paragraphing and transitions.', weight: 1 },
   { label: 'Language control', description: 'Sentence control, grammar and word choice.', weight: 1 },
 ];
+const DEFAULT_AP_EXAM_RUBRIC = [
+  {
+    label: 'Thesis',
+    description: 'Responds to the prompt with a defensible thesis.',
+    weight: 1,
+    bands: [
+      { score_value: 0, label: '0', descriptor: 'No defensible thesis.' },
+      { score_value: 1, label: '1', descriptor: 'Defensible thesis present.' },
+    ],
+  },
+  {
+    label: 'Evidence and Commentary',
+    description: 'Uses evidence and explains how it supports the line of reasoning.',
+    weight: 1,
+    bands: [0, 1, 2, 3, 4].map((score) => ({
+      score_value: score,
+      label: String(score),
+      descriptor: score === 0 ? 'Little or no evidence or commentary.' : `AP row score ${score}.`,
+    })),
+  },
+  {
+    label: 'Sophistication',
+    description: 'Demonstrates sophistication of thought or style.',
+    weight: 1,
+    bands: [
+      { score_value: 0, label: '0', descriptor: 'No sophistication point.' },
+      { score_value: 1, label: '1', descriptor: 'Sophistication point earned.' },
+    ],
+  },
+];
+const RUBRIC_KINDS = new Set(['internal', 'exam']);
 
 function requirePositiveInteger(value, field) {
   const number = Number(value);
@@ -316,22 +347,27 @@ function loadStudentWritingProfile(db, studentId) {
   return { ...profile, literacy_issues: issues, recent_evidence: evidence };
 }
 
-function loadAssignmentRubric(db, assignmentId) {
+function normalizeRubricKind(kind) {
+  return RUBRIC_KINDS.has(kind) ? kind : 'internal';
+}
+
+function loadAssignmentRubric(db, assignmentId, rubricKind = 'internal') {
+  const kind = normalizeRubricKind(rubricKind);
   const criteria = db.prepare(`
     SELECT *
     FROM assignment_rubric_criteria
-    WHERE assignment_id = ?
+    WHERE assignment_id = ? AND rubric_kind = ?
     ORDER BY sort_order ASC, id ASC
-  `).all(assignmentId);
+  `).all(assignmentId, kind);
   if (!criteria.length) return { criteria: [] };
 
   const bandRows = db.prepare(`
     SELECT b.*
     FROM assignment_rubric_bands b
     JOIN assignment_rubric_criteria c ON c.id = b.criterion_id
-    WHERE c.assignment_id = ?
+    WHERE c.assignment_id = ? AND c.rubric_kind = ?
     ORDER BY b.sort_order ASC, b.score_value ASC, b.id ASC
-  `).all(assignmentId);
+  `).all(assignmentId, kind);
   const bandsByCriterion = new Map();
   for (const band of bandRows) {
     const list = bandsByCriterion.get(band.criterion_id) ?? [];
@@ -348,6 +384,7 @@ function loadAssignmentRubric(db, assignmentId) {
     criteria: criteria.map((criterion) => ({
       id: criterion.id,
       assignment_id: criterion.assignment_id,
+      rubric_kind: criterion.rubric_kind ?? 'internal',
       label: criterion.label,
       description: criterion.description ?? '',
       weight: Number(criterion.weight ?? 1),
@@ -357,13 +394,15 @@ function loadAssignmentRubric(db, assignmentId) {
   };
 }
 
-function loadRubricScores(db, padId) {
+function loadRubricScores(db, padId, rubricKind = 'internal') {
+  const kind = normalizeRubricKind(rubricKind);
   return db.prepare(`
-    SELECT *
-    FROM native_rubric_scores
-    WHERE native_pad_id = ?
-    ORDER BY criterion_id ASC
-  `).all(padId).map(publicRubricScore);
+    SELECT s.*
+    FROM native_rubric_scores s
+    JOIN assignment_rubric_criteria c ON c.id = s.criterion_id
+    WHERE s.native_pad_id = ? AND c.rubric_kind = ?
+    ORDER BY s.criterion_id ASC
+  `).all(padId, kind).map(publicRubricScore);
 }
 
 function copyAssignmentRubric(db, sourceAssignmentId, targetAssignmentId) {
@@ -376,8 +415,8 @@ function copyAssignmentRubric(db, sourceAssignmentId, targetAssignmentId) {
   if (!criteria.length) return 0;
 
   const insertCriterion = db.prepare(`
-    INSERT INTO assignment_rubric_criteria (assignment_id, label, description, weight, sort_order)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO assignment_rubric_criteria (assignment_id, label, description, weight, sort_order, rubric_kind)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
   const insertBand = db.prepare(`
     INSERT INTO assignment_rubric_bands (criterion_id, score_value, label, descriptor, sort_order)
@@ -390,7 +429,8 @@ function copyAssignmentRubric(db, sourceAssignmentId, targetAssignmentId) {
       criterion.label,
       criterion.description ?? '',
       Number(criterion.weight ?? 1),
-      Number(criterion.sort_order ?? copied)
+      Number(criterion.sort_order ?? copied),
+      criterion.rubric_kind ?? 'internal'
     );
     const bands = db.prepare(`
       SELECT *
@@ -556,8 +596,8 @@ function loadBackupRubricScores(db, padIds) {
   return byPad;
 }
 
-function normalizeRubricCriteria(body) {
-  const source = Array.isArray(body?.criteria) && body.criteria.length ? body.criteria : DEFAULT_RUBRIC;
+function normalizeRubricCriteria(body, fallback = DEFAULT_RUBRIC) {
+  const source = Array.isArray(body?.criteria) && body.criteria.length ? body.criteria : fallback;
   if (source.length > 20) {
     const error = new Error('too_many_rubric_criteria');
     error.statusCode = 400;
@@ -565,7 +605,7 @@ function normalizeRubricCriteria(body) {
   }
 
   return source.map((item, index) => {
-    const label = normalizeRubricText(item?.label, MAX_RUBRIC_LABEL_LENGTH, DEFAULT_RUBRIC[index]?.label || `Criterion ${index + 1}`);
+    const label = normalizeRubricText(item?.label, MAX_RUBRIC_LABEL_LENGTH, fallback[index]?.label || `Criterion ${index + 1}`);
     if (!label) {
       const error = new Error('rubric_label_required');
       error.statusCode = 400;
@@ -593,6 +633,32 @@ function normalizeRubricCriteria(body) {
       })),
     };
   });
+}
+
+function replaceAssignmentRubric(db, assignmentId, criteria, rubricKind = 'internal') {
+  const kind = normalizeRubricKind(rubricKind);
+  db.exec('BEGIN');
+  try {
+    db.prepare('DELETE FROM assignment_rubric_criteria WHERE assignment_id = ? AND rubric_kind = ?').run(assignmentId, kind);
+    const insertCriterion = db.prepare(`
+      INSERT INTO assignment_rubric_criteria (assignment_id, label, description, weight, sort_order, rubric_kind)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    const insertBand = db.prepare(`
+      INSERT INTO assignment_rubric_bands (criterion_id, score_value, label, descriptor, sort_order)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    for (const criterion of criteria) {
+      const result = insertCriterion.run(assignmentId, criterion.label, criterion.description, criterion.weight, criterion.sortOrder, kind);
+      for (const band of criterion.bands) {
+        insertBand.run(result.lastInsertRowid, band.scoreValue, band.label, band.descriptor, band.sortOrder);
+      }
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
 }
 
 async function resolveNativeAssignmentAndStudent(db, assignmentId, studentId) {
@@ -1014,41 +1080,30 @@ export async function registerNativePadRoutes(app, { db }) {
       const assignment = db.prepare('SELECT id, settings_json FROM assignments WHERE id = ?').get(assignmentId);
       if (!assignment || !nativeEnabled(assignment)) return reply.code(404).send({ error: 'assignment_not_found' });
       const criteria = normalizeRubricCriteria(request.body);
-
-      db.exec('BEGIN');
-      try {
-        db.prepare('DELETE FROM assignment_rubric_criteria WHERE assignment_id = ?').run(assignmentId);
-        const insertCriterion = db.prepare(`
-          INSERT INTO assignment_rubric_criteria (assignment_id, label, description, weight, sort_order)
-          VALUES (?, ?, ?, ?, ?)
-        `);
-        const insertBand = db.prepare(`
-          INSERT INTO assignment_rubric_bands (criterion_id, score_value, label, descriptor, sort_order)
-          VALUES (?, ?, ?, ?, ?)
-        `);
-        for (const criterion of criteria) {
-          const result = insertCriterion.run(assignmentId, criterion.label, criterion.description, criterion.weight, criterion.sortOrder);
-          for (const band of criterion.bands) {
-            insertBand.run(result.lastInsertRowid, band.scoreValue, band.label, band.descriptor, band.sortOrder);
-          }
-        }
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
-      }
+      replaceAssignmentRubric(db, assignmentId, criteria, 'internal');
 
       return { rubric: loadAssignmentRubric(db, assignmentId) };
     }
   );
 
-  app.put('/api/native/pads/:padId/rubric-scores',
+  app.put('/api/native/assignments/:assignmentId/exam-rubric',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = db.prepare('SELECT id, settings_json FROM assignments WHERE id = ?').get(assignmentId);
+      if (!assignment || !nativeEnabled(assignment)) return reply.code(404).send({ error: 'assignment_not_found' });
+      const criteria = normalizeRubricCriteria(request.body, DEFAULT_AP_EXAM_RUBRIC);
+      replaceAssignmentRubric(db, assignmentId, criteria, 'exam');
+      return { rubric: loadAssignmentRubric(db, assignmentId, 'exam') };
+    }
+  );
+
+  async function saveRubricScoresForKind(request, reply, rubricKind) {
       const padId = requirePositiveInteger(request.params.padId, 'padId');
       const pad = loadTeacherNativePad(db, padId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
-      const rubric = loadAssignmentRubric(db, pad.assignment_id);
+      const kind = normalizeRubricKind(rubricKind);
+      const rubric = loadAssignmentRubric(db, pad.assignment_id, kind);
       const allowedCriteria = new Set(rubric.criteria.map((criterion) => criterion.id));
       if (!allowedCriteria.size) return reply.code(409).send({ error: 'rubric_not_configured' });
       const scores = Array.isArray(request.body?.scores) ? request.body.scores : [];
@@ -1070,9 +1125,18 @@ export async function registerNativePadRoutes(app, { db }) {
         const note = normalizeComment(item?.note);
         upsert.run(padId, criterionId, selectedScore, note, request.session.user.id);
       }
-      logTeacherEvent(db, padId, request.session.user.id, 'rubric_scores_saved', { count: scores.length });
-      return { scores: loadRubricScores(db, padId) };
-    }
+      logTeacherEvent(db, padId, request.session.user.id, kind === 'exam' ? 'exam_rubric_scores_saved' : 'rubric_scores_saved', { count: scores.length });
+      return { scores: loadRubricScores(db, padId, kind) };
+  }
+
+  app.put('/api/native/pads/:padId/rubric-scores',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => saveRubricScoresForKind(request, reply, 'internal')
+  );
+
+  app.put('/api/native/pads/:padId/exam-rubric-scores',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => saveRubricScoresForKind(request, reply, 'exam')
   );
 
   app.get('/api/native/students/:studentId/profile',
@@ -1229,6 +1293,7 @@ export async function registerNativePadRoutes(app, { db }) {
         ORDER BY id ASC
       `).all(pad.id);
       const rubric = loadAssignmentRubric(db, assignmentId);
+      const examRubric = loadAssignmentRubric(db, assignmentId, 'exam');
       return {
         pad: publicNativePad(pad),
         assignment: {
@@ -1244,6 +1309,10 @@ export async function registerNativePadRoutes(app, { db }) {
         rubric: {
           criteria: rubric.criteria,
           scores: loadRubricScores(db, pad.id),
+        },
+        exam_rubric: {
+          criteria: examRubric.criteria,
+          scores: loadRubricScores(db, pad.id, 'exam'),
         },
         student_profile: loadStudentWritingProfile(db, student.id),
         rewrite_url: `/native/write/${assignment.id}`,
@@ -1277,6 +1346,7 @@ export async function registerNativePadRoutes(app, { db }) {
         ORDER BY id ASC
       `).all(padId);
       const rubric = loadAssignmentRubric(db, pad.assignment_id);
+      const examRubric = loadAssignmentRubric(db, pad.assignment_id, 'exam');
       return {
         pad: publicNativePad(pad),
         assignment: {
@@ -1295,6 +1365,10 @@ export async function registerNativePadRoutes(app, { db }) {
         rubric: {
           criteria: rubric.criteria,
           scores: loadRubricScores(db, padId),
+        },
+        exam_rubric: {
+          criteria: examRubric.criteria,
+          scores: loadRubricScores(db, padId, 'exam'),
         },
         student_profile: loadStudentWritingProfile(db, pad.student_id),
         feedback_options: feedbackOptionsForAssignment(db, pad.settings_json),

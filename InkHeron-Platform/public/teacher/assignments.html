@@ -298,6 +298,10 @@
             <input type="checkbox" id="eCreateRubric">
             <span class="toggle-label">Create or reset default rubric<small>Replaces this assignment group's rubric with the default rubric.</small></span>
           </label>
+          <label class="toggle">
+            <input type="checkbox" id="eCreateExamRubric">
+            <span class="toggle-label">Create or reset AP Lang exam estimate rubric<small>Adds the 3-row AP rubric as a separate student-visible exam estimate.</small></span>
+          </label>
         </div>
         </div>
       </details>
@@ -704,6 +708,7 @@
       document.getElementById('eSpellcheck').checked=s.spellcheck!==false;
       document.getElementById('eGreenPen').checked=s.green_pen===true;
       document.getElementById('eCreateRubric').checked=false;
+      document.getElementById('eCreateExamRubric').checked=false;
       document.getElementById('editMsg').className='msg';
 
       // render date rows — one per class in the group
@@ -744,6 +749,7 @@
       const feedback_table=document.getElementById('eFeedbackTable').value;
       const rubric_template=document.getElementById('eRubricTemplate').value;
       const createRubric=document.getElementById('eCreateRubric').checked;
+      const createExamRubric=document.getElementById('eCreateExamRubric').checked;
       const spellcheck=document.getElementById('eSpellcheck').checked;
       const green_pen=document.getElementById('eGreenPen').checked;
       const settings={submit_behaviour,paste_mode,feedback_table,spellcheck,green_pen,native_inkpad:true};
@@ -779,6 +785,18 @@
             method:'PUT',
             headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
             body:JSON.stringify(rubricPayload),
+          });
+          if(!rr.ok) failed++;
+        }
+      }
+
+      if(!failed && createExamRubric){
+        btn.textContent='Saving AP exam rubric…';
+        for(const ga of editGroup){
+          const rr=await fetch(`/api/native/assignments/${ga.id}/exam-rubric`,{
+            method:'PUT',
+            headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
+            body:JSON.stringify({}),
           });
           if(!rr.ok) failed++;
         }

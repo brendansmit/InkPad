@@ -18,7 +18,7 @@ const expectedColumns = {
   native_pad_policies: ['id', 'native_pad_id', 'paste_mode', 'spellcheck_enabled', 'updated_by_teacher_id', 'updated_at'],
   native_annotations: ['id', 'native_pad_id', 'teacher_id', 'type', 'start_offset', 'end_offset', 'selected_text', 'body', 'metadata_json', 'resolved', 'document_version', 'created_at', 'updated_at'],
   native_teacher_events: ['id', 'native_pad_id', 'teacher_id', 'action', 'metadata_json', 'created_at'],
-  assignment_rubric_criteria: ['id', 'assignment_id', 'label', 'description', 'weight', 'sort_order', 'created_at', 'updated_at'],
+  assignment_rubric_criteria: ['id', 'assignment_id', 'label', 'description', 'weight', 'sort_order', 'created_at', 'updated_at', 'rubric_kind'],
   assignment_rubric_bands: ['id', 'criterion_id', 'score_value', 'label', 'descriptor', 'sort_order', 'created_at'],
   native_rubric_scores: ['id', 'native_pad_id', 'criterion_id', 'selected_score', 'note', 'updated_by_teacher_id', 'updated_at'],
   student_writing_profiles: ['id', 'student_id', 'writing_summary', 'voice_summary', 'targets_json', 'created_at', 'updated_at'],
@@ -57,6 +57,7 @@ const migrationFiles = [
   '014_native_rubrics.sql',
   '015_student_writing_profiles.sql',
   '016_feedback_assets.sql',
+  '017_rubric_kind.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

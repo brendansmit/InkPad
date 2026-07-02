@@ -84,8 +84,12 @@
             ${general?`<div class="item"><p>${escapeHtml(general.body)}</p></div>`:'<div class="empty">No general comment yet.</div>'}
           </section>
           <section class="panel box">
-            <span class="label">Rubric</span>
-            ${rubricList()}
+            <span class="label">Class rubric</span>
+            ${rubricList(feedback.rubric)}
+          </section>
+          <section class="panel box">
+            <span class="label">AP Lang exam estimate</span>
+            ${rubricList(feedback.exam_rubric)}
           </section>
           <section class="panel box">
             <span class="label">Comments and codes</span>
@@ -101,11 +105,11 @@
       `;
     }
 
-    function rubricList(){
-      const criteria=feedback.rubric?.criteria || [];
+    function rubricList(rubric){
+      const criteria=rubric?.criteria || [];
       if(!criteria.length) return '<div class="empty">No rubric was attached.</div>';
       return `<div class="stack">${criteria.map(criterion=>{
-        const score=(feedback.rubric?.scores || []).find(item=>Number(item.criterion_id)===Number(criterion.id));
+        const score=(rubric?.scores || []).find(item=>Number(item.criterion_id)===Number(criterion.id));
         return `<div class="item"><strong>${escapeHtml(criterion.label)} ${score?`· ${score.selected_score}`:''}</strong><p>${escapeHtml(score?.note || criterion.description || '')}</p></div>`;
       }).join('')}</div>`;
     }

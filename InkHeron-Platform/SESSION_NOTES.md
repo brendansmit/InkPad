@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Internal rubric plus AP exam estimate
+- Asked: For Lang essays, allow grading on the internal rubric and separately show what the student would score on the AP Lang rubric. Students must see both.
+- Built: Added `rubric_kind` migration so assignment rubrics can be separated into `internal` and `exam` tracks without overwriting each other.
+- Built: Added AP exam rubric creation and scoring endpoints, teacher review panels for internal rubric and AP Lang exam estimate and student feedback display for both rubric tracks.
+- Verified: `node --check src/routes/nativePads.js` and `node --test test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
+
 ## 2026-07-02 - AP 3-row rubric templates
 - Asked: Make rubric templates work with the AP 3-row rubric.
 - Built: Added `mode: "ap"` rubric parsing. AP templates normalize into three scoreable rows: Thesis, Evidence and Commentary and Sophistication.

@@ -499,6 +499,79 @@ test('teacher can configure and score a native rubric with half steps', async ()
   await app.close();
 });
 
+test('teacher can add AP exam estimate rubric alongside internal rubric', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app, { greenPen: true });
+  const { cookies } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const internal = await app.inject({
+    method: 'PUT',
+    url: `/api/native/assignments/${assignmentId}/rubric`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { criteria: [{ label: 'Internal voice', bands: [{ score_value: 0 }, { score_value: 1 }, { score_value: 2 }] }] },
+  });
+  assert.equal(internal.statusCode, 200);
+
+  const exam = await app.inject({
+    method: 'PUT',
+    url: `/api/native/assignments/${assignmentId}/exam-rubric`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {},
+  });
+  assert.equal(exam.statusCode, 200);
+  assert.deepEqual(exam.json().rubric.criteria.map(row => row.label), ['Thesis', 'Evidence and Commentary', 'Sophistication']);
+
+  const internalCriterionId = internal.json().rubric.criteria[0].id;
+  const examCriterionId = exam.json().rubric.criteria[1].id;
+
+  const scoredInternal = await app.inject({
+    method: 'PUT',
+    url: `/api/native/pads/${padId}/rubric-scores`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { scores: [{ criterion_id: internalCriterionId, selected_score: 2, note: 'Strong internal score.' }] },
+  });
+  assert.equal(scoredInternal.statusCode, 200);
+
+  const scoredExam = await app.inject({
+    method: 'PUT',
+    url: `/api/native/pads/${padId}/exam-rubric-scores`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: { scores: [{ criterion_id: examCriterionId, selected_score: 3, note: 'AP evidence estimate.' }] },
+  });
+  assert.equal(scoredExam.statusCode, 200);
+
+  const review = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/review`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(review.statusCode, 200);
+  assert.equal(review.json().rubric.criteria[0].label, 'Internal voice');
+  assert.equal(review.json().rubric.scores[0].selected_score, 2);
+  assert.equal(review.json().exam_rubric.criteria[1].label, 'Evidence and Commentary');
+  assert.equal(review.json().exam_rubric.scores[0].selected_score, 3);
+
+  const feedback = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/feedback`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(feedback.statusCode, 200);
+  assert.equal(feedback.json().exam_rubric.criteria[1].label, 'Evidence and Commentary');
+  assert.equal(feedback.json().exam_rubric.scores[0].note, 'AP evidence estimate.');
+
+  await app.close();
+});
+
 test('native review uses selected saved feedback table', async () => {
   const databasePath = temporaryDatabasePath();
   const app = await buildApp({ databasePath, logger: false });
@@ -1011,6 +1084,8 @@ test('teacher native review page is served behind teacher auth', async () => {
   assert.match(page.body, /revision-panel/);
   assert.match(page.body, /rubricPanel/);
   assert.match(page.body, /saveRubricScores/);
+  assert.match(page.body, /AP Lang exam estimate/);
+  assert.match(page.body, /exam-rubric-scores/);
   assert.match(page.body, /profileIssueList/);
   assert.match(page.body, /Suggested targets/);
   assert.match(page.body, /suggestionPanel/);
