@@ -125,8 +125,8 @@ export function renderNativeWriteView({
     .niw-tools{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:8px 14px;border-bottom:1px solid #d8d4c8;background:#faf9f4;flex-wrap:wrap}
     .niw-divider{width:1px;height:28px;background:#d8d4c8;margin:0 3px}
     .niw-editor-stage{flex:1;overflow:auto;padding:36px 32px}
-    .niw-page-zoom-frame{width:var(--page-width);max-width:max-content;margin:0 auto;position:relative;display:flex;justify-content:center}
-    .niw-page-shell{width:var(--page-width);max-width:100%;display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start}
+    .niw-page-zoom-frame{width:max-content;margin:0 auto;position:relative}
+    .niw-page-shell{width:var(--page-width);display:grid;grid-template-columns:26px minmax(0,1fr);align-items:start;zoom:var(--editor-zoom)}
     .niw-line-numbers{border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;line-height:31.5px;text-align:right;padding:35px 7px 34px 0;user-select:none;white-space:pre;min-height:0}
     #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background:#fff;border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor p,#nativeEditor div{margin:0 0 1em}
@@ -346,8 +346,8 @@ export function renderNativeWriteView({
       editorZoom = clamp(editorZoom, 0.7, 1.5);
       readerWidth = clamp(readerWidth, 260, Math.min(Math.floor(window.innerWidth * 0.78), 1100));
       taskHeight = clamp(taskHeight, 130, Math.max(130, Math.floor(window.innerHeight - 260)));
-      shell.style.setProperty('--page-width', Math.round(pageWidth * editorZoom) + 'px');
-      shell.style.setProperty('--editor-zoom', '1');
+      shell.style.setProperty('--page-width', pageWidth + 'px');
+      shell.style.setProperty('--editor-zoom', String(editorZoom));
       shell.style.setProperty('--reader-width', readerWidth + 'px');
       shell.style.setProperty('--task-height', taskHeight + 'px');
       syncZoomFrame();
@@ -358,10 +358,10 @@ export function renderNativeWriteView({
       zoomLabel.textContent = Math.round(editorZoom * 100) + '%';
     }
     function syncZoomFrame(){
-      requestAnimationFrame(() => {
-        pageZoomFrame.style.width = pageShell.offsetWidth + 'px';
-        pageZoomFrame.style.height = pageShell.offsetHeight + 'px';
-      });
+      // The page shell is scaled with the CSS zoom property, which reserves its
+      // own layout space, so the frame no longer needs manual sizing.
+      pageZoomFrame.style.width = '';
+      pageZoomFrame.style.height = '';
     }
     function editorOwnsNode(node){
       return !!node && (node === editor || editor.contains(node));
