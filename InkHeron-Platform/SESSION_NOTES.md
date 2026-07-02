@@ -20,6 +20,13 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Editor zoom scales like the PDF, PDF highlight blend fix
+- Asked: (1) PDF highlight was hiding the words. (2) Make the writing pad zoom behave like the PDF window.
+- Fixed highlight: it painted a solid opaque background over the canvas glyphs. Now uses mix-blend-mode:multiply and the text layer dropped its z-index so it shares the canvas stacking context and blends like a highlighter pen. Underline was already fine. Commit 3a0ddbf area.
+- Fixed editor zoom: previously scaled page width (reflowed text). Now the page shell uses the CSS zoom property so the whole page scales uniformly and the stage scrolls, matching the PDF pane. syncZoomFrame no longer manually sizes the frame.
+- Verified: node --check passes, render checks confirm the new CSS/JS, wrapper active after deploy. Live feel for Brendan to confirm.
+- Commits: highlight blend + editor zoom (see git log).
+
 ## 2026-07-02 - Native PDF reference rebuilt with PDF.js
 - Asked: PDF reference must be viewable, evenly zoomable, and support real text highlight and underline like the editor pad. Explicitly NOT an overlay layer with draggable coloured shapes (the reverted earlier attempt).
 - Built: Replaced the browser-native PDF iframe in nativeWrite.js with PDF.js canvas rendering plus a selectable transparent text layer per page.
