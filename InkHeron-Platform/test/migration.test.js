@@ -70,6 +70,7 @@ const migrationFiles = [
   '022_native_pad_rewrite_link.sql',
   '023_implementation_scores.sql',
   '024_ai_grade_estimates.sql',
+  '025_style_metrics.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

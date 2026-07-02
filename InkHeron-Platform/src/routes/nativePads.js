@@ -7,6 +7,7 @@ import { notifyTeacher } from '../services/serverChan.js';
 import { runLiteracyAnalysis } from '../services/literacyCoder.js';
 import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
 import { scoreRewrite } from '../services/implementationScorer.js';
+import { recordStyleMetrics } from '../services/styleMetrics.js';
 
 // Fire-and-forget an async analysis seam without blocking the HTTP response.
 // A missing OpenRouter key or a stub is a clean no-op; errors are logged only.
@@ -1109,6 +1110,7 @@ export async function registerNativePadRoutes(app, { db }) {
       // Background analysis seams (stubs until Fable fills phases B/D).
       runInBackground('literacy', () => runLiteracyAnalysis(db, { padId })
         .then(() => autoPromoteSuggestions(db, padId)));
+      runInBackground('style-metrics', () => recordStyleMetrics(db, { padId }));
       runInBackground('grade-estimate', () => estimateRubric(db, { padId }));
       if (nextState === 'resubmitted' && updated.rewrite_of_pad_id) {
         runInBackground('implementation', () => scoreRewrite(db, { rewritePadId: padId }));
