@@ -20,6 +20,14 @@ Entry format:
 
 ---
 
+## 2026-07-03 — Sonnet: essay_type/supervision settings fields
+
+- Phase/Step worked: SONNET_HANDOFF.md "New settings fields — essay type and supervision".
+- Built: `assignments.settings_json` gains `essay_type` (narrative/argumentative/personal/analysis/short_response/rhetorical_analysis/synthesis/other) and `supervision` (in_class/mixed/homework), validated against fixed sets in `buildSettingsJson`, defaulting to 'other'/'in_class' when absent or invalid. No migration, settings_json is a blob. Two selects added to both the create form (`new-assignment.html`) and the edit modal (`assignments.html`), wired into the existing settings-object construction alongside paste_mode. Exposed in the teacher review payload's `assignment` block and, per literacy evidence row, in the writing-profile endpoint's `recent_evidence` (joined against the owning assignment's settings_json) so profile numbers carry their genre/supervision context. Tests: default/valid/invalid-falls-back-to-default in `assignments.test.js`, presence in review and profile payloads in `nativePads.test.js`. Full `assignments.test.js` + `nativePads.test.js` rerun clean (28 tests). Commit 640cf63.
+- Decisions: none beyond the handoff spec.
+- Open / next: full suite run (task 6).
+- Gotchas hit: none.
+
 ## 2026-07-03 — Sonnet: student target/strength tick-off endpoint
 
 - Phase/Step worked: SONNET_HANDOFF.md "Student target tick-off endpoint".
