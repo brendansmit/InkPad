@@ -128,7 +128,7 @@ export function renderNativeWriteView({
     .niw-page-zoom-frame{width:max-content;margin:0 auto;position:relative}
     .niw-page-shell{display:grid;grid-template-columns:26px var(--page-width);align-items:start;zoom:var(--editor-zoom)}
     .niw-line-numbers{border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;line-height:31.5px;text-align:right;padding:35px 7px 34px 0;user-select:none;white-space:pre;min-height:0}
-    #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background:#fff;border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
+    #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background-color:#fff;background-image:repeating-linear-gradient(to right,#fff 0 7px,rgba(255,255,255,0) 7px 13px),repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) calc(var(--page-width) * 1.414 - 1px),#cbc4b2 calc(var(--page-width) * 1.414 - 1px),#cbc4b2 calc(var(--page-width) * 1.414));border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor p,#nativeEditor div{margin:0 0 1em}
     #nativeEditor ul,#nativeEditor ol{margin:0 0 1em 1.3em;padding:0}
     #nativeEditor[contenteditable="false"]{background:#f7f7f4;color:#59635d}
