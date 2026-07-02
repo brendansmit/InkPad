@@ -31,7 +31,7 @@ function publicAssignment(row) {
   };
 }
 
-function buildSettingsJson(settings = {}, type = 'essay', { nativeDefault = false } = {}) {
+function buildSettingsJson(settings = {}, type = 'essay') {
   const base = {
     type,
     submit_behaviour: settings.submit_behaviour ?? 'draft',
@@ -40,10 +40,8 @@ function buildSettingsJson(settings = {}, type = 'essay', { nativeDefault = fals
     paste_detection: true,
     paste_mode: PASTE_MODES.has(settings.paste_mode) ? settings.paste_mode : 'log',
     green_pen: settings.green_pen === true,
+    native_inkpad: true,
   };
-  if (settings.native_inkpad === true || (nativeDefault && settings.native_inkpad !== false)) {
-    base.native_inkpad = true;
-  }
   if (type === 'test') {
     base.shuffle = settings.shuffle !== false;
     base.pooling = settings.pooling ?? 'off';
@@ -64,21 +62,16 @@ function parseSettings(settingsJson) {
   }
 }
 
-function isNativeAssignment(row) {
-  if (row.native_inkpad !== undefined) return row.native_inkpad === 1 || row.native_inkpad === true;
-  return parseSettings(row.settings_json).native_inkpad === true;
-}
-
 function effectivePadId(row) {
-  return isNativeAssignment(row) ? row.native_pad_id : row.pad_id;
+  return row.native_pad_id;
 }
 
 function effectivePadState(row) {
-  return isNativeAssignment(row) ? row.native_pad_state : row.pad_state;
+  return row.native_pad_state;
 }
 
 function effectiveSubmittedAt(row) {
-  return isNativeAssignment(row) ? row.native_submitted_at : row.submitted_at;
+  return row.native_submitted_at;
 }
 
 function deriveStatus(row, now) {
@@ -97,41 +90,32 @@ function deriveStatus(row, now) {
 }
 
 function deriveTeacherStatus(row) {
-  if (isNativeAssignment(row)) {
-    if (!row.native_pad_id) return 'not_started';
-    if (row.native_pad_state === 'submitted') return 'submitted';
-    return row.native_pad_state ?? 'writing';
-  }
-  if (row.grade_released || row.submission_released) return 'released';
-  if (row.grade_id || row.is_graded || row.pad_state === 'marked') return 'marked';
-  if (!row.pad_id) return 'not_started';
-  if (row.pad_state === 'submitted') return 'submitted';
-  return row.pad_state ?? 'writing';
+  if (!row.native_pad_id) return 'not_started';
+  if (row.native_pad_state === 'submitted') return 'submitted';
+  return row.native_pad_state ?? 'writing';
 }
 
 function publicDashboardRow(row) {
   const status = deriveTeacherStatus(row);
-  const native = isNativeAssignment(row);
-  const padId = native ? row.native_pad_id : row.pad_id;
-  const pasteCount = native ? row.native_paste_count : row.paste_count;
-  const pasteTotal = native ? row.native_paste_total_length : row.paste_total_length;
-  const latestPaste = native ? row.native_latest_paste_at : row.latest_paste_at;
+  const padId = row.native_pad_id;
+  const pasteCount = row.native_paste_count;
+  const pasteTotal = row.native_paste_total_length;
+  const latestPaste = row.native_latest_paste_at;
   return {
     student_id: row.student_id,
     display_name: row.display_name,
     username: row.username,
     pad_id: padId ?? null,
-    pad_kind: native ? 'native' : 'etherpad',
-    review_url: padId ? (native ? `/teacher/native-review?pad_id=${padId}` : `/teacher/review?pad_id=${padId}`) : null,
+    review_url: padId ? `/teacher/native-review?pad_id=${padId}` : null,
     status,
     submitted_at: effectiveSubmittedAt(row) ?? null,
     paste_flag: Number(pasteCount ?? 0) > 0,
     paste_count: Number(pasteCount ?? 0),
     paste_total_length: Number(pasteTotal ?? 0),
     latest_paste_at: latestPaste ?? null,
-    score: row.score ?? null,
-    grade_released: Boolean(row.grade_released),
-    grade_state: row.grade_id ? (row.grade_released ? 'released' : 'held') : null,
+    score: null,
+    grade_released: false,
+    grade_state: null,
   };
 }
 
@@ -154,8 +138,7 @@ function csvCell(value) {
 
 // Returns all dashboard rows for an assignment, honouring the assignment_students
 // override table when populated.
-function fetchDashboardRows(db, assignmentId, classId, settingsJson = '{}') {
-  const nativeFlag = parseSettings(settingsJson).native_inkpad === true ? 1 : 0;
+function fetchDashboardRows(db, assignmentId, classId) {
   const overrideCount = db.prepare(
     'SELECT COUNT(*) AS n FROM assignment_students WHERE assignment_id = ?'
   ).get(assignmentId).n;
@@ -169,43 +152,15 @@ function fetchDashboardRows(db, assignmentId, classId, settingsJson = '{}') {
     SELECT s.id AS student_id,
            s.display_name,
            s.username,
-           ? AS native_inkpad,
-           p.id AS pad_id,
-           p.state AS pad_state,
            np.id AS native_pad_id,
            np.state AS native_pad_state,
            np.submitted_at AS native_submitted_at,
-           sub.id AS submission_id,
-           sub.submitted_at,
-           sub.is_graded,
-           sub.released AS submission_released,
-           g.id AS grade_id,
-           g.score,
-           g.released AS grade_released,
-           paste.paste_count,
-           paste.paste_total_length,
-           paste.latest_paste_at,
            native_paste.native_paste_count,
            native_paste.native_paste_total_length,
            native_paste.native_latest_paste_at
     FROM students s
     ${joinClause}
-    LEFT JOIN pads p ON p.student_id = s.id AND p.assignment_id = ?
     LEFT JOIN native_pads np ON np.student_id = s.id AND np.assignment_id = ?
-    LEFT JOIN (
-      SELECT sub_inner.*
-      FROM submissions sub_inner
-      JOIN (SELECT pad_id, MAX(id) AS latest_id FROM submissions GROUP BY pad_id) latest
-        ON latest.latest_id = sub_inner.id
-    ) sub ON sub.pad_id = p.id
-    LEFT JOIN grades g ON g.submission_id = sub.id
-    LEFT JOIN (
-      SELECT pad_id,
-             COUNT(*) AS paste_count,
-             COALESCE(SUM(length), 0) AS paste_total_length,
-             MAX(at) AS latest_paste_at
-      FROM paste_events GROUP BY pad_id
-    ) paste ON paste.pad_id = p.id
     LEFT JOIN (
       SELECT native_pad_id,
              COUNT(*) AS native_paste_count,
@@ -214,7 +169,7 @@ function fetchDashboardRows(db, assignmentId, classId, settingsJson = '{}') {
       FROM native_paste_events GROUP BY native_pad_id
     ) native_paste ON native_paste.native_pad_id = np.id
     ORDER BY s.display_name COLLATE NOCASE
-  `).all(nativeFlag, assignmentId, assignmentId);
+  `).all(assignmentId);
 }
 
 export async function registerAssignmentRoutes(app, { db }) {
@@ -237,7 +192,7 @@ export async function registerAssignmentRoutes(app, { db }) {
       const cls = db.prepare('SELECT id FROM classes WHERE id = ?').get(class_id);
       if (!cls) return reply.code(404).send({ error: 'class_not_found' });
 
-      const settings_json = buildSettingsJson(settings, type, { nativeDefault: true });
+      const settings_json = buildSettingsJson(settings, type);
       const result = db.prepare(`
         INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -294,7 +249,7 @@ export async function registerAssignmentRoutes(app, { db }) {
       `).get(id);
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
 
-      const rows = fetchDashboardRows(db, id, assignment.class_id, assignment.settings_json);
+      const rows = fetchDashboardRows(db, id, assignment.class_id);
 
       const statusFilter = request.query.status;
       const pasteFilter = request.query.paste;
@@ -325,7 +280,7 @@ export async function registerAssignmentRoutes(app, { db }) {
       `).get(id);
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
 
-      const rows = fetchDashboardRows(db, id, assignment.class_id, assignment.settings_json).map(publicDashboardRow);
+      const rows = fetchDashboardRows(db, id, assignment.class_id).map(publicDashboardRow);
 
       const header = ['Student name', 'Username', 'Status', 'Submitted at', 'Grade', 'Grade state', 'Paste flag', 'Paste count'];
       const lines = [
@@ -385,53 +340,6 @@ export async function registerAssignmentRoutes(app, { db }) {
 
       const updated = db.prepare('SELECT * FROM assignments WHERE id = ?').get(id);
       return { assignment: publicAssignment(updated) };
-    }
-  );
-
-  app.post('/api/assignments/:id/release-grades',
-    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
-    async (request, reply) => {
-      const id = requirePositiveInteger(request.params.id, 'id');
-      const assignment = db.prepare('SELECT id FROM assignments WHERE id = ?').get(id);
-      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
-
-      db.exec('BEGIN');
-      try {
-        db.prepare(`
-          UPDATE grades
-          SET released = 1
-          WHERE submission_id IN (
-            SELECT sub.id
-            FROM submissions sub
-            JOIN pads p ON p.id = sub.pad_id
-            WHERE p.assignment_id = ?
-          )
-        `).run(id);
-        db.prepare(`
-          UPDATE submissions
-          SET released = 1
-          WHERE id IN (
-            SELECT sub.id
-            FROM submissions sub
-            JOIN pads p ON p.id = sub.pad_id
-            WHERE p.assignment_id = ?
-          )
-          AND is_graded = 1
-        `).run(id);
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
-      }
-
-      const released = db.prepare(`
-        SELECT COUNT(*) AS count
-        FROM grades g
-        JOIN submissions sub ON sub.id = g.submission_id
-        JOIN pads p ON p.id = sub.pad_id
-        WHERE p.assignment_id = ? AND g.released = 1
-      `).get(id);
-      return { released: released.count };
     }
   );
 
@@ -575,10 +483,9 @@ export async function registerAssignmentRoutes(app, { db }) {
       const since = row?.value ?? '1970-01-01T00:00:00.000Z';
       const { count } = db.prepare(`
         SELECT COUNT(*) AS count
-        FROM submissions sub
-        JOIN pads p ON p.id = sub.pad_id
-        JOIN students s ON s.id = p.student_id
-        WHERE sub.submitted_at > ?
+        FROM native_pads np
+        JOIN students s ON s.id = np.student_id
+        WHERE np.submitted_at IS NOT NULL AND np.submitted_at > ?
           AND s.is_demo = 0 AND s.is_ghost = 0
       `).get(since);
       return { count };
@@ -648,17 +555,11 @@ export async function registerAssignmentRoutes(app, { db }) {
       // (b) student is explicitly listed in assignment_students.
       const rows = db.prepare(`
         SELECT DISTINCT a.*,
-               p.id   AS pad_id,
-               p.state AS pad_state,
                np.id AS native_pad_id,
                np.state AS native_pad_state,
-               np.submitted_at AS native_submitted_at,
-               sub.id  AS submission_id,
-               sub.submitted_at
+               np.submitted_at AS native_submitted_at
         FROM assignments a
-        LEFT JOIN pads p ON p.assignment_id = a.id AND p.student_id = ?
         LEFT JOIN native_pads np ON np.assignment_id = a.id AND np.student_id = ?
-        LEFT JOIN submissions sub ON sub.pad_id = p.id
         WHERE (
           -- class-wide default: no override rows and student is in the class
           (NOT EXISTS (SELECT 1 FROM assignment_students ast WHERE ast.assignment_id = a.id)
@@ -669,20 +570,17 @@ export async function registerAssignmentRoutes(app, { db }) {
         )
         AND a.is_archived = 0
         ORDER BY a.due_at ASC, a.opens_at ASC, a.created_at DESC
-      `).all(studentId, studentId, student.class_id, studentId);
+      `).all(studentId, student.class_id, studentId);
 
       return {
-        assignments: rows.map(row => {
-          const native = isNativeAssignment(row);
-          return {
-            ...publicAssignment(row),
-            native_inkpad: native,
-            status: deriveStatus(row, now),
-            pad_id: effectivePadId(row) ?? null,
-            write_url: native ? `/native/write/${row.id}` : `/write/${row.id}`,
-            feedback_url: native ? `/native/feedback/${row.id}` : `/write/${row.id}`,
-          };
-        }),
+        assignments: rows.map(row => ({
+          ...publicAssignment(row),
+          native_inkpad: true,
+          status: deriveStatus(row, now),
+          pad_id: effectivePadId(row) ?? null,
+          write_url: `/native/write/${row.id}`,
+          feedback_url: `/native/feedback/${row.id}`,
+        })),
       };
     }
   );

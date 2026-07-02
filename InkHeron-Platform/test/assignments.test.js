@@ -66,23 +66,6 @@ async function setupStudent(app, { cookies: tCookies, csrf: tCsrf }, classId, st
   return { cookies: login.headers['set-cookie'], csrf: login.json().user.csrf_token, student: res.json().student };
 }
 
-function makeFakeEtherpadService() {
-  return {
-    async createAssignmentPad(classId, assignmentId, studentId) {
-      return `g.class${classId}$a${assignmentId}_s${studentId}`;
-    },
-    async ensureClassGroup(classId) {
-      return `g.class${classId}`;
-    },
-    async ensureStudentAuthor(studentId) {
-      return `a.student${studentId}`;
-    },
-    async createSessionCookie(groupId, authorId) {
-      return { sessionID: `s.${groupId}.${authorId}`, validUntil: Math.floor(Date.now() / 1000) + 7200 };
-    },
-  };
-}
-
 test('teacher can create an assignment with settings_json', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);
@@ -251,7 +234,7 @@ test('student assignment API links native assignments to native writer', async (
   await app.close();
 });
 
-test('new assignments default to native InkPad without flipping existing Etherpad assignments', async () => {
+test('all assignments are native InkPad, even when native_inkpad:false is requested', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);
   const cls = await app.inject({ method: 'POST', url: '/api/classes',
@@ -264,19 +247,20 @@ test('new assignments default to native InkPad without flipping existing Etherpa
   assert.equal(created.statusCode, 201);
   assert.equal(JSON.parse(created.json().assignment.settings_json).native_inkpad, true);
 
-  const etherpad = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: classId, title: 'Etherpad fallback', settings: { native_inkpad: false } },
+  // A request to opt out of native is ignored; there is no Etherpad path any more.
+  const optOut = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Tried to opt out', settings: { native_inkpad: false } },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
-  assert.equal(etherpad.statusCode, 201);
-  const etherpadId = etherpad.json().assignment.id;
-  assert.equal(JSON.parse(etherpad.json().assignment.settings_json).native_inkpad, undefined);
+  assert.equal(optOut.statusCode, 201);
+  const optOutId = optOut.json().assignment.id;
+  assert.equal(JSON.parse(optOut.json().assignment.settings_json).native_inkpad, true);
 
-  const patched = await app.inject({ method: 'PATCH', url: `/api/assignments/${etherpadId}`,
+  const patched = await app.inject({ method: 'PATCH', url: `/api/assignments/${optOutId}`,
     payload: { settings: { prompt: 'Updated prompt.' } },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
   assert.equal(patched.statusCode, 200);
   const settings = JSON.parse(patched.json().assignment.settings_json);
-  assert.equal(settings.native_inkpad, undefined);
+  assert.equal(settings.native_inkpad, true);
   assert.equal(settings.prompt, 'Updated prompt.');
 
   await app.close();
@@ -302,89 +286,6 @@ test('editing assignment settings preserves hidden native InkPad flag', async ()
   assert.equal(settings.native_inkpad, true);
   assert.equal(settings.prompt, 'New prompt');
   assert.equal(settings.spellcheck, false);
-
-  await app.close();
-});
-
-test('teacher can explicitly toggle native InkPad setting', async () => {
-  const app = await buildApp({ databasePath: tmpDb(), logger: false });
-  const teacher = await setupTeacher(app);
-  const cls = await app.inject({ method: 'POST', url: '/api/classes',
-    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
-  const classId = cls.json().class.id;
-
-  const created = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: classId, title: 'Native toggle', settings: { native_inkpad: true } },
-    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
-  assert.equal(JSON.parse(created.json().assignment.settings_json).native_inkpad, true);
-  const assignmentId = created.json().assignment.id;
-
-  const patched = await app.inject({ method: 'PATCH', url: `/api/assignments/${assignmentId}`,
-    payload: { settings: { native_inkpad: false } },
-    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
-  assert.equal(patched.statusCode, 200);
-  assert.equal(JSON.parse(patched.json().assignment.settings_json).native_inkpad, undefined);
-
-  await app.close();
-});
-
-test('teacher assignment dashboard shows status, submission time and paste flags', async () => {
-  const app = await buildApp({ databasePath: tmpDb(), logger: false, etherpadService: makeFakeEtherpadService() });
-  const teacher = await setupTeacher(app);
-  const cls = await app.inject({ method: 'POST', url: '/api/classes',
-    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
-  const classId = cls.json().class.id;
-
-  const alice = await setupStudent(app, teacher, classId, { username: 'alice', display_name: 'Alice' });
-  const bob = await setupStudent(app, teacher, classId, { username: 'bob', display_name: 'Bob' });
-  await setupStudent(app, teacher, classId, { username: 'cara', display_name: 'Cara' });
-
-  const created = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: classId, title: 'Dashboard essay',
-      settings: { native_inkpad: false },
-      opens_at: '2020-01-01T00:00:00Z', due_at: '2099-12-31T23:59:59Z' },
-    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
-  const assignmentId = created.json().assignment.id;
-
-  const alicePad = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/pad`,
-    headers: { cookie: alice.cookies } });
-  assert.equal(alicePad.statusCode, 200);
-  const alicePadId = alicePad.json().pad.id;
-  const paste = await app.inject({ method: 'POST', url: `/api/pads/${alicePadId}/paste-event`,
-    payload: { length: 42, input_type: 'insertFromPaste' },
-    headers: { 'X-CSRF-Token': alice.csrf, cookie: alice.cookies } });
-  assert.equal(paste.statusCode, 201);
-
-  const bobPad = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/pad`,
-    headers: { cookie: bob.cookies } });
-  const submit = await app.inject({ method: 'POST', url: `/api/pads/${bobPad.json().pad.id}/submit`,
-    headers: { cookie: bob.cookies } });
-  assert.equal(submit.statusCode, 201);
-
-  const dashboard = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/dashboard`,
-    headers: { cookie: teacher.cookies } });
-  assert.equal(dashboard.statusCode, 200);
-
-  const rows = Object.fromEntries(dashboard.json().students.map(student => [student.username, student]));
-  assert.equal(dashboard.json().class.name, 'G9');
-  assert.equal(rows.alice.status, 'writing');
-  assert.equal(rows.alice.paste_flag, true);
-  assert.equal(rows.alice.paste_count, 1);
-  assert.equal(rows.alice.paste_total_length, 42);
-  assert.equal(rows.bob.status, 'submitted');
-  assert.ok(rows.bob.submitted_at);
-  assert.equal(rows.cara.status, 'not_started');
-  assert.equal(rows.cara.pad_id, null);
-
-  const csv = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/export.csv`,
-    headers: { cookie: teacher.cookies } });
-  assert.equal(csv.statusCode, 200);
-  assert.match(csv.headers['content-type'], /text\/csv/);
-  assert.match(csv.headers['content-disposition'], /assignment-/);
-  assert.match(csv.body, /"Student name","Username","Status","Submitted at","Grade","Grade state","Paste flag","Paste count"/);
-  assert.match(csv.body, /"Alice","alice","writing"/);
-  assert.match(csv.body, /"Bob","bob","submitted"/);
-  assert.match(csv.body, /"yes","1"/);
 
   await app.close();
 });
@@ -416,7 +317,6 @@ test('teacher dashboard links native pads to native review with paste evidence',
     headers: { cookie: teacher.cookies } });
   assert.equal(dashboard.statusCode, 200);
   const row = dashboard.json().students.find(student => student.username === 'alice');
-  assert.equal(row.pad_kind, 'native');
   assert.equal(row.pad_id, nativePadId);
   assert.equal(row.review_url, `/teacher/native-review?pad_id=${nativePadId}`);
   assert.equal(row.status, 'writing');
@@ -424,12 +324,21 @@ test('teacher dashboard links native pads to native review with paste evidence',
   assert.equal(row.paste_count, 1);
   assert.equal(row.paste_total_length, 33);
 
+  const csv = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/export.csv`,
+    headers: { cookie: teacher.cookies } });
+  assert.equal(csv.statusCode, 200);
+  assert.match(csv.headers['content-type'], /text\/csv/);
+  assert.match(csv.headers['content-disposition'], /assignment-/);
+  assert.match(csv.body, /"Student name","Username","Status","Submitted at","Grade","Grade state","Paste flag","Paste count"/);
+  assert.match(csv.body, /"Alice","alice","writing"/);
+  assert.match(csv.body, /"yes","1"/);
+
   await app.close();
 });
 
 test('teacher assignment dashboard filters by status and paste flag', async () => {
   const dbPath = tmpDb();
-  const app = await buildApp({ databasePath: dbPath, logger: false, etherpadService: makeFakeEtherpadService() });
+  const app = await buildApp({ databasePath: dbPath, logger: false });
   const teacher = await setupTeacher(app);
   const cls = await app.inject({ method: 'POST', url: '/api/classes',
     payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
@@ -439,22 +348,22 @@ test('teacher assignment dashboard filters by status and paste flag', async () =
   const bob = await setupStudent(app, teacher, classId, { username: 'bob', display_name: 'Bob' });
 
   const created = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: classId, title: 'Filter essay', settings: { native_inkpad: false } },
+    payload: { class_id: classId, title: 'Filter essay', settings: { native_inkpad: true } },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
   const assignmentId = created.json().assignment.id;
 
-  const alicePad = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/pad`,
+  const alicePad = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`,
     headers: { cookie: alice.cookies } });
-  const paste = await app.inject({ method: 'POST', url: `/api/pads/${alicePad.json().pad.id}/paste-event`,
-    payload: { length: 20, input_type: 'insertFromPaste' },
+  const paste = await app.inject({ method: 'POST', url: `/api/native/pads/${alicePad.json().pad.id}/paste-event`,
+    payload: { length: 20, input_type: 'paste' },
     headers: { 'X-CSRF-Token': alice.csrf, cookie: alice.cookies } });
   assert.equal(paste.statusCode, 201);
-  await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/pad`,
+  const bobPad = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`,
     headers: { cookie: bob.cookies } });
 
   const db = new DatabaseSync(dbPath);
   try {
-    db.prepare("UPDATE pads SET state = 'marked' WHERE student_id = ?").run(bob.student.id);
+    db.prepare("UPDATE native_pads SET state = 'marked' WHERE id = ?").run(bobPad.json().pad.id);
   } finally {
     db.close();
   }

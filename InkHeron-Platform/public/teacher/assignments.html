@@ -159,7 +159,6 @@
         <select id="detailClassSel" style="min-width:120px;max-width:200px;min-height:32px;padding:6px 10px;font-size:13px;"></select>
         <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
-        <button class="btn sm" id="releaseBtn" type="button">Release all grades</button>
         <button class="btn sm" id="archiveBtn" type="button">Archive</button>
         <button class="btn sm" id="deleteBtn" type="button" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
       </div>
@@ -561,7 +560,6 @@
       });
       document.getElementById('saveEditBtn').addEventListener('click',saveEdit);
       document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
-      document.getElementById('releaseBtn').addEventListener('click',releaseGrades);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
       document.getElementById('archiveBtn').addEventListener('click',archiveAssignment);
       document.getElementById('deleteBtn').addEventListener('click',deleteAssignment);
@@ -632,14 +630,6 @@
         body:JSON.stringify({student_id:studentId}),
       });
       if(r.ok) await loadDashboard();
-    }
-
-    async function releaseGrades(){
-      const ids=currentId==='all'?detailGroup.map(a=>a.id):[currentId];
-      if(!ids.length) return;
-      if(!confirm('Release all saved grades for this assignment?')) return;
-      await Promise.all(ids.map(id=>fetch(`/api/assignments/${id}/release-grades`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}})));
-      await loadDashboard();
     }
 
     function exportCsv(){
