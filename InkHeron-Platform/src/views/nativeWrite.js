@@ -44,6 +44,8 @@ export function renderNativeWriteView({
   const submitLabel = pad.state === 'green_pen_open' ? 'Resubmit' : 'Submit';
   const submitConfirm = pad.state === 'green_pen_open' ? 'Resubmit this rewrite?' : 'Submit this writing?';
   const submitDoneLabel = pad.state === 'green_pen_open' ? 'Resubmitted' : 'Submitted';
+  // Once already submitted (locked), the button shows the done label and is greyed out.
+  const submitButtonLabel = locked ? (pad.state === 'resubmitted' ? 'Resubmitted' : 'Submitted') : submitLabel;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -158,7 +160,7 @@ export function renderNativeWriteView({
     <div class="niw-stat"><span id="charCount">0</span> chars</div>
     <div class="niw-stat"><span id="sentenceCount">0</span> sentences</div>
     <button class="niw-btn" id="saveBtn" type="button" ${locked ? 'disabled' : ''}>Save</button>
-    <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitLabel)}</button>
+    <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitButtonLabel)}</button>
   </header>
   <main class="niw-shell">
     <aside class="niw-passage">
@@ -725,6 +727,7 @@ export function renderNativeWriteView({
       if(response.ok){
         editor.setAttribute('contenteditable', 'false');
         submitBtn.disabled = true;
+        submitBtn.textContent = submitDoneLabel;
         saveBtn.disabled = true;
         saveState.textContent = submitDoneLabel;
       }else{

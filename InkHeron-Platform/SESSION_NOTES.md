@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 — Submit button shows "Submitted" and greys out
+- Asked: after a student submits, the submit button should display "Submitted" and be greyed out.
+- Done: in nativeWrite.js the button now renders the done label (Submitted / Resubmitted) and stays disabled when the pad is locked; the click handler also sets the button text to the done label on a successful submit. Greying already handled by `.niw-btn:disabled{opacity:.5}`.
+- Also this session: merged remove-etherpad then analysis-backend to main (fast-forward); confirmed the key settings place already exists at /teacher/settings (both keys, masked, working); rendered strengths/targets on the student feedback page (was returned by the endpoint but not shown); fixed the stale branch reference in FABLE_HANDOFF.md.
+- Verified: rendered the view for all pad states, button label/disabled correct each time.
+
 ## 2026-07-02 — Analysis backend foundations + Fable handoff
 - Asked: make the analysis backend work accurately. Build everything planned but never implemented (literacy coder, Server酱, etc). Division agreed: I build the non-AI foundations and seams, Fable builds the AI reasoning (phases B/C/D) and redesigns the teacher review window. AI suggestions hidden until teacher accepts.
 - Branch `analysis-backend` (off remove-etherpad). Built:
