@@ -7,8 +7,11 @@
  * the teacher explicitly releases feedback.
  */
 import { callChat } from './openRouter.js';
+import { verifyFindings } from './checker.js';
 
-const VALID_CODES = new Set([
+const DOER_INTENT = 'anthropic claude haiku';
+
+export const VALID_CODES = new Set([
   'Sp','Caps','P','^','Exp','Gra','Embed','AA/Adj',
   'STR','FOR','WO','WW','V','VT','del','inc','RO','Rep','✓','//',
 ]);
@@ -53,7 +56,7 @@ Paragraph: They is playing outside and she recieved the ball, the game was fun.
 Answer:
 [{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"is","code":"Gra"},{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"recieved","code":"Sp"}]`;
 
-function parseLiteracyResponse(raw) {
+export function parseLiteracyResponse(raw) {
   raw = raw.replace(/<think>[\s\S]*?<\/think>/g, '');
   raw = raw.replace(/```json|```/g, '');
   const start = raw.indexOf('[');
@@ -85,7 +88,7 @@ function locate(haystack, needle) {
   } catch { return null; }
 }
 
-function findQuoteSpan(paraText, sentence, quote) {
+export function findQuoteSpan(paraText, sentence, quote) {
   const sentSpan = locate(paraText, sentence);
   if (sentSpan) {
     const seg = paraText.slice(sentSpan.start, sentSpan.end);
@@ -95,7 +98,7 @@ function findQuoteSpan(paraText, sentence, quote) {
   return locate(paraText, quote);
 }
 
-function codeCategory(code) {
+export function codeCategory(code) {
   if (['Sp','Caps','^','WW','AA/Adj','Rep'].includes(code)) return 'surface';
   if (['Gra','VT','V','WO','del','inc','RO','STR','Exp'].includes(code)) return 'grammar';
   if (['P','FOR','//','Embed'].includes(code)) return 'format';
@@ -131,10 +134,95 @@ function codeCategory(code) {
  *            errors so a missing API key is a clean no-op (as in tests).
  * =======================================================================
  */
-export async function runLiteracyAnalysis(db, { padId } = {}) {
-  // STUB: no AI wired yet. Returns cleanly so submit/marking flows and tests
-  // without an OpenRouter key are unaffected. Fable implements phase B here.
-  void db; void padId; void callChat; void SYSTEM_PROMPT;
-  void parseLiteracyResponse; void findQuoteSpan; void codeCategory;
-  return { status: 'not_implemented', written: 0 };
+const CODE_LABELS = {
+  Sp: 'Spelling', Caps: 'Capital letter', P: 'Punctuation', '^': 'Missing word',
+  Exp: 'Expression', Gra: 'Grammar', Embed: 'Quotation embedding', 'AA/Adj': 'Adjective form',
+  STR: 'Sentence structure', FOR: 'Formatting', WO: 'Word order', WW: 'Wrong word',
+  V: 'Verb formation', VT: 'Verb tense', del: 'Delete word', inc: 'Incomplete sentence',
+  RO: 'Run-on sentence', Rep: 'Repetition', '✓': 'Good work', '//': 'New paragraph',
+};
+
+// Non-blank runs of lines with their absolute start offset into plain_text.
+export function splitParagraphs(text) {
+  const paragraphs = [];
+  const re = /[^\n]+/g;
+  let match;
+  while ((match = re.exec(text)) !== null) {
+    if (/\w/.test(match[0])) paragraphs.push({ text: match[0], offset: match.index });
+  }
+  return paragraphs;
+}
+
+export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat } = {}) {
+  try {
+    const pad = db.prepare('SELECT id, plain_text, version FROM native_pads WHERE id = ?').get(padId);
+    if (!pad || !pad.plain_text || !/\w/.test(pad.plain_text)) return { status: 'skipped', written: 0 };
+    const plainText = pad.plain_text;
+
+    const findings = [];
+    let modelId = '';
+    for (const para of splitParagraphs(plainText)) {
+      const result = await chat(db, {
+        intent: DOER_INTENT,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: para.text },
+        ],
+        maxTokens: 1500,
+        temperature: 0,
+      });
+      modelId = result?.model ?? modelId;
+      for (const item of parseLiteracyResponse(result?.choices?.[0]?.message?.content ?? '')) {
+        const span = findQuoteSpan(para.text, item.sentence, item.quote);
+        if (!span) continue;
+        const start = para.offset + span.start;
+        const end = para.offset + span.end;
+        // Store the exact pad slice so offsets and quote can never disagree.
+        findings.push({
+          start_offset: start,
+          end_offset: end,
+          quote: plainText.slice(start, end),
+          code: item.code,
+          category: codeCategory(item.code),
+          label: CODE_LABELS[item.code] ?? item.code,
+        });
+      }
+    }
+
+    // Dedupe identical spans with the same code (models repeat themselves).
+    const seen = new Set();
+    const unique = findings.filter((f) => {
+      const key = `${f.start_offset}:${f.end_offset}:${f.code}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+    const verified = await verifyFindings(db, { padPlainText: plainText, findings: unique }, { chat });
+    const surviving = verified.filter((f) => f.checker.verbatim !== false);
+
+    const clear = db.prepare("DELETE FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'pending'");
+    const insert = db.prepare(`
+      INSERT INTO ai_literacy_suggestions
+        (native_pad_id, document_version, start_offset, end_offset, quote, code, category, label, model, checker_json, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+    `);
+    db.exec('BEGIN');
+    try {
+      clear.run(padId);
+      for (const f of surviving) {
+        insert.run(padId, pad.version, f.start_offset, f.end_offset, f.quote,
+          f.code, f.category, f.label, modelId, JSON.stringify(f.checker));
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    return { status: 'ok', written: surviving.length };
+  } catch (error) {
+    console.warn('[literacyCoder]', error?.message ?? error);
+    return { status: 'error', written: 0 };
+  }
 }
