@@ -12,7 +12,7 @@ const expectedColumns = {
   assignments: ['id', 'class_id', 'title', 'type', 'settings_json', 'opens_at', 'due_at', 'created_at', 'is_archived'],
   pads: ['id', 'student_id', 'assignment_id', 'etherpad_pad_id', 'state', 'created_at'],
   pad_allocations: ['pad_suffix', 'etherpad_pad_id', 'created_at'],
-  native_pads: ['id', 'student_id', 'assignment_id', 'state', 'document_json', 'plain_text', 'word_count', 'created_at', 'updated_at', 'submitted_at', 'version', 'applied_feedback_table'],
+  native_pads: ['id', 'student_id', 'assignment_id', 'state', 'document_json', 'plain_text', 'word_count', 'created_at', 'updated_at', 'submitted_at', 'version', 'applied_feedback_table', 'rewrite_of_pad_id'],
   native_pad_revisions: ['id', 'native_pad_id', 'reason', 'document_json', 'plain_text', 'word_count', 'created_at', 'document_version'],
   native_paste_events: ['id', 'native_pad_id', 'at', 'length', 'input_type'],
   native_pad_policies: ['id', 'native_pad_id', 'paste_mode', 'spellcheck_enabled', 'updated_by_teacher_id', 'updated_at'],
@@ -38,6 +38,11 @@ const expectedColumns = {
   eap_library_view_log: ['id', 'doc_id', 'student_name', 'class_period', 'viewed_at', 'duration_seconds'],
   sessions: ['sid', 'data', 'expires_at'],
   submission_comments: ['id', 'submission_id', 'kind', 'body', 'created_at', 'updated_at'],
+  native_feedback_items: ['id', 'native_pad_id', 'kind', 'feedback_key', 'title', 'explanation', 'try_now_prompt', 'source', 'sort_order', 'created_by_teacher_id', 'created_at', 'updated_at'],
+  score_snapshots: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'scores_json', 'total', 'pad_state', 'recorded_at'],
+  ai_literacy_suggestions: ['id', 'native_pad_id', 'document_version', 'start_offset', 'end_offset', 'quote', 'code', 'category', 'label', 'model', 'checker_json', 'status', 'annotation_id', 'created_at', 'resolved_at'],
+  implementation_scores: ['id', 'rewrite_pad_id', 'original_pad_id', 'student_id', 'addressed_json', 'cosmetic_ratio', 'meaningful', 'summary', 'model', 'created_at'],
+  ai_grade_estimates: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'criterion_id', 'ai_score', 'teacher_score', 'delta', 'model', 'rationale', 'created_at', 'scored_at'],
 };
 
 const migrationFiles = [
@@ -59,6 +64,12 @@ const migrationFiles = [
   '016_feedback_assets.sql',
   '017_rubric_kind.sql',
   '018_applied_feedback_table.sql',
+  '019_native_feedback_items.sql',
+  '020_score_snapshots.sql',
+  '021_ai_literacy_suggestions.sql',
+  '022_native_pad_rewrite_link.sql',
+  '023_implementation_scores.sql',
+  '024_ai_grade_estimates.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {
