@@ -127,7 +127,8 @@ export function renderNativeWriteView({
     .niw-editor-stage{flex:1;overflow:auto;padding:24px 12px}
     .niw-page-zoom-frame{width:max-content;margin:0 auto;position:relative}
     .niw-page-shell{display:grid;grid-template-columns:26px var(--page-width);align-items:start;zoom:var(--editor-zoom)}
-    .niw-line-numbers{border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;line-height:31.5px;text-align:right;padding:35px 7px 34px 0;user-select:none;white-space:pre;min-height:0}
+    .niw-line-numbers{position:relative;border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;user-select:none;min-height:0}
+    .niw-lnum{position:absolute;right:7px;height:31.5px;line-height:31.5px;text-align:right}
     #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background-color:#fff;background-image:repeating-linear-gradient(to right,#fff 0 7px,rgba(255,255,255,0) 7px 13px),repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) calc(var(--page-width) * 1.414 - 1px),#cbc4b2 calc(var(--page-width) * 1.414 - 1px),#cbc4b2 calc(var(--page-width) * 1.414));border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
     #nativeEditor p,#nativeEditor div{margin:0 0 1em}
     #nativeEditor ul,#nativeEditor ol{margin:0 0 1em 1.3em;padding:0}
@@ -732,9 +733,29 @@ export function renderNativeWriteView({
     });
 
     function updateLineNumbers(){
-      const text = currentText();
-      const lines = text.trim() ? text.split('\\n').length : 0;
-      lineNumbers.textContent = Array.from({length:lines}, (_, index) => String(index + 1)).join('\\n');
+      // Place a number at each VISUAL line, measured from the rendered text, so
+      // wrapped lines and paragraph spacing stay aligned with the gutter.
+      lineNumbers.innerHTML = '';
+      if(!currentText().trim()){ syncZoomFrame(); return; }
+      const editorTop = editor.getBoundingClientRect().top;
+      const z = editorZoom || 1;
+      const range = document.createRange();
+      range.selectNodeContents(editor);
+      const rects = Array.from(range.getClientRects()).filter(r => r.height > 0);
+      const tops = [];
+      rects.forEach(r => {
+        const top = r.top;
+        if(!tops.length || Math.abs(tops[tops.length - 1] - top) > 4) tops.push(top);
+      });
+      const frag = document.createDocumentFragment();
+      tops.forEach((top, index) => {
+        const span = document.createElement('span');
+        span.className = 'niw-lnum';
+        span.textContent = String(index + 1);
+        span.style.top = ((top - editorTop) / z) + 'px';
+        frag.appendChild(span);
+      });
+      lineNumbers.appendChild(frag);
       syncZoomFrame();
     }
     function closePalettes(){
