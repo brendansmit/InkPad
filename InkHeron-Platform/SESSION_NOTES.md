@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-02 - A4 paper, tighter padding, page-break line
+- Asked: reduce editor side padding, make the pad a true A4 ratio, add a faint dotted horizontal line at each A4 page break.
+- Built: editor stage padding cut 32px to 12px. Editor column set to exactly --page-width (794) so the paper is a true A4 794x1123 border-box (was 768 wide due to the line-number column eating width). Added a faint dotted page-break line every page-width*1.414 via two layered CSS backgrounds (thin line + white dash mask), behind text, scales with zoom.
+- Verified: node --check passes, wrapper active after deploy. Live look for Brendan.
+
 ## 2026-07-02 - Editor zoom scales like the PDF, PDF highlight blend fix
 - Asked: (1) PDF highlight was hiding the words. (2) Make the writing pad zoom behave like the PDF window.
 - Fixed highlight: it painted a solid opaque background over the canvas glyphs. Now uses mix-blend-mode:multiply and the text layer dropped its z-index so it shares the canvas stacking context and blends like a highlighter pen. Underline was already fine. Commit 3a0ddbf area.
