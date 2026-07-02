@@ -167,11 +167,38 @@ test('teacher can manage feedback assets', async () => {
     },
   });
   assert.equal(rubric.statusCode, 201);
+  assert.equal(rubric.json().asset.parsed.mode, 'analytic');
   assert.equal(rubric.json().asset.parsed.criteria[0].label, 'Voice');
+
+  const holistic = await app.inject({
+    method: 'POST',
+    url: '/api/feedback-assets',
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+    payload: {
+      kind: 'rubric',
+      title: 'Holistic personal statement rubric',
+      assignment_type: 'Personal statement',
+      content_text: JSON.stringify({
+        mode: 'holistic',
+        label: 'Overall',
+        description: 'Overall quality of the response.',
+        bands: [
+          { score_value: 0, label: '0', descriptor: 'Missing' },
+          { score_value: 1.5, label: '1.5', descriptor: 'Developing' },
+          { score_value: 3, label: '3', descriptor: 'Secure' },
+        ],
+      }),
+    },
+  });
+  assert.equal(holistic.statusCode, 201);
+  assert.equal(holistic.json().asset.parsed.mode, 'holistic');
+  assert.equal(holistic.json().asset.parsed.criteria.length, 1);
+  assert.equal(holistic.json().asset.parsed.criteria[0].label, 'Overall');
+  assert.equal(holistic.json().asset.parsed.criteria[0].bands[1].score_value, 1.5);
 
   const listed = await app.inject({ method: 'GET', url: '/api/feedback-assets', headers: { cookie: teacher.cookies } });
   assert.equal(listed.statusCode, 200);
-  assert.equal(listed.json().assets.length, 2);
+  assert.equal(listed.json().assets.length, 3);
 
   const archived = await app.inject({
     method: 'DELETE',
@@ -181,7 +208,7 @@ test('teacher can manage feedback assets', async () => {
   assert.equal(archived.statusCode, 204);
 
   const remaining = await app.inject({ method: 'GET', url: '/api/feedback-assets', headers: { cookie: teacher.cookies } });
-  assert.deepEqual(remaining.json().assets.map(asset => asset.title), ['Personal statement rubric']);
+  assert.deepEqual(remaining.json().assets.map(asset => asset.title), ['Holistic personal statement rubric', 'Personal statement rubric']);
 
   await app.close();
 });

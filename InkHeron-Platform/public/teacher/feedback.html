@@ -39,6 +39,9 @@
     .asset h3{margin:0;font-size:15px}
     .asset p{margin:4px 0 0;color:var(--text-2);font-size:13px}
     .pill{display:inline-flex;align-items:center;min-height:24px;border-radius:999px;padding:0 9px;font-size:12px;font-weight:700;background:var(--surface-2);color:var(--text-2)}
+    details.format-help{margin-top:10px}
+    details.format-help summary{cursor:pointer;color:var(--green-700);font-weight:700;font-size:13px}
+    pre.template{white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px;font-size:12px;line-height:1.45;max-height:220px;overflow:auto}
     .msg{display:none;padding:11px 14px;border-radius:var(--r-sm);margin-bottom:14px}
     .msg.on{display:block;background:var(--green-50);color:var(--green-700)}
     .msg.err{background:var(--maroon-50);color:var(--maroon-500)}
@@ -87,6 +90,34 @@
           <div class="field">
             <label for="contentText">Content</label>
             <textarea id="contentText" placeholder="Strengths&#10;- Clear voice: The writing sounds personal and specific.&#10;&#10;Targets&#10;- Add concrete evidence: Use a precise moment or detail."></textarea>
+            <details class="format-help">
+              <summary>Rubric JSON templates</summary>
+              <pre class="template">Analytic:
+{
+  "mode": "analytic",
+  "criteria": [
+    {
+      "label": "Ideas",
+      "description": "Quality and development of ideas.",
+      "bands": [
+        { "score_value": 0, "label": "0", "descriptor": "Missing." },
+        { "score_value": 1, "label": "1", "descriptor": "Limited." }
+      ]
+    }
+  ]
+}
+
+Holistic:
+{
+  "mode": "holistic",
+  "label": "Overall",
+  "description": "Overall performance across the whole task.",
+  "bands": [
+    { "score_value": 0, "label": "0", "descriptor": "Missing." },
+    { "score_value": 1, "label": "1", "descriptor": "Limited." }
+  ]
+}</pre>
+            </details>
           </div>
           <button class="btn p" id="saveBtn" type="submit">Save feedback asset</button>
         </form>
@@ -130,7 +161,7 @@
       box.innerHTML=assets.map(asset=>{
         const parsed=asset.parsed||{};
         const count=asset.kind==='rubric'
-          ? `${(parsed.criteria||[]).length} criteria`
+          ? `${parsed.mode==='holistic'?'Holistic':'Analytic'} - ${(parsed.criteria||[]).length} criteria`
           : `${(parsed.strengths||[]).length} strengths, ${(parsed.targets||[]).length} targets`;
         return `<article class="asset">
           <header>

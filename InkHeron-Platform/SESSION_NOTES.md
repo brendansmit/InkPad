@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-02 - Holistic and analytic rubric templates
+- Asked: Make sure the rubric module works with both holistic and analytic rubrics.
+- Built: Rubric assets now parse `mode: "analytic"` as multiple criteria and `mode: "holistic"` as one `Overall` scoreable criterion with bands.
+- Built: Feedback page now shows analytic and holistic JSON templates and labels saved rubric assets by mode. Assignment setup hints explain the difference.
+- Verified: `node --check src/feedback/assets.js` and `node --test test/feedbackAssets.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
+
 ## 2026-07-02 - Feedback PDF and DOCX uploads
 - Asked: Expand feedback uploads to include Word docs and PDFs, excluding old `.doc`.
 - Built: Added server-side `/api/feedback-assets/extract` multipart extraction for TXT, CSV, JSON, DOCX and selectable-text PDF files.

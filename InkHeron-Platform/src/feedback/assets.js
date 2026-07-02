@@ -66,6 +66,32 @@ function normalizeCriteria(criteria) {
   }));
 }
 
+function normalizeHolisticRubric(json) {
+  const bands = Array.isArray(json?.bands ?? json?.scale ?? json?.levels)
+    ? (json.bands ?? json.scale ?? json.levels).slice(0, 20).map((band, bandIndex) => ({
+      score_value: Number.isFinite(Number(band?.score_value ?? band?.score)) ? Number(band.score_value ?? band.score) : bandIndex,
+      label: cleanText(band?.label ?? String(band?.score_value ?? band?.score ?? bandIndex), 80),
+      descriptor: cleanText(band?.descriptor ?? band?.description ?? '', 500),
+    }))
+    : [];
+  return {
+    mode: 'holistic',
+    criteria: [{
+      label: cleanText(json?.label ?? json?.title ?? 'Overall', 120) || 'Overall',
+      description: cleanText(json?.description ?? 'Overall performance across the rubric.', 500),
+      weight: Number.isFinite(Number(json?.weight)) ? Number(json.weight) : 1,
+      bands,
+    }],
+  };
+}
+
+function normalizeAnalyticRubric(json) {
+  return {
+    mode: 'analytic',
+    criteria: normalizeCriteria(Array.isArray(json) ? json : json.criteria),
+  };
+}
+
 export function parseFeedbackAsset(kind, contentText) {
   if (!VALID_KINDS.has(kind)) {
     const err = new Error('invalid_feedback_asset_kind');
@@ -81,11 +107,13 @@ export function parseFeedbackAsset(kind, contentText) {
         strengths: Array.isArray(json.strengths) ? json.strengths.map((item, index) => normalizeOption(item, 'strength', index)) : [],
         targets: Array.isArray(json.targets) ? json.targets.map((item, index) => normalizeOption(item, 'target', index)) : [],
       };
+    } else if (!Array.isArray(json) && String(json.mode ?? json.rubric_type ?? '').toLowerCase() === 'holistic') {
+      parsed = normalizeHolisticRubric(json);
     } else {
-      parsed = { criteria: normalizeCriteria(Array.isArray(json) ? json : json.criteria) };
+      parsed = normalizeAnalyticRubric(json);
     }
   } catch (_) {
-    parsed = kind === 'strength_target' ? parseSectionedFeedback(text) : { criteria: [] };
+    parsed = kind === 'strength_target' ? parseSectionedFeedback(text) : { mode: 'analytic', criteria: [] };
   }
   return parsed;
 }
