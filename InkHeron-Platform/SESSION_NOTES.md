@@ -20,6 +20,17 @@ Entry format:
 
 ---
 
+## 2026-07-02 — Fable batch: phases B and D2, Sonnet handoff, review mockups
+
+- Asked: run the agreed Fable batch — baseline, Phase B, Phase D2, Sonnet handoff notes for C/D3, review-window mockups.
+- Branch `analysis-ai` off main. Baseline confirmed: 66/70, only the 4 known failures.
+- Phase B (01f5d3a): `runLiteracyAnalysis` fills `ai_literacy_suggestions` (Doer haiku per paragraph, quotes stored as exact pad slices so offsets never drift, dedupe, delete-then-insert pending rows in a transaction). `verifyFindings` in checker.js: deterministic verbatim check plus one batched gemini-flash defensibility call; checker failure is non-fatal (flag `checker_unavailable`). Both take injectable `{ chat }` for tests. 8 tests.
+- Phase D2 (78502f6): `scoreRewrite` upserts `implementation_scores`. Deterministic word-LCS diff computed raw and normalized; change that vanishes under normalization = cosmetic, giving `cosmetic_ratio` and `has_substantive_change`. AI judgement per feedback item, GATED: an unchanged flagged span can never be "addressed" and a cosmetic-only rewrite can never be `meaningful`, whatever the model says. 5 tests.
+- SONNET_HANDOFF.md (cb39fe3): full template for phases C and D3 including the 10 established conventions. Decision recorded there: Phase C triggers in background on finish-marking via `runInBackground`.
+- Review redesign mockups in `mockups/review-redesign/`: direction-a.html (marking desk: essay + right rail, dashed quiet AI-suggestion cards) and direction-b.html (guided flow: stepper Read → Suggestions → Feedback → Rubrics, one suggestion at a time, sticky finish bar). Both self-hosted tokens, category-only hover, no grade estimate anywhere. Screenshot-verified on port 3466 (`inkheron-mockups` launch config).
+- Suite after all commits: 83 tests, 79 pass, same 4 baseline failures.
+- Next: teacher picks a mockup direction; Sonnet does C, D3 and the chosen redesign.
+
 ## 2026-07-02 — Submit button shows "Submitted" and greys out
 - Asked: after a student submits, the submit button should display "Submitted" and be greyed out.
 - Done: in nativeWrite.js the button now renders the done label (Submitted / Resubmitted) and stays disabled when the pad is locked; the click handler also sets the button text to the done label on a successful submit. Greying already handled by `.niw-btn:disabled{opacity:.5}`.
