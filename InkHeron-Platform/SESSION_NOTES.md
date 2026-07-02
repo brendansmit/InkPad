@@ -20,6 +20,15 @@ Entry format:
 
 ---
 
+## 2026-07-02 — Fable batch 2: auto-accept policy, voice layer, anomaly detection, D mockups, Opus handoff
+
+- Policy change (teacher decision, now CLAUDE.md §8.1): literacy codes are formative for L2 learners, not grading factors; AI findings auto-apply as marks at Checker confidence >= 0.75; contested stay pending; disagree endpoint retracts mark + profile evidence. Doer prompt retuned from conservative to flag-everything. Truncation salvage added (dense paragraphs no longer lose all findings to a cut JSON bracket). Commit 18046c6.
+- Stylometric voice layer (b88f3ee): migration 025 `style_metrics` + `native_feedback_items.student_checked`; `styleMetrics.js` computes ~24 length-normalized features per submit (rhythm, MATTR vocabulary, subordination/coordination, passive proxy, transitions, hedging, first person); `aggregateStyleProfile` gives mean/sd/trend per feature.
+- Voice anomaly detector (02b507d): `detectStyleAnomaly` z-scores an essay against the student's own history, length features excluded, framed as conversation evidence not proof. Feeds the homework-vs-watched provenance story.
+- Direction D mockup (A/C hybrid at real 41-mark density: grouped auto-marked card, contested "needs you" pile, AI-suggested strengths/targets, half-point dual rubrics), student view (category filter chips, target tick-off, dual gauges), profile dashboard v2 (per-100-words normalization, provenance chips per essay, anomaly banner, hover+click metric explainers, student-readable per-issue narrative, AP per-genre profile tabs locked until 2 essays of a type). All screenshot-verified. Commits e154ebf/969c1f6.
+- Docs: CLAUDE.md §8.1; FABLE_HANDOFF superseded note; SONNET_HANDOFF extended (feedback suggester seam, target tick-off endpoint, essay_type + supervision settings fields, normalization rule); OPUS_HANDOFF.md created (three pages from the three mockups); TEST_PORTAL_SPEC.md pins FRQ = native pad so exam writing reuses the whole pipeline and feeds profiles.
+- Next: teacher pastes prompts into Sonnet (backend) and Opus (frontend); Fable reviews after both land.
+
 ## 2026-07-02 — Fable batch: phases B and D2, Sonnet handoff, review mockups
 
 - Asked: run the agreed Fable batch — baseline, Phase B, Phase D2, Sonnet handoff notes for C/D3, review-window mockups.
