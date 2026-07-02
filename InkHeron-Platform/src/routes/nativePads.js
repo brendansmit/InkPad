@@ -8,6 +8,7 @@ import { runLiteracyAnalysis } from '../services/literacyCoder.js';
 import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
 import { scoreRewrite } from '../services/implementationScorer.js';
 import { recordStyleMetrics } from '../services/styleMetrics.js';
+import { generateProfileSummary } from '../services/profileSummarizer.js';
 
 // Fire-and-forget an async analysis seam without blocking the HTTP response.
 // A missing OpenRouter key or a stub is a clean no-op; errors are logged only.
@@ -1133,6 +1134,9 @@ export async function registerNativePadRoutes(app, { db }) {
       const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
       // Append rubric score history so performance can be tracked over time.
       for (const kind of ['internal', 'secondary', 'exam']) writeScoreSnapshot(db, updated, kind);
+      // Finish-marking is when new evidence lands, so refresh the profile
+      // summary in the background rather than on a scheduler.
+      runInBackground('profile-summary', () => generateProfileSummary(db, { studentId: updated.student_id }));
       return { pad: publicNativePad(updated) };
     }
   );
