@@ -16,7 +16,7 @@ export const VALID_CODES = new Set([
   'STR','FOR','WO','WW','V','VT','del','inc','RO','Rep','✓','//',
 ]);
 
-const SYSTEM_PROMPT = `You are a precise English literacy marker. You find ERRORS in a student paragraph and label each with ONE code. You are conservative: only flag things that are clearly wrong.
+const SYSTEM_PROMPT = `You are a precise English literacy marker for second language learners. You find ERRORS in a student paragraph and label each with ONE code. These codes are practice feedback for the student, not grades, so completeness matters: flag EVERY genuine error, even small ones, even when a paragraph has many. A dense paragraph can easily have 10 or more findings.
 
 CODES:
 Sp     = spelling error ("recieved" → "received")
@@ -39,7 +39,7 @@ RO     = run-on sentence (two clauses fused without punctuation)
 Rep    = redundant repetition of a word or idea just used
 
 RULES (follow exactly):
-1. Only flag genuine errors. If a phrase is correct standard English, DO NOT flag it. When unsure, leave it alone.
+1. Flag every genuine error. Never skip an error because you already flagged similar ones. But if a phrase is correct standard English, DO NOT flag it.
 2. "quote" must be copied VERBATIM from the paragraph, character for character. Never invent or paraphrase it.
 3. "quote" must be whole words only. Never select part of a word.
 4. "quote" is the SHORTEST span containing the error — usually one word; a short phrase only if the error spans multiple words.
@@ -56,19 +56,37 @@ Paragraph: They is playing outside and she recieved the ball, the game was fun.
 Answer:
 [{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"is","code":"Gra"},{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"recieved","code":"Sp"}]`;
 
+// Parse a JSON array, salvaging a truncated one (model hit max tokens) by
+// cutting back to the last complete object. Dense L2 paragraphs produce long
+// arrays; losing every finding to one truncated bracket is the worst outcome.
+export function parseJsonArraySalvage(slice) {
+  try {
+    const parsed = JSON.parse(slice);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch { /* fall through to salvage */ }
+  const lastBrace = slice.lastIndexOf('}');
+  if (lastBrace > 0) {
+    try {
+      const parsed = JSON.parse(slice.slice(0, lastBrace + 1) + ']');
+      return Array.isArray(parsed) ? parsed : null;
+    } catch { /* unsalvageable */ }
+  }
+  return null;
+}
+
 export function parseLiteracyResponse(raw) {
   raw = raw.replace(/<think>[\s\S]*?<\/think>/g, '');
   raw = raw.replace(/```json|```/g, '');
   const start = raw.indexOf('[');
+  if (start < 0) return [];
   const end = raw.lastIndexOf(']');
-  if (start < 0 || end < 0) return [];
-  try {
-    const items = JSON.parse(raw.slice(start, end + 1));
-    return items
+  const slice = end > start ? raw.slice(start, end + 1) : raw.slice(start);
+  const items = parseJsonArraySalvage(slice);
+  if (!items) return [];
+  return items
       .filter(it => it && typeof it.sentence === 'string' && typeof it.quote === 'string'
                  && VALID_CODES.has(it.code) && it.quote.trim())
       .map(it => ({ sentence: it.sentence.trim(), quote: it.quote.trim(), code: it.code }));
-  } catch { return []; }
 }
 
 function escapeRegex(s) {
@@ -168,7 +186,7 @@ export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat 
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: para.text },
         ],
-        maxTokens: 1500,
+        maxTokens: 4000,
         temperature: 0,
       });
       modelId = result?.model ?? modelId;

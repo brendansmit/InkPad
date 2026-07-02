@@ -887,6 +887,48 @@ function applyDueDateLock(db, pad, assignment) {
   return true;
 }
 
+// Auto-accept policy (2026-07-02 teacher decision): literacy codes are
+// formative practice for L2 learners, not grading factors, so a finding both
+// models agree on at high confidence becomes a real mark without a teacher
+// click. Contested findings stay pending. The teacher can disagree with any
+// auto-applied mark, which retracts it from feedback and the profile data.
+export const AUTO_ACCEPT_CONFIDENCE = 0.75;
+
+export function autoPromoteSuggestions(db, padId) {
+  const pad = db.prepare('SELECT id, student_id, assignment_id FROM native_pads WHERE id = ?').get(padId);
+  if (!pad) return { promoted: 0 };
+  const pending = db.prepare("SELECT * FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'pending'").all(padId);
+  let promoted = 0;
+  for (const suggestion of pending) {
+    let checker = {};
+    try { checker = JSON.parse(suggestion.checker_json ?? '{}'); } catch { checker = {}; }
+    const confident = checker.verbatim === true && checker.flag == null
+      && typeof checker.confidence === 'number' && checker.confidence >= AUTO_ACCEPT_CONFIDENCE;
+    if (!confident) continue;
+    const metadata = normalizeMetadata({
+      code: suggestion.code,
+      category: suggestion.category,
+      label: suggestion.label || suggestion.code,
+      source: 'ai_auto',
+      suggestion_id: suggestion.id,
+    });
+    const annResult = db.prepare(`
+      INSERT INTO native_annotations (
+        native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, document_version
+      ) VALUES (?, NULL, 'literacy_code', ?, ?, ?, '', ?, ?)
+    `).run(
+      padId, suggestion.start_offset, suggestion.end_offset,
+      (suggestion.quote ?? '').slice(0, 2000), metadata, suggestion.document_version
+    );
+    const annotationRow = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annResult.lastInsertRowid);
+    syncLiteracyEvidence(db, pad, annotationRow);
+    db.prepare("UPDATE ai_literacy_suggestions SET status = 'accepted', annotation_id = ?, resolved_at = datetime('now') WHERE id = ?")
+      .run(annotationRow.id, suggestion.id);
+    promoted += 1;
+  }
+  return { promoted };
+}
+
 function loadOwnedNativePad(db, padId, studentId) {
   return db.prepare('SELECT * FROM native_pads WHERE id = ? AND student_id = ?').get(padId, studentId);
 }
@@ -1065,7 +1107,8 @@ export async function registerNativePadRoutes(app, { db }) {
       }));
 
       // Background analysis seams (stubs until Fable fills phases B/D).
-      runInBackground('literacy', () => runLiteracyAnalysis(db, { padId }));
+      runInBackground('literacy', () => runLiteracyAnalysis(db, { padId })
+        .then(() => autoPromoteSuggestions(db, padId)));
       runInBackground('grade-estimate', () => estimateRubric(db, { padId }));
       if (nextState === 'resubmitted' && updated.rewrite_of_pad_id) {
         runInBackground('implementation', () => scoreRewrite(db, { rewritePadId: padId }));
@@ -1736,6 +1779,34 @@ export async function registerNativePadRoutes(app, { db }) {
       if (suggestion.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
       db.prepare("UPDATE ai_literacy_suggestions SET status = 'rejected', resolved_at = datetime('now') WHERE id = ?").run(suggestionId);
       logTeacherEvent(db, padId, request.session.user.id, 'suggestion_rejected', { suggestion_id: suggestionId });
+      return reply.code(204).send();
+    }
+  );
+
+  // Disagree works on both pending and (auto-)accepted suggestions. For an
+  // accepted one it retracts the promoted annotation, which cascades the
+  // evidence row away, then recomputes the profile stat for that code.
+  app.post('/api/native/pads/:padId/suggestions/:suggestionId/disagree',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const suggestionId = requirePositiveInteger(request.params.suggestionId, 'suggestionId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const suggestion = db.prepare('SELECT * FROM ai_literacy_suggestions WHERE id = ? AND native_pad_id = ?').get(suggestionId, padId);
+      if (!suggestion) return reply.code(404).send({ error: 'suggestion_not_found' });
+      if (suggestion.status === 'rejected') return reply.code(409).send({ error: 'already_resolved' });
+
+      if (suggestion.status === 'accepted' && suggestion.annotation_id) {
+        const annotation = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(suggestion.annotation_id);
+        if (annotation) {
+          const key = normalizeLiteracyKey(annotation);
+          db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotation.id);
+          recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);
+        }
+      }
+      db.prepare("UPDATE ai_literacy_suggestions SET status = 'rejected', annotation_id = NULL, resolved_at = datetime('now') WHERE id = ?").run(suggestionId);
+      logTeacherEvent(db, padId, request.session.user.id, 'suggestion_disagreed', { suggestion_id: suggestionId, code: suggestion.code });
       return reply.code(204).send();
     }
   );

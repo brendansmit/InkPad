@@ -15,6 +15,7 @@
  *      with flag 'checker_unavailable' — the deterministic layer still ran.
  */
 import { callChat } from './openRouter.js';
+import { parseJsonArraySalvage } from './literacyCoder.js';
 
 const CHECKER_INTENT = 'google gemini flash';
 
@@ -28,21 +29,19 @@ Return ONLY a JSON array, one object per finding, same order:
 function parseCheckerResponse(raw) {
   raw = String(raw ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```json|```/g, '');
   const start = raw.indexOf('[');
+  if (start < 0) return null;
   const end = raw.lastIndexOf(']');
-  if (start < 0 || end < 0) return null;
-  try {
-    const items = JSON.parse(raw.slice(start, end + 1));
-    if (!Array.isArray(items)) return null;
-    const byIndex = new Map();
-    for (const it of items) {
-      if (!it || !Number.isInteger(it.index)) continue;
-      byIndex.set(it.index, {
-        defensible: typeof it.defensible === 'boolean' ? it.defensible : null,
-        confidence: typeof it.confidence === 'number' ? Math.max(0, Math.min(1, it.confidence)) : null,
-      });
-    }
-    return byIndex;
-  } catch { return null; }
+  const items = parseJsonArraySalvage(end > start ? raw.slice(start, end + 1) : raw.slice(start));
+  if (!items) return null;
+  const byIndex = new Map();
+  for (const it of items) {
+    if (!it || !Number.isInteger(it.index)) continue;
+    byIndex.set(it.index, {
+      defensible: typeof it.defensible === 'boolean' ? it.defensible : null,
+      confidence: typeof it.confidence === 'number' ? Math.max(0, Math.min(1, it.confidence)) : null,
+    });
+  }
+  return byIndex;
 }
 
 /**
@@ -77,7 +76,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
         { role: 'system', content: CHECKER_SYSTEM_PROMPT },
         { role: 'user', content: `TEXT:\n${padPlainText}\n\nFINDINGS:\n${listing}` },
       ],
-      maxTokens: 1024,
+      maxTokens: 4000,
       temperature: 0,
     });
     verdicts = parseCheckerResponse(result?.choices?.[0]?.message?.content);

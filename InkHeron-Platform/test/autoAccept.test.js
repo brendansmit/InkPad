@@ -1,0 +1,128 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+import { buildApp } from '../src/app.js';
+import { openDatabase } from '../src/db/database.js';
+import { autoPromoteSuggestions } from '../src/routes/nativePads.js';
+import { parseJsonArraySalvage } from '../src/services/literacyCoder.js';
+
+function tmpDb() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-autoaccept-'));
+  return path.join(dir, 'inkheron.db');
+}
+
+const PAD_TEXT = 'They is playing outside and she recieved the ball.';
+
+async function seed(db) {
+  const app = await buildApp({ db, logger: false });
+  await app.inject({ method: 'POST', url: '/api/setup/teacher',
+    payload: { username: 'teacher', display_name: 'Teacher', password: 'teacherpass123' } });
+  const login = await app.inject({ method: 'POST', url: '/api/teacher/login',
+    payload: { username: 'teacher', password: 'teacherpass123' } });
+  const csrf = login.json().user.csrf_token;
+  const cookies = login.headers['set-cookie'];
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  const studentRes = await app.inject({ method: 'POST', url: '/api/students',
+    payload: { username: 'alice', display_name: 'Alice', password: 'pass12345', class_id: cls.json().class.id },
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: cls.json().class.id, title: 'Essay', settings: {} },
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  const sLogin = await app.inject({ method: 'POST', url: '/api/login',
+    payload: { username: 'alice', password: 'pass12345' } });
+  const pad = await app.inject({ method: 'GET',
+    url: `/api/native/assignments/${created.json().assignment.id}/pad`,
+    headers: { cookie: sLogin.headers['set-cookie'] } });
+  const padId = pad.json().pad.id;
+  db.prepare('UPDATE native_pads SET plain_text = ? WHERE id = ?').run(PAD_TEXT, padId);
+  return { app, padId, csrf, cookies, studentId: studentRes.json().student.id };
+}
+
+function insertSuggestion(db, padId, { quote, start, end, code, checker }) {
+  return db.prepare(`
+    INSERT INTO ai_literacy_suggestions
+      (native_pad_id, document_version, start_offset, end_offset, quote, code, category, label, model, checker_json, status)
+    VALUES (?, 1, ?, ?, ?, ?, 'grammar', 'Grammar', 'fake/doer', ?, 'pending')
+  `).run(padId, start, end, quote, code, JSON.stringify(checker)).lastInsertRowid;
+}
+
+test('confident findings auto-promote to marks, contested ones stay pending', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, studentId } = await seed(db);
+
+  const confidentId = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'Gra',
+    checker: { verbatim: true, confidence: 0.92, flag: null } });
+  insertSuggestion(db, padId, { quote: 'recieved', start: 36, end: 44, code: 'Sp',
+    checker: { verbatim: true, confidence: 0.55, flag: null } });
+  insertSuggestion(db, padId, { quote: 'playing', start: 8, end: 15, code: 'WW',
+    checker: { verbatim: true, confidence: 0.9, flag: 'code_questioned' } });
+
+  const result = autoPromoteSuggestions(db, padId);
+  assert.equal(result.promoted, 1, 'only the flag-free high-confidence finding promotes');
+
+  const promoted = db.prepare('SELECT * FROM ai_literacy_suggestions WHERE id = ?').get(confidentId);
+  assert.equal(promoted.status, 'accepted');
+  assert.ok(promoted.annotation_id);
+  const annotation = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(promoted.annotation_id);
+  assert.equal(annotation.type, 'literacy_code');
+  assert.equal(annotation.teacher_id, null, 'auto marks carry no teacher id');
+  assert.match(annotation.metadata_json, /ai_auto/);
+
+  // Profile evidence and stats updated.
+  const evidence = db.prepare('SELECT * FROM student_literacy_evidence WHERE annotation_id = ?').get(promoted.annotation_id);
+  assert.equal(evidence.student_id, studentId);
+  const stat = db.prepare("SELECT * FROM student_literacy_issue_stats WHERE student_id = ? AND code = 'Gra'").get(studentId);
+  assert.equal(stat.evidence_count, 1);
+
+  const stillPending = db.prepare("SELECT COUNT(*) AS n FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'pending'").get(padId);
+  assert.equal(stillPending.n, 2);
+
+  await app.close();
+});
+
+test('disagree retracts an auto-accepted mark and its profile data', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, csrf, cookies, studentId } = await seed(db);
+
+  const suggestionId = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'Gra',
+    checker: { verbatim: true, confidence: 0.92, flag: null } });
+  autoPromoteSuggestions(db, padId);
+  const before = db.prepare('SELECT annotation_id FROM ai_literacy_suggestions WHERE id = ?').get(suggestionId);
+  assert.ok(before.annotation_id);
+
+  const res = await app.inject({ method: 'POST',
+    url: `/api/native/pads/${padId}/suggestions/${suggestionId}/disagree`,
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  assert.equal(res.statusCode, 204);
+
+  const after = db.prepare('SELECT status, annotation_id FROM ai_literacy_suggestions WHERE id = ?').get(suggestionId);
+  assert.equal(after.status, 'rejected');
+  assert.equal(after.annotation_id, null);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM native_annotations WHERE id = ?').get(before.annotation_id).n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM student_literacy_evidence WHERE annotation_id = ?').get(before.annotation_id).n, 0);
+  const stat = db.prepare("SELECT evidence_count FROM student_literacy_issue_stats WHERE student_id = ? AND code = 'Gra'").get(studentId);
+  assert.equal(stat?.evidence_count ?? 0, 0, 'stat recomputed to zero after retraction');
+
+  // Disagree also dismisses a still-pending suggestion.
+  const pendingId = insertSuggestion(db, padId, { quote: 'recieved', start: 36, end: 44, code: 'Sp',
+    checker: { verbatim: true, confidence: 0.5, flag: null } });
+  const res2 = await app.inject({ method: 'POST',
+    url: `/api/native/pads/${padId}/suggestions/${pendingId}/disagree`,
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  assert.equal(res2.statusCode, 204);
+  assert.equal(db.prepare('SELECT status FROM ai_literacy_suggestions WHERE id = ?').get(pendingId).status, 'rejected');
+
+  await app.close();
+});
+
+test('parseJsonArraySalvage recovers a truncated findings array', () => {
+  const full = '[{"a":1},{"a":2}]';
+  assert.equal(parseJsonArraySalvage(full).length, 2);
+  const truncated = '[{"sentence":"x","quote":"y","code":"Sp"},{"sentence":"x","quote":"z","co';
+  const salvaged = parseJsonArraySalvage(truncated);
+  assert.equal(salvaged.length, 1, 'keeps every complete object, drops the cut one');
+  assert.equal(parseJsonArraySalvage('not json'), null);
+});
