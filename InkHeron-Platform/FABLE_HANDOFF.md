@@ -32,8 +32,10 @@ rediscover context. Read CLAUDE.md first (it is the fixed contract), then this.
   classes CRUD, roster page teacher-only. Everything else must stay green.
 - This repo's git root is the parent `Claude/` folder, not this directory.
   NEVER `git add -A`; stage explicit `InkHeron-Platform/...` paths only.
-- Work on branch `analysis-backend`. Commit in small checkpoints, log each in
-  SESSION_NOTES.md.
+- The foundation is merged to `main`. Branch fresh off `main` for your work
+  (e.g. `analysis-ai`). Commit in small checkpoints, log each in SESSION_NOTES.md.
+- The analysis schema (migrations 019-024) and seams already exist on `main`.
+  Run `npm test` first to confirm a green baseline before you change anything.
 
 ## How to call a model
 `src/services/openRouter.js` → `callChat(db, { intent, messages, maxTokens,
