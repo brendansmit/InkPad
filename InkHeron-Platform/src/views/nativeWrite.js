@@ -130,8 +130,8 @@ export function renderNativeWriteView({
     .niw-line-numbers{position:relative;border:0;background:transparent;color:#9aa39d;font-family:var(--mono);font-size:10.5px;user-select:none;min-height:0}
     .niw-lnum{position:absolute;right:7px;height:31.5px;line-height:31.5px;text-align:right}
     #nativeEditor{display:block;width:100%;min-height:calc(var(--page-width) * 1.414);margin:0;background-color:#fff;background-image:repeating-linear-gradient(to right,#fff 0 7px,rgba(255,255,255,0) 7px 13px),repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0,rgba(0,0,0,0) calc(var(--page-width) * 1.414 - 1px),#cbc4b2 calc(var(--page-width) * 1.414 - 1px),#cbc4b2 calc(var(--page-width) * 1.414));border:1px solid #ddd7ca;border-radius:0 8px 8px 0;padding:34px 38px;font-family:var(--font);font-weight:400;font-size:18px;line-height:1.75;outline:none;box-shadow:0 10px 28px rgba(31,42,36,.08)}
-    #nativeEditor p,#nativeEditor div{margin:0 0 1em}
-    #nativeEditor ul,#nativeEditor ol{margin:0 0 1em 1.3em;padding:0}
+    #nativeEditor p,#nativeEditor div{margin:0}
+    #nativeEditor ul,#nativeEditor ol{margin:0 0 0 1.3em;padding:0}
     #nativeEditor[contenteditable="false"]{background:#f7f7f4;color:#59635d}
     .niw-swatch{width:24px;min-height:24px;border-radius:5px;border:1px solid #9ba89f;cursor:pointer;padding:0}
     .niw-popover{position:relative}
