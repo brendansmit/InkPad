@@ -43,6 +43,7 @@ const expectedColumns = {
   ai_literacy_suggestions: ['id', 'native_pad_id', 'document_version', 'start_offset', 'end_offset', 'quote', 'code', 'category', 'label', 'model', 'checker_json', 'status', 'annotation_id', 'created_at', 'resolved_at'],
   implementation_scores: ['id', 'rewrite_pad_id', 'original_pad_id', 'student_id', 'addressed_json', 'cosmetic_ratio', 'meaningful', 'summary', 'model', 'created_at'],
   ai_grade_estimates: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'criterion_id', 'ai_score', 'teacher_score', 'delta', 'model', 'rationale', 'created_at', 'scored_at'],
+  ai_feedback_item_suggestions: ['id', 'native_pad_id', 'kind', 'title', 'explanation', 'try_now_prompt', 'model', 'checker_json', 'status', 'feedback_item_id', 'created_at', 'resolved_at'],
 };
 
 const migrationFiles = [
@@ -71,6 +72,7 @@ const migrationFiles = [
   '023_implementation_scores.sql',
   '024_ai_grade_estimates.sql',
   '025_style_metrics.sql',
+  '026_ai_feedback_item_suggestions.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {
