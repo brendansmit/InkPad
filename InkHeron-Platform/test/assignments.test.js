@@ -416,3 +416,35 @@ test('teacher assignment dashboard filters by status and paste flag', async () =
 
   await app.close();
 });
+
+test('passage PDF upload accepts files over 1 MB (Fastify body limit regression)', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: cls.json().class.id, title: 'PDF essay' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const id = created.json().assignment.id;
+
+  // ~2 MB payload: rejected with 413 before this fix (default 1 MB body limit).
+  const twoMb = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(2 * 1024 * 1024, 0x20)]);
+  const upload = await app.inject({ method: 'PUT', url: `/api/assignments/${id}/passage-pdf`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf, 'Content-Type': 'application/pdf' },
+    payload: twoMb });
+  assert.equal(upload.statusCode, 200);
+
+  const fetched = await app.inject({ method: 'GET', url: `/api/assignments/${id}/passage-pdf`,
+    headers: { cookie: teacher.cookies } });
+  assert.equal(fetched.statusCode, 200);
+  assert.match(fetched.headers['content-type'], /application\/pdf/);
+
+  // Oversized files are still rejected.
+  const tooBig = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(12 * 1024 * 1024, 0x20)]);
+  const rejected = await app.inject({ method: 'PUT', url: `/api/assignments/${id}/passage-pdf`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf, 'Content-Type': 'application/pdf' },
+    payload: tooBig });
+  assert.equal(rejected.statusCode, 413);
+
+  await app.close();
+});

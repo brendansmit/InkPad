@@ -50,6 +50,38 @@
       "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
       "runtimeArgs": ["launcher/launcher_server.py"],
       "port": 5099
+    },
+    {
+      "name": "server-dashboard",
+      "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+      "runtimeArgs": ["launcher/deploy-dashboard/deploy_server.py"],
+      "port": 5095
+    },
+    {
+      "name": "ap-lang",
+      "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node",
+      "runtimeArgs": ["ap-lang-dashboard/server.js"],
+      "port": 3000,
+      "env": { "PORT": "3000" }
+    },
+    {
+      "name": "inkheron",
+      "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v24.18.0/bin/node",
+      "runtimeArgs": ["InkHeron-Platform/src/server.js"],
+      "port": 3472,
+      "env": { "PORT": "3472" }
+    },
+    {
+      "name": "inkheron-mockups",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "3466", "--directory", "InkHeron-Platform/mockups/review-redesign"],
+      "port": 3466
+    },
+    {
+      "name": "grammar-arcade-dev",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "cd '/Users/brendansmit/Documents/Claude/Grammar Arcade/Gramm-Builder' && PORT=5174 BASE_PATH=/ /Users/brendansmit/.nvm/versions/node/v20.20.2/bin/pnpm --filter @workspace/grammar-case-lab run dev"],
+      "port": 5174
     }
   ]
 }

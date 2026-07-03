@@ -207,7 +207,11 @@ function fetchDashboardRows(db, assignmentId, classId) {
 }
 
 export async function registerAssignmentRoutes(app, { db }) {
-  app.addContentTypeParser('application/pdf', { parseAs: 'buffer' }, function (req, body, done) {
+  // Passage PDFs can be several MB. Without an explicit bodyLimit this parser
+  // inherits Fastify's 1 MB default and rejects real PDFs with a 413 before the
+  // handler runs. Allow up to 11 MB so the handler's own 10 MB check is what
+  // actually gates the size (with a clear error message).
+  app.addContentTypeParser('application/pdf', { parseAs: 'buffer', bodyLimit: 11 * 1024 * 1024 }, function (req, body, done) {
     done(null, body);
   });
 
