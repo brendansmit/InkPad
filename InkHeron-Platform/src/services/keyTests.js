@@ -14,18 +14,39 @@ function success(message, extra = {}) {
 export function resolveOpenRouterModel(models, intent = 'openai gpt mini') {
   const rows = Array.isArray(models) ? models : [];
   if (!rows.length) return null;
-  const tokens = intent.toLowerCase().split(/\s+/).filter(Boolean);
+  const wanted = intent.trim().toLowerCase();
+
+  // An intent that looks like an exact model id must resolve to exactly that
+  // id from the live list, or fail loudly. OpenRouter rejects near-miss ids,
+  // so "close enough" is worse than an error here.
+  if (wanted.includes('/')) {
+    const exact = rows.find((m) => (m.id ?? '').toLowerCase() === wanted)
+      ?? rows.find((m) => (m.canonical_slug ?? '').toLowerCase() === wanted);
+    if (!exact) return null;
+    return { id: exact.id ?? exact.canonical_slug, name: exact.name ?? exact.id };
+  }
+
+  const tokens = wanted.split(/\s+/).filter(Boolean);
   let best = null;
   for (const model of rows) {
-    const haystack = `${model.id ?? ''} ${model.name ?? ''} ${model.canonical_slug ?? ''}`.toLowerCase();
+    const id = String(model.id ?? '');
+    const haystack = `${id} ${model.name ?? ''} ${model.canonical_slug ?? ''}`.toLowerCase();
     let score = 0;
+    let matched = 0;
     for (const token of tokens) {
-      if (haystack.includes(token)) score += token === 'mini' ? 3 : 2;
+      if (haystack.includes(token)) { score += token === 'mini' ? 3 : 2; matched++; }
     }
     if (haystack.includes('free')) score -= 1;
-    if (!best || score > best.score) best = { model, score };
+    // Alias/meta ids (e.g. "~anthropic/claude-haiku-latest") are unstable
+    // targets; only pick one if no canonical id matches.
+    if (id.startsWith('~') || id.startsWith(':')) score -= 4;
+    if (!best || score > best.score) best = { model, score, matched };
   }
-  const chosen = best.score > 0 ? best.model : rows[0];
+  // A weak match is worse than no match: require every intent token to have
+  // landed somewhere, otherwise surface the failure (never fall back to an
+  // arbitrary first row).
+  if (!best || best.score <= 0 || best.matched < tokens.length) return null;
+  const chosen = best.model;
   return {
     id: chosen.id ?? chosen.canonical_slug ?? chosen.name,
     name: chosen.name ?? chosen.id ?? chosen.canonical_slug,

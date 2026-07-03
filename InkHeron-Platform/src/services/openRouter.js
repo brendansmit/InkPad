@@ -38,6 +38,18 @@ export function clearModelCache(intent) {
   else modelCache.clear();
 }
 
+// When a model family is region-blocked (403 "not available in your region",
+// seen for Anthropic/Google/OpenAI from mainland China), retry once with a
+// family that is reachable there. DeepSeek and Qwen are different families,
+// so a Doer falling back to DeepSeek and a Checker falling back to Qwen
+// still satisfies the different-family rule (CLAUDE.md §8).
+export function regionFallbackIntent(intent = '') {
+  const lower = intent.toLowerCase();
+  if (/anthropic|claude|openai|gpt/.test(lower)) return 'deepseek chat';
+  if (/google|gemini/.test(lower)) return 'qwen qwen3 32b instruct';
+  return null;
+}
+
 export async function callChat(db, {
   intent = 'openai gpt mini',
   messages,
@@ -50,12 +62,13 @@ export async function callChat(db, {
   let model = await resolveModel(db, intent, { fetchImpl });
 
   const makeBody = (modelId) => JSON.stringify({ model: modelId, messages, max_tokens: maxTokens, temperature });
-
-  let res = await fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
+  const attempt = (modelId) => fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: apiHeaders(key),
-    body: makeBody(model.id),
+    body: makeBody(modelId),
   });
+
+  let res = await attempt(model.id);
 
   if ((res.status === 404 || res.status === 400) && !res.bodyUsed) {
     const errData = await res.json().catch(() => ({}));
@@ -64,11 +77,18 @@ export async function callChat(db, {
       clearModelCache(intent);
       model = await resolveModel(db, intent, { fetchImpl });
       console.log(`[openRouter] re-resolved "${intent}" -> ${model.id}`);
-      res = await fetchImpl('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: apiHeaders(key),
-        body: makeBody(model.id),
-      });
+      res = await attempt(model.id);
+    }
+  }
+
+  if (res.status === 403 && !res.bodyUsed) {
+    const errData = await res.json().catch(() => ({}));
+    const errMsg = String(errData?.error?.message ?? '');
+    const fallback = errMsg.toLowerCase().includes('region') ? regionFallbackIntent(intent) : null;
+    if (fallback && fallback !== intent) {
+      model = await resolveModel(db, fallback, { fetchImpl });
+      console.warn(`[openRouter] "${intent}" region-blocked; falling back to "${fallback}" -> ${model.id}`);
+      res = await attempt(model.id);
     }
   }
 

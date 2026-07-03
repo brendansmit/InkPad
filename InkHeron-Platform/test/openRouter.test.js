@@ -121,3 +121,44 @@ test('callChat throws when key is not set', async () => {
   );
   db.close();
 });
+
+test('resolver refuses weak matches, alias ids and near-miss exact ids', async () => {
+  const { resolveOpenRouterModel } = await import('../src/services/keyTests.js');
+  const models = [
+    { id: '~anthropic/claude-haiku-latest', name: 'Claude Haiku (latest alias)' },
+    { id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5' },
+    { id: 'deepseek/deepseek-chat-v3.1', name: 'DeepSeek Chat' },
+  ];
+  assert.equal(resolveOpenRouterModel(models, 'anthropic claude haiku').id, 'anthropic/claude-haiku-4.5',
+    'canonical id beats the tilde alias');
+  assert.equal(resolveOpenRouterModel(models, 'mistral large'), null, 'no arbitrary first-row fallback');
+  assert.equal(resolveOpenRouterModel(models, 'anthropic/claude-haiku-4.5').id, 'anthropic/claude-haiku-4.5');
+  assert.equal(resolveOpenRouterModel(models, 'anthropic/claude-haiku-9.9'), null, 'near-miss exact id fails loudly');
+});
+
+test('callChat falls back to a region-safe family on a 403 region error', async () => {
+  clearModelCache();
+  const dbPath = tmpDb();
+  await seedDb(dbPath);
+  const db = openDb(dbPath);
+  const models = [
+    { id: 'anthropic/claude-haiku-4.5', name: 'Claude Haiku 4.5' },
+    { id: 'deepseek/deepseek-chat-v3.1', name: 'DeepSeek Chat v3.1' },
+  ];
+  const calls = [];
+  const fetchImpl = (url, opts) => {
+    if (url.includes('/models')) return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ data: models }) });
+    const body = JSON.parse(opts.body);
+    calls.push(body.model);
+    if (body.model.startsWith('anthropic/')) {
+      return Promise.resolve({ ok: false, status: 403, bodyUsed: false,
+        json: () => Promise.resolve({ error: { message: 'This model is not available in your region.' } }) });
+    }
+    return Promise.resolve({ ok: true, status: 200, bodyUsed: false,
+      json: () => Promise.resolve({ model: body.model, choices: [{ message: { content: 'OK' } }] }) });
+  };
+  const result = await callChat(db, { intent: 'anthropic claude haiku', messages: [{ role: 'user', content: 'x' }] }, { fetchImpl });
+  assert.deepEqual(calls, ['anthropic/claude-haiku-4.5', 'deepseek/deepseek-chat-v3.1']);
+  assert.equal(result.model, 'deepseek/deepseek-chat-v3.1');
+  clearModelCache();
+});
