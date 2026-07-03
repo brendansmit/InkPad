@@ -20,6 +20,13 @@ Entry format:
 
 ---
 
+## 2026-07-03 — Student signout returns to role chooser
+- Asked: signout on InkPad should land on the screen where you choose student or teacher.
+- Cause: student-dashboard signout redirected to /login (student login) directly.
+- Fix: redirect to / instead. The InkPad root (deployed index.html "Writing portal") already offers Student sign in and Teacher sign in. Note: the deployed inkpad index.html differs from the repo copy (repo index is the EAP workspace chooser), so index.html was NOT redeployed.
+- Teacher pages still sign out to /teacher-login (unchanged, per scope).
+- Verified: / serves the chooser (curl), wrapper active after deploy.
+
 ## 2026-07-03 — Fix passage PDFs failing to load in student pads
 - Reported: attached PDFs not showing in pads, "the PDF could not be loaded".
 - Root cause: the `application/pdf` content-type parser in assignments.js had no `bodyLimit`, so it inherited Fastify's 1 MB default and rejected any PDF over ~1 MB with 413 before the handler ran (handler was written to allow 10 MB). Most real passage PDFs exceed 1 MB, so they never saved and the student pad showed nothing / a load error. Reproduced: 500 KB uploads OK, 1.5 MB and 3 MB 413. Also confirmed the client render path itself is fine by loading a seeded PDF in a real browser (canvas rendered).
