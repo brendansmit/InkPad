@@ -2106,6 +2106,46 @@ function loadImplementationScore(db, padId) {
     }
   );
 
+  // Green-pen context for a rewrite pad: the original's marks and feedback,
+  // category-only (never the fix), rendered inside the student's editor.
+  app.get('/api/native/pads/:padId/greenpen-context',
+    { preValidation: [app.requireStudentSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadOwnedNativePad(db, padId, request.session.user.id);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      if (!pad.rewrite_of_pad_id) return reply.code(404).send({ error: 'not_a_rewrite' });
+      const original = db.prepare('SELECT * FROM native_pads WHERE id = ? AND student_id = ?')
+        .get(pad.rewrite_of_pad_id, request.session.user.id);
+      if (!original) return reply.code(404).send({ error: 'original_not_found' });
+      const text = original.plain_text ?? '';
+      const marks = db.prepare(`
+        SELECT id, start_offset, end_offset, selected_text, body, metadata_json
+        FROM native_annotations
+        WHERE native_pad_id = ? AND type = 'literacy_code'
+        ORDER BY start_offset ASC, id ASC
+      `).all(original.id).map((row) => {
+        let meta = {};
+        try { meta = JSON.parse(row.metadata_json || '{}'); } catch { meta = {}; }
+        return {
+          id: row.id,
+          quote: row.selected_text ?? '',
+          code: meta.code || row.body || '',
+          category: meta.category || 'other',
+          label: meta.label || meta.code || row.body || '',
+          context_before: text.slice(Math.max(0, (row.start_offset ?? 0) - 24), row.start_offset ?? 0),
+          context_after: text.slice(row.end_offset ?? 0, (row.end_offset ?? 0) + 24),
+        };
+      });
+      const comments = db.prepare(`
+        SELECT type, selected_text, body FROM native_annotations
+        WHERE native_pad_id = ? AND type IN ('inline_comment', 'general_comment')
+        ORDER BY id ASC
+      `).all(original.id).map((row) => ({ kind: row.type, quote: row.selected_text ?? '', body: row.body ?? '' }));
+      return { original_pad_id: original.id, feedback: loadFeedbackItems(db, original.id), marks, comments };
+    }
+  );
+
   app.get('/native/write/:assignmentId',
     { preValidation: [app.requireStudentSession] },
     async (request, reply) => {
@@ -2139,6 +2179,7 @@ function loadImplementationScore(db, padId) {
         prompt: settings.prompt || '',
         passageText: settings.passage_text || '',
         passagePdf,
+        greenpen: Boolean(pad.rewrite_of_pad_id),
       }));
     }
   );

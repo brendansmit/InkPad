@@ -39,6 +39,7 @@ export function renderNativeWriteView({
   prompt,
   passageText,
   passagePdf,
+  greenpen = false,
 }) {
   const locked = pad.state !== 'writing' && pad.state !== 'green_pen_open';
   const submitLabel = pad.state === 'green_pen_open' ? 'Resubmit' : 'Submit';
@@ -113,6 +114,35 @@ export function renderNativeWriteView({
     .niw-pdf-page .textLayer span{position:absolute;white-space:pre;cursor:text;transform-origin:0 0;color:transparent}
     .niw-pdf-page .textLayer ::selection{background:rgba(120,170,255,.4)}
     .niw-pdf-mark{border-radius:2px}
+    /* Green pen: marks live inside the editable text. Category colour only. */
+    .niw-passage.gp-mode{grid-template-rows:minmax(240px,1.3fr) 8px minmax(100px,var(--task-height)) 8px minmax(120px,0.8fr)}
+    .niw-source-card.gp{min-height:0;display:flex;flex-direction:column}
+    .niw-source-card.gp #gpBody{flex:1;overflow:auto;min-height:0}
+    .gp-mark{border-bottom:2px solid #8c2f3b;padding-bottom:1px;cursor:help}
+    .gp-mark.gp-surface{border-color:#8a5a12}
+    .gp-mark.gp-grammar{border-color:#8c2f3b}
+    .gp-mark.gp-format{border-color:#1f5076}
+    .gp-mark.gp-other{border-color:#657268}
+    .niw-shell.gp-focus-surface .gp-mark:not(.gp-surface),
+    .niw-shell.gp-focus-grammar .gp-mark:not(.gp-grammar),
+    .niw-shell.gp-focus-format .gp-mark:not(.gp-format){border-color:#dfdcd2}
+    .gp-head{display:flex;align-items:center;gap:8px}
+    .gp-progress{font-size:12px;font-weight:800;color:#2f6f4e;white-space:nowrap}
+    .gp-chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+    .gp-chip{border:1px solid #b8c2b9;background:#fff;border-radius:999px;padding:3px 10px;font-size:11.5px;font-weight:800;cursor:pointer;color:#334239;font-family:inherit}
+    .gp-chip.on{background:#17221b;color:#fff;border-color:#17221b}
+    .gp-chip .n{font-variant-numeric:tabular-nums;opacity:.75}
+    .gp-item{border:1px solid #d8d4c8;border-left:4px solid #1f5076;border-radius:8px;padding:8px 10px;margin-bottom:7px;background:#fff;font-size:12.5px}
+    .gp-item.strength{border-left-color:#2f6f4e}
+    .gp-item.done .gp-title{text-decoration:line-through;color:#8b948c}
+    .gp-item .gp-title{font-weight:800;display:block}
+    .gp-item p{margin:3px 0 0;color:#59635d;font-size:12px;line-height:1.45}
+    .gp-item label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+    .gp-item input[type=checkbox]{width:16px;height:16px;accent-color:#2f6f4e;margin-top:1px}
+    .gp-trynow{display:inline-block;margin-top:5px;font-size:11px;font-weight:800;color:#1f5076;background:#e8f0f7;border-radius:6px;padding:3px 8px}
+    .gp-note{font-size:11px;color:#8b948c;margin-top:6px;line-height:1.4}
+    .gp-comment{font-size:12px;background:#f1efe9;border-radius:7px;padding:7px 9px;margin-bottom:6px;color:#334239}
+    .gp-comment .q{font-style:italic;color:#657268;display:block;margin-bottom:2px}
     .niw-pdf-highlight{mix-blend-mode:multiply}
     .niw-pdf-underline{border-bottom:2px solid #2f6f4e}
     .niw-pdf-loading{padding:24px;text-align:center;color:#657268;font-size:13px}
@@ -163,7 +193,16 @@ export function renderNativeWriteView({
     <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitButtonLabel)}</button>
   </header>
   <main class="niw-shell">
-    <aside class="niw-passage">
+    <aside class="niw-passage${greenpen ? ' gp-mode' : ''}">
+      ${greenpen ? `<section class="niw-source-card gp" id="gpCard">
+        <div class="niw-source-head gp-head">
+          <h2>Your feedback</h2>
+          <span class="niw-spacer"></span>
+          <span class="gp-progress" id="gpProgress">Loading...</span>
+        </div>
+        <div class="niw-text" id="gpBody"><p class="gp-note">Loading your marks and targets...</p></div>
+      </section>
+      <div class="niw-panel-resizer" role="separator" aria-orientation="horizontal"></div>` : ''}
       <section class="niw-source-card task">
         <div class="niw-source-head">
           <h2>Task</h2>
@@ -397,6 +436,8 @@ export function renderNativeWriteView({
     function sanitizeEditorHtml(html){
       const template = document.createElement('template');
       template.innerHTML = String(html || '');
+      // Green-pen decorations are view-only: never let them into a saved doc.
+      template.content.querySelectorAll('[data-gp]').forEach(node => node.replaceWith(...node.childNodes));
       const allowed = new Set(['B','I','U','S','STRONG','EM','UL','OL','LI','P','DIV','BR','SPAN','FONT']);
       template.content.querySelectorAll('*').forEach(node => {
         if(!allowed.has(node.tagName)){
@@ -857,6 +898,192 @@ export function renderNativeWriteView({
       const roots = [document.getElementById('taskText'), document.getElementById('referenceText')].filter(Boolean);
       return roots.find(root => root.contains(range.commonAncestorContainer) || root === range.commonAncestorContainer);
     }
+
+    // ===================== Green pen (rewrite pads only) =====================
+    // The original essay's marks are located in the CURRENT editable text and
+    // decorated in place. Fix the flagged text and the mark disappears on the
+    // next re-check. Decorations never survive into a saved document (the
+    // sanitizer unwraps [data-gp]).
+    const GREENPEN = ${jsonScript(Boolean(greenpen))};
+    if (GREENPEN) (function(){
+      const gpBody = document.getElementById('gpBody');
+      const gpProgress = document.getElementById('gpProgress');
+      let gpMarks = [];
+      let gpFeedback = { strengths: [], targets: [] };
+      let gpComments = [];
+      let gpOriginalPadId = null;
+      let gpFilter = null;
+      let gpTimer = null;
+
+      function editorTextNodes(){
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        let node;
+        while((node = walker.nextNode())) nodes.push(node);
+        return nodes;
+      }
+      function caretPlainOffset(){
+        const selection = window.getSelection();
+        if(!selection.rangeCount) return null;
+        const range = selection.getRangeAt(0);
+        if(!editor.contains(range.startContainer)) return null;
+        let offset = 0;
+        for(const node of editorTextNodes()){
+          if(node === range.startContainer) return offset + range.startOffset;
+          offset += node.data.length;
+        }
+        return null;
+      }
+      function restoreCaret(target){
+        if(target === null) return;
+        const selection = window.getSelection();
+        for(const node of editorTextNodes()){
+          if(target <= node.data.length){
+            try{ selection.collapse(node, target); }catch(_){}
+            return;
+          }
+          target -= node.data.length;
+        }
+      }
+      function contextScore(nodeText, index, mark){
+        const preceding = nodeText.slice(Math.max(0, index - 24), index);
+        const following = nodeText.slice(index + mark.quote.length, index + mark.quote.length + 24);
+        let score = 0;
+        const before = mark.context_before || '';
+        for(let i = 1; i <= Math.min(before.length, preceding.length); i++){
+          if(before[before.length - i] === preceding[preceding.length - i]) score++;
+          else break;
+        }
+        const after = mark.context_after || '';
+        for(let i = 0; i < Math.min(after.length, following.length); i++){
+          if(after[i] === following[i]) score++;
+          else break;
+        }
+        return score;
+      }
+      function gpRecheck(){
+        const caret = document.activeElement === editor ? caretPlainOffset() : null;
+        editor.querySelectorAll('span[data-gp]').forEach(node => node.replaceWith(...node.childNodes));
+        editor.normalize();
+        const wordish = ch => Boolean(ch) && /[\\w']/.test(ch);
+        for(const mark of gpMarks){
+          mark.found = false;
+          if(!mark.quote || !mark.quote.trim()) continue;
+          let best = null;
+          for(const node of editorTextNodes()){
+            let idx = 0;
+            while((idx = node.data.indexOf(mark.quote, idx)) !== -1){
+              const boundaryOk =
+                !(wordish(node.data[idx - 1]) && /^[\\w']/.test(mark.quote)) &&
+                !(wordish(node.data[idx + mark.quote.length]) && /[\\w']$/.test(mark.quote));
+              if(boundaryOk){
+                const score = contextScore(node.data, idx, mark);
+                if(!best || score > best.score) best = { node, idx, score };
+              }
+              idx += 1;
+            }
+          }
+          // Short quotes ("is") recur everywhere: without some matching
+          // context, treat the mark as fixed rather than pin it to a random
+          // twin occurrence.
+          if(best && (mark.quote.length >= 6 || best.score >= 3)){
+            try{
+              const range = document.createRange();
+              range.setStart(best.node, best.idx);
+              range.setEnd(best.node, best.idx + mark.quote.length);
+              const span = document.createElement('span');
+              span.setAttribute('data-gp', String(mark.id));
+              span.className = 'gp-mark gp-' + (mark.category || 'other');
+              span.title = mark.label || mark.category || '';
+              range.surroundContents(span);
+              mark.found = true;
+            }catch(_){ mark.found = true; }
+          }
+        }
+        restoreCaret(caret);
+        gpRenderPanel();
+      }
+      function gpScheduleRecheck(){
+        clearTimeout(gpTimer);
+        gpTimer = setTimeout(gpRecheck, 1500);
+      }
+      function gpCategoryCounts(){
+        const counts = {};
+        for(const mark of gpMarks){ counts[mark.category] = counts[mark.category] || { total:0, left:0 }; counts[mark.category].total++; if(mark.found) counts[mark.category].left++; }
+        return counts;
+      }
+      const GP_CATEGORY_LABELS = { surface:'Spelling and words', grammar:'Grammar', format:'Punctuation and format', other:'Other' };
+      function gpRenderPanel(){
+        const fixed = gpMarks.filter(m => !m.found).length;
+        gpProgress.textContent = gpMarks.length ? (fixed + ' / ' + gpMarks.length + ' cleared') : 'No marks';
+        const counts = gpCategoryCounts();
+        let html = '';
+        html += '<div class="gp-chips">';
+        html += '<button class="gp-chip' + (gpFilter === null ? ' on' : '') + '" data-gp-filter="">All <span class="n">' + gpMarks.filter(m=>m.found).length + '</span></button>';
+        for(const key of Object.keys(counts)){
+          html += '<button class="gp-chip' + (gpFilter === key ? ' on' : '') + '" data-gp-filter="' + key + '">' + (GP_CATEGORY_LABELS[key] || key) + ' <span class="n">' + counts[key].left + '</span></button>';
+        }
+        html += '</div>';
+        html += '<p class="gp-note">Underlined text still has its error. Fix it and the line disappears. Hover a mark to see what KIND of error it is; working out the fix is your job.</p>';
+        if(gpFeedback.targets.length){
+          html += '<h3 style="font-size:12px;margin:10px 0 6px">Targets: tick each one you have done</h3>';
+          for(const t of gpFeedback.targets){
+            html += '<div class="gp-item' + (t.student_checked ? ' done' : '') + '"><label><input type="checkbox" data-gp-target="' + t.id + '"' + (t.student_checked ? ' checked' : '') + '><span><span class="gp-title">' + escapeGp(t.title) + '</span>' + (t.explanation ? '<p>' + escapeGp(t.explanation) + '</p>' : '') + (t.try_now_prompt ? '<span class="gp-trynow">Try now: ' + escapeGp(t.try_now_prompt) + '</span>' : '') + '</span></label></div>';
+          }
+        }
+        if(gpFeedback.strengths.length){
+          html += '<h3 style="font-size:12px;margin:10px 0 6px">Keep doing this</h3>';
+          for(const s of gpFeedback.strengths){
+            html += '<div class="gp-item strength"><span class="gp-title">' + escapeGp(s.title) + '</span>' + (s.explanation ? '<p>' + escapeGp(s.explanation) + '</p>' : '') + '</div>';
+          }
+        }
+        if(gpComments.length){
+          html += '<h3 style="font-size:12px;margin:10px 0 6px">Teacher comments</h3>';
+          for(const c of gpComments){
+            html += '<div class="gp-comment">' + (c.quote ? '<span class="q">"' + escapeGp(c.quote) + '"</span>' : '') + escapeGp(c.body) + '</div>';
+          }
+        }
+        gpBody.innerHTML = html;
+        gpBody.querySelectorAll('[data-gp-filter]').forEach(button => {
+          button.addEventListener('click', () => {
+            gpFilter = button.getAttribute('data-gp-filter') || null;
+            shell.classList.remove('gp-focus-surface','gp-focus-grammar','gp-focus-format');
+            if(gpFilter && gpFilter !== 'other') shell.classList.add('gp-focus-' + gpFilter);
+            gpRenderPanel();
+          });
+        });
+        gpBody.querySelectorAll('[data-gp-target]').forEach(box => {
+          box.addEventListener('change', async () => {
+            const itemId = box.getAttribute('data-gp-target');
+            try{
+              const response = await fetch('/api/native/pads/' + gpOriginalPadId + '/feedback-items/' + itemId + '/toggle-check', {
+                method: 'POST', headers: { 'X-CSRF-Token': csrfToken },
+              });
+              if(response.ok){
+                const target = gpFeedback.targets.find(t => String(t.id) === String(itemId));
+                if(target) target.student_checked = !target.student_checked;
+              }
+            }catch(_){}
+            gpRenderPanel();
+          });
+        });
+      }
+      function escapeGp(value){
+        return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+      fetch('/api/native/pads/' + initialPad.id + '/greenpen-context')
+        .then(response => response.ok ? response.json() : null)
+        .then(context => {
+          if(!context){ gpProgress.textContent = ''; gpBody.innerHTML = '<p class="gp-note">Could not load feedback.</p>'; return; }
+          gpOriginalPadId = context.original_pad_id;
+          gpMarks = (context.marks || []).map(mark => ({ ...mark, found: false }));
+          gpFeedback = context.feedback || { strengths: [], targets: [] };
+          gpComments = context.comments || [];
+          gpRecheck();
+        })
+        .catch(() => { gpProgress.textContent = ''; gpBody.innerHTML = '<p class="gp-note">Could not load feedback.</p>'; });
+      editor.addEventListener('input', gpScheduleRecheck);
+    })();
   </script>
   ${passagePdf ? `<script type="module">
     import * as pdfjsLib from '/assets/static/pdfjs/pdf.min.mjs';
