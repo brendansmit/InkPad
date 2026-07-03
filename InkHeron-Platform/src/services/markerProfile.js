@@ -22,8 +22,8 @@ function doerSystemPrompt(criteria) {
 RUBRIC:
 ${criteriaText}
 
-For each criterion, pick the single band score that best matches the essay and give one short sentence of rationale that refers to something specific in the essay. Return ONLY JSON, one object per criterion, same order as given:
-[{"criterion_id": <id>, "score": <one of the listed band scores>, "rationale": "one sentence"}]`;
+For each criterion, pick the single band score that best matches the essay and give one short sentence of rationale that refers to something specific in the essay. Return ONLY JSON, one object per criterion, same order as given. "criterion_id" is the NUMBER after the word Criterion, never the label. "score" is the NUMERIC band score, never the band name:
+[{"criterion_id": 12, "score": 4, "rationale": "one sentence"}]`;
 }
 
 const CHECKER_SYSTEM_PROMPT = `You are a strict verifier of rubric score estimates made by another model. You NEVER change a score. For each numbered estimate you are given the criterion's valid score range and the rationale. Judge only:
@@ -40,7 +40,31 @@ function parseCandidates(raw) {
   const end = raw.lastIndexOf(']');
   const items = parseJsonArraySalvage(end > start ? raw.slice(start, end + 1) : raw.slice(start));
   if (!items) return [];
-  return items.filter((it) => it && Number.isInteger(Number(it.criterion_id)));
+  return items.filter((it) => it && it.criterion_id !== undefined && it.criterion_id !== null);
+}
+
+// Models sometimes answer with the criterion LABEL and the band NAME instead
+// of the numeric ids the prompt demands (seen live with deepseek-chat).
+// Map those back rather than dropping the whole estimate.
+function normalizeCandidate(candidate, criteria) {
+  let criterionId = Number(candidate.criterion_id);
+  if (!Number.isInteger(criterionId)) {
+    const label = String(candidate.criterion_id).trim().toLowerCase();
+    const match = criteria.find((c) => c.label.trim().toLowerCase() === label);
+    criterionId = match ? match.id : NaN;
+  }
+  const criterion = criteria.find((c) => c.id === criterionId);
+  let score = Number(candidate.score);
+  if (!Number.isFinite(score) && criterion) {
+    const bandLabel = String(candidate.score).trim().toLowerCase();
+    const band = criterion.bands.find((b) => (b.label ?? '').trim().toLowerCase() === bandLabel);
+    if (band) score = Number(band.score_value);
+  }
+  return {
+    criterion_id: criterionId,
+    score,
+    rationale: typeof candidate.rationale === 'string' ? candidate.rationale.trim().slice(0, 500) : '',
+  };
 }
 
 function loadRubricByKind(db, assignmentId) {
@@ -116,11 +140,7 @@ export async function estimateRubric(db, { padId } = {}, { chat = callChat } = {
       // Deterministic guard: always applied, checker or not. An invalid
       // score poisons the delta data, so drop rather than clamp.
       const inRange = candidates
-        .map((c) => ({
-          criterion_id: Number(c.criterion_id),
-          score: Number(c.score),
-          rationale: typeof c.rationale === 'string' ? c.rationale.trim().slice(0, 500) : '',
-        }))
+        .map((c) => normalizeCandidate(c, criteria))
         .filter((c) => {
           const criterion = criteriaById.get(c.criterion_id);
           return criterion && Number.isFinite(c.score) && c.score >= criterion.min && c.score <= criterion.max;
@@ -185,10 +205,11 @@ export async function estimateRubric(db, { padId } = {}, { chat = callChat } = {
       throw error;
     }
 
-    return { status: 'ok' };
+    if (!surviving.length) console.warn('[markerProfile] no estimate survived validation for pad', padId);
+    return { status: 'ok', written: surviving.length };
   } catch (error) {
     console.warn('[markerProfile]', error?.message ?? error);
-    return { status: 'error' };
+    return { status: 'error', written: 0 };
   }
 }
 

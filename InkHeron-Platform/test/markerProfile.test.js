@@ -256,3 +256,33 @@ test('model failure writes nothing and returns error status', async () => {
 
   await app.close();
 });
+
+test('label-style doer answers (criterion label + band name) are normalized, not dropped', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, ideasId, organisationId } = await seedPad(db);
+
+  // Seen live with deepseek-chat: labels instead of numeric ids/scores.
+  const fakeChat = (db2, { intent, messages }) => {
+    if (intent.includes('gemini')) return Promise.resolve(checkerResponse([]));
+    const userMsg = messages[0].content;
+    if (userMsg.includes('Ideas')) {
+      return Promise.resolve(doerResponse([{ criterion_id: 'Ideas', score: 'Strong', rationale: 'Develops the idea with specific examples.' }]));
+    }
+    return Promise.resolve(doerResponse([{ criterion_id: 'organisation', score: 'Developing', rationale: 'Beginning and end present, weak transitions.' }]));
+  };
+
+  const result = await estimateRubric(db, { padId }, { chat: fakeChat });
+  assert.equal(result.status, 'ok');
+  assert.equal(result.written, 2);
+
+  const rows = db.prepare('SELECT * FROM ai_grade_estimates WHERE native_pad_id = ? ORDER BY rubric_kind ASC').all(padId);
+  assert.equal(rows.length, 2);
+  const internal = rows.find((r) => r.rubric_kind === 'internal');
+  assert.equal(internal.criterion_id, ideasId);
+  assert.equal(internal.ai_score, 3, 'band name Strong maps to its score_value');
+  const exam = rows.find((r) => r.rubric_kind === 'exam');
+  assert.equal(exam.criterion_id, organisationId, 'case-insensitive label match');
+  assert.equal(exam.ai_score, 2);
+
+  await app.close();
+});
