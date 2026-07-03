@@ -20,8 +20,8 @@ import { parseJsonArraySalvage } from './literacyCoder.js';
 const CHECKER_INTENT = 'google gemini flash';
 
 const CHECKER_SYSTEM_PROMPT = `You are a strict verifier of literacy error findings made by another model on a student paragraph. You NEVER add findings and NEVER rewrite anything. For each numbered finding, judge only:
-- "defensible": is the labelled error genuinely present at the quoted span? A correct standard English phrase flagged as an error is NOT defensible.
-- "confidence": 0 to 1, how sure you are of your defensible judgement.
+- "defensible": is the labelled error genuinely present at the quoted span? A correct standard English phrase flagged as an error is NOT defensible. Check each finding independently against the text; do not assume the other model is right.
+- "confidence": 0 to 1, how sure you are of your defensible judgement. Calibrate honestly: 0.9+ means you re-read the span and are certain; use 0.5-0.7 when the error is arguable, the code seems wrong for the error, or the span is ambiguous. Your verdicts gate whether findings auto-apply, so a lazy default of high confidence defeats the entire check. In a typical batch some findings deserve doubt; if you mark every finding above 0.9, you are almost certainly not checking.
 
 Return ONLY a JSON array, one object per finding, same order:
 [{"index": 0, "defensible": true, "confidence": 0.9}]`;

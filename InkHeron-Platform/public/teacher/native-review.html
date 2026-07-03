@@ -211,10 +211,40 @@ function renderEssay(){
 function renderRail(){
   const rail = document.getElementById('rail');
   rail.innerHTML = '';
+  const impl = cardImplementation();
+  if (impl) rail.appendChild(impl);
   rail.appendChild(cardAutoMarked());
   rail.appendChild(cardNeedsYou());
   rail.appendChild(cardStrengthsTargets());
   rail.appendChild(cardRubric());
+}
+
+// Green-pen verdict card, only on scored rewrite pads: did the student act
+// on the feedback or just shuffle words?
+function cardImplementation(){
+  const s = review.implementation_score;
+  if (!s) return null;
+  const card = el('div','card');
+  const verdict = s.meaningful ? 'Meaningful revision' : 'Mostly cosmetic revision';
+  const tone = s.meaningful ? 'var(--green-700)' : 'var(--maroon-500)';
+  const head = el('header');
+  head.innerHTML = '<strong>Green pen result</strong><span class="count" style="color:'+tone+'">'+verdict+'</span>';
+  card.appendChild(head);
+  const body = el('div','body');
+  const bits = [];
+  if (s.codes_total) bits.push('codes fixed <b>'+s.codes_addressed+' / '+s.codes_total+'</b>');
+  if (s.targets_total) bits.push('targets acted on <b>'+s.targets_addressed+' / '+s.targets_total+'</b>');
+  if (s.inline_comments_total) bits.push('comments addressed <b>'+s.inline_comments_addressed+' / '+s.inline_comments_total+'</b>');
+  bits.push('cosmetic share <b>'+Math.round((s.cosmetic_ratio ?? 0)*100)+'%</b>');
+  const line = el('div'); line.style.fontSize='12.5px'; line.innerHTML = bits.join(' &middot; ');
+  body.appendChild(line);
+  if (s.summary){ const p = el('div'); p.style.cssText='font-size:12px;color:var(--text-2);margin-top:6px'; p.textContent = s.summary; body.appendChild(p); }
+  if (s.original_pad_id){
+    const a = el('a'); a.className='btn sm'; a.style.marginTop='8px'; a.href='/teacher/native-review?pad_id='+s.original_pad_id; a.textContent='Open original';
+    body.appendChild(a);
+  }
+  card.appendChild(body);
+  return card;
 }
 
 function cardAutoMarked(){

@@ -1703,6 +1703,31 @@ export async function registerNativePadRoutes(app, { db }) {
     }
   );
 
+function loadImplementationScore(db, padId) {
+  const row = db.prepare(`
+    SELECT rewrite_pad_id, original_pad_id, addressed_json, cosmetic_ratio, meaningful, summary, model, created_at
+    FROM implementation_scores WHERE rewrite_pad_id = ?
+  `).get(padId);
+  if (!row) return null;
+  let addressed = {};
+  try { addressed = JSON.parse(row.addressed_json ?? '{}'); } catch { addressed = {}; }
+  const codes = Array.isArray(addressed.codes) ? addressed.codes : [];
+  const targets = Array.isArray(addressed.targets) ? addressed.targets : [];
+  return {
+    original_pad_id: row.original_pad_id,
+    meaningful: row.meaningful === 1,
+    cosmetic_ratio: row.cosmetic_ratio,
+    summary: row.summary ?? '',
+    codes_addressed: codes.filter((c) => c.addressed).length,
+    codes_total: codes.length,
+    targets_addressed: targets.filter((t) => t.addressed).length,
+    targets_total: targets.length,
+    inline_comments_addressed: Number(addressed.inline_comments_addressed ?? 0),
+    inline_comments_total: Number(addressed.inline_comments_total ?? 0),
+    created_at: row.created_at,
+  };
+}
+
   app.get('/api/native/pads/:padId/review',
     { preValidation: [app.requireTeacherSession] },
     async (request, reply) => {
@@ -1781,6 +1806,9 @@ export async function registerNativePadRoutes(app, { db }) {
         feedback_tables: feedbackTables.map((t) => ({ id: t.id, title: t.title })),
         applied_feedback_table: appliedTable,
         feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
+        // Green-pen verdict: present when this pad IS a rewrite that has been
+        // scored, so the teacher reviewing a resubmit sees what was acted on.
+        implementation_score: loadImplementationScore(db, padId),
       };
     }
   );

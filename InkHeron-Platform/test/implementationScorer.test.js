@@ -165,3 +165,28 @@ test('scoreRewrite skips pads without a rewrite link and survives model failure'
 
   await app.close();
 });
+
+test('review endpoint surfaces the implementation score on a scored rewrite', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, originalId, rewriteId } = await seedPads(db, { rewriteText: GOOD_REWRITE });
+  await scoreRewrite(db, { rewritePadId: rewriteId },
+    { chat: () => Promise.resolve(judgeResponse({ addressed: [true, true, true], meaningful: true })) });
+
+  const login = await app.inject({ method: 'POST', url: '/api/teacher/login',
+    payload: { username: 'teacher', password: 'teacherpass123' } });
+  const cookies = login.headers['set-cookie'];
+
+  const review = await app.inject({ method: 'GET', url: `/api/native/pads/${rewriteId}/review`, headers: { cookie: cookies } });
+  const impl = review.json().implementation_score;
+  assert.ok(impl, 'implementation score present on rewrite review');
+  assert.equal(impl.original_pad_id, originalId);
+  assert.equal(impl.meaningful, true);
+  assert.equal(impl.codes_total, 1);
+  assert.equal(impl.codes_addressed, 1);
+  assert.equal(impl.targets_total, 1);
+
+  const original = await app.inject({ method: 'GET', url: `/api/native/pads/${originalId}/review`, headers: { cookie: cookies } });
+  assert.equal(original.json().implementation_score, null, 'no score card on a non-rewrite pad');
+
+  await app.close();
+});
