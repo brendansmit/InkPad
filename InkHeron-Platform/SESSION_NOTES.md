@@ -113,6 +113,12 @@ Entry format:
 - Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
 
+## 2026-07-04 — Fable review of Sonnet + Opus batches
+
+- Reviewed all 20 commits since 969c1f6. Suite: 119 tests, 115 pass, only the 4 known baseline failures.
+- Contract checks all hold: ai_grade_estimates touched only inside markerProfile.js (never in routes or pages, anchoring intact); class median excludes demo/ghost via realStudentsWhere; copy rules (B1-C1, no em/en dashes, no Oxford commas) inside both new system prompts; D3 prompt carries the grammar-is-not-a-grading-factor framing; checker drop thresholds at 0.8 per spec; disagree, half-point rubrics and target tick-off wired in the rebuilt pages.
+- Judgement call from Opus approved: the student progress ring counts targets ticked, not per-mark fixes — per-mark fix state does not exist until the implementation scorer runs on a resubmit. Follow-up for a later batch: once implementation_scores exists for a rewrite, feed addressed_json counts into the feedback view to show the marks-based "N of M fixed" number honestly.
+
 ## 2026-07-02 — Fable batch 2: auto-accept policy, voice layer, anomaly detection, D mockups, Opus handoff
 
 - Policy change (teacher decision, now CLAUDE.md §8.1): literacy codes are formative for L2 learners, not grading factors; AI findings auto-apply as marks at Checker confidence >= 0.75; contested stay pending; disagree endpoint retracts mark + profile evidence. Doer prompt retuned from conservative to flag-everything. Truncation salvage added (dense paragraphs no longer lose all findings to a cut JSON bracket). Commit 18046c6.
