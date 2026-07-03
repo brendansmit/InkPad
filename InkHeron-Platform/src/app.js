@@ -37,10 +37,29 @@ export async function buildApp(options = {}) {
     db.close();
   });
 
+  // Heavy vendored assets (the 1.2 MB PDF.js worker, fonts) never change per
+  // deploy, so cache them for a year and immutable. Once a browser has them
+  // it never touches the network for them again, which matters on slow or
+  // flaky school networks where re-fetching a big file on every pad load can
+  // intermittently fail. The app's own HTML/CSS/JS is left to revalidate
+  // (default) so deploys are picked up immediately.
+  const IMMUTABLE_ASSET = /([/\\]static[/\\]pdfjs[/\\]|\.woff2?$|\.ttf$|\.otf$)/i;
+  // cacheControl:false so @fastify/static does not force max-age=0; we set the
+  // header ourselves per file. Immutable assets get a year; everything else
+  // keeps revalidate-on-every-load so deploys are picked up immediately.
+  const setStaticHeaders = (res, filePath) => {
+    res.setHeader(
+      'Cache-Control',
+      IMMUTABLE_ASSET.test(filePath) ? 'public, max-age=31536000, immutable' : 'public, max-age=0, must-revalidate'
+    );
+  };
+
   await app.register(fastifyStatic, {
     root: publicDir,
     prefix: '/assets/',
     index: false,
+    cacheControl: false,
+    setHeaders: setStaticHeaders,
   });
 
   await app.register(fastifyStatic, {
@@ -48,6 +67,8 @@ export async function buildApp(options = {}) {
     prefix: '/static/',
     decorateReply: false,
     index: false,
+    cacheControl: false,
+    setHeaders: setStaticHeaders,
   });
 
   await app.register(fastifyMultipart, {
