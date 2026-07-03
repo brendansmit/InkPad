@@ -113,6 +113,14 @@ Entry format:
 - Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
 
+## 2026-07-04 — Live smoke test with a real essay and OpenRouter key
+
+- Ran the full pipeline on a real L2 personal statement (sociology, ~640 words) with real model calls, driven from a scratchpad instance (key stored via the settings API, DB and key file deleted afterwards; teacher advised to revoke the temp key).
+- Region finding: from mainland China OpenRouter returns 403 region-blocked for Anthropic, Google and OpenAI models; DeepSeek and Qwen work. All failures were clean no-ops (never-throw contract held). Production intents stay haiku/gemini for the Singapore droplet; local dev from CN needs deepseek/qwen intents. Consider a region fallback in openRouter.js later.
+- Pipeline result (Doer deepseek-chat-v3.1, Checker qwen3-vl-32b): 64 literacy findings, 64/64 offsets exact, sensible codes (Gra 23, Caps 10, Exp 10, VT 7...), checker confidences 0.9-0.95 so all auto-accepted, ~19k tokens in 12 calls, ~4 min wall time. Style metrics, feedback suggestions (2 strengths + 5 targets, all reasonable), profile summary grounded in per-100-words rates: all good.
+- Bug found and fixed (5616b14): estimateRubric wrote 0 rows because deepseek answered with the criterion LABEL and band NAME ("Ideas and development"/"Strong") instead of numeric ids; the guard dropped everything while returning ok. Fix: hardened prompt, normalizeCandidate maps labels back to ids/scores, return now includes written count. Live re-run wrote 3 estimates (4/3/4) with grounded rationales. Suite 120 tests, 116 pass, known 4 failures.
+- Watch item: checker rubber-stamps at 0.9-0.95 confidence, so nothing lands in the contested pile. Monitor on the droplet with gemini as checker; if it persists, make the checker prompt force calibrated doubt.
+
 ## 2026-07-04 — Fable review of Sonnet + Opus batches
 
 - Reviewed all 20 commits since 969c1f6. Suite: 119 tests, 115 pass, only the 4 known baseline failures.
