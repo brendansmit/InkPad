@@ -845,8 +845,10 @@ test('teacher can return native feedback and student can view it', async () => {
     headers: { cookie: cookies },
   });
   assert.equal(page.statusCode, 200);
-  assert.match(page.body, /Open rewrite/);
+  assert.match(page.body, /Open green pen and fix/);
   assert.match(page.body, /api\/native\/assignments/);
+  assert.match(page.body, /toggle-check/);
+  assert.match(page.body, /Your targets/);
 
   await app.close();
 });
@@ -1079,25 +1081,19 @@ test('teacher native review page is served behind teacher auth', async () => {
     headers: { cookie: teacherCookies },
   });
   assert.equal(page.statusCode, 200);
-  assert.match(page.body, /Native review/);
+  // Redesigned review page (direction-d): assert its real structure and wiring.
+  assert.match(page.body, /InkHeron - Review/);
   assert.match(page.body, /api\/native\/pads/);
-  assert.match(page.body, /pasteMode/);
   assert.match(page.body, /literacy_code/);
-  assert.match(page.body, /showRevision/);
-  assert.match(page.body, /revisionHistoryBtn/);
-  assert.match(page.body, /revision-panel/);
-  assert.match(page.body, /rubricPanel/);
-  assert.match(page.body, /saveRubricScores/);
-  assert.match(page.body, /AP Lang exam estimate/);
+  assert.match(page.body, /Auto-marked/);
+  assert.match(page.body, /Needs you/);
+  assert.match(page.body, /feedback-suggestions/);
+  assert.match(page.body, /\/disagree/);
+  assert.match(page.body, /rubric-scores/);
   assert.match(page.body, /exam-rubric-scores/);
-  assert.match(page.body, /profileIssueList/);
-  assert.match(page.body, /Suggested targets/);
-  assert.match(page.body, /suggestionPanel/);
-  assert.match(page.body, /applySuggestion/);
-  assert.match(page.body, /importPastedText/);
-  assert.match(page.body, /backups\/export/);
-  assert.match(page.body, /greenpenRewriteBtn/);
-  assert.match(page.body, /createGreenpenRewrite/);
+  assert.match(page.body, /inline_comment/);
+  assert.match(page.body, /Finish marking/);
+  assert.match(page.body, /finish-marking/);
 
   await app.close();
 });

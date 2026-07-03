@@ -7,7 +7,8 @@ import { notifyTeacher } from '../services/serverChan.js';
 import { runLiteracyAnalysis } from '../services/literacyCoder.js';
 import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
 import { scoreRewrite } from '../services/implementationScorer.js';
-import { recordStyleMetrics } from '../services/styleMetrics.js';
+import { recordStyleMetrics, aggregateStyleProfile, detectStyleAnomaly } from '../services/styleMetrics.js';
+import { realStudentsWhere } from '../db/realStudents.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
 import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
 
@@ -372,6 +373,158 @@ function loadStudentWritingProfile(db, studentId) {
     };
   });
   return { ...profile, literacy_issues: issues, recent_evidence: evidence };
+}
+
+function median(values) {
+  const nums = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!nums.length) return null;
+  const mid = Math.floor(nums.length / 2);
+  return nums.length % 2 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+}
+
+// Read model for the teacher student-profile dashboard (OPUS_HANDOFF §3).
+// Returns length-normalized headline numbers, the per-essay strip with
+// provenance and anomaly flags, recurring-code series, the voice fingerprint
+// against the real-student class median, and score history grouped by
+// rubric_kind and essay_type. The student variant is produced client-side by
+// hiding the anomaly banner and provenance strip; nothing here is student-only.
+function loadWritingProfileDashboard(db, studentId) {
+  const student = db.prepare(`
+    SELECT s.id, s.display_name, s.username, c.name AS class_name
+    FROM students s LEFT JOIN classes c ON c.id = s.class_id
+    WHERE s.id = ?
+  `).get(studentId);
+  if (!student) return null;
+  const isApLang = isApLangClassName(student.class_name);
+  const base = loadStudentWritingProfile(db, studentId);
+
+  // Per-essay strip: every pad with a stored fingerprint, oldest first.
+  const padRows = db.prepare(`
+    SELECT np.id AS pad_id, np.assignment_id, np.word_count, np.state, np.created_at,
+           a.title, a.settings_json,
+           sm.metrics_json,
+           (SELECT COUNT(*) FROM student_literacy_evidence sle WHERE sle.native_pad_id = np.id) AS error_count,
+           (SELECT total FROM score_snapshots ss WHERE ss.native_pad_id = np.id AND ss.rubric_kind = 'internal' ORDER BY ss.id DESC LIMIT 1) AS internal_total,
+           (SELECT total FROM score_snapshots ss WHERE ss.native_pad_id = np.id AND ss.rubric_kind = 'exam' ORDER BY ss.id DESC LIMIT 1) AS exam_total
+    FROM native_pads np
+    JOIN assignments a ON a.id = np.assignment_id
+    LEFT JOIN style_metrics sm ON sm.native_pad_id = np.id
+    WHERE np.student_id = ?
+    ORDER BY np.created_at ASC, np.id ASC
+  `).all(studentId);
+
+  const essays = padRows.map((row, i) => {
+    const settings = parseSettings(row.settings_json);
+    const wc = Number(row.word_count ?? 0);
+    const errors = Number(row.error_count ?? 0);
+    const errPer100 = wc ? Math.round((errors / wc) * 1000) / 10 : 0;
+    let metrics = null; try { metrics = JSON.parse(row.metrics_json || 'null'); } catch (_) {}
+    const anomaly = detectStyleAnomaly(db, { padId: row.pad_id });
+    return {
+      index: i + 1,
+      pad_id: row.pad_id,
+      assignment_id: row.assignment_id,
+      title: row.title,
+      essay_type: settings.essay_type ?? 'other',
+      supervision: settings.supervision ?? 'in_class',
+      word_count: wc,
+      error_count: errors,
+      err_per_100: errPer100,
+      internal_total: row.internal_total != null ? Number(row.internal_total) : null,
+      exam_total: row.exam_total != null ? Number(row.exam_total) : null,
+      metrics,
+      anomaly: { status: anomaly.status, anomalies: anomaly.anomalies || [] },
+    };
+  });
+
+  // Headline numbers: first vs last err/100, totals, rubric first vs last.
+  const rateSeries = essays.map((e) => e.err_per_100);
+  const errTotal = essays.reduce((s, e) => s + e.error_count, 0);
+  const rubricSeries = essays.map((e) => e.internal_total).filter((v) => v != null);
+  const headline = {
+    err_per_100_first: rateSeries.length ? rateSeries[0] : null,
+    err_per_100_last: rateSeries.length ? rateSeries[rateSeries.length - 1] : null,
+    err_total: errTotal,
+    essays_count: essays.length,
+    rubric_first: rubricSeries.length ? rubricSeries[0] : null,
+    rubric_last: rubricSeries.length ? rubricSeries[rubricSeries.length - 1] : null,
+  };
+
+  // Recurring codes: per-essay err/100 for each code, plus fix rate and trend.
+  const codeStats = base.literacy_issues;
+  const recurring = codeStats.slice(0, 6).map((issue) => {
+    const perEssay = essays.map((e) => {
+      const n = db.prepare(
+        'SELECT COUNT(*) AS n FROM student_literacy_evidence WHERE native_pad_id = ? AND code = ? AND category = ?'
+      ).get(e.pad_id, issue.code, issue.category).n;
+      return e.word_count ? Math.round((n / e.word_count) * 1000) / 10 : 0;
+    });
+    const half = Math.floor(perEssay.length / 2);
+    const firstMean = half ? perEssay.slice(0, half).reduce((a, b) => a + b, 0) / half : 0;
+    const lastMean = (perEssay.length - half) ? perEssay.slice(half).reduce((a, b) => a + b, 0) / (perEssay.length - half) : 0;
+    const delta = lastMean - firstMean;
+    return {
+      code: issue.code,
+      category: issue.category,
+      label: issue.label,
+      per_essay: perEssay,
+      resolved_count: issue.resolved_count,
+      evidence_count: issue.evidence_count,
+      trend: delta < -0.5 ? 'better' : delta > 0.5 ? 'worse' : 'flat',
+    };
+  });
+
+  // Voice fingerprint vs the real-student class median (excludes demo/ghost).
+  const styleProfile = aggregateStyleProfile(db, { studentId });
+  const medianRows = db.prepare(`
+    SELECT sm.metrics_json
+    FROM style_metrics sm
+    JOIN students s ON s.id = sm.student_id
+    WHERE s.id != ? AND ${realStudentsWhere('s')}
+  `).all(studentId);
+  const medianSeries = {};
+  for (const r of medianRows) {
+    let m = null; try { m = JSON.parse(r.metrics_json); } catch (_) {}
+    if (!m) continue;
+    for (const k of Object.keys(m)) { (medianSeries[k] = medianSeries[k] || []).push(Number(m[k])); }
+  }
+  const classMedian = {};
+  for (const k of Object.keys(medianSeries)) classMedian[k] = median(medianSeries[k]);
+
+  // Score history grouped by rubric_kind and essay_type.
+  const snapshots = db.prepare(`
+    SELECT ss.native_pad_id, ss.assignment_id, ss.rubric_kind, ss.total, ss.recorded_at, a.settings_json
+    FROM score_snapshots ss JOIN assignments a ON a.id = ss.assignment_id
+    WHERE ss.student_id = ?
+    ORDER BY ss.recorded_at ASC, ss.id ASC
+  `).all(studentId);
+  const byRubricKind = {};
+  const byEssayType = {};
+  for (const s of snapshots) {
+    const settings = parseSettings(s.settings_json);
+    const etype = settings.essay_type ?? 'other';
+    const point = { pad_id: s.native_pad_id, total: Number(s.total), recorded_at: s.recorded_at, essay_type: etype };
+    (byRubricKind[s.rubric_kind] = byRubricKind[s.rubric_kind] || []).push(point);
+    if (s.rubric_kind === 'exam') (byEssayType[etype] = byEssayType[etype] || []).push(point);
+  }
+
+  // essay_type counts, for AP tab locking (needs >= 2 marked of a type).
+  const typeCounts = {};
+  for (const e of essays) typeCounts[e.essay_type] = (typeCounts[e.essay_type] || 0) + 1;
+
+  return {
+    student: { id: student.id, display_name: student.display_name, class_name: student.class_name, is_ap_lang: isApLang },
+    profile: { writing_summary: base.writing_summary, voice_summary: base.voice_summary, targets: base.targets },
+    literacy_issues: base.literacy_issues,
+    recent_evidence: base.recent_evidence,
+    essays,
+    headline,
+    recurring,
+    style_profile: styleProfile,
+    class_median: classMedian,
+    score_history: { by_rubric_kind: byRubricKind, by_essay_type: byEssayType },
+    essay_type_counts: typeCounts,
+  };
 }
 
 function normalizeRubricKind(kind) {
@@ -1629,6 +1782,17 @@ export async function registerNativePadRoutes(app, { db }) {
         applied_feedback_table: appliedTable,
         feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
       };
+    }
+  );
+
+  // Teacher student-profile dashboard read model (OPUS_HANDOFF §3).
+  app.get('/api/students/:studentId/writing-profile',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const studentId = requirePositiveInteger(request.params.studentId, 'studentId');
+      const payload = loadWritingProfileDashboard(db, studentId);
+      if (!payload) return reply.code(404).send({ error: 'student_not_found' });
+      return payload;
     }
   );
 

@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing profile · InkHeron</title>
+<link rel="icon" href="/assets/InkHeron%20Logo.png">
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg)}
+.appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:12px;padding:10px 22px;background:rgba(247,246,242,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.glyph{width:30px;height:30px;border-radius:9px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:600;transform:rotate(-4deg)}
+.who{font-family:var(--serif);font-size:16px;font-weight:600}
+.crumb{color:var(--text-3);font-size:13px}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 13px;border-radius:var(--r-sm);font-weight:800;font-size:12.5px;cursor:pointer;border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);text-decoration:none}
+.btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.ptabs{display:flex;gap:4px;background:var(--surface-2);border-radius:999px;padding:3px;flex-wrap:wrap}
+.ptab{border:none;background:none;font:inherit;font-size:12px;font-weight:800;color:var(--text-3);padding:6px 13px;border-radius:999px;cursor:pointer}
+.ptab.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow-card)}
+.ptab:disabled{opacity:.6;cursor:not-allowed}
+.ptab .lock{font-size:10px;opacity:.7}
+.wrap{max-width:1240px;margin:0 auto;padding:18px 22px 70px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card)}
+.card>header{display:flex;align-items:center;gap:8px;padding:12px 15px;border-bottom:1px solid var(--border)}
+.card>header strong{font-size:13.5px}
+.card>header .sub{color:var(--text-3);font-size:11.5px}
+.body{padding:13px 15px}
+.full{grid-column:1/-1}
+.alert{grid-column:1/-1;display:flex;gap:12px;align-items:flex-start;background:var(--coral-50);border:1px solid var(--coral-500);border-radius:var(--r-md);padding:12px 15px}
+.alert .ic{font-size:18px}
+.alert strong{font-size:13px}
+.alert p{margin:3px 0 0;font-size:12.5px;color:var(--text-2)}
+.alert .btns{margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+.stats{display:flex;gap:10px;grid-column:1/-1;flex-wrap:wrap}
+.stat{flex:1;min-width:150px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:12px 15px}
+.stat b{display:block;font-size:21px;font-family:var(--serif)}
+.stat span{font-size:11.5px;color:var(--text-2);font-weight:700}
+.stat .raw{display:block;font-size:10.5px;color:var(--text-3);font-weight:600}
+.trend{font-size:11px;font-weight:800}
+.trend.up{color:var(--green-700)}
+.trend.down{color:var(--maroon-500)}
+.estrip{display:flex;gap:8px;grid-column:1/-1;overflow-x:auto;padding-bottom:2px}
+.echip{min-width:130px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;font-size:11px;box-shadow:var(--shadow-card)}
+.echip .t{font-weight:800;font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.echip .m{color:var(--text-3);font-family:var(--mono);font-size:10px}
+.prov{display:inline-flex;align-items:center;gap:4px;border-radius:999px;padding:2px 7px;font-size:9.5px;font-weight:800;margin-top:4px}
+.prov.clean{background:var(--green-50);color:var(--green-700)}
+.prov.mixed{background:var(--amber-50);color:var(--amber-700)}
+.prov.home{background:var(--surface-2);color:var(--text-3)}
+.echip.flagged{border-color:var(--coral-500);background:var(--coral-50)}
+.erow{display:grid;grid-template-columns:64px 1fr 118px 62px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12.5px}
+.erow:last-child{border:none}
+.erow .cc{font-family:var(--mono);font-size:11.5px;font-weight:800;cursor:help;border-bottom:1px dotted var(--text-3)}
+.bars{display:flex;gap:3px;align-items:flex-end;height:30px}
+.bars i{width:14px;background:var(--maroon-500);opacity:.85;border-radius:3px 3px 0 0;min-height:2px}
+.bars.good i{background:var(--green-500)}
+.fixrate{font-size:11.5px;color:var(--text-2)}
+.fixrate b{color:var(--green-700)}
+.tag{font-size:10.5px;font-weight:800;border-radius:999px;padding:2px 8px;text-align:center}
+.tag.worse{background:var(--maroon-50);color:var(--maroon-500)}
+.tag.better{background:var(--green-50);color:var(--green-700)}
+.tag.flat{background:var(--surface-2);color:var(--text-3)}
+.vrow{display:grid;grid-template-columns:170px 1fr 44px;gap:10px;align-items:center;padding:5px 0;font-size:12px}
+.vtrack{position:relative;height:10px;background:var(--surface-3);border-radius:99px;cursor:pointer}
+.vdot{position:absolute;top:-3px;width:16px;height:16px;border-radius:50%;background:var(--blue-700);border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.vmed{position:absolute;top:-2px;bottom:-2px;left:50%;width:2px;background:var(--text-3)}
+.vlbl{color:var(--text-2);cursor:help;border-bottom:1px dotted var(--text-3);width:fit-content;position:relative}
+.vlbl .pop{display:none;position:absolute;bottom:130%;left:0;width:230px;background:var(--ink);color:#fff;font-size:11px;font-weight:600;line-height:1.45;padding:8px 10px;border-radius:8px;z-index:9}
+.vlbl:hover .pop{display:block}
+.vval{font-family:var(--mono);font-size:11px;color:var(--text-3);text-align:right}
+.legend{font-size:11px;color:var(--text-3);margin-top:8px}
+.explainer{margin-top:10px;background:var(--blue-50);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--text-2)}
+.explainer strong{color:var(--blue-700);display:block;font-size:12px;margin-bottom:2px}
+.vfind{border:1px solid var(--border);border-left:4px solid var(--blue-700);border-radius:var(--r-sm);padding:10px 12px;margin-bottom:8px}
+.vfind.warn{border-left-color:var(--maroon-500)}
+.vfind.good{border-left-color:var(--green-500)}
+.vfind h4{margin:0;font-size:12.5px}
+.vfind p{margin:4px 0 0;font-size:12px;color:var(--text-2);line-height:1.5}
+.evidence{font-family:var(--serif);font-size:12.5px;background:var(--surface-2);border-radius:8px;padding:7px 10px;margin-top:6px;color:var(--ink)}
+.evidence .cc{font-family:var(--mono);font-size:10px;font-weight:800;color:var(--maroon-500);margin-right:6px}
+.spark{display:flex;align-items:flex-end;gap:6px;height:60px;margin-top:4px}
+.spark .col{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:3px}
+.spark .bar{width:100%;border-radius:4px 4px 0 0;background:var(--green-500);min-height:2px}
+.spark .lb{font-size:9.5px;color:var(--text-3);font-family:var(--mono)}
+.loading{padding:60px;text-align:center;color:var(--text-3);grid-column:1/-1}
+.teacher-only{display:block}
+body.student-mode .teacher-only{display:none!important}
+</style>
+</head>
+<body>
+<div class="appbar">
+  <div class="glyph">i</div>
+  <span class="who" id="studentName">…</span>
+  <span class="crumb" id="crumb"></span>
+  <div class="ptabs" id="ptabs"></div>
+  <span class="spacer"></span>
+  <button class="btn" id="studentToggle">Student version</button>
+  <button class="btn" id="exportBtn">Export</button>
+</div>
+<div class="wrap" id="wrap"><div class="loading">Loading profile…</div></div>
+
+<script>
+const GENRE = { narrative:'Narrative', argumentative:'Argument', personal:'Personal', analysis:'Analysis', short_response:'Short response', rhetorical_analysis:'Rhet. analysis', synthesis:'Synthesis', other:'EAP' };
+const PROV = { in_class:['clean','✓ watched in class'], mixed:['mixed','◐ started in class'], homework:['home','⌂ homework'] };
+const VOICE_TERMS = [
+  ['mean_sentence_length','Sentence length','Average words per sentence. Long is not better: strong writers mix long and short.','w'],
+  ['sentence_length_sd','Sentence variety','How much sentence length changes. Low variety means every sentence has the same shape and rhythm.','sd'],
+  ['mattr_50','Vocabulary range','How often new words appear instead of repeating the same ones. Measured in a sliding window so essay length does not distort it.',''],
+  ['subordinators_per_sentence','Subordination','Clauses that hang on a main clause using because, although, which, when. More subordination means more complex sentence machinery.','/s'],
+  ['transitions_per_100_words','Transitions','Signpost words like however, therefore, finally that guide a reader between ideas.','/100'],
+  ['first_person_per_100_words','First person','How often I, my, we appear. High in personal writing; should drop in analysis and argument.','/100'],
+  ['hedges_per_100_words','Hedging','Softening words like maybe, might, seems. Academic writing needs some; too much sounds unsure.','/100'],
+];
+let data=null, activeType='EAP';
+
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function el(tag,cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
+function fmt(n){ return n==null?'—':(Number.isInteger(n)?String(n):Number(n).toFixed(1)); }
+
+async function boot(){
+  const studentId = new URLSearchParams(location.search).get('student_id');
+  const me = await fetch('/api/me').then(r=>r.ok?r.json():null).catch(()=>null);
+  if(!me || !me.user || me.user.type!=='teacher'){ location.href='/teacher-login.html'; return; }
+  if(!studentId){ document.getElementById('wrap').innerHTML='<div class="loading">No student selected.</div>'; return; }
+  data = await fetch('/api/students/'+encodeURIComponent(studentId)+'/writing-profile').then(r=>{ if(!r.ok) throw new Error('profile '+r.status); return r.json(); });
+  document.getElementById('studentToggle').onclick = ()=>{
+    document.body.classList.toggle('student-mode');
+    document.getElementById('studentToggle').classList.toggle('on');
+  };
+  document.getElementById('exportBtn').onclick = ()=>window.print();
+  renderTabs();
+  render();
+}
+
+function renderTabs(){
+  const tabs = document.getElementById('ptabs');
+  tabs.innerHTML='';
+  const eap = el('button','ptab'+(activeType==='EAP'?' on':'')); eap.textContent='EAP · '+data.essays.length+' pieces';
+  eap.onclick=()=>{ activeType='EAP'; renderTabs(); render(); };
+  tabs.appendChild(eap);
+  if (data.student.is_ap_lang){
+    for (const [type,label] of [['argumentative','AP: Argument'],['rhetorical_analysis','AP: Rhet. analysis'],['analysis','AP: Analysis'],['synthesis','AP: Synthesis']]){
+      const n = data.essay_type_counts[type] || 0;
+      if (n===0 && type!=='synthesis') continue;
+      const locked = n < 2;
+      const b = el('button','ptab'+(activeType===type?' on':''));
+      b.innerHTML = label+' · '+n+(locked?' <span class="lock">🔒</span>':'');
+      b.disabled = locked;
+      if(!locked) b.onclick=()=>{ activeType=type; renderTabs(); render(); };
+      tabs.appendChild(b);
+    }
+  }
+}
+
+function essaysForView(){ return activeType==='EAP' ? data.essays : data.essays.filter(e=>e.essay_type===activeType); }
+
+function render(){
+  document.getElementById('studentName').textContent = data.student.display_name;
+  document.getElementById('crumb').textContent = 'Writing profile · '+(data.student.class_name||'');
+  const wrap = document.getElementById('wrap');
+  wrap.innerHTML='';
+  const anomalyEssay = pickAnomaly();
+  if (anomalyEssay) wrap.appendChild(anomalyBanner(anomalyEssay));
+  wrap.appendChild(statsStrip());
+  wrap.appendChild(essayStrip());
+  wrap.appendChild(recurringCard());
+  wrap.appendChild(voiceFingerprintCard());
+  wrap.appendChild(voiceInWordsCard());
+  wrap.appendChild(scoresOverTimeCard());
+  if (data.student.is_ap_lang) wrap.appendChild(apByTypeCard());
+}
+
+function pickAnomaly(){
+  const flagged = data.essays.filter(e=>e.anomaly.anomalies.length);
+  if(!flagged.length) return null;
+  // prefer homework/mixed provenance, then strongest anomaly
+  flagged.sort((a,b)=>{
+    const w = s=> s.supervision==='homework'?2:s.supervision==='mixed'?1:0;
+    return (w(b)-w(a)) || (Math.abs(b.anomaly.anomalies[0].z)-Math.abs(a.anomaly.anomalies[0].z));
+  });
+  return flagged[0];
+}
+
+function anomalyBanner(e){
+  const div = el('div','alert teacher-only');
+  const top = e.anomaly.anomalies.slice(0,3).map(a=>{
+    const name = (VOICE_TERMS.find(t=>t[0]===a.feature)||[null,a.feature.replace(/_/g,' ')])[1];
+    return name+' '+(a.z>0?'+':'')+a.z+' sd';
+  }).join(', ');
+  const prov = e.supervision==='homework'?'homework, unverified':e.supervision==='mixed'?'started in class':'watched in class';
+  div.innerHTML = '<span class="ic">⚠</span><div>'+
+    '<strong>Voice anomaly on E'+e.index+' ('+esc(GENRE[e.essay_type]||e.essay_type)+', '+prov+')</strong>'+
+    '<p>'+esc(top)+' against their own baseline across '+e.anomaly.anomalies.length+' feature'+(e.anomaly.anomalies.length===1?'':'s')+'. Genre is on the chip beside it, so weigh a genre shift before anything else. This is evidence to open a conversation, not proof.</p></div>'+
+    '<div class="btns"><a class="btn" href="/teacher/native-review?pad_id='+e.pad_id+'">Open essay</a></div>';
+  return div;
+}
+
+function statsStrip(){
+  const h = data.headline;
+  const strip = el('div','stats');
+  const rateTrend = (h.err_per_100_last!=null && h.err_per_100_first!=null) ? (h.err_per_100_last < h.err_per_100_first ? 'up' : h.err_per_100_last>h.err_per_100_first?'down':'') : '';
+  strip.appendChild(stat(fmt(h.err_per_100_first)+' → '+fmt(h.err_per_100_last), 'errors per 100 words', rateTrend?('<span class="trend '+rateTrend+'">'+(rateTrend==='up'?'improving':'rising')+'</span>'):'', h.err_total+' errors total across '+h.essays_count+' pieces'));
+  const topCodes = data.recurring.slice(0,3).map(r=>r.code).join(' · ') || '—';
+  const worse = data.recurring.find(r=>r.trend==='worse');
+  strip.appendChild(stat(topCodes, 'top recurring codes', '', worse?(worse.code+' is the one getting worse'):'tracked across every essay'));
+  const rTrend = (h.rubric_last!=null && h.rubric_first!=null) ? (h.rubric_last>h.rubric_first?'up':h.rubric_last<h.rubric_first?'down':'') : '';
+  strip.appendChild(stat(fmt(h.rubric_first)+' → '+fmt(h.rubric_last), 'avg rubric score', rTrend?('<span class="trend '+rTrend+'">'+(rTrend==='up'?'rising':'slipping')+'</span>'):'', 'internal rubric total'));
+  const resolved = data.literacy_issues.reduce((s,i)=>s+i.resolved_count,0);
+  const totalEv = data.literacy_issues.reduce((s,i)=>s+i.evidence_count,0);
+  const fixPct = totalEv? Math.round(resolved/totalEv*100) : 0;
+  strip.appendChild(stat(fixPct+'%', 'marks resolved', '', resolved+' of '+totalEv+' flagged issues addressed'));
+  return strip;
+}
+function stat(big, label, trendHtml, raw){
+  const s = el('div','stat');
+  s.innerHTML = '<b>'+esc(big)+'</b><span>'+esc(label)+'</span> '+(trendHtml||'')+'<span class="raw">'+esc(raw)+'</span>';
+  return s;
+}
+
+function essayStrip(){
+  const strip = el('div','estrip');
+  for (const e of essaysForView()){
+    const chip = el('div','echip'+(e.anomaly.anomalies.length?' flagged':''));
+    const [pc,pl] = PROV[e.supervision] || PROV.in_class;
+    chip.innerHTML = '<span class="t">E'+e.index+' · '+esc(GENRE[e.essay_type]||e.essay_type)+'</span>'+
+      '<span class="m">'+e.word_count+' w · '+fmt(e.err_per_100)+' err/100</span><br>'+
+      '<span class="prov '+pc+' teacher-only">'+esc(pl)+'</span>';
+    strip.appendChild(chip);
+  }
+  return strip;
+}
+
+function recurringCard(){
+  const card = el('div','card');
+  card.innerHTML = '<header><strong>Recurring errors</strong><span class="sub">per 100 words, oldest → newest · hover a code for its meaning</span></header>';
+  const body = el('div','body');
+  const maxRate = Math.max(0.1, ...data.recurring.flatMap(r=>r.per_essay));
+  for (const r of data.recurring){
+    const row = el('div','erow');
+    const good = r.trend==='better';
+    const bars = r.per_essay.map(v=>'<i style="height:'+Math.round(Math.max(2,v/maxRate*100))+'%"></i>').join('');
+    const fixLabel = r.evidence_count? (r.resolved_count+' / '+r.evidence_count) : '0 / 0';
+    const tagText = r.trend==='better'?'improving':r.trend==='worse'?'getting worse':'stuck';
+    row.innerHTML = '<span class="cc" style="color:var(--'+(r.category==='surface'?'amber-700':r.category==='format'?'blue-700':'maroon-500')+')" title="'+esc(r.label)+'">'+esc(r.code)+'</span>'+
+      '<div class="bars'+(good?' good':'')+'">'+bars+'</div>'+
+      '<span class="fixrate">resolved <b>'+fixLabel+'</b></span>'+
+      '<span class="tag '+r.trend+'">'+tagText+'</span>';
+    body.appendChild(row);
+  }
+  if(!data.recurring.length) body.innerHTML='<p class="sub">No recurring errors recorded yet.</p>';
+  else { const lg=el('div','legend'); lg.textContent='Rates are length-normalized so a 210-word short response compares fairly with a 650-word essay.'; body.appendChild(lg); }
+  card.appendChild(body);
+  return card;
+}
+
+function voiceFingerprintCard(){
+  const card = el('div','card');
+  card.innerHTML = '<header><strong>Voice fingerprint</strong><span class="sub">vs class median (the line) · hover any term, click for the full explanation</span></header>';
+  const body = el('div','body');
+  const feats = data.style_profile.features || {};
+  const explainer = el('div','explainer'); explainer.style.display='none';
+  for (const [key,label,tip,unit] of VOICE_TERMS){
+    const f = feats[key]; if(!f) continue;
+    const val = f.latest!=null?f.latest:f.mean;
+    const med = data.class_median[key];
+    const pos = med && med>0 ? Math.max(6, Math.min(94, 50*(val/med))) : 50;
+    const row = el('div','vrow');
+    row.innerHTML = '<span class="vlbl">'+esc(label)+'<span class="pop">'+esc(tip)+'</span></span>'+
+      '<div class="vtrack"><span class="vmed"></span><span class="vdot" style="left:'+pos.toFixed(0)+'%"></span></div>'+
+      '<span class="vval">'+fmt(val)+(unit?' '+unit:'')+'</span>';
+    row.querySelector('.vtrack').onclick = ()=>{
+      const cmp = med==null?'no class median yet':(val>med?'above':val<med?'below':'at')+' the class median of '+fmt(med);
+      explainer.style.display='block';
+      explainer.innerHTML = '<strong>'+esc(label)+' — the full story</strong>This student sits at '+fmt(val)+(unit?' '+unit:'')+', '+esc(cmp)+'. '+esc(tip);
+    };
+    body.appendChild(row);
+  }
+  body.appendChild(explainer);
+  if(!Object.keys(feats).length) body.innerHTML='<p class="sub">Not enough essays for a fingerprint yet.</p>';
+  card.appendChild(body);
+  return card;
+}
+
+function voiceInWordsCard(){
+  const card = el('div','card full');
+  card.innerHTML = '<header><strong>Voice, in words</strong><span class="sub">student-readable · every claim is backed by a number on this page · give this page to the student</span></header>';
+  const body = el('div','body'); body.style.display='grid'; body.style.gridTemplateColumns='1fr 1fr'; body.style.gap='10px';
+  const findings = [];
+  if (data.profile.writing_summary) findings.push(['warn','Where your errors cluster', data.profile.writing_summary]);
+  if (data.profile.voice_summary) findings.push(['good','How your writing sounds', data.profile.voice_summary]);
+  for (const t of (data.profile.targets||[])) findings.push(['', t.title, t.explanation||'']);
+  const ev = data.recent_evidence.find(x=>x.selected_text && x.selected_text.length>3);
+  findings.forEach((f,i)=>{
+    const div = el('div','vfind '+(f[0]||''));
+    div.innerHTML = '<h4>'+esc(f[1])+'</h4><p>'+esc(f[2])+'</p>';
+    if (i===0 && ev){ div.innerHTML += '<div class="evidence"><span class="cc">'+esc(ev.code)+'</span>'+esc(ev.selected_text)+'</div>'; }
+    body.appendChild(div);
+  });
+  if(!findings.length) body.innerHTML='<p class="sub">The written profile appears after the next marked essay.</p>';
+  card.appendChild(body);
+  return card;
+}
+
+function scoresOverTimeCard(){
+  const card = el('div','card');
+  card.innerHTML = '<header><strong>Scores over time</strong><span class="sub">internal rubric total per essay</span></header>';
+  const body = el('div','body');
+  const pts = (data.score_history.by_rubric_kind.internal || []);
+  const max = Math.max(1, ...pts.map(p=>p.total));
+  const spark = el('div','spark');
+  pts.forEach((p,i)=>{
+    const col = el('div','col');
+    col.innerHTML = '<div class="bar" style="height:'+Math.round(p.total/max*100)+'%"></div><span class="lb">E'+(i+1)+'</span>';
+    spark.appendChild(col);
+  });
+  if(!pts.length){ body.innerHTML='<p class="sub">No rubric history yet.</p>'; } else body.appendChild(spark);
+  card.appendChild(body);
+  return card;
+}
+
+function apByTypeCard(){
+  const card = el('div','card');
+  card.innerHTML = '<header><strong>AP: how they write, by essay type</strong><span class="sub">unlocks after 2 marked essays of a type</span></header>';
+  const body = el('div','body');
+  const types = ['argumentative','rhetorical_analysis','analysis','synthesis'];
+  let any=false;
+  for (const type of types){
+    const n = data.essay_type_counts[type]||0;
+    if (n===0) continue;
+    any=true;
+    const div = el('div','vfind'+(n<2?'':' good'));
+    if (n<2){ div.innerHTML='<h4>'+esc(GENRE[type])+' ('+n+' essay) — profile locked</h4><p>One more marked '+esc(GENRE[type].toLowerCase())+' essay and this panel opens.</p>'; }
+    else {
+      const typeEssays = data.essays.filter(e=>e.essay_type===type);
+      const avgFp = avg(typeEssays.map(e=>e.metrics && e.metrics.first_person_per_100_words).filter(v=>v!=null));
+      div.innerHTML='<h4>'+esc(GENRE[type])+' ('+n+' essays)</h4><p>First person runs at '+fmt(avgFp)+' per 100 words across these essays. '+(type==='argumentative'?'The personal register works here; evidence depth is the gap.':'Analysis and synthesis need a lower first-person rate; watch that the personal voice does not cost points.')+'</p>';
+    }
+    body.appendChild(div);
+  }
+  if(!any) body.innerHTML='<p class="sub">No AP essays marked yet.</p>';
+  card.appendChild(body);
+  return card;
+}
+function avg(a){ return a.length? a.reduce((x,y)=>x+y,0)/a.length : null; }
+
+boot().catch(err=>{ console.error(err); document.getElementById('wrap').innerHTML='<div class="loading">'+esc(err.message)+'</div>'; });
+</script>
+</body>
+</html>
