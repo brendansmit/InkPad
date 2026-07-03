@@ -4,6 +4,76 @@ Old entries moved out of `SESSION_NOTES.md` to keep active context under 400 lin
 
 ---
 
+## 2026-06-30 - Native InkPad opt-in controls
+
+- Asked: do the next batch of Native InkPad steps.
+- Built: added a teacher-facing Native InkPad toggle to new assignment and edit assignment screens. API tests cover explicit on/off behaviour.
+- Verification: assignment tests passed 11/11 and edited dashboard scripts parsed.
+- Open / next: autosave/version conflict hardening.
+- Gotchas hit: explicit off removes the native flag, while normal edits without the field still preserve it.
+
+## 2026-06-30 - Native InkPad dashboard integration
+
+- Asked: do the next two native InkPad steps.
+- Built: student assignment API now returns native flags and `write_url`; student dashboard uses that URL. Teacher assignment dashboard now returns `pad_kind`, native paste evidence and `review_url`; teacher assignment page uses that URL so native pads open the native review page. Assignment PATCH preserves hidden `native_inkpad` flags.
+- Verification: Node 24 assignment/native/Etherpad/migration focused suite passed 25/25. Student and teacher dashboard inline scripts parse.
+- Open / next: add a teacher-facing opt-in control for creating/editing native assignments without direct DB/test setup.
+- Gotchas hit: dashboard SQL needed native paste summary columns explicitly selected after joining the native paste aggregate.
+
+## 2026-06-30 - Native InkPad teacher review UI
+
+- Asked: build the next native InkPad step after the review and paste policy foundation.
+- Built: added `/teacher/native-review`, a separate sidecar review page for native pads with text highlights, general comments, inline comments, annotation list, paste policy controls, paste evidence and revision summaries.
+- Verification: Node 24 app syntax check passed, native migration/page tests passed, extracted browser script parsed, Etherpad API plus native focused suite passed.
+- Open / next: integrate native pad links/status into student and teacher dashboards behind the opt-in flag.
+- Gotchas hit: kept this separate from the Etherpad review page so current classes are not affected.
+
+## 2026-06-30 - Native InkPad review and paste policy foundation
+
+- Asked: prepare native InkPad for teacher review modes, general comments, Word-style inline comments, literacy-code style marks and live paste toggling.
+- Built: migration `013_native_review_policy.sql`, native pad versioning, per-pad policies, range annotations, teacher events, teacher review API, annotation create/update APIs, paste-event API and student-side policy polling.
+- Verification: Node 24 syntax checks pass. `etherpad`, migration and native pad focused tests pass.
+- Open / next: build the actual teacher review page UI and dashboard integration for native pads.
+- Gotchas hit: kept this as sidecar-only; no `/write` cutover or dashboard link changes yet.
+
+## 2026-06-30 - Native InkPad sidecar foundation
+
+- Asked: start building an Etherpad replacement on the side while Etherpad stays live until confidence is high.
+- Built: added `NATIVE_INKPAD.md`, migration `012_native_inkpad.sql`, hidden native routes, a simple native write view, autosave, submit locking and revision snapshots. Native routes only work when assignment settings include `native_inkpad: true`.
+- Verification: Node 24 syntax checks pass. Focused migration and native pad tests pass. Existing Etherpad pad test run still has unrelated failures in old expectations.
+- Open / next: add teacher review for native pads, native dashboard status integration and richer editor behaviour after save/submit proves stable.
+- Gotchas hit: local default Node is 20 and cannot load `node:sqlite`; use bundled Node 24 for tests.
+
+## 2026-06-30 - Permanent random pad suffixes
+
+- Asked: give each newly used pad a random `1 letter + 4 digit` suffix so deleted local pad rows do not reuse the same Etherpad pad.
+- Built: added `pad_allocations`, generated suffixes like `K4821`, reserved suffixes before Etherpad pad creation, retried collisions and reused existing active pad rows unchanged.
+- Verification: focused migration, Etherpad and pad allocation tests pass. Live smoke created `g.Tff3JsxD9Dv6MfWE$a9_s5_D2565`, then confirmed the allocation stayed recorded after deleting the throwaway assignment.
+- Open / next: full local suite still has unrelated dirty-work failures in auth, EAP admin, write-view UI, timeslider and submission review expectations.
+- Gotchas hit: live restart initially failed because current dirty `app.js` imports library routes and multipart support that were not on the droplet; deployed the missing route/assets and installed the missing package, then health checks passed.
+
+## 2026-06-30 — PDF TextLayer: text selection + canvas highlight
+
+- Built: Replaced canvas-only PDF.js render with per-page structure: pdf-canvas + hl-canvas + TextLayer div. Students can now select and copy text from the passage PDF. Highlight buttons paint selection rects onto the hl-canvas using `getClientRects()` with `mix-blend-mode:multiply`. Used named imports (`getDocument`, `TextLayer`) from pdf.min.mjs (PDF.js v5 API).
+- Decisions: Highlight is canvas-drawn (not DOM spans) — simpler, no EP conflict, but not persistent across zoom re-renders (acceptable for in-session use).
+- Commit: 9edcadc
+
+---
+
+## 2026-06-30 — Batch fixes: zoom, line numbers, sidebar, teacher comments
+
+- Built:
+  - **Zoom (#3):** `applyZoom` now sets `body.style.zoom` on both padDoc and aceOuter body so gutter + editor scale together. Tracks `currentZoom`, reapplies after cleanup. Old approach targeted `#editorcontainerbox` which didn't scale the gutter.
+  - **Line numbers (#6):** Changed `#sidediv` `padding-top: 55px → 40px` in layout.css on server (matches iframe padding). Also fires resize on `aceOuter.contentWindow` 200ms after cleanup so EP recalculates gutter positions after CSS applies.
+  - **Instructions sidebar (#4):** Prompt now shows in left sidebar panel (`.split-left`) instead of a collapsible panel above the pad. Sidebar appears whenever there is a prompt or passage or both. Removed prompt-btn, prompt-panel, and prompt-panel-toggle JS.
+  - **Teacher comments (#2, general only):** Migration 010 adds `submission_comments` table. `PUT /api/submissions/:id/comment` upserts a general comment. Review page includes a comment textarea; saving feedback also saves the comment in parallel.
+  - **Targets/strengths (#5):** Verified already working — `feedbackLibrary` IDs match string keys stored in DB.
+- Decisions: Inline comments deferred (complex); general comments cover the immediate need. Line numbers fix is empirical (40px = iframe padding-top); may need fine-tuning after visual check.
+- Open: Verify line numbers and zoom work visually. Inline teacher comments still not built. Task #1 (review page redesign) and #7 (iframe deep-debug) still pending.
+- Gotchas: `sed` failed on multi-line layout.css edit; used Python instead.
+- Commit: 487f870
+
+
 ## 2026-06-29 — Multi-class assignment creation
 - Phase/Step worked: Phase 8 teacher UX polish
 - Built: Updated `new-assignment.html` to replace the single class dropdown with a
