@@ -113,6 +113,15 @@ Entry format:
 - Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
 
+## 2026-07-04 — Improvement batch: green pen in the pad, resolver, fallback, surfacing
+
+- Teacher design decision: NO side-by-side original in green pen. Marks render inside the editable rewrite text itself; fix the flagged text and the mark clears on the next re-check. Suggester architecture stays Doer+Checker (dual independent generation rejected as merge-complexity for marginal gain; fallback lever is upgrading the suggester Doer tier).
+- Resolver hardening (3c64803): exact-id intents must match the live list exactly or fail; tilde/alias ids deprioritized; weak fuzzy matches now return null instead of falling back to an arbitrary first row. Region fallback in callChat: on a 403 region error, Doer families fall back to deepseek, checker families to qwen (still different families), logged loudly.
+- Checker calibration (d416842): literacy checker prompt now demands honest confidence spread; also review endpoint exposes implementation_score on scored rewrites and native-review shows a Green pen result card (codes/targets/comments addressed, cosmetic share, link to original).
+- Green pen in the pad (a6dc320): GET /api/native/pads/:padId/greenpen-context (student, own rewrite pad; category-only marks with 24-char context, feedback items with checked state, comments). nativeWrite.js: gp-mode sidebar card (progress counter, category filter chips, targets tick-off wired to toggle-check, strengths, comments), mark engine that relocates quotes in the live editor via context scoring (short quotes need >= 3 context chars so a fixed "is" does not re-pin to a twin), idle re-check with caret preservation, sanitizer unwraps [data-gp] so decorations never enter a saved document. Browser-verified end to end on a seeded dev server (launch config inkheron-gp-dev, port 3467): 7/7 marks placed correctly, fixing "structered" cleared exactly that mark, tick persisted to DB, saved document_json clean.
+- Suite: 125 tests, 121 pass, same 4 known baseline failures.
+- Next: deploy analysis-ai to the droplet, run one real assignment with production models (haiku/gemini), watch checker confidence spread.
+
 ## 2026-07-04 — Live smoke test with a real essay and OpenRouter key
 
 - Ran the full pipeline on a real L2 personal statement (sociology, ~640 words) with real model calls, driven from a scratchpad instance (key stored via the settings API, DB and key file deleted afterwards; teacher advised to revoke the temp key).
