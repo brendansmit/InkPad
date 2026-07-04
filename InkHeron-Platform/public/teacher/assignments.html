@@ -623,7 +623,7 @@
       document.getElementById('teacherHomeLink').addEventListener('click',()=>sessionStorage.removeItem(filterStateKey));
       document.getElementById('logoutBtn').addEventListener('click',async()=>{
         await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-        window.location.href='/teacher-login';
+        window.location.href='/';
       });
       // Modal buttons
       document.getElementById('modalCloseBtn').addEventListener('click',closeStudentModal);

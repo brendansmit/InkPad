@@ -526,7 +526,7 @@
 
     document.getElementById('logoutBtn').addEventListener('click',async()=>{
       await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-      window.location.href='/teacher-login';
+      window.location.href='/';
     });
 
     init();
