@@ -114,18 +114,34 @@ export function renderNativeWriteView({
     .niw-pdf-page .textLayer span{position:absolute;white-space:pre;cursor:text;transform-origin:0 0;color:transparent}
     .niw-pdf-page .textLayer ::selection{background:rgba(120,170,255,.4)}
     .niw-pdf-mark{border-radius:2px}
-    /* Green pen: marks live inside the editable text. Category colour only. */
-    .niw-passage.gp-mode{grid-template-rows:minmax(240px,1.3fr) 8px minmax(100px,var(--task-height)) 8px minmax(120px,0.8fr)}
-    .niw-source-card.gp{min-height:0;display:flex;flex-direction:column}
+    /* Green pen: panel docks RIGHT, editor takes the left panel's room. */
+    .niw-shell.gp-shell{grid-template-columns:minmax(0,1fr) 10px minmax(280px,380px)}
+    .gp-shell > .niw-passage:not(.gp-side),.gp-shell > #readerResizer{display:none}
+    .niw-passage.gp-side{border-right:0;border-left:1px solid #d8d4c8;display:flex;flex-direction:column;min-height:0}
+    .niw-source-card.gp{flex:1;min-height:0;display:flex;flex-direction:column}
     .niw-source-card.gp #gpBody{flex:1;overflow:auto;min-height:0}
-    .gp-mark{border-bottom:2px solid #8c2f3b;padding-bottom:1px;cursor:help}
-    .gp-mark.gp-surface{border-color:#8a5a12}
-    .gp-mark.gp-grammar{border-color:#8c2f3b}
-    .gp-mark.gp-format{border-color:#1f5076}
-    .gp-mark.gp-other{border-color:#657268}
-    .niw-shell.gp-focus-surface .gp-mark:not(.gp-surface),
-    .niw-shell.gp-focus-grammar .gp-mark:not(.gp-grammar),
-    .niw-shell.gp-focus-format .gp-mark:not(.gp-format){border-color:#dfdcd2}
+    .gp-source-link{display:flex;justify-content:center;text-decoration:none;font-size:12px;margin:8px 0 10px;text-align:center}
+    /* Marks: underline plus a light wash, one colour per code. The heavy
+       hitters (Sp, Gra, VT, P, WW, RO, Caps) are deliberately far apart. */
+    .gp-mark{border-bottom:2px solid var(--gpc,#657268);background:var(--gpb,rgba(101,114,104,.12));padding:0 1px 1px;border-radius:2px 2px 0 0;cursor:help}
+    .gp-c-sp{--gpc:#b45309;--gpb:rgba(180,83,9,.14)}
+    .gp-c-gra{--gpc:#8c2f3b;--gpb:rgba(140,47,59,.13)}
+    .gp-c-vt{--gpc:#6d28d9;--gpb:rgba(109,40,217,.12)}
+    .gp-c-p{--gpc:#1d4ed8;--gpb:rgba(29,78,216,.12)}
+    .gp-c-ww{--gpc:#0f766e;--gpb:rgba(15,118,110,.14)}
+    .gp-c-ro{--gpc:#c2410c;--gpb:rgba(194,65,12,.15)}
+    .gp-c-caps{--gpc:#be185d;--gpb:rgba(190,24,93,.12)}
+    .gp-c-exp{--gpc:#475569;--gpb:rgba(71,85,105,.13)}
+    .gp-c-v{--gpc:#7c2d12;--gpb:rgba(124,45,18,.13)}
+    .gp-c-wo{--gpc:#0369a1;--gpb:rgba(3,105,161,.12)}
+    .gp-c-str{--gpc:#a21caf;--gpb:rgba(162,28,175,.11)}
+    .gp-c-inc{--gpc:#b91c1c;--gpb:rgba(185,28,28,.12)}
+    .gp-c-rep{--gpc:#4d7c0f;--gpb:rgba(77,124,15,.13)}
+    .gp-c-del{--gpc:#78716c;--gpb:rgba(120,113,108,.15)}
+    .gp-c-embed{--gpc:#1e40af;--gpb:rgba(30,64,175,.11)}
+    .gp-c-aaadj{--gpc:#9a3412;--gpb:rgba(154,52,29,.13)}
+    .gp-mark.gp-dim{--gpc:#dfdcd2;--gpb:transparent}
+    .gp-swatch{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:baseline}
     .gp-head{display:flex;align-items:center;gap:8px}
     .gp-progress{font-size:12px;font-weight:800;color:#2f6f4e;white-space:nowrap}
     .gp-chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
@@ -192,17 +208,8 @@ export function renderNativeWriteView({
     <button class="niw-btn" id="saveBtn" type="button" ${locked ? 'disabled' : ''}>Save</button>
     <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitButtonLabel)}</button>
   </header>
-  <main class="niw-shell">
-    <aside class="niw-passage${greenpen ? ' gp-mode' : ''}">
-      ${greenpen ? `<section class="niw-source-card gp" id="gpCard">
-        <div class="niw-source-head gp-head">
-          <h2>Your feedback</h2>
-          <span class="niw-spacer"></span>
-          <span class="gp-progress" id="gpProgress">Loading...</span>
-        </div>
-        <div class="niw-text" id="gpBody"><p class="gp-note">Loading your marks and targets...</p></div>
-      </section>
-      <div class="niw-panel-resizer" role="separator" aria-orientation="horizontal"></div>` : ''}
+  <main class="niw-shell${greenpen ? ' gp-shell' : ''}">
+    <aside class="niw-passage">
       <section class="niw-source-card task">
         <div class="niw-source-head">
           <h2>Task</h2>
@@ -305,6 +312,18 @@ export function renderNativeWriteView({
         </div>
       </div>
     </section>
+    ${greenpen ? `<div class="niw-resizer" role="separator" aria-hidden="true"></div>
+    <aside class="niw-passage gp-side">
+      <section class="niw-source-card gp" id="gpCard">
+        <div class="niw-source-head gp-head">
+          <h2>Your feedback</h2>
+          <span class="niw-spacer"></span>
+          <span class="gp-progress" id="gpProgress">Loading...</span>
+        </div>
+        <a class="niw-btn gp-source-link" href="/native/greenpen-source/${pad.id}" target="_blank" rel="noopener">View original instructions and reference</a>
+        <div class="niw-text" id="gpBody"><p class="gp-note">Loading your marks and targets...</p></div>
+      </section>
+    </aside>` : ''}
   </main>
   <script>
     const initialPad = ${jsonScript(pad)};
@@ -983,18 +1002,22 @@ export function renderNativeWriteView({
               idx += 1;
             }
           }
-          // Short quotes ("is") recur everywhere: without some matching
-          // context, treat the mark as fixed rather than pin it to a random
-          // twin occurrence.
-          if(best && (mark.quote.length >= 6 || best.score >= 3)){
+          // A mark survives only if the text AROUND the quote is unchanged
+          // too. Students often keep the flagged word but restructure the
+          // sentence to make it correct; any change in the surrounding
+          // context clears the mark rather than nagging a fixed sentence.
+          // (The implementation scorer still judges honestly on resubmit.)
+          const available = (mark.context_before || '').length + (mark.context_after || '').length;
+          const needed = Math.min(6, available);
+          if(best && best.score >= needed){
             try{
               const range = document.createRange();
               range.setStart(best.node, best.idx);
               range.setEnd(best.node, best.idx + mark.quote.length);
               const span = document.createElement('span');
               span.setAttribute('data-gp', String(mark.id));
-              span.className = 'gp-mark gp-' + (mark.category || 'other');
-              span.title = mark.label || mark.category || '';
+              span.className = 'gp-mark gp-c-' + gpCodeKey(mark.code) + (gpFilter && gpCodeKey(mark.code) !== gpFilter ? ' gp-dim' : '');
+              span.title = (mark.label || mark.category || '') + ' (' + (mark.code || '') + ')';
               range.surroundContents(span);
               mark.found = true;
             }catch(_){ mark.found = true; }
@@ -1007,24 +1030,42 @@ export function renderNativeWriteView({
         clearTimeout(gpTimer);
         gpTimer = setTimeout(gpRecheck, 1500);
       }
-      function gpCategoryCounts(){
+      function gpCodeKey(code){
+        return String(code || 'other').toLowerCase().replace(/[^a-z]/g, '') || 'other';
+      }
+      function gpSwatchColor(key){
+        const probe = document.createElement('span');
+        probe.className = 'gp-mark gp-c-' + key;
+        probe.style.display = 'none';
+        document.body.appendChild(probe);
+        const color = getComputedStyle(probe).borderBottomColor;
+        probe.remove();
+        return color;
+      }
+      function gpCodeCounts(){
         const counts = {};
-        for(const mark of gpMarks){ counts[mark.category] = counts[mark.category] || { total:0, left:0 }; counts[mark.category].total++; if(mark.found) counts[mark.category].left++; }
+        for(const mark of gpMarks){
+          const key = gpCodeKey(mark.code);
+          counts[key] = counts[key] || { code: mark.code, label: mark.label || mark.code, total: 0, left: 0 };
+          counts[key].total++;
+          if(mark.found) counts[key].left++;
+        }
         return counts;
       }
-      const GP_CATEGORY_LABELS = { surface:'Spelling and words', grammar:'Grammar', format:'Punctuation and format', other:'Other' };
       function gpRenderPanel(){
         const fixed = gpMarks.filter(m => !m.found).length;
         gpProgress.textContent = gpMarks.length ? (fixed + ' / ' + gpMarks.length + ' cleared') : 'No marks';
-        const counts = gpCategoryCounts();
+        const counts = gpCodeCounts();
         let html = '';
         html += '<div class="gp-chips">';
         html += '<button class="gp-chip' + (gpFilter === null ? ' on' : '') + '" data-gp-filter="">All <span class="n">' + gpMarks.filter(m=>m.found).length + '</span></button>';
-        for(const key of Object.keys(counts)){
-          html += '<button class="gp-chip' + (gpFilter === key ? ' on' : '') + '" data-gp-filter="' + key + '">' + (GP_CATEGORY_LABELS[key] || key) + ' <span class="n">' + counts[key].left + '</span></button>';
+        for(const key of Object.keys(counts).sort((a,b)=>counts[b].left-counts[a].left)){
+          html += '<button class="gp-chip' + (gpFilter === key ? ' on' : '') + '" data-gp-filter="' + key + '">'
+            + '<span class="gp-swatch" style="background:' + gpSwatchColor(key) + '"></span>'
+            + escapeGp(counts[key].code) + ' <span class="n">' + counts[key].left + '</span></button>';
         }
         html += '</div>';
-        html += '<p class="gp-note">Underlined text still has its error. Fix it and the line disappears. Hover a mark to see what KIND of error it is; working out the fix is your job.</p>';
+        html += '<p class="gp-note">Highlighted text still has its error. Fix the word, or rewrite the sentence around it, and the mark disappears. Hover a mark to see what KIND of error it is; working out the fix is your job.</p>';
         if(gpFeedback.targets.length){
           html += '<h3 style="font-size:12px;margin:10px 0 6px">Targets: tick each one you have done</h3>';
           for(const t of gpFeedback.targets){
@@ -1047,8 +1088,10 @@ export function renderNativeWriteView({
         gpBody.querySelectorAll('[data-gp-filter]').forEach(button => {
           button.addEventListener('click', () => {
             gpFilter = button.getAttribute('data-gp-filter') || null;
-            shell.classList.remove('gp-focus-surface','gp-focus-grammar','gp-focus-format');
-            if(gpFilter && gpFilter !== 'other') shell.classList.add('gp-focus-' + gpFilter);
+            editor.querySelectorAll('span[data-gp]').forEach(span => {
+              const isMatch = !gpFilter || [...span.classList].includes('gp-c-' + gpFilter);
+              span.classList.toggle('gp-dim', !isMatch);
+            });
             gpRenderPanel();
           });
         });

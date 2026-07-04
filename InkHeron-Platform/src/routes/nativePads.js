@@ -2146,6 +2146,52 @@ function loadImplementationScore(db, padId) {
     }
   );
 
+  // The original assignment's instructions and reference, opened in a new
+  // tab from the green-pen panel (the rewrite view gives its left panel to
+  // the editor, so the source material lives here).
+  app.get('/native/greenpen-source/:padId',
+    { preValidation: [app.requireStudentSession] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadOwnedNativePad(db, padId, request.session.user.id);
+      if (!pad || !pad.rewrite_of_pad_id) return reply.code(404).send({ error: 'pad_not_found' });
+      const original = db.prepare('SELECT assignment_id FROM native_pads WHERE id = ? AND student_id = ?')
+        .get(pad.rewrite_of_pad_id, request.session.user.id);
+      if (!original) return reply.code(404).send({ error: 'original_not_found' });
+      const assignment = db.prepare('SELECT id, title, settings_json FROM assignments WHERE id = ?').get(original.assignment_id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+      const settings = parseSettings(assignment.settings_json);
+      let hasPdf = false;
+      try { await fs.promises.access(path.join(PASSAGES_DIR, `${assignment.id}.pdf`)); hasPdf = true; } catch (_) {}
+      const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return reply.type('text/html').send(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(assignment.title)} - task and reference</title>
+<link rel="icon" href="/assets/InkHeron%20Logo.png">
+<link rel="stylesheet" href="/assets/styles.css">
+<style>
+body{margin:0;font-family:var(--font);background:#f6f5f0;color:#1f2a24}
+.wrap{max-width:860px;margin:0 auto;padding:26px 22px 70px}
+h1{font-family:var(--serif);font-size:22px;margin:0 0 4px}
+.sub{color:#657268;font-size:13px;margin:0 0 18px}
+.card{background:#fff;border:1px solid #d8d4c8;border-radius:10px;padding:18px 20px;margin-bottom:16px;box-shadow:0 5px 18px rgba(31,42,36,.06)}
+.card h2{font-size:14px;margin:0 0 8px}
+.card .text{white-space:pre-wrap;font-size:15px;line-height:1.7}
+.pdf{width:100%;height:80vh;border:1px solid #d8d4c8;border-radius:10px}
+</style>
+</head>
+<body><div class="wrap">
+<h1>${esc(assignment.title)}</h1>
+<p class="sub">Original task and reference. Your rewrite stays open in the other tab.</p>
+<div class="card"><h2>Task</h2><div class="text">${esc(settings.prompt || 'No prompt added.')}</div></div>
+${settings.passage_text ? `<div class="card"><h2>Reference</h2><div class="text">${esc(settings.passage_text)}</div></div>` : ''}
+${hasPdf ? `<object class="pdf" data="/api/assignments/${assignment.id}/passage-pdf" type="application/pdf">PDF reference: <a href="/api/assignments/${assignment.id}/passage-pdf">open it here</a>.</object>` : ''}
+</div></body></html>`);
+    }
+  );
+
   app.get('/native/write/:assignmentId',
     { preValidation: [app.requireStudentSession] },
     async (request, reply) => {
