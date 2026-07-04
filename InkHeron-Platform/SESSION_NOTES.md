@@ -113,6 +113,14 @@ Entry format:
 - Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
 
+## 2026-07-04 — Production deploy + live validation on the droplet
+
+- Deployed analysis-ai (committed tree only, via git archive + tar) to /opt/inkheron-platform (the systemd inkheron-wrapper app behind inkpad.inkheron.app, port 3000, Node 24). DB backed up first (inkheron.db.pre-analysis-202607041050). Migrations 019-026 applied cleanly on restart, live 200. Note: /opt/eap-platform (pm2, port 3466) is a SEPARATE older copy serving eap.inkheron.app; not updated this round.
+- Live validation on a ghost student (GHOST-VALIDATION class, ghost.validation, is_ghost=1 so invisible to stats): full pipeline with production models from Singapore. First run exposed two live bugs: (1) resolver picked gemini-3.1-flash-lite-IMAGE as checker; (2) gemini rubber-stamped 46/46 findings at 0.9-1.0 despite the calibrated prompt, leaving the contested pile empty.
+- Fixes (committed + hot-deployed): resolver penalizes modality variants (image/audio/video/vision/-vl-) unless asked; checker now ALWAYS flags the least-confident ~10% of batches >= 5 as 'least_confident' so they stay pending. Second run: checker = gemini-3.5-flash, 46 findings, 39 auto + 7 contested, 42 s and ~17k tokens per essay end to end. Estimates hidden (3 rows), suggester produced 3 strengths + 5 targets.
+- Validation artifact kept for teacher inspection: assignment "PIPELINE VALIDATION (ghost)" id 15, pad 55 on production. Older runs deleted.
+- Deferred deliberately: marker-profile payoff view (no delta data until a term of marking) and class-level dashboard (Opus job once real profiles exist).
+
 ## 2026-07-04 — Green pen v3: student code explainers
 
 - Clicking a code chip in the right panel now both filters the marks to that code (others dim) and opens an explainer card: "WW = Wrong word", what it means in B1-C1 English and a Quick fix hint. All 20 codes covered in GP_CODE_INFO in nativeWrite.js. Fixed a latent key collision: symbol codes ^ // and the tick previously all normalized to the same CSS key; now caret/para/tick with their own colours. Browser-verified (AA/Adj chip shows the card, only "more clear" stays coloured). Commit dfc7793, suite 121/125 known 4.
