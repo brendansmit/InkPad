@@ -177,3 +177,22 @@ test('runLiteracyAnalysis skips empty pads without calling the model', async () 
 
   await app.close();
 });
+
+test('checker always flags the least-confident ~10% of a real batch for review', async () => {
+  const text = 'aa bb cc dd ee ff gg hh';
+  const findings = ['aa', 'bb', 'cc', 'dd', 'ee', 'ff'].map((quote, i) => ({
+    start_offset: i * 3, end_offset: i * 3 + 2, quote, code: 'Sp',
+  }));
+  // Checker rubber-stamps: everything 0.9 except one 0.8.
+  const verdicts = findings.map((_, i) => ({ index: i, defensible: true, confidence: i === 3 ? 0.8 : 0.9 }));
+  const out = await verifyFindings({}, { padPlainText: text, findings },
+    { chat: () => Promise.resolve(chatResponse(JSON.stringify(verdicts))) });
+  const flagged = out.filter((f) => f.checker.flag === 'least_confident');
+  assert.equal(flagged.length, 1, 'ceil(6 * 0.1) = 1 finding forced into the contested pile');
+  assert.equal(flagged[0].quote, 'dd', 'the lowest-confidence finding is the one flagged');
+
+  // Tiny batches (tests, short paragraphs) are exempt from the quota.
+  const small = await verifyFindings({}, { padPlainText: text, findings: findings.slice(0, 2) },
+    { chat: () => Promise.resolve(chatResponse(JSON.stringify(verdicts.slice(0, 2)))) });
+  assert.ok(small.every((f) => f.checker.flag !== 'least_confident'));
+});

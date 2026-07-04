@@ -40,6 +40,12 @@ export function resolveOpenRouterModel(models, intent = 'openai gpt mini') {
     // Alias/meta ids (e.g. "~anthropic/claude-haiku-latest") are unstable
     // targets; only pick one if no canonical id matches.
     if (id.startsWith('~') || id.startsWith(':')) score -= 4;
+    // Modality variants (image/audio/video/vision) lose to the plain text
+    // model unless the intent asked for one (seen live: "google gemini
+    // flash" resolving to a flash-lite-IMAGE model).
+    for (const modality of ['image', 'audio', 'video', 'vision', '-vl-']) {
+      if (haystack.includes(modality) && !wanted.includes(modality.replaceAll('-', ''))) { score -= 4; break; }
+    }
     if (!best || score > best.score) best = { model, score, matched };
   }
   // A weak match is worse than no match: require every intent token to have
