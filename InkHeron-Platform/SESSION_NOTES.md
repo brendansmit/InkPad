@@ -116,7 +116,7 @@ Entry format:
 ## 2026-07-04 — Fix: inkpad root showed the EAP landing after deploy
 
 - The deploy shipped the repo's public/index.html (the EAP portal landing) over inkpad.inkheron.app's root, which had been running an older page. Root cause: one public/ dir, two domains, a single static root route.
-- Fix (host-aware root in src/app.js, tested): requests with a host starting inkpad. get login.html (student login, which is also where signout already points); every other host keeps the EAP landing. Hot-deployed, verified live on both domains plus /teacher-login.
+- Fix (host-aware root in src/app.js, tested): requests with a host starting inkpad. get a rebuilt student/teacher chooser (new public/inkpad-home.html, matching the page signout expects); every other host keeps the EAP landing. Hot-deployed, verified live on both domains plus /teacher-login.
 - Future deploys are now safe for both portals from the same tree.
 
 ## 2026-07-04 — Production deploy + live validation on the droplet
