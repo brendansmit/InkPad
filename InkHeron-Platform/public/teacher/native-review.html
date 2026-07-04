@@ -33,6 +33,10 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 .mk.comment{border-color:var(--green-500);background:var(--green-50)}
 .mk.flash{background:var(--amber-50);outline:2px solid var(--amber-700);border-radius:3px}
 .tip{position:absolute;bottom:125%;left:0;background:var(--ink);color:#fff;font-family:var(--font);font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:5;pointer-events:none;display:none}
+.mk[data-kind="lit"]{cursor:pointer}
+.code-pop{position:absolute;z-index:90;display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border-2);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow-lift)}
+.code-pop-quote{font-family:var(--serif);font-size:12.5px;color:var(--text-2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.code-pop select{border:1.5px solid var(--border-2);border-radius:8px;padding:5px 7px;font:inherit;font-size:12.5px;background:var(--surface)}
 .mk:hover .tip{display:block}
 .rail{position:sticky;top:64px;display:grid;gap:10px;max-height:calc(100vh - 80px);overflow:auto;padding-bottom:4px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card)}
@@ -206,6 +210,51 @@ function renderEssay(){
   const elx = document.getElementById('essay');
   elx.innerHTML = html;
   elx.onmouseup = onSelectText;
+  // Click a placed literacy mark to change its code in place.
+  elx.onclick = (e)=>{
+    if (String(window.getSelection())) return;
+    const mk = e.target.closest('.mk[data-kind="lit"]');
+    if (!mk) return;
+    const ann = review.annotations.find(a=> String(a.id) === mk.dataset.id);
+    if (ann) openCodeChanger(ann, mk);
+  };
+}
+
+const ALL_CODES = [['Sp','Spelling'],['Caps','Capital letter'],['P','Punctuation'],['^','Missing word'],['Exp','Expression'],['Gra','Grammar'],['Embed','Quotation embedding'],['AA/Adj','Adjective form'],['STR','Sentence structure'],['FOR','Formatting'],['WO','Word order'],['WW','Wrong word'],['V','Verb formation'],['VT','Verb tense'],['del','Delete word'],['inc','Incomplete sentence'],['RO','Run-on sentence'],['Rep','Repetition'],['MT','Direct translation'],['✓','Good work'],['//','New paragraph']];
+const CODE_CAT = (code)=>{
+  if (['Sp','Caps','^','WW','AA/Adj','Rep'].includes(code)) return 'surface';
+  if (['Gra','VT','V','WO','del','inc','RO','STR','Exp','MT'].includes(code)) return 'grammar';
+  if (['P','FOR','//','Embed'].includes(code)) return 'format';
+  if (code === '✓') return 'positive';
+  return 'other';
+};
+
+function openCodeChanger(ann, anchor){
+  document.querySelectorAll('.code-pop').forEach(p=>p.remove());
+  const pop = el('div','code-pop');
+  const sel = document.createElement('select');
+  for (const [code,label] of ALL_CODES){
+    const opt = document.createElement('option');
+    opt.value = code; opt.textContent = code+' · '+label;
+    if (code === (ann.metadata && ann.metadata.code)) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  const save = el('button','btn sm'); save.textContent='Save';
+  const cancel = el('button','btn sm'); cancel.textContent='✕';
+  save.onclick = async ()=>{
+    const code = sel.value;
+    const label = (ALL_CODES.find(c=>c[0]===code)||[code,code])[1];
+    await api('/api/native/annotations/'+ann.id, { method:'PATCH',
+      body:{ metadata: Object.assign({}, ann.metadata, { code, category: CODE_CAT(code), label }) } });
+    pop.remove(); toast('Code changed to '+code); await loadAll();
+  };
+  cancel.onclick = ()=> pop.remove();
+  const quoteEl = el('span','code-pop-quote'); quoteEl.textContent = '"'+(ann.selected_text||'').slice(0,40)+'"';
+  pop.append(quoteEl, sel, save, cancel);
+  document.body.appendChild(pop);
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.min(window.innerWidth - pop.offsetWidth - 12, Math.max(8, r.left + window.scrollX)) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
 }
 
 function renderRail(){

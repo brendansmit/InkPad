@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { renderNativeWriteView } from '../views/nativeWrite.js';
 import { feedbackOptionsForAssignment, feedbackTablesForAssignment } from '../feedback/assets.js';
 import { notifyTeacher } from '../services/serverChan.js';
-import { runLiteracyAnalysis } from '../services/literacyCoder.js';
+import { runLiteracyAnalysis, MANUAL_REVIEW_CODES } from '../services/literacyCoder.js';
 import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
 import { scoreRewrite } from '../services/implementationScorer.js';
 import { recordStyleMetrics, aggregateStyleProfile, detectStyleAnomaly } from '../services/styleMetrics.js';
@@ -1066,6 +1066,9 @@ export function autoPromoteSuggestions(db, padId) {
   const pending = db.prepare("SELECT * FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'pending'").all(padId);
   let promoted = 0;
   for (const suggestion of pending) {
+    // Some codes (MT: direct translation from Chinese) are teacher-judgement
+    // calls by definition and never auto-apply.
+    if (MANUAL_REVIEW_CODES.has(suggestion.code)) continue;
     let checker = {};
     try { checker = JSON.parse(suggestion.checker_json ?? '{}'); } catch { checker = {}; }
     const confident = checker.verbatim === true && checker.flag == null

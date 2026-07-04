@@ -19,8 +19,8 @@ import { parseJsonArraySalvage } from './literacyCoder.js';
 
 const CHECKER_INTENT = 'google gemini flash';
 
-const CHECKER_SYSTEM_PROMPT = `You are a strict verifier of literacy error findings made by another model on a student paragraph. You NEVER add findings and NEVER rewrite anything. For each numbered finding, judge only:
-- "defensible": is the labelled error genuinely present at the quoted span? A correct standard English phrase flagged as an error is NOT defensible. Check each finding independently against the text; do not assume the other model is right.
+const CHECKER_SYSTEM_PROMPT = `You are a strict verifier of literacy error findings made by another model on a student paragraph. You NEVER add findings and NEVER rewrite anything. Each numbered finding shows the code, the quoted span and the FULL SENTENCE it sits in. For each one, judge only:
+- "defensible": is the labelled error genuinely present at the quoted span, read inside its sentence? A correct standard English phrase flagged as an error is NOT defensible. Neither is natural everyday usage: if fluent speakers write or say the sentence exactly that way (informal register, sentence-initial And/But, stranded prepositions, singular they, common colloquial phrasing), mark it NOT defensible even if a style guide would object. Read the whole sentence aloud in your head; if it sounds like normal English, the finding is wrong. Check each finding independently; do not assume the other model is right.
 - "confidence": 0 to 1, how sure you are of your defensible judgement. Calibrate honestly: 0.9+ means you re-read the span and are certain; use 0.5-0.7 when the error is arguable, the code seems wrong for the error, or the span is ambiguous. Your verdicts gate whether findings auto-apply, so a lazy default of high confidence defeats the entire check. In a typical batch some findings deserve doubt; if you mark every finding above 0.9, you are almost certainly not checking.
 
 Return ONLY a JSON array, one object per finding, same order:
@@ -42,6 +42,18 @@ function parseCheckerResponse(raw) {
     });
   }
   return byIndex;
+}
+
+// The full sentence containing [start, end): expand to the nearest sentence
+// boundary (., !, ?, or line break) on each side.
+export function sentenceAround(text, start, end) {
+  const t = String(text ?? '');
+  let s = Math.max(0, Math.min(Number(start) || 0, t.length));
+  let e = Math.max(s, Math.min(Number(end) || s, t.length));
+  while (s > 0 && !'.!?\n'.includes(t[s - 1])) s--;
+  while (e < t.length && !'.!?\n'.includes(t[e])) e++;
+  if (e < t.length && '.!?'.includes(t[e])) e++;
+  return t.slice(s, e).trim().slice(0, 300);
 }
 
 /**
@@ -69,7 +81,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
   let verdicts = null;
   try {
     const listing = toJudge.map((f, i) =>
-      `${i}. code=${f.code} quote="${f.quote}"`).join('\n');
+      `${i}. code=${f.code} quote="${f.quote}" sentence="${sentenceAround(padPlainText, f.start_offset, f.end_offset)}"`).join('\n');
     const result = await chat(db, {
       intent: CHECKER_INTENT,
       messages: [

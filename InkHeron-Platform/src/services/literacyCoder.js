@@ -14,7 +14,13 @@ const DOER_INTENT = 'anthropic claude haiku';
 export const VALID_CODES = new Set([
   'Sp','Caps','P','^','Exp','Gra','Embed','AA/Adj',
   'STR','FOR','WO','WW','V','VT','del','inc','RO','Rep','✓','//',
+  'MT',
 ]);
+
+// Codes that NEVER auto-apply, whatever the checker says. MT (a phrase that
+// mirrors a Chinese saying or structure) needs the teacher's judgement:
+// only a human who knows the student can tell calque from intent.
+export const MANUAL_REVIEW_CODES = new Set(['MT']);
 
 const SYSTEM_PROMPT = `You are a precise English literacy marker for second language learners. You find ERRORS in a student paragraph and label each with ONE code. These codes are practice feedback for the student, not grades, so completeness matters: flag EVERY genuine error, even small ones, even when a paragraph has many. A dense paragraph can easily have 10 or more findings.
 
@@ -37,9 +43,11 @@ del    = word should be deleted (redundant: "The dog, it barked")
 inc    = incomplete sentence / fragment ("Because she was tired.")
 RO     = run-on sentence (two clauses fused without punctuation)
 Rep    = redundant repetition of a word or idea just used
+MT     = direct translation from Chinese: the phrase word-for-word mirrors a Chinese saying, idiom or structure and does not work in English ("people mountain people sea", "open the light"). Use MT instead of Exp or WW when the Chinese source pattern is recognisable.
 
 RULES (follow exactly):
 1. Flag every genuine error. Never skip an error because you already flagged similar ones. But if a phrase is correct standard English, DO NOT flag it.
+1b. Judge by how the SENTENCE READS, not by pedantry. If fluent speakers naturally write or say it that way (informal register, sentence-initial And/But, stranded prepositions, singular they, colloquial phrasing), it is NOT an error. Flag only what a fluent reader would stumble on.
 2. "quote" must be copied VERBATIM from the paragraph, character for character. Never invent or paraphrase it.
 3. "quote" must be whole words only. Never select part of a word.
 4. "quote" is the SHORTEST span containing the error — usually one word; a short phrase only if the error spans multiple words.
@@ -118,7 +126,7 @@ export function findQuoteSpan(paraText, sentence, quote) {
 
 export function codeCategory(code) {
   if (['Sp','Caps','^','WW','AA/Adj','Rep'].includes(code)) return 'surface';
-  if (['Gra','VT','V','WO','del','inc','RO','STR','Exp'].includes(code)) return 'grammar';
+  if (['Gra','VT','V','WO','del','inc','RO','STR','Exp','MT'].includes(code)) return 'grammar';
   if (['P','FOR','//','Embed'].includes(code)) return 'format';
   if (code === '✓') return 'positive';
   return 'other';
@@ -158,6 +166,7 @@ const CODE_LABELS = {
   STR: 'Sentence structure', FOR: 'Formatting', WO: 'Word order', WW: 'Wrong word',
   V: 'Verb formation', VT: 'Verb tense', del: 'Delete word', inc: 'Incomplete sentence',
   RO: 'Run-on sentence', Rep: 'Repetition', '✓': 'Good work', '//': 'New paragraph',
+  MT: 'Direct translation',
 };
 
 // Non-blank runs of lines with their absolute start offset into plain_text.

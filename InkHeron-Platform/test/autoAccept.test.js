@@ -126,3 +126,24 @@ test('parseJsonArraySalvage recovers a truncated findings array', () => {
   assert.equal(salvaged.length, 1, 'keeps every complete object, drops the cut one');
   assert.equal(parseJsonArraySalvage('not json'), null);
 });
+
+test('MT findings never auto-promote regardless of checker confidence', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId } = await seed(db);
+
+  const mtId = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'MT',
+    checker: { verbatim: true, confidence: 0.99, flag: null } });
+  const result = autoPromoteSuggestions(db, padId);
+  assert.equal(result.promoted, 0, 'manual-review code stays pending for the teacher');
+  assert.equal(db.prepare('SELECT status FROM ai_literacy_suggestions WHERE id = ?').get(mtId).status, 'pending');
+
+  await app.close();
+});
+
+test('sentenceAround expands to full sentence boundaries', async () => {
+  const { sentenceAround } = await import('../src/services/checker.js');
+  const text = 'First one here. They is playing outside today! And a third.';
+  const at = text.indexOf('is');
+  assert.equal(sentenceAround(text, at, at + 2), 'They is playing outside today!');
+  assert.equal(sentenceAround('no punctuation at all', 3, 5), 'no punctuation at all');
+});

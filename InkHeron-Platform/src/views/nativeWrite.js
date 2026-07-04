@@ -140,6 +140,7 @@ export function renderNativeWriteView({
     .gp-c-del{--gpc:#78716c;--gpb:rgba(120,113,108,.15)}
     .gp-c-embed{--gpc:#1e40af;--gpb:rgba(30,64,175,.11)}
     .gp-c-aaadj{--gpc:#9a3412;--gpb:rgba(154,52,29,.13)}
+    .gp-c-mt{--gpc:#0e7490;--gpb:rgba(14,116,144,.13)}
     .gp-mark.gp-dim{--gpc:#dfdcd2;--gpb:transparent}
     .gp-swatch{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:baseline}
     .gp-c-caret{--gpc:#155e75;--gpb:rgba(21,94,117,.12)}
@@ -1064,6 +1065,7 @@ export function renderNativeWriteView({
         inc: { name: 'Incomplete sentence', what: 'This is only part of a sentence. It cannot stand alone.', hint: 'Join it to the sentence before it, or add the missing subject or verb.' },
         ro: { name: 'Run-on sentence', what: 'Two full sentences are joined with only a comma or with nothing.', hint: 'Split them with a full stop, or join them with a word like because, so or but.' },
         rep: { name: 'Repetition', what: 'You repeat a word or an idea you just used.', hint: 'Swap the repeat for a different word, or cut it.' },
+        mt: { name: 'Direct translation', what: 'This phrase is translated word for word from Chinese. The idea is good but English says it a different way.', hint: 'Forget the Chinese words and think about the meaning. Then say that meaning in the simplest English you know.' },
         tick: { name: 'Good work', what: 'Your teacher marked this as something you did well.', hint: 'Notice what you did here and do it again in your next writing.' },
         para: { name: 'New paragraph', what: 'Start a new paragraph here.', hint: 'One main idea per paragraph. When the idea changes, start a new line.' },
       };
