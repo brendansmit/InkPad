@@ -17,9 +17,10 @@ export const VALID_CODES = new Set([
   'MT',
 ]);
 
-// Codes that NEVER auto-apply, whatever the checker says. MT (a phrase that
-// mirrors a Chinese saying or structure) needs the teacher's judgement:
-// only a human who knows the student can tell calque from intent.
+// Codes that NEVER auto-apply, whatever the checker says. MT (a name, title
+// or saying translated literally from Chinese) needs the teacher's
+// judgement: only a human can tell whether an established English version
+// exists or the student's rendering is a fair choice.
 export const MANUAL_REVIEW_CODES = new Set(['MT']);
 
 const SYSTEM_PROMPT = `You are a precise English literacy marker for second language learners. You find ERRORS in a student paragraph and label each with ONE code. These codes are practice feedback for the student, not grades, so completeness matters: flag EVERY genuine error, even small ones, even when a paragraph has many. A dense paragraph can easily have 10 or more findings.
@@ -43,7 +44,7 @@ del    = word should be deleted (redundant: "The dog, it barked")
 inc    = incomplete sentence / fragment ("Because she was tired.")
 RO     = run-on sentence (two clauses fused without punctuation)
 Rep    = redundant repetition of a word or idea just used
-MT     = direct translation from Chinese: the phrase word-for-word mirrors a Chinese saying, idiom or structure and does not work in English ("people mountain people sea", "open the light"). Use MT instead of Exp or WW when the Chinese source pattern is recognisable.
+MT     = mistranslated NAME or FIXED EXPRESSION only: a book/film/show title, a proper noun, a saying or an idiom rendered word-for-word from Chinese when an established English name or natural equivalent exists ("people mountain people sea" for a crowded scene; a novel referred to by a literal title instead of its published English title). MT is RARE: at most a few per essay. Ordinary Chinese-influenced grammar or sentence structure is NEVER MT; code those as Gra, STR, WO or Exp as usual.
 
 RULES (follow exactly):
 1. Flag every genuine error. Never skip an error because you already flagged similar ones. But if a phrase is correct standard English, DO NOT flag it.
@@ -166,7 +167,7 @@ const CODE_LABELS = {
   STR: 'Sentence structure', FOR: 'Formatting', WO: 'Word order', WW: 'Wrong word',
   V: 'Verb formation', VT: 'Verb tense', del: 'Delete word', inc: 'Incomplete sentence',
   RO: 'Run-on sentence', Rep: 'Repetition', '✓': 'Good work', '//': 'New paragraph',
-  MT: 'Direct translation',
+  MT: 'Mistranslated name or saying',
 };
 
 // Non-blank runs of lines with their absolute start offset into plain_text.

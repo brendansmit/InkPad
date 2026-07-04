@@ -1065,7 +1065,7 @@ export function renderNativeWriteView({
         inc: { name: 'Incomplete sentence', what: 'This is only part of a sentence. It cannot stand alone.', hint: 'Join it to the sentence before it, or add the missing subject or verb.' },
         ro: { name: 'Run-on sentence', what: 'Two full sentences are joined with only a comma or with nothing.', hint: 'Split them with a full stop, or join them with a word like because, so or but.' },
         rep: { name: 'Repetition', what: 'You repeat a word or an idea you just used.', hint: 'Swap the repeat for a different word, or cut it.' },
-        mt: { name: 'Direct translation', what: 'This phrase is translated word for word from Chinese. The idea is good but English says it a different way.', hint: 'Forget the Chinese words and think about the meaning. Then say that meaning in the simplest English you know.' },
+        mt: { name: 'Mistranslated name or saying', what: 'This name, title or saying is translated word for word from Chinese. English has its own version, or needs different words to carry the same meaning.', hint: 'Search for the official English name of the book, show or saying. If there is none, say the MEANING in plain English instead of translating the words.' },
         tick: { name: 'Good work', what: 'Your teacher marked this as something you did well.', hint: 'Notice what you did here and do it again in your next writing.' },
         para: { name: 'New paragraph', what: 'Start a new paragraph here.', hint: 'One main idea per paragraph. When the idea changes, start a new line.' },
       };

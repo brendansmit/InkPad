@@ -220,7 +220,7 @@ function renderEssay(){
   };
 }
 
-const ALL_CODES = [['Sp','Spelling'],['Caps','Capital letter'],['P','Punctuation'],['^','Missing word'],['Exp','Expression'],['Gra','Grammar'],['Embed','Quotation embedding'],['AA/Adj','Adjective form'],['STR','Sentence structure'],['FOR','Formatting'],['WO','Word order'],['WW','Wrong word'],['V','Verb formation'],['VT','Verb tense'],['del','Delete word'],['inc','Incomplete sentence'],['RO','Run-on sentence'],['Rep','Repetition'],['MT','Direct translation'],['✓','Good work'],['//','New paragraph']];
+const ALL_CODES = [['Sp','Spelling'],['Caps','Capital letter'],['P','Punctuation'],['^','Missing word'],['Exp','Expression'],['Gra','Grammar'],['Embed','Quotation embedding'],['AA/Adj','Adjective form'],['STR','Sentence structure'],['FOR','Formatting'],['WO','Word order'],['WW','Wrong word'],['V','Verb formation'],['VT','Verb tense'],['del','Delete word'],['inc','Incomplete sentence'],['RO','Run-on sentence'],['Rep','Repetition'],['MT','Mistranslated name or saying'],['✓','Good work'],['//','New paragraph']];
 const CODE_CAT = (code)=>{
   if (['Sp','Caps','^','WW','AA/Adj','Rep'].includes(code)) return 'surface';
   if (['Gra','VT','V','WO','del','inc','RO','STR','Exp','MT'].includes(code)) return 'grammar';
