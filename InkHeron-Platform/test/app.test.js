@@ -317,3 +317,22 @@ test('EAP library admin manages uploads, visibility, downloads and categories', 
 
   await app.close();
 });
+
+test('root page is host-aware: inkpad gets the student login, others the EAP landing', async () => {
+  const { buildApp } = await import('../src/app.js');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-root-'));
+  const app = await buildApp({ databasePath: path.join(dir, 'inkheron.db'), logger: false });
+
+  const inkpad = await app.inject({ method: 'GET', url: '/', headers: { host: 'inkpad.inkheron.app' } });
+  assert.equal(inkpad.statusCode, 200);
+  assert.match(inkpad.body, /Welcome back/, 'inkpad root serves the student login');
+
+  const eap = await app.inject({ method: 'GET', url: '/', headers: { host: 'eap.inkheron.app' } });
+  assert.equal(eap.statusCode, 200);
+  assert.match(eap.body, /Grammar Arcade/, 'other hosts keep the EAP landing');
+
+  await app.close();
+});
