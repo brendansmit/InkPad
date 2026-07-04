@@ -113,6 +113,12 @@ Entry format:
 - Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
 
+## 2026-07-04 — Fix: inkpad root showed the EAP landing after deploy
+
+- The deploy shipped the repo's public/index.html (the EAP portal landing) over inkpad.inkheron.app's root, which had been running an older page. Root cause: one public/ dir, two domains, a single static root route.
+- Fix (host-aware root in src/app.js, tested): requests with a host starting inkpad. get login.html (student login, which is also where signout already points); every other host keeps the EAP landing. Hot-deployed, verified live on both domains plus /teacher-login.
+- Future deploys are now safe for both portals from the same tree.
+
 ## 2026-07-04 — Production deploy + live validation on the droplet
 
 - Deployed analysis-ai (committed tree only, via git archive + tar) to /opt/inkheron-platform (the systemd inkheron-wrapper app behind inkpad.inkheron.app, port 3000, Node 24). DB backed up first (inkheron.db.pre-analysis-202607041050). Migrations 019-026 applied cleanly on restart, live 200. Note: /opt/eap-platform (pm2, port 3466) is a SEPARATE older copy serving eap.inkheron.app; not updated this round.
