@@ -142,6 +142,14 @@ export function renderNativeWriteView({
     .gp-c-aaadj{--gpc:#9a3412;--gpb:rgba(154,52,29,.13)}
     .gp-mark.gp-dim{--gpc:#dfdcd2;--gpb:transparent}
     .gp-swatch{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:4px;vertical-align:baseline}
+    .gp-c-caret{--gpc:#155e75;--gpb:rgba(21,94,117,.12)}
+    .gp-c-para{--gpc:#57534e;--gpb:rgba(87,83,78,.12)}
+    .gp-c-tick{--gpc:#2f6f4e;--gpb:rgba(47,111,78,.14)}
+    .gp-explainer{border:1.5px solid #d8d4c8;border-radius:8px;padding:9px 11px;margin:2px 0 8px;background:#fff;font-size:12px}
+    .gp-explainer .gp-title{font-weight:800;display:block;margin-bottom:2px}
+    .gp-explainer p{margin:3px 0 0;color:#59635d;line-height:1.5}
+    .gp-explainer .gp-hint{color:#17221b}
+    .gp-explainer .gp-hint b{color:#2f6f4e}
     .gp-head{display:flex;align-items:center;gap:8px}
     .gp-progress{font-size:12px;font-weight:800;color:#2f6f4e;white-space:nowrap}
     .gp-chips{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
@@ -1031,8 +1039,34 @@ export function renderNativeWriteView({
         gpTimer = setTimeout(gpRecheck, 1500);
       }
       function gpCodeKey(code){
-        return String(code || 'other').toLowerCase().replace(/[^a-z]/g, '') || 'other';
+        const special = { '^': 'caret', '//': 'para', '\\u2713': 'tick' };
+        const raw = String(code || '').trim();
+        if(special[raw]) return special[raw];
+        return raw.toLowerCase().replace(/[^a-z]/g, '') || 'other';
       }
+      // Student-facing meaning and quick fix per code. Plain B1-C1 English.
+      const GP_CODE_INFO = {
+        sp: { name: 'Spelling', what: 'The word is spelled wrong.', hint: 'Say the word slowly and check each sound. If you are not sure, write it two ways and pick the one that looks right, then check a dictionary.' },
+        caps: { name: 'Capital letter', what: 'A capital letter is missing or in the wrong place.', hint: 'Check the start of the sentence and the names of people and places. The word I is always a capital.' },
+        p: { name: 'Punctuation', what: 'A punctuation mark is missing or wrong, like a comma, an apostrophe or a full stop.', hint: 'Read the sentence aloud. Where your voice pauses or stops, check the mark.' },
+        caret: { name: 'Missing word', what: 'A small word is missing here, often a, an, the, is or are.', hint: 'Read the sentence aloud slowly. Your ear will feel the hole where the word should be.' },
+        exp: { name: 'Expression', what: 'The grammar is not exactly wrong, but English does not usually say it this way.', hint: 'Try a simpler way to say the same idea. Short and plain beats long and strange.' },
+        gra: { name: 'Grammar', what: 'There is a grammar problem, like the verb not matching the subject, or a wrong small word such as a, the, in or on.', hint: 'Find the subject and the verb. Do they match? He walks. They walk.' },
+        embed: { name: 'Quotation', what: 'The quote is not joined to your sentence correctly.', hint: 'Introduce the quote, add a comma if needed and keep the quote marks around the exact words.' },
+        aaadj: { name: 'Adjective form', what: 'The adjective is in the wrong form, like more easier.', hint: 'Use more OR the -er ending, never both. Easier, or more difficult, never more easier.' },
+        str: { name: 'Sentence structure', what: 'The sentence is built in a confusing way.', hint: 'Say the idea out loud first, then write what you said. Two short sentences beat one confusing one.' },
+        for: { name: 'Formatting', what: 'The layout or style does not fit this kind of writing.', hint: 'Check your paragraphs and your tone. Does it look and sound like the task asked?' },
+        wo: { name: 'Word order', what: 'The words are in the wrong order.', hint: 'English usually goes subject then verb then object: She kicked the ball.' },
+        ww: { name: 'Wrong word', what: 'This is a real word but it is the wrong one here. It may sound close to the word you wanted, or come from direct translation.', hint: 'Ask what the word really means. Swap in a different word and see if the sentence makes more sense.' },
+        v: { name: 'Verb formation', what: 'The verb is missing a part or built wrongly, like they playing.', hint: 'Most verbs need a helper: is playing, has played, will play. Check the helper word.' },
+        vt: { name: 'Verb tense', what: 'The verb tense does not match the time you are talking about.', hint: 'Find the time of the action: past, present or future. Then make every verb in the sentence match it.' },
+        del: { name: 'Extra word', what: 'This word is extra. The sentence is better without it.', hint: 'Read the sentence without the marked word. If it still works, cut the word.' },
+        inc: { name: 'Incomplete sentence', what: 'This is only part of a sentence. It cannot stand alone.', hint: 'Join it to the sentence before it, or add the missing subject or verb.' },
+        ro: { name: 'Run-on sentence', what: 'Two full sentences are joined with only a comma or with nothing.', hint: 'Split them with a full stop, or join them with a word like because, so or but.' },
+        rep: { name: 'Repetition', what: 'You repeat a word or an idea you just used.', hint: 'Swap the repeat for a different word, or cut it.' },
+        tick: { name: 'Good work', what: 'Your teacher marked this as something you did well.', hint: 'Notice what you did here and do it again in your next writing.' },
+        para: { name: 'New paragraph', what: 'Start a new paragraph here.', hint: 'One main idea per paragraph. When the idea changes, start a new line.' },
+      };
       function gpSwatchColor(key){
         const probe = document.createElement('span');
         probe.className = 'gp-mark gp-c-' + key;
@@ -1065,6 +1099,18 @@ export function renderNativeWriteView({
             + escapeGp(counts[key].code) + ' <span class="n">' + counts[key].left + '</span></button>';
         }
         html += '</div>';
+        if(gpFilter){
+          const info = GP_CODE_INFO[gpFilter];
+          const count = counts[gpFilter];
+          if(info){
+            html += '<div class="gp-explainer" style="border-color:' + gpSwatchColor(gpFilter) + '">'
+              + '<span class="gp-title"><span class="gp-swatch" style="background:' + gpSwatchColor(gpFilter) + '"></span>'
+              + escapeGp((count ? count.code + ' = ' : '') + info.name) + '</span>'
+              + '<p>' + escapeGp(info.what) + '</p>'
+              + '<p class="gp-hint"><b>Quick fix:</b> ' + escapeGp(info.hint) + '</p>'
+              + '</div>';
+          }
+        }
         html += '<p class="gp-note">Highlighted text still has its error. Fix the word, or rewrite the sentence around it, and the mark disappears. Hover a mark to see what KIND of error it is; working out the fix is your job.</p>';
         if(gpFeedback.targets.length){
           html += '<h3 style="font-size:12px;margin:10px 0 6px">Targets: tick each one you have done</h3>';
