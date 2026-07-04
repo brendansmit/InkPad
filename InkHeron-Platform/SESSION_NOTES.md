@@ -20,6 +20,13 @@ Entry format:
 
 ---
 
+## 2026-07-04 — Accuracy layer, MT code, click-to-change
+
+- False-positive accuracy layer: Doer rule 1b (judge by how the sentence reads; natural informal usage is not an error) and the Checker now receives the FULL SENTENCE per finding (new sentenceAround helper) with an explicit instruction that natural everyday phrasing is NOT defensible even if a style guide objects.
+- New code MT = direct translation from Chinese (word-for-word calque of a saying/idiom/structure). In VALID_CODES, prompt, labels, category grammar, gp colour teal, student explainer. MANUAL_REVIEW_CODES gate in autoPromoteSuggestions: MT NEVER auto-applies, it always lands in the Needs-you pile regardless of checker confidence.
+- Click-to-change: clicking any placed literacy mark on the review page opens a popover (quote + 21-code select) that PATCHes /api/native/annotations/:id with merged metadata; evidence re-sync and old-code stat recompute were already in the endpoint. Browser-verified on the seeded dev server: changed "goes" Gra to MT, label/category updated, ai_auto source preserved, MT group appears in Auto-marked rail.
+- Suite 129 tests, 125 pass, known 4. Commit 5fdbac4. Hot-deployed all five changed files to /opt/inkheron-platform, wrapper active, 200.
+
 ## 2026-07-03 — Cache heavy PDF.js assets to harden PDF loading on flaky networks
 - Reported: passage PDFs failed to load on school computers (both Safari and Chrome), then worked ~10 hours later elsewhere. Both browsers failing rules out a browser code bug; the client render path works fine locally. Pattern points to the school network, not the code.
 - Finding: static assets were served `cache-control: public, max-age=0`, so the 1.24 MB PDF.js worker was revalidated over the network on every pad load. On a slow or filtered school network that per-load fetch of a big file can intermittently fail, then succeed later. Filenames are not hashed, so they were never cached.
