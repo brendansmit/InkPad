@@ -125,10 +125,11 @@ export async function buildApp(options = {}) {
   app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));
   app.get('/library/admin', async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
   // Two domains share this app: inkpad.* is the writing portal, whose root
-  // is the student login; any other host gets the EAP portal landing page.
+  // is the student/teacher chooser (signout links land there); any other
+  // host gets the EAP portal landing page.
   app.get('/', async (request, reply) => {
     const host = String(request.headers.host ?? '');
-    if (host.startsWith('inkpad.')) return reply.sendFile('login.html', publicDir);
+    if (host.startsWith('inkpad.')) return reply.sendFile('inkpad-home.html', publicDir);
     return reply.sendFile('index.html', publicDir);
   });
 

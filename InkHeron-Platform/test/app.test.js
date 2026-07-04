@@ -328,7 +328,8 @@ test('root page is host-aware: inkpad gets the student login, others the EAP lan
 
   const inkpad = await app.inject({ method: 'GET', url: '/', headers: { host: 'inkpad.inkheron.app' } });
   assert.equal(inkpad.statusCode, 200);
-  assert.match(inkpad.body, /Welcome back/, 'inkpad root serves the student login');
+  assert.match(inkpad.body, /Student sign in/, 'inkpad root serves the chooser');
+  assert.match(inkpad.body, /Teacher sign in/);
 
   const eap = await app.inject({ method: 'GET', url: '/', headers: { host: 'eap.inkheron.app' } });
   assert.equal(eap.statusCode, 200);
