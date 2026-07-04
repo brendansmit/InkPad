@@ -20,6 +20,13 @@ Entry format:
 
 ---
 
+## 2026-07-04 — Teacher feedback round 2: diagnosed dashboard bug, wrote round-2 handoffs
+
+- Diagnosed the "finish marking changes nothing" report: rubric clicks DO save (PUT rubric-scores per click) and finish-marking DOES set state, but fetchDashboardRows in assignments.js never joins native_rubric_scores and publicDashboardRow still maps legacy statuses, so the dashboard and CSV cannot show any of it. Fix specced precisely in SONNET_HANDOFF_2.md item 1.
+- SONNET_HANDOFF_2.md: dashboard scores fix, conversational low-C1 tone pass on feedbackSuggester + profileSummarizer prompts, one-click export to admin.inkheron.app gradebook (read ../grade-importer code for the real API; payload = names and numbers only, never AI wording), student-facing AI-mention audit.
+- OPUS_HANDOFF_2.md (run after Sonnet): back button on native-review, teacher dashboard navigation to student profiles, NEW class-insights page + /api/classes/:classId/insights endpoint (recurring codes by students-affected, class err/100 trend, fix rate, rubric averages, marker-profile deltas only where teacher_score exists and >= 10 samples), assignment dashboard score column + Export to gradebook button.
+- Deploys stay with Fable (handoffs forbid the models from touching the droplet).
+
 ## 2026-07-04 — Accuracy layer, MT code, click-to-change
 
 - False-positive accuracy layer: Doer rule 1b (judge by how the sentence reads; natural informal usage is not an error) and the Checker now receives the FULL SENTENCE per finding (new sentenceAround helper) with an explicit instruction that natural everyday phrasing is NOT defensible even if a style guide objects.
