@@ -799,8 +799,9 @@
 
       let failed=0;
       for(const ga of editGroup){
-        const opens=document.getElementById(`eOpens-${ga.id}`).value;
-        const due=document.getElementById(`eDue-${ga.id}`).value;
+        // datetime-local is local wall clock; store as UTC ISO (see localToIso).
+        const opens=localToIso(document.getElementById(`eOpens-${ga.id}`).value);
+        const due=localToIso(document.getElementById(`eDue-${ga.id}`).value);
         const r=await fetch(`/api/assignments/${ga.id}`,{
           method:'PATCH',
           headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},
@@ -1083,6 +1084,8 @@
       if(/[zZ]$|[+-]\d\d:?\d\d$/.test(text)) return new Date(text);
       return new Date(text.replace(' ','T')+'Z');
     }
+    // datetime-local input value (local wall clock) -> UTC ISO string for storage.
+    function localToIso(v){ if(!v) return null; const d=new Date(v); return Number.isNaN(d.getTime())?null:d.toISOString(); }
     function formatDate(v){const d=parseServerDate(v);return Number.isNaN(d.getTime())?v:d.toLocaleString([],{dateStyle:'medium',timeStyle:'short'});}
     function saveFilterState(){
       const state={

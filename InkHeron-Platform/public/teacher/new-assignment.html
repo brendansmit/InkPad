@@ -334,8 +334,11 @@
       const feedbackTable2=document.getElementById('fFeedbackTable2').value;
       const rubric1=document.getElementById('fRubricTemplate1').value;
       const rubric2=document.getElementById('fRubricTemplate2').value;
-      const opens=document.getElementById('fOpens').value;
-      const due=document.getElementById('fDue').value;
+      // datetime-local values are the teacher's LOCAL wall clock. The server
+      // stores and compares dates as UTC, so convert local -> UTC ISO here.
+      const localToIso=(v)=>{ if(!v) return null; const d=new Date(v); return Number.isNaN(d.getTime())?null:d.toISOString(); };
+      const opens=localToIso(document.getElementById('fOpens').value);
+      const due=localToIso(document.getElementById('fDue').value);
       const prompt=document.getElementById('fPrompt').value.trim();
       const passageText=document.getElementById('fPassageText').value.trim();
       const passagePdfFile=document.getElementById('fPassagePdf').files[0];
