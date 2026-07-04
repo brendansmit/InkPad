@@ -113,6 +113,10 @@ Entry format:
 - Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
 
+## 2026-07-04 — Green pen v3: student code explainers
+
+- Clicking a code chip in the right panel now both filters the marks to that code (others dim) and opens an explainer card: "WW = Wrong word", what it means in B1-C1 English and a Quick fix hint. All 20 codes covered in GP_CODE_INFO in nativeWrite.js. Fixed a latent key collision: symbol codes ^ // and the tick previously all normalized to the same CSS key; now caret/para/tick with their own colours. Browser-verified (AA/Adj chip shows the card, only "more clear" stays coloured). Commit dfc7793, suite 121/125 known 4.
+
 ## 2026-07-04 — Green pen v2 (teacher feedback round)
 
 - Panel moved to the RIGHT of the editor (gp-shell grid; left task/reference panel hidden in rewrite mode so the page gets the room). New button at the top of the panel opens /native/greenpen-source/:padId in a new tab: the ORIGINAL assignment's prompt, passage text and embedded passage PDF (student-owned rewrite pads only).
