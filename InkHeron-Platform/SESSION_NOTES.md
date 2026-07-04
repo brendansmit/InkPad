@@ -113,6 +113,13 @@ Entry format:
 - Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
 
+## 2026-07-04 — Green pen v2 (teacher feedback round)
+
+- Panel moved to the RIGHT of the editor (gp-shell grid; left task/reference panel hidden in rewrite mode so the page gets the room). New button at the top of the panel opens /native/greenpen-source/:padId in a new tab: the ORIGINAL assignment's prompt, passage text and embedded passage PDF (student-owned rewrite pads only).
+- Mark clearing rule changed: a mark now survives only if ~6 chars of surrounding context are intact on top of the quote. Fix the word OR restructure the sentence around a kept word and the mark clears (teacher point: students keep a comfortable verb and rewrite the frame; nagging a fixed sentence is wrong; the implementation scorer still judges honestly at resubmit). Verified live: rewrote the sentence around flagged "have", kept the word, mark cleared, six untouched marks stayed.
+- Visuals: marks are now underline PLUS a light background wash, one colour per CODE via CSS vars (Sp amber, Gra maroon, VT purple, P blue, WW teal, RO orange, Caps pink, Exp slate, and the rest); filter chips are per-code with colour swatches and counts, filtering dims non-matching marks in place.
+- Commit 14c6aed. Suite still 121/125 with the known 4.
+
 ## 2026-07-04 — Improvement batch: green pen in the pad, resolver, fallback, surfacing
 
 - Teacher design decision: NO side-by-side original in green pen. Marks render inside the editable rewrite text itself; fix the flagged text and the mark clears on the next re-check. Suggester architecture stays Doer+Checker (dual independent generation rejected as merge-complexity for marginal gain; fallback lever is upgrading the suggester Doer tier).
