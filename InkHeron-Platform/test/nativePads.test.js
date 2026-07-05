@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
 import { renderNativeWriteView } from '../src/views/nativeWrite.js';
+import { autoPromoteSuggestions } from '../src/routes/nativePads.js';
 
 function temporaryDatabasePath() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-native-pads-'));
@@ -849,6 +850,90 @@ test('teacher can return native feedback and student can view it', async () => {
   assert.match(page.body, /api\/native\/assignments/);
   assert.match(page.body, /toggle-check/);
   assert.match(page.body, /Your targets/);
+
+  await app.close();
+});
+
+test('student-facing feedback and marks never reveal AI as the source', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app, { greenPen: true });
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(created.statusCode, 200);
+  const padId = created.json().pad.id;
+
+  const saved = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'They is playing outside.' }] },
+      plain_text: 'They is playing outside.',
+    },
+  });
+  assert.equal(saved.statusCode, 200);
+  const submitted = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/submit`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+  });
+  assert.equal(submitted.statusCode, 201);
+
+  const raw = new DatabaseSync(databasePath);
+  const itemResult = raw.prepare(`
+    INSERT INTO native_feedback_items (native_pad_id, kind, title, source, sort_order)
+    VALUES (?, 'target', 'Watch your verb agreement', 'ai', 0)
+  `).run(padId);
+  raw.prepare(`
+    INSERT INTO ai_literacy_suggestions
+      (native_pad_id, document_version, start_offset, end_offset, quote, code, category, label, model, checker_json, status)
+    VALUES (?, 1, 5, 7, 'is', 'Gra', 'grammar', 'Grammar', 'fake/doer', ?, 'pending')
+  `).run(padId, JSON.stringify({ verbatim: true, confidence: 0.9, flag: null }));
+  const promoteResult = autoPromoteSuggestions(raw, padId);
+  raw.close();
+  assert.equal(promoteResult.promoted, 1);
+
+  const finished = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/finish-marking`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+  });
+  assert.equal(finished.statusCode, 200);
+  assert.equal(finished.json().pad.state, 'green_pen_open');
+
+  const feedback = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/feedback`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(feedback.statusCode, 200);
+  const feedbackBody = feedback.json();
+  assert.equal(feedbackBody.annotations.find((a) => a.type === 'literacy_code').metadata.code, 'Gra');
+  assert.equal(feedbackBody.feedback.targets[0].title, 'Watch your verb agreement');
+  assert.doesNotMatch(JSON.stringify(feedbackBody), /"source"|ai_auto|ai_accepted|suggestion_id/);
+
+  const toggle = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/feedback-items/${itemResult.lastInsertRowid}/toggle-check`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+  });
+  assert.equal(toggle.statusCode, 200);
+  assert.equal(toggle.json().item.student_checked, true);
+  assert.doesNotMatch(JSON.stringify(toggle.json()), /"source"/);
+
+  const teacherReview = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/feedback-items`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(teacherReview.statusCode, 200);
+  assert.equal(teacherReview.json().feedback.targets[0].source, 'ai', 'teacher-facing view keeps the AI source tag');
 
   await app.close();
 });

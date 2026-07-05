@@ -632,6 +632,27 @@ function publicFeedbackItem(row) {
   };
 }
 
+// `source` ('ai' vs 'teacher') and an annotation's `suggestion_id`/AI metadata
+// exist for the teacher review UI (native-review.html shows an "AI" tag).
+// Marks and feedback always read as the teacher's own to the student, so
+// every student-facing response strips them before it leaves the server.
+function studentSafeFeedbackItem(item) {
+  const { source, ...rest } = item;
+  return rest;
+}
+
+function studentSafeFeedback(feedback) {
+  return {
+    strengths: feedback.strengths.map(studentSafeFeedbackItem),
+    targets: feedback.targets.map(studentSafeFeedbackItem),
+  };
+}
+
+function studentSafeAnnotation(annotation) {
+  const { source, suggestion_id, ...metadata } = annotation.metadata || {};
+  return { ...annotation, metadata };
+}
+
 function loadFeedbackItems(db, padId) {
   const rows = db.prepare(`
     SELECT * FROM native_feedback_items
@@ -1659,7 +1680,7 @@ export async function registerNativePadRoutes(app, { db }) {
         FROM native_annotations
         WHERE native_pad_id = ?
         ORDER BY created_at ASC, id ASC
-      `).all(pad.id).map(publicAnnotation);
+      `).all(pad.id).map(publicAnnotation).map(studentSafeAnnotation);
       const revisions = db.prepare(`
         SELECT id, reason, plain_text, word_count, document_version, created_at
         FROM native_pad_revisions
@@ -1684,7 +1705,7 @@ export async function registerNativePadRoutes(app, { db }) {
         student: { id: student.id, display_name: student.display_name },
         annotations,
         revisions,
-        feedback: loadFeedbackItems(db, pad.id),
+        feedback: studentSafeFeedback(loadFeedbackItems(db, pad.id)),
         rubric: {
           name: rubricNames[0] || 'Rubric 1',
           criteria: rubric.criteria,
@@ -1948,7 +1969,7 @@ function loadImplementationScore(db, padId) {
         WHERE id = ?
       `).run(nextChecked, nextChecked, itemId);
       const updated = db.prepare('SELECT * FROM native_feedback_items WHERE id = ?').get(itemId);
-      return { item: publicFeedbackItem(updated) };
+      return { item: studentSafeFeedbackItem(publicFeedbackItem(updated)) };
     }
   );
 
@@ -2145,7 +2166,7 @@ function loadImplementationScore(db, padId) {
         WHERE native_pad_id = ? AND type IN ('inline_comment', 'general_comment')
         ORDER BY id ASC
       `).all(original.id).map((row) => ({ kind: row.type, quote: row.selected_text ?? '', body: row.body ?? '' }));
-      return { original_pad_id: original.id, feedback: loadFeedbackItems(db, original.id), marks, comments };
+      return { original_pad_id: original.id, feedback: studentSafeFeedback(loadFeedbackItems(db, original.id)), marks, comments };
     }
   );
 
