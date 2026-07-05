@@ -86,3 +86,45 @@ list what you changed in SESSION_NOTES.
 
 Definition of done: all four items, tests green except the known 4,
 committed separately, logged.
+
+## 5. Batch feedback release
+
+Today feedback goes live per essay the moment finish-marking runs. Add a
+per-assignment choice:
+- settings_json field `feedback_release`: 'immediate' (default) | 'batch'.
+  Expose in the new-assignment form settings (next to essay_type/supervision).
+- Migration 027: `ALTER TABLE assignments ADD COLUMN feedback_released_at TEXT`.
+- When feedback_release='batch': finish-marking behaves exactly as now
+  (state change, background jobs), but the STUDENT-facing feedback endpoint
+  and green-pen rewrite access both return a friendly "marked, feedback
+  coming soon" gate while feedback_released_at IS NULL. Teacher endpoint
+  `POST /api/assignments/:id/release-feedback` (CSRF) stamps it, returns
+  {released: true} and fires the ServerChan notify once if configured.
+  Immediate mode untouched.
+- Tests: batch assignment hides feedback + rewrite from the student after
+  finish-marking, release opens both; immediate mode unchanged.
+
+## 6. Semester tags (tag only, NEVER auto-clear or purge anything)
+
+- settings_json field `semester`: 'S1' | 'S2' on assignments, defaulted from
+  a new teacher setting `current_semester` (add to the settings screen,
+  default 'S1'). Set in the new-assignment form (select, prefilled).
+- `GET /api/assignments` accepts `?semester=S1|S2|all` (default all).
+  Untagged old assignments show under all.
+- The point is batch-archiving later with the EXISTING archive toggle,
+  filtered by semester. Do not build any deletion.
+- Tests: create with tag, filter works, untagged still listed.
+
+## 7. Report snippet endpoint (parents/report cards)
+
+`POST /api/students/:studentId/report-snippet` (teacher, CSRF). New service
+src/services/reportSnippet.js following the established Doer pattern
+(injectable chat, never throw). Model input: the same grounded data as the
+profile endpoint (err/100 trend, top codes with fix rates, stylometric
+trends, strengths/targets history, rubric trajectory). Output: ONE
+paragraph, 60-100 words, warm plain English a parent understands, no
+jargon, no code names, pick the two or three numbers that matter instead
+of dumping all, NO mention of AI or tools, no em dashes, no en dashes, no
+Oxford commas. Return {snippet} for the teacher to edit client-side; store
+nothing. Tests with fake chat: snippet returned, missing key is a clean
+error message.

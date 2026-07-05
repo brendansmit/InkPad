@@ -71,3 +71,21 @@ Verify every page live with preview tools driving real endpoints (seed a
 class like the earlier Opus session did), screenshots at both widths in the
 final report. Definition of done: all five items, npm test green except the
 known 4 baseline failures, committed, logged.
+
+## 6. Batch release UI
+
+For assignments with feedback_release='batch' (Sonnet item 5): the
+assignment dashboard header shows "Feedback: held" plus a "Release to
+class" button (confirm dialog "Release feedback to all marked students?")
+calling POST /api/assignments/:id/release-feedback, then showing
+"Released <time>". The new-assignment form gets the release-mode select
+(Immediate / All at once when I release) and the semester select (Sonnet
+item 6, prefilled from current_semester). The assignments list gets a
+semester filter (All / S1 / S2).
+
+## 7. Report snippet UI
+
+On /teacher/student-profile: a "Report snippet" button calling
+POST /api/students/:id/report-snippet, showing the paragraph in a modal
+textarea (editable) with Copy and Regenerate buttons. Loading state while
+generating; friendly error if the key is missing. Nothing is stored.
