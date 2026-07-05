@@ -9,6 +9,7 @@ import { registerIdentityRoutes } from './routes/identity.js';
 import { registerAuth } from './routes/auth.js';
 import { registerNativePadRoutes } from './routes/nativePads.js';
 import { registerNativeReanalyzeRoutes } from './routes/nativeReanalyze.js';
+import { registerClassInsightsRoutes } from './routes/classInsights.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerSettingsTestRoutes } from './routes/settingsTests.js';
@@ -110,6 +111,7 @@ export async function buildApp(options = {}) {
   await registerFeedbackAssetRoutes(app, { db });
   await registerNativePadRoutes(app, { db });
   await registerNativeReanalyzeRoutes(app, { db });
+  await registerClassInsightsRoutes(app, { db });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
   app.get('/student/change-password', async (_request, reply) => reply.sendFile('student-change-password.html', publicDir));
@@ -119,6 +121,7 @@ export async function buildApp(options = {}) {
   app.get('/teacher/assignments', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/assignments.html', publicDir));
   app.get('/teacher/native-review', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/native-review.html', publicDir));
   app.get('/teacher/student-profile', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/student-profile.html', publicDir));
+  app.get('/teacher/class-insights', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/class-insights.html', publicDir));
   app.get('/teacher/new-assignment', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/new-assignment.html', publicDir));
   app.get('/teacher/settings', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/settings.html', publicDir));
   app.get('/teacher/feedback', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/feedback.html', publicDir));
