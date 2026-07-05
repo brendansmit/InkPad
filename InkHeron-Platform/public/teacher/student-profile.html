@@ -96,10 +96,26 @@ body.student-mode .teacher-only{display:none!important}
   <span class="crumb" id="crumb"></span>
   <div class="ptabs" id="ptabs"></div>
   <span class="spacer"></span>
+  <button class="btn teacher-only" id="snippetBtn">Report snippet</button>
   <button class="btn" id="studentToggle">Student version</button>
   <button class="btn" id="exportBtn">Export</button>
 </div>
 <div class="wrap" id="wrap"><div class="loading">Loading profile…</div></div>
+
+<div id="snippetModal" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(20,20,18,.4);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border-radius:var(--r-md);box-shadow:var(--shadow-lift);width:min(560px,92vw);padding:18px 20px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <strong style="font-size:15px;font-family:var(--serif)">Report snippet</strong>
+      <span class="crumb" style="flex:1" id="snippetSub">A short paragraph for a report card. Edit before you use it.</span>
+      <button class="btn sm" id="snippetClose">Close</button>
+    </div>
+    <textarea id="snippetText" style="width:100%;min-height:150px;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:11px;font:inherit;font-size:14px;line-height:1.5;resize:vertical;background:var(--surface);color:var(--text);"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn sm" id="snippetCopy">Copy</button>
+      <button class="btn sm" id="snippetRegen">Regenerate</button>
+    </div>
+  </div>
+</div>
 
 <script>
 const GENRE = { narrative:'Narrative', argumentative:'Argument', personal:'Personal', analysis:'Analysis', short_response:'Short response', rhetorical_analysis:'Rhet. analysis', synthesis:'Synthesis', other:'EAP' };
@@ -113,7 +129,7 @@ const VOICE_TERMS = [
   ['first_person_per_100_words','First person','How often I, my, we appear. High in personal writing; should drop in analysis and argument.','/100'],
   ['hedges_per_100_words','Hedging','Softening words like maybe, might, seems. Academic writing needs some; too much sounds unsure.','/100'],
 ];
-let data=null, activeType='EAP';
+let data=null, activeType='EAP', csrf='', currentStudentId=null;
 
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function el(tag,cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
@@ -123,6 +139,7 @@ async function boot(){
   const studentId = new URLSearchParams(location.search).get('student_id');
   const me = await fetch('/api/me').then(r=>r.ok?r.json():null).catch(()=>null);
   if(!me || !me.user || me.user.type!=='teacher'){ location.href='/teacher-login.html'; return; }
+  csrf = me.user.csrf_token; currentStudentId = studentId;
   if(!studentId){ document.getElementById('wrap').innerHTML='<div class="loading">No student selected.</div>'; return; }
   data = await fetch('/api/students/'+encodeURIComponent(studentId)+'/writing-profile').then(r=>{ if(!r.ok) throw new Error('profile '+r.status); return r.json(); });
   document.getElementById('studentToggle').onclick = ()=>{
@@ -130,6 +147,7 @@ async function boot(){
     document.getElementById('studentToggle').classList.toggle('on');
   };
   document.getElementById('exportBtn').onclick = ()=>window.print();
+  setupSnippet();
   renderTabs();
   render();
 }
@@ -344,6 +362,33 @@ function apByTypeCard(){
   return card;
 }
 function avg(a){ return a.length? a.reduce((x,y)=>x+y,0)/a.length : null; }
+
+function setupSnippet(){
+  const modal=document.getElementById('snippetModal');
+  const ta=document.getElementById('snippetText');
+  const sub=document.getElementById('snippetSub');
+  const open=()=>{ modal.style.display='flex'; if(!ta.value) generateSnippet(); };
+  const close=()=>{ modal.style.display='none'; };
+  document.getElementById('snippetBtn').onclick=open;
+  document.getElementById('snippetClose').onclick=close;
+  modal.onclick=(e)=>{ if(e.target===modal) close(); };
+  document.getElementById('snippetRegen').onclick=generateSnippet;
+  document.getElementById('snippetCopy').onclick=async ()=>{
+    try{ await navigator.clipboard.writeText(ta.value); sub.textContent='Copied to clipboard.'; }
+    catch(_){ ta.select(); document.execCommand&&document.execCommand('copy'); sub.textContent='Copied.'; }
+  };
+  async function generateSnippet(){
+    const regen=document.getElementById('snippetRegen');
+    ta.value=''; ta.placeholder='Writing the paragraph…'; sub.textContent='Writing the paragraph…'; regen.disabled=true;
+    try{
+      const r=await fetch('/api/students/'+encodeURIComponent(currentStudentId)+'/report-snippet',{method:'POST',headers:{'X-CSRF-Token':csrf}});
+      const d=await r.json().catch(()=>({}));
+      if(r.ok && d.snippet){ ta.value=d.snippet; sub.textContent='A short paragraph for a report card. Edit before you use it.'; }
+      else { sub.textContent=d.error||'Could not write a snippet right now.'; ta.placeholder='Nothing generated.'; }
+    }catch(_){ sub.textContent='Could not write a snippet right now.'; ta.placeholder='Nothing generated.'; }
+    finally{ regen.disabled=false; }
+  }
+}
 
 boot().catch(err=>{ console.error(err); document.getElementById('wrap').innerHTML='<div class="loading">'+esc(err.message)+'</div>'; });
 </script>

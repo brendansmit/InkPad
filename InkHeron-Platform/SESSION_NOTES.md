@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-05 — Opus HANDOFF_2 item 7: report snippet UI
+- student-profile.html: added a teacher-only "Report snippet" button in the top bar that opens a modal. The modal POSTs /api/students/:id/report-snippet (Sonnet's endpoint), shows a loading line while generating, then puts the returned paragraph in an editable textarea. Copy button (clipboard, with execCommand fallback) and Regenerate button. A missing key or any failure shows the endpoint's friendly message instead of the paragraph. Nothing is stored; the teacher edits client-side. The button carries the teacher-only class so it disappears in "Student version".
+- Captured the CSRF token in boot() (was not stored before) for the POST.
+- Verified in preview: button opens the modal, calls the endpoint, and with no local OpenRouter key shows "Add an OpenRouter API key in settings before generating report snippets." in the sub line with Copy/Regenerate/Close all present; modal closes; button hidden in student version.
+
 ## 2026-07-05 — Opus HANDOFF_2 item 6: batch release UI on the detail header
 - assignments.html detail header: for assignments whose settings_json.feedback_release === 'batch', a "Feedback: held" chip plus a "Release to class" button appear. The button confirms ("Release feedback to all marked students?") then POSTs /api/assignments/:id/release-feedback for every unreleased batch assignment in the detail group, toasts the result and flips the chip to "Feedback released <time>". Immediate-mode assignments (the default) show no control.
 - The other item-6 pieces were already delivered by the concurrent Sonnet session and verified present: new-assignment.html has the Feedback release select (Immediate/Batch) and the Semester select (prefilled from current_semester), and the assignments list has the semester filter (All/S1/S2) wired into the query and saved filter state.
