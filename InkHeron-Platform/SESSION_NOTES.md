@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-05 — Opus HANDOFF_2 item 6: batch release UI on the detail header
+- assignments.html detail header: for assignments whose settings_json.feedback_release === 'batch', a "Feedback: held" chip plus a "Release to class" button appear. The button confirms ("Release feedback to all marked students?") then POSTs /api/assignments/:id/release-feedback for every unreleased batch assignment in the detail group, toasts the result and flips the chip to "Feedback released <time>". Immediate-mode assignments (the default) show no control.
+- The other item-6 pieces were already delivered by the concurrent Sonnet session and verified present: new-assignment.html has the Feedback release select (Immediate/Batch) and the Semester select (prefilled from current_semester), and the assignments list has the semester filter (All/S1/S2) wired into the query and saved filter state.
+- Verified in preview: temporarily flagged assignment 2 as batch, saw "Feedback: held" + Release button, released it (server stamped feedback_released_at, chip switched to "Feedback released ...", button hid), then restored the assignment to immediate mode and confirmed the control disappears.
+
 ## 2026-07-05 — Opus HANDOFF_2 item 4: export to gradebook button
 - assignments.html detail header: added "Export to gradebook" next to the existing "Export CSV" (kept). It calls POST /api/assignments/:id/export-to-admin and toasts the result ("Exported N scores" or the endpoint's friendly error). The button is disabled with a hint title ("Set an admin export key in Settings first") when the key is not configured, probed via /api/settings admin_export_key.is_set on detail open.
 - The score column ("12 / 15" with Released/Held pill), AP exam-score column, and status pills (marked/green_pen_open/resubmitted) were already delivered by Sonnet's dashboard fix; verified they render (Chen Yuxi shows 10.5 / 15 Released, exam 4 / 6, Green pen).

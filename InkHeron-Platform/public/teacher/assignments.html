@@ -167,6 +167,8 @@
         <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
         <button class="btn sm" id="exportAdminBtn" type="button">Export to gradebook</button>
+        <span id="feedbackState" class="class-tag" style="display:none"></span>
+        <button class="btn sm" id="releaseBtn" type="button" style="display:none">Release to class</button>
         <button class="btn sm" id="archiveBtn" type="button">Archive</button>
         <button class="btn sm" id="deleteBtn" type="button" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
       </div>
@@ -591,6 +593,7 @@
       document.getElementById('archiveBtn').textContent = a.is_archived ? 'Unarchive' : 'Archive';
       show('detailView');
       refreshExportAdminBtn();
+      refreshReleaseControl();
       openDetail('all');
     }
 
@@ -613,6 +616,7 @@
       document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
       document.getElementById('exportAdminBtn').addEventListener('click',exportToAdmin);
+      document.getElementById('releaseBtn').addEventListener('click',releaseFeedback);
       document.getElementById('archiveBtn').addEventListener('click',archiveAssignment);
       document.getElementById('deleteBtn').addEventListener('click',deleteAssignment);
       document.getElementById('toggleArchiveBtn').addEventListener('click',async()=>{
@@ -715,6 +719,41 @@
       if(!t){ t=document.createElement('div'); t.id='a11yToast'; t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;'; document.body.appendChild(t); }
       t.textContent=msg; t.style.opacity='1'; clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',2600);
     }
+    function assignmentSettings(a){ try{ return JSON.parse(a.settings_json||'{}'); }catch(_){ return {}; } }
+    function batchAssignments(){ return detailGroup.filter(a=>assignmentSettings(a).feedback_release==='batch'); }
+    function refreshReleaseControl(){
+      const state=document.getElementById('feedbackState');
+      const btn=document.getElementById('releaseBtn');
+      const batch=batchAssignments();
+      if(!batch.length){ state.style.display='none'; btn.style.display='none'; return; }
+      const held=batch.filter(a=>!a.feedback_released_at);
+      state.style.display='';
+      if(held.length){
+        state.textContent='Feedback: held';
+        btn.style.display=''; btn.disabled=false; btn.textContent='Release to class';
+      } else {
+        const when=batch.map(a=>a.feedback_released_at).filter(Boolean).sort().pop();
+        state.textContent='Feedback released '+formatDate(when);
+        btn.style.display='none';
+      }
+    }
+    async function releaseFeedback(){
+      const held=batchAssignments().filter(a=>!a.feedback_released_at);
+      if(!held.length) return;
+      if(!confirm('Release feedback to all marked students?')) return;
+      const btn=document.getElementById('releaseBtn');
+      btn.disabled=true; btn.textContent='Releasing…';
+      let ok=0;
+      for(const a of held){
+        try{
+          const r=await fetch(`/api/assignments/${a.id}/release-feedback`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+          if(r.ok){ ok++; a.feedback_released_at=new Date().toISOString(); const idx=assignments.findIndex(x=>x.id===a.id); if(idx>=0) assignments[idx].feedback_released_at=a.feedback_released_at; }
+        }catch(_){ }
+      }
+      toast(ok?('Feedback released to '+ok+' class'+(ok===1?'':'es')):'Release failed');
+      refreshReleaseControl();
+    }
+
     async function exportToAdmin(){
       const id=(currentId&&currentId!=='all')?currentId:(detailGroup.length?detailGroup[0].id:null);
       if(!id) return;
