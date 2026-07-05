@@ -20,6 +20,15 @@ Entry format:
 
 ---
 
+## 2026-07-05 — SONNET_HANDOFF_2 item 6: semester tags
+
+- Phase/Step worked: SONNET_HANDOFF_2.md item 6 (second of the three remaining items).
+- Built: `settings_json.semester` ('S1'|'S2', tag only) on assignments, defaulted from a new teacher-level `current_semester` setting (plain key/value row, no migration needed — same pattern as `admin_export_url`). `readCurrentSemester`/`writeCurrentSemester` added to `settingsStore.js`; `GET`/`PATCH /api/settings` now read/write `current_semester` alongside the existing secrets and export URL. Settings screen got a "Current semester" select (default S1). `new-assignment.html` got a "Semester" select prefilled from `/api/settings` on load; `POST /api/assignments` defaults `settings.semester` to `current_semester` when the caller omits it, and validates any explicit value. `GET /api/assignments` accepts `?semester=S1|S2|all` (default all); untagged legacy assignments (no `semester` key in their `settings_json` at all) always show under `all`. Added a "semester" select to the assignments list-view search row (`assignments.html`), wired into `fetchAssignments()`'s query string and the existing `saveFilterState`/`restoreFilterState` sessionStorage round-trip, same pattern as the archive toggle. No deletion or auto-clear logic anywhere, per spec.
+- Decisions: `buildSettingsJson` only writes the `semester` key when the value is valid — it does NOT default it itself, since that function has no DB access. The default-from-teacher-setting only happens once, at `POST /api/assignments` create time; edits via `PATCH` preserve whatever semester (or absence of one) the assignment already had, since the existing `settings_json` is spread before the incoming partial settings. This means editing an old untagged assignment's other settings does not retroactively tag it — consistent with "tag only, never auto-clear or purge".
+- Verified: `node --test test/assignments.test.js test/settings.test.js` — 31/31 pass, including new tests `semester tag defaults from current_semester, filters, and leaves untagged assignments under all` and `current_semester defaults to S1 and can be updated, ignoring invalid values`. Full suite `node --test "test/*.test.js"` — 136/140, same 4 pre-existing baseline failures as item 5 (EAP library admin 401, login password_hash exposure, classes/students CRUD, roster page content). Also browser-verified live via `inkheron-verify`: settings page shows/saves the semester select and persists to the settings table; new-assignment page prefills the select from the saved teacher default (S2 after changing it); created one assignment with no explicit semester (defaulted to S2) and one with an explicit override (S1); the assignments-list semester filter correctly narrowed the list to just the S1-tagged one.
+- Open / next: item 7 (report snippet endpoint) still pending. No batch-archive-by-semester bulk action was built — spec says to reuse the EXISTING per-assignment archive toggle, now that the list can be filtered by semester first.
+- Gotchas hit: `preview_click`/`preview_fill` on select/submit-button elements silently failed to trigger the underlying DOM events a couple of times during verification (no network request fired); dispatching the `change`/`submit` events directly via `preview_eval` reliably worked and confirmed the real app behaviour was correct — a preview-tooling quirk, not an app bug. Commit `927cc13`.
+
 ## 2026-07-05 — Opus HANDOFF_2 item 1: back button on the marking page
 - Added a compact "← Assignments" link at the far left of the native-review.html top bar. On load it points to /teacher/assignments?id=<assignment id> (from the review payload), falling back to /teacher/assignments before the payload arrives.
 - Verified in preview at 1024px: link resolves to ?id=2 for the seeded pad and the top bar stays on one row with all controls visible.
@@ -302,93 +311,4 @@ Entry format:
 - Cause: gutter was a fixed 31.5px-spaced text column counting only newline lines, so wrapped lines and the 1em paragraph bottom margin drifted the numbers off the text.
 - Built: updateLineNumbers now measures each visual line via a Range over the editor content (getClientRects, deduped by top) and absolutely positions a number at each line top, dividing out the current editor zoom.
 - Verified: node --check passes, wrapper active after deploy. Live look for Brendan.
-
-## 2026-07-02 - A4 paper, tighter padding, page-break line
-- Asked: reduce editor side padding, make the pad a true A4 ratio, add a faint dotted horizontal line at each A4 page break.
-- Built: editor stage padding cut 32px to 12px. Editor column set to exactly --page-width (794) so the paper is a true A4 794x1123 border-box (was 768 wide due to the line-number column eating width). Added a faint dotted page-break line every page-width*1.414 via two layered CSS backgrounds (thin line + white dash mask), behind text, scales with zoom.
-- Verified: node --check passes, wrapper active after deploy. Live look for Brendan.
-
-## 2026-07-02 - Editor zoom scales like the PDF, PDF highlight blend fix
-- Asked: (1) PDF highlight was hiding the words. (2) Make the writing pad zoom behave like the PDF window.
-- Fixed highlight: it painted a solid opaque background over the canvas glyphs. Now uses mix-blend-mode:multiply and the text layer dropped its z-index so it shares the canvas stacking context and blends like a highlighter pen. Underline was already fine. Commit 3a0ddbf area.
-- Fixed editor zoom: previously scaled page width (reflowed text). Now the page shell uses the CSS zoom property so the whole page scales uniformly and the stage scrolls, matching the PDF pane. syncZoomFrame no longer manually sizes the frame.
-- Verified: node --check passes, render checks confirm the new CSS/JS, wrapper active after deploy. Live feel for Brendan to confirm.
-- Commits: highlight blend + editor zoom (see git log).
-
-## 2026-07-02 - Native PDF reference rebuilt with PDF.js
-- Asked: PDF reference must be viewable, evenly zoomable, and support real text highlight and underline like the editor pad. Explicitly NOT an overlay layer with draggable coloured shapes (the reverted earlier attempt).
-- Built: Replaced the browser-native PDF iframe in nativeWrite.js with PDF.js canvas rendering plus a selectable transparent text layer per page.
-- Zoom: slider re-renders every page at the new scale (fit-to-width base), crisp, no iframe reload or scroll jump. Saved zoom kept in localStorage.
-- Marks: highlight and underline wrap the selected text-layer range in a styled span (background for highlight, bottom border for underline), aligned to the words. No overlay shapes.
-- Persistence: marks stored as page-relative character offsets (not pixels) in localStorage key nativePdfMarks:<assignmentId>, reapplied after each render so they survive zoom and reload.
-- Verified: node --check on the file and on the extracted browser module both pass; template renders valid HTML with all new elements and zero iframe tags; live pdfjs .mjs assets serve as application/javascript; wrapper active after deploy. Live browser highlight/zoom feel is for Brendan to confirm.
-- Commit: 3a0ddbf
-- Asked: For Lang essays, allow grading on the internal rubric and separately show what the student would score on the AP Lang rubric. Students must see both.
-- Built: Added `rubric_kind` migration so assignment rubrics can be separated into `internal` and `exam` tracks without overwriting each other.
-- Built: Added AP exam rubric creation and scoring endpoints, teacher review panels for internal rubric and AP Lang exam estimate and student feedback display for both rubric tracks.
-- Verified: `node --check src/routes/nativePads.js` and `node --test test/migration.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
-
-## 2026-07-02 - AP 3-row rubric templates
-- Asked: Make rubric templates work with the AP 3-row rubric.
-- Built: Added `mode: "ap"` rubric parsing. AP templates normalize into three scoreable rows: Thesis, Evidence and Commentary and Sophistication.
-- Built: Feedback page now includes an AP 3-row JSON template and labels saved AP rubrics as `AP 3-row`. Assignment setup hints mention AP support.
-- Verified: `node --check src/feedback/assets.js` and `node --test test/feedbackAssets.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
-
-## 2026-07-02 - Holistic and analytic rubric templates
-- Asked: Make sure the rubric module works with both holistic and analytic rubrics.
-- Built: Rubric assets now parse `mode: "analytic"` as multiple criteria and `mode: "holistic"` as one `Overall` scoreable criterion with bands.
-- Built: Feedback page now shows analytic and holistic JSON templates and labels saved rubric assets by mode. Assignment setup hints explain the difference.
-- Verified: `node --check src/feedback/assets.js` and `node --test test/feedbackAssets.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
-
-## 2026-07-02 - Feedback PDF and DOCX uploads
-- Asked: Expand feedback uploads to include Word docs and PDFs, excluding old `.doc`.
-- Built: Added server-side `/api/feedback-assets/extract` multipart extraction for TXT, CSV, JSON, DOCX and selectable-text PDF files.
-- Built: Feedback page upload now sends files to the extractor and fills the content box with extracted text before saving.
-- Verified: `node --check` passed for touched server files and `node --test test/feedbackAssets.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
-
-## 2026-07-02 - Deploy feedback area
-- Asked: Feedback area was not visible live and `/teacher/feedback` errored, so deploy it.
-- Deployed: Copied migration 016, feedback asset routes/helpers, app route registration and teacher dashboard/feedback/assignment pages to the droplet.
-- Fixed: Corrected a deploy path mistake for `src/app.js` and removed the stray remote `src/routes/app.js` copy created during deploy.
-- Verified: Production migration applied `016_feedback_assets.sql`, wrapper restarted active/running, root returned 200 and `/teacher/feedback` returned protected-route 401 when unauthenticated.
-
-## 2026-07-02 - Feedback asset library
-- Asked: Add a home feedback area where rubric templates, strengths and targets can be uploaded for different assignment types.
-- Built: Added `/teacher/feedback`, a Feedback tile on teacher home and teacher-only `/api/feedback-assets` routes for listing, saving and archiving rubric or strengths/targets assets.
-- Built: Added `feedback_assets` migration, parser helpers, assignment setup dropdowns for saved strengths/targets and rubric templates and native review now uses the selected saved feedback table.
-- Verified: `node --test test/migration.test.js test/feedbackAssets.test.js test/assignments.test.js test/nativePads.test.js` passed 30/30.
-
-## 2026-07-02 - Simple and advanced assignment setup
-- Asked: Make assignment setup simple by default, with heavier options behind Simple and Advanced.
-- Built: New assignment now shows the core setup first and moves outside paste, strengths and targets, spellcheck, green pen and default rubric creation into a collapsed Advanced options section.
-- Built: Edit assignment now follows the same pattern, with submit behaviour visible and advanced native settings collapsed.
-- Verified: `node --test test/assignments.test.js` passed 13/13.
-
-## 2026-07-02 - Native review pane suggestions
-- Asked: Make the grader window more useful and less half-finished, with tools and suggestions available at a click.
-- Built: Native review now receives the strengths and targets library, shows a Suggested targets panel and can append a suggested target directly into the general comment box.
-- UI: Widened the review side rail and added an editor-style paper header hint while preserving existing annotations, rubric scoring, recovery and revision tools.
-- Verified: `node --check src/routes/nativePads.js` and `node --test test/nativePads.test.js` passed 14/14.
-
-## 2026-07-02 - Greenpen rewrite assignment flow
-- Asked: Replace confusing feedback-return action with Greenpen rewrite that creates a new native assignment carrying work and feedback.
-- Built: Added teacher endpoint `/api/native/assignments/:assignmentId/greenpen-rewrite`. It creates a new native assignment, copies current native pad text, annotations, assignment roster overrides, rubric criteria and passage PDF when present.
-- UI: Native review now shows `Greenpen rewrite` and prompts for a rewrite assignment name, defaulting to `Greenpen rewrite: <original title>`.
-- Verified: `node --check src/routes/nativePads.js` and `node --test test/nativePads.test.js` passed 14/14.
-
-## 2026-07-02 - Assignment setup rubric and feedback table controls
-- Asked: Add rubric setup and strengths/targets table selection to assignment setup.
-- Built: New assignment and edit assignment settings now include a default strengths/targets table selector and a default rubric creation/reset control.
-- Built: New assignments can create the default native rubric immediately for every selected class. Edit settings can create/reset the default rubric across the assignment group.
-- Verified: `node --check src/routes/assignments.js` and `node --test test/assignments.test.js` passed 13/13.
-
-## 2026-07-02 - Native assignment and review cleanup
-- Asked: Fix the PDF regression, move paste blocking into assignment settings, remove Etherpad choice from teacher assignment pages, stop showing autosaves as an always-open list, preserve assignment filters, fix timestamps and hide non-current student assignments.
-- Built: Native writer PDFs are true embedded PDF documents again, not PDF.js-rendered page canvases. Removed fake PDF highlight/underline controls from the PDF pane.
-- Built: New/edit assignment pages are native-only in the teacher UI and now expose Outside paste: Allow, Log only or Block. Assignment saves update existing native pad policies.
-- Built: Student paste blocking now permits copy/paste that originates inside the InkPad screen and logs or blocks outside paste only.
-- Built: Assignment filters persist when returning from detail view and clear when going back to teacher home. Student and teacher timestamp display now parses server UTC correctly.
-- Built: Native review now hides autosaves behind a Revision history button instead of dumping the full list in the rail.
-- Live data: Archived live assignment IDs 5, 6, 8, 9 and 10. Active student-visible native Personal Statements remain IDs 3, 4 and 7 with 19 native pads.
-- Verified: Node 24 `--check` passed for touched server/view files. `--test test/assignments.test.js test/nativePads.test.js` passed 26/26. Deployed, restarted wrapper and public `/` returned 200.
 
