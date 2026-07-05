@@ -84,7 +84,7 @@ to students. Students must never see that a machine was involved: marks are
 "your teacher's marks", suggestions language is teacher voice. Fix any hits;
 list what you changed in SESSION_NOTES.
 
-Definition of done: all four items, tests green except the known 4,
+Definition of done: all SEVEN items (1-7), tests green except the known 4,
 committed separately, logged.
 
 ## 5. Batch feedback release

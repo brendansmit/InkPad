@@ -26,6 +26,7 @@ Entry format:
 - SONNET_HANDOFF_2.md: dashboard scores fix, conversational low-C1 tone pass on feedbackSuggester + profileSummarizer prompts, one-click export to admin.inkheron.app gradebook (read ../grade-importer code for the real API; payload = names and numbers only, never AI wording), student-facing AI-mention audit.
 - OPUS_HANDOFF_2.md (run after Sonnet): back button on native-review, teacher dashboard navigation to student profiles, NEW class-insights page + /api/classes/:classId/insights endpoint (recurring codes by students-affected, class err/100 trend, fix rate, rubric averages, marker-profile deltas only where teacher_score exists and >= 10 samples), assignment dashboard score column + Export to gradebook button.
 - Deploys stay with Fable (handoffs forbid the models from touching the droplet).
+- Teacher picked three extras, added to the same handoffs (items 5-7 in each): batch feedback release (settings feedback_release immediate/batch, migration 027 feedback_released_at, release-feedback endpoint gating student feedback AND green pen), semester tags S1/S2 (tag + filter only, no purge ever, batch archive later via the existing archive toggle), and a parent report snippet (reportSnippet.js Doer service + profile-page modal, 60-100 warm plain words, never stored, never mentions AI).
 
 ## 2026-07-04 — Accuracy layer, MT code, click-to-change
 

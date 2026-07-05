@@ -69,7 +69,7 @@ machine marking. Feedback is from "your teacher".
 
 Verify every page live with preview tools driving real endpoints (seed a
 class like the earlier Opus session did), screenshots at both widths in the
-final report. Definition of done: all five items, npm test green except the
+final report. Definition of done: all SEVEN items (1-7), npm test green except the
 known 4 baseline failures, committed, logged.
 
 ## 6. Batch release UI
