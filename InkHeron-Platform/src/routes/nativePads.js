@@ -11,6 +11,7 @@ import { recordStyleMetrics, aggregateStyleProfile, detectStyleAnomaly } from '.
 import { realStudentsWhere } from '../db/realStudents.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
 import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
+import { generateReportSnippet } from '../services/reportSnippet.js';
 
 // Fire-and-forget an async analysis seam without blocking the HTTP response.
 // A missing OpenRouter key or a stub is a clean no-op; errors are logged only.
@@ -1870,6 +1871,17 @@ function loadImplementationScore(db, padId) {
       const payload = loadWritingProfileDashboard(db, studentId);
       if (!payload) return reply.code(404).send({ error: 'student_not_found' });
       return payload;
+    }
+  );
+
+  // Parent report-card snippet: one warm paragraph, edited client-side, stored nowhere.
+  app.post('/api/students/:studentId/report-snippet',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const studentId = requirePositiveInteger(request.params.studentId, 'studentId');
+      const result = await generateReportSnippet(db, { studentId });
+      if (result.status !== 'ok') return reply.code(400).send({ error: result.message });
+      return { snippet: result.snippet };
     }
   );
 
