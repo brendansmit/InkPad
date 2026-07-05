@@ -8,6 +8,7 @@ import { openDatabase } from './db/database.js';
 import { registerIdentityRoutes } from './routes/identity.js';
 import { registerAuth } from './routes/auth.js';
 import { registerNativePadRoutes } from './routes/nativePads.js';
+import { registerNativeReanalyzeRoutes } from './routes/nativeReanalyze.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerSettingsTestRoutes } from './routes/settingsTests.js';
@@ -108,6 +109,7 @@ export async function buildApp(options = {}) {
   await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });
   await registerFeedbackAssetRoutes(app, { db });
   await registerNativePadRoutes(app, { db });
+  await registerNativeReanalyzeRoutes(app, { db });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
   app.get('/student/change-password', async (_request, reply) => reply.sendFile('student-change-password.html', publicDir));
