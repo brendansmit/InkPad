@@ -71,7 +71,23 @@
       </div>
     </div>
 
-    <p class="muted" style="margin-top:34px;">Full dashboards will be wired in later phases. This page proves teacher-only access works.</p>
+    <section id="analysis" style="margin-top:36px;">
+      <h2 style="font-family:var(--serif);font-size:20px;font-weight:600;margin:0 0 6px;">Analysis</h2>
+      <p class="lead" style="margin-bottom:16px;">Open a student's writing profile or a whole-class view.</p>
+      <div class="grid">
+        <div class="tile">
+          <h3>Student profiles</h3>
+          <p>Pick a class, then open any student's writing profile.</p>
+          <select id="profileClass" style="width:100%;min-height:40px;border:1.5px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font:inherit;background:var(--surface);color:var(--text);margin-bottom:10px;"></select>
+          <div id="profileStudents" style="display:grid;gap:6px;max-height:230px;overflow:auto;"></div>
+        </div>
+        <div class="tile">
+          <h3>Class insights</h3>
+          <p>Recurring errors, trends and the class at a glance.</p>
+          <div id="insightsLinks" style="display:grid;gap:6px;"></div>
+        </div>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -92,8 +108,35 @@
           badge.style.display='';
         }
       }
+      loadAnalysis();
     }
     init();
+
+    function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    async function loadAnalysis(){
+      let classes=[];
+      try{ classes=(await fetch('/api/classes').then(r=>r.json())).classes||[]; }catch(_){ }
+      const links=document.getElementById('insightsLinks');
+      const sel=document.getElementById('profileClass');
+      if(!classes.length){
+        links.innerHTML='<span class="muted">No classes yet.</span>';
+        sel.innerHTML='<option>No classes yet</option>';
+        document.getElementById('profileStudents').innerHTML='<span class="muted">Add a class and students first.</span>';
+        return;
+      }
+      links.innerHTML=classes.map(c=>'<a class="btn" style="justify-content:flex-start" href="/teacher/class-insights?class_id='+c.id+'">'+esc(c.name)+' →</a>').join('');
+      sel.innerHTML=classes.map(c=>'<option value="'+c.id+'">'+esc(c.name)+'</option>').join('');
+      sel.onchange=()=>loadStudents(sel.value);
+      loadStudents(classes[0].id);
+    }
+    async function loadStudents(classId){
+      const box=document.getElementById('profileStudents');
+      box.innerHTML='<span class="muted">Loading…</span>';
+      let students=[];
+      try{ students=(await fetch('/api/students?class_id='+encodeURIComponent(classId)).then(r=>r.json())).students||[]; }catch(_){ }
+      if(!students.length){ box.innerHTML='<span class="muted">No students in this class.</span>'; return; }
+      box.innerHTML=students.map(s=>'<a class="btn" style="justify-content:flex-start;min-height:34px" href="/teacher/student-profile?student_id='+s.id+'">'+esc(s.display_name)+' →</a>').join('');
+    }
 
     document.getElementById('logoutBtn').addEventListener('click',async ()=>{
       await fetch('/api/logout',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});

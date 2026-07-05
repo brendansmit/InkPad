@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-05 — Opus HANDOFF_2 item 2: teacher dashboard navigation
+- public/teacher/index.html: added an "Analysis" section with two tiles. "Student profiles" has a class picker that loads students from /api/students?class_id and links each to /teacher/student-profile?student_id. "Class insights" lists one link per class to /teacher/class-insights?class_id. Both driven by /api/classes and /api/students, empties handled.
+- public/teacher/assignments.html: added a "Profile" link next to Review in each student dashboard row, to /teacher/student-profile?student_id=<id>, so marking flows into the profile in one click.
+- Verified in preview: dashboard picker lists AP Lang G9 + Repro Class, student links resolve to the right ids, class-insights links resolve; dashboard row exposes student_id so the Profile link renders.
+- Note: item 4's score/exam columns and status pills were already present (Sonnet dashboard fix); only the export button remains for item 4.
+
 ## 2026-07-05 — Opus HANDOFF_2 item 3: class insights page + endpoint
 - New endpoint `GET /api/classes/:classId/insights` (teacher session) in an isolated route module `src/routes/classInsights.js` (kept out of the co-edited nativePads.js). Every aggregate excludes demo/ghost via realStudentsWhere. Returns: recurring codes with students-affected and class rate per 100 words (sorted by students affected), class err/100 trend by essay index, green-pen fix rate from implementation_scores addressed_json, average internal rubric total per assignment over time, marker profile (mean delta per rubric_kind+criterion from ai_grade_estimates WHERE teacher_score IS NOT NULL, gated to render only at >= 10 scored deltas), and per-student mini rows.
 - New page `public/teacher/class-insights.html` + route `/teacher/class-insights` in app.js. Follows student-profile.html design language: headline sentences ("1 of 5 students have open Grammar issues"), stat strip, recurring-error meters (category coloured), err and rubric sparks, green-pen and marker cards with friendly empties, and a students table linking to each profile. Class switcher in the top bar.

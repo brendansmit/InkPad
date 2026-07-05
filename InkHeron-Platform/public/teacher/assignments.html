@@ -1055,7 +1055,7 @@
           <td>${row.paste_flag?`<span class="pill flag">${row.paste_count} event${row.paste_count===1?'':'s'}</span>`:'-'}</td>
           <td>${row.score===null?'-':`${escapeHtml(String(row.score))} / ${escapeHtml(String(row.score_max))} <span class="pill ${row.grade_state==='released'?'released':'held'}">${row.grade_state==='released'?'Released':'Held'}</span>`}</td>
           <td>${row.is_ap_lang?(row.exam_score===null?'-':`${escapeHtml(String(row.exam_score))} / ${escapeHtml(String(row.exam_score_max))}`):'-'}</td>
-          <td>${row.review_url?`<a class="btn sm" href="${escapeHtml(row.review_url)}">Review</a>`:'-'}</td>
+          <td><span style="display:inline-flex;gap:5px;">${row.review_url?`<a class="btn sm" href="${escapeHtml(row.review_url)}">Review</a>`:''}<a class="btn sm" href="/teacher/student-profile?student_id=${row.student_id}">Profile</a></span></td>
           <td><button class="btn sm" style="color:#8C2F3B;border-color:#8C2F3B;" data-unassign="${row.student_id}" data-assignment="${row.assignment_id||currentId}" data-name="${escapeHtml(row.display_name)}">Unassign</button></td>
         </tr>`).join('');
       body.querySelectorAll('[data-unassign]').forEach(btn=>{
