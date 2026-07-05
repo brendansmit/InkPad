@@ -20,6 +20,15 @@ Entry format:
 
 ---
 
+## 2026-07-05 — SONNET_HANDOFF_2 item 2: conversational tone pass on feedback prompts
+
+- Phase/Step worked: SONNET_HANDOFF_2.md item 2.
+- Built: replaced the "Copy rules" line in both `feedbackSuggester.js` DOER_SYSTEM_PROMPT and `profileSummarizer.js` DOER_SYSTEM_PROMPT with an instruction to write like a friendly teacher talking directly to the student (use "you", contractions, short sentences, low C1), plus the exact stiff/wanted example pair from the handoff. Kept the no em/en dash, no Oxford comma, metric-only rules and the 3-6 word title-length constraint. Did not touch literacy CODE labels or the CHECKER prompts (checker only verifies support, not tone).
+- Decisions: applied the identical wording to both services rather than writing two different tone instructions, since the handoff specified "same tone instruction" for profileSummarizer's writing_summary/voice_summary/targets.
+- Verified: `node --test test/feedbackSuggester.test.js test/profileSummarizer.test.js` — 15/15 pass. No test hardcodes the prompt text, and these are AI prompt strings that only affect live model output, so not independently browser-verifiable without a real OpenRouter key.
+- Open / next: items 3-4 (admin gradebook export, AI-mention audit) still pending.
+- Gotchas hit: none. Commit `cf19da5`.
+
 ## 2026-07-05 — SONNET_HANDOFF_2 item 1: dashboard scores bug fixed
 
 - Phase/Step worked: SONNET_HANDOFF_2.md item 1 (dashboard bug, do first).
