@@ -204,6 +204,14 @@
           <p class="hint">Batch mode also holds green pen rewrite access until you release feedback.</p>
         </div>
         <div class="field">
+          <label for="fSemester">Semester</label>
+          <select id="fSemester">
+            <option value="S1">S1</option>
+            <option value="S2">S2</option>
+          </select>
+          <p class="hint">Tags this assignment for later batch archiving by semester.</p>
+        </div>
+        <div class="field">
           <label for="fFeedbackTable1">Strengths and targets 1</label>
           <select id="fFeedbackTable1">
             <option value="" selected>None</option>
@@ -266,7 +274,14 @@
       const data=await me.json();
       if(data.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=data.user.csrf_token;
-      await Promise.all([loadClasses(),loadFeedbackAssets()]);
+      await Promise.all([loadClasses(),loadFeedbackAssets(),loadCurrentSemester()]);
+    }
+
+    async function loadCurrentSemester(){
+      const r=await fetch('/api/settings');
+      if(!r.ok) return;
+      const data=await r.json();
+      if(data.current_semester) document.getElementById('fSemester').value=data.current_semester;
     }
 
     async function loadFeedbackAssets(){
@@ -339,6 +354,7 @@
       const essay_type=document.getElementById('fEssayType').value;
       const supervision=document.getElementById('fSupervision').value;
       const feedback_release=document.getElementById('fFeedbackRelease').value;
+      const semester=document.getElementById('fSemester').value;
       const feedbackTable1=document.getElementById('fFeedbackTable1').value;
       const feedbackTable2=document.getElementById('fFeedbackTable2').value;
       const rubric1=document.getElementById('fRubricTemplate1').value;
@@ -353,7 +369,7 @@
       const passagePdfFile=document.getElementById('fPassagePdf').files[0];
       const feedback_tables=[feedbackTable1,feedbackTable2].filter(Boolean);
       const rubric_names=[rubricNameFor(rubric1),rubricNameFor(rubric2)];
-      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,essay_type,supervision,feedback_release,feedback_tables,rubric_names,native_inkpad:true};
+      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,essay_type,supervision,feedback_release,semester,feedback_tables,rubric_names,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 

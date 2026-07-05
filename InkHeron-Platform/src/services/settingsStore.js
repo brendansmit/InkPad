@@ -1,5 +1,7 @@
 export const secretSettingKeys = ['openrouter_api_key', 'serverchan_key', 'admin_export_key'];
 export const ADMIN_EXPORT_URL_DEFAULT = 'https://admin.inkheron.app';
+export const CURRENT_SEMESTER_DEFAULT = 'S1';
+const SEMESTERS = new Set(['S1', 'S2']);
 
 function cleanSecret(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -52,6 +54,23 @@ export function writeAdminExportUrl(db, value) {
       updated_at = excluded.updated_at
   `).run(trimmed || ADMIN_EXPORT_URL_DEFAULT);
   return readAdminExportUrl(db);
+}
+
+export function readCurrentSemester(db) {
+  const value = readRawSetting(db, 'current_semester');
+  return SEMESTERS.has(value) ? value : CURRENT_SEMESTER_DEFAULT;
+}
+
+export function writeCurrentSemester(db, value) {
+  const semester = SEMESTERS.has(value) ? value : CURRENT_SEMESTER_DEFAULT;
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('current_semester', ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).run(semester);
+  return readCurrentSemester(db);
 }
 
 export function writeSecretSettings(db, input) {

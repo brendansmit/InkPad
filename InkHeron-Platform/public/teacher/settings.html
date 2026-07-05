@@ -23,8 +23,8 @@
     .row{display:grid;grid-template-columns:minmax(0,1fr) 180px;gap:14px;align-items:end;margin-top:18px;}
     .row:first-child{margin-top:0;}
     label{display:block;color:var(--text-2);font-size:12px;font-weight:700;margin:0 0 6px;text-transform:uppercase;}
-    input{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:11px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
-    input:focus{outline:3px solid rgba(36,99,67,0.16);border-color:var(--green-600);}
+    input,select{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:11px 12px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    input:focus,select:focus{outline:3px solid rgba(36,99,67,0.16);border-color:var(--green-600);}
     .state{display:flex;align-items:center;gap:8px;min-height:40px;color:var(--text-2);}
     .mask{font-family:var(--mono);background:var(--surface-2);border-radius:8px;padding:6px 9px;color:var(--text);}
     .pill{display:inline-flex;align-items:center;min-height:26px;border-radius:999px;padding:0 10px;font-size:12.5px;font-weight:700;background:var(--surface-2);color:var(--text-2);}
@@ -80,6 +80,17 @@
       </div>
       <div class="row">
         <div>
+          <label for="currentSemester">Current semester</label>
+          <select id="currentSemester" name="current_semester">
+            <option value="S1">S1</option>
+            <option value="S2">S2</option>
+          </select>
+          <p style="color:var(--text-2);font-size:12px;margin:6px 0 0">Prefills the semester tag on new assignments.</p>
+        </div>
+        <div></div>
+      </div>
+      <div class="row">
+        <div>
           <label for="adminExportUrl">Admin gradebook URL</label>
           <input id="adminExportUrl" name="admin_export_url" type="text" autocomplete="off" placeholder="https://admin.inkheron.app">
         </div>
@@ -121,6 +132,7 @@
       renderState('serverchanState', data.settings.serverchan_key);
       renderState('adminExportKeyState', data.settings.admin_export_key, false);
       document.getElementById('adminExportUrl').value=data.admin_export_url||'';
+      document.getElementById('currentSemester').value=data.current_semester||'S1';
     }
 
     function renderState(id, setting, withTest=true){
@@ -162,10 +174,12 @@
       const serverchan=form.serverchan_key.value.trim();
       const adminExportKey=form.admin_export_key.value.trim();
       const adminExportUrl=form.admin_export_url.value.trim();
+      const currentSemester=form.current_semester.value;
       if(openrouter) payload.openrouter_api_key=openrouter;
       if(serverchan) payload.serverchan_key=serverchan;
       if(adminExportKey) payload.admin_export_key=adminExportKey;
       if(adminExportUrl) payload.admin_export_url=adminExportUrl;
+      if(currentSemester) payload.current_semester=currentSemester;
       if(!Object.keys(payload).length){ showMessage('Nothing changed.', true); return; }
       const button=document.getElementById('saveBtn');
       button.disabled=true;
@@ -184,6 +198,7 @@
       renderState('serverchanState', data.settings.serverchan_key);
       renderState('adminExportKeyState', data.settings.admin_export_key, false);
       document.getElementById('adminExportUrl').value=data.admin_export_url||'';
+      document.getElementById('currentSemester').value=data.current_semester||'S1';
       showMessage('Settings saved.', false);
     });
 

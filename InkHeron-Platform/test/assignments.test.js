@@ -164,6 +164,55 @@ test('feedback_release defaults to immediate and is validated when given', async
   await app.close();
 });
 
+test('semester tag defaults from current_semester, filters, and leaves untagged assignments under all', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath, logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+
+  // Default teacher setting is S1 (no /api/settings PATCH yet), so a plain create
+  // should be tagged S1 automatically.
+  const defaultTagged = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Autumn essay' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(JSON.parse(defaultTagged.json().assignment.settings_json).semester, 'S1');
+
+  const explicitS2 = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Spring essay', settings: { semester: 'S2' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(JSON.parse(explicitS2.json().assignment.settings_json).semester, 'S2');
+
+  // Simulate a pre-existing assignment from before this feature: no semester
+  // key in settings_json at all.
+  const db = new DatabaseSync(dbPath);
+  db.prepare(`
+    INSERT INTO assignments (class_id, title, type, settings_json)
+    VALUES (?, 'Untagged legacy essay', 'essay', '{"type":"essay"}')
+  `).run(classId);
+  db.close();
+
+  const list = await app.inject({ method: 'GET', url: '/api/assignments',
+    headers: { cookie: teacher.cookies } });
+  assert.equal(list.json().assignments.length, 3);
+
+  const s1Only = await app.inject({ method: 'GET', url: '/api/assignments?semester=S1',
+    headers: { cookie: teacher.cookies } });
+  assert.deepEqual(s1Only.json().assignments.map(a => a.title), ['Autumn essay']);
+
+  const s2Only = await app.inject({ method: 'GET', url: '/api/assignments?semester=S2',
+    headers: { cookie: teacher.cookies } });
+  assert.deepEqual(s2Only.json().assignments.map(a => a.title), ['Spring essay']);
+
+  const allExplicit = await app.inject({ method: 'GET', url: '/api/assignments?semester=all',
+    headers: { cookie: teacher.cookies } });
+  assert.equal(allExplicit.json().assignments.length, 3);
+  assert.ok(allExplicit.json().assignments.some(a => a.title === 'Untagged legacy essay'));
+
+  await app.close();
+});
+
 test('release-feedback stamps feedback_released_at once and is idempotent', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);

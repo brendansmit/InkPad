@@ -30,6 +30,8 @@
     .search-row{display:flex;gap:12px;align-items:center;margin:18px 0 12px;}
     .search-row input{flex:1;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 14px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
     .search-row input:focus{outline:none;border-color:var(--green-600);}
+    .search-row select{border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 14px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
+    .search-row select:focus{outline:none;border-color:var(--green-600);}
     .asgn-list{display:flex;flex-direction:column;gap:8px;}
     .asgn-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px;box-shadow:var(--shadow-card);display:flex;align-items:center;gap:12px;}
     .asgn-card .card-click{flex:1;min-width:0;cursor:pointer;display:flex;align-items:center;gap:12px;}
@@ -147,6 +149,11 @@
       </div>
       <div class="search-row">
         <input type="text" id="searchInput" placeholder="Search by title or class…" autocomplete="off">
+        <select id="semesterFilter" style="min-width:110px;">
+          <option value="all">All semesters</option>
+          <option value="S1">S1</option>
+          <option value="S2">S2</option>
+        </select>
       </div>
       <div class="asgn-list" id="asgnList"></div>
     </div>
@@ -410,7 +417,11 @@
     }
 
     async function fetchAssignments(){
-      const url=showingArchived?'/api/assignments?archived=1':'/api/assignments';
+      const semester=document.getElementById('semesterFilter').value;
+      const qs=new URLSearchParams();
+      if(showingArchived) qs.set('archived','1');
+      if(semester && semester!=='all') qs.set('semester',semester);
+      const url=qs.toString()?`/api/assignments?${qs}`:'/api/assignments';
       const ar=await fetch(url);
       const ad=await ar.json(); assignments=ad.assignments||[];
       document.getElementById('listHeading').textContent=showingArchived?'Archived assignments':'Assignments';
@@ -603,6 +614,11 @@
       document.getElementById('deleteBtn').addEventListener('click',deleteAssignment);
       document.getElementById('toggleArchiveBtn').addEventListener('click',async()=>{
         showingArchived=!showingArchived;
+        await fetchAssignments();
+        renderList(document.getElementById('searchInput').value);
+        saveFilterState();
+      });
+      document.getElementById('semesterFilter').addEventListener('change',async()=>{
         await fetchAssignments();
         renderList(document.getElementById('searchInput').value);
         saveFilterState();
@@ -1092,6 +1108,7 @@
       const state={
         search:document.getElementById('searchInput').value,
         archived:showingArchived,
+        semester:document.getElementById('semesterFilter').value,
         status:document.getElementById('statusFilter').value,
         paste:document.getElementById('pasteFilter').value,
         sort:document.getElementById('sortSelect').value,
@@ -1103,6 +1120,7 @@
         const state=JSON.parse(sessionStorage.getItem(filterStateKey)||'{}');
         showingArchived=state.archived===true;
         if(state.search) document.getElementById('searchInput').value=state.search;
+        if(state.semester) document.getElementById('semesterFilter').value=state.semester;
         if(state.status) document.getElementById('statusFilter').value=state.status;
         if(state.paste) document.getElementById('pasteFilter').value=state.paste;
         if(state.sort) document.getElementById('sortSelect').value=state.sort;

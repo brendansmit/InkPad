@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { exportAssignmentToAdmin } from '../services/adminExport.js';
 import { notifyTeacher } from '../services/serverChan.js';
+import { readCurrentSemester } from '../services/settingsStore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
@@ -14,6 +15,7 @@ const ESSAY_TYPES = new Set([
 ]);
 const SUPERVISION_LEVELS = new Set(['in_class', 'mixed', 'homework']);
 const FEEDBACK_RELEASE_MODES = new Set(['immediate', 'batch']);
+const SEMESTERS = new Set(['S1', 'S2']);
 
 // Fire-and-forget an async notification without blocking the HTTP response
 // (matches the pattern in src/routes/nativePads.js).
@@ -86,6 +88,9 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     supervision: SUPERVISION_LEVELS.has(settings.supervision) ? settings.supervision : 'in_class',
     feedback_release: FEEDBACK_RELEASE_MODES.has(settings.feedback_release) ? settings.feedback_release : 'immediate',
   };
+  // Tag only — untagged assignments simply omit this key and still show under
+  // the 'all' semester filter (see GET /api/assignments).
+  if (SEMESTERS.has(settings.semester)) base.semester = settings.semester;
   if (type === 'test') {
     base.shuffle = settings.shuffle !== false;
     base.pooling = settings.pooling ?? 'off';
@@ -294,7 +299,8 @@ export async function registerAssignmentRoutes(app, { db }) {
       const cls = db.prepare('SELECT id FROM classes WHERE id = ?').get(class_id);
       if (!cls) return reply.code(404).send({ error: 'class_not_found' });
 
-      const settings_json = buildSettingsJson(settings, type);
+      const semester = SEMESTERS.has(settings.semester) ? settings.semester : readCurrentSemester(db);
+      const settings_json = buildSettingsJson({ ...settings, semester }, type);
       const result = db.prepare(`
         INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -319,13 +325,18 @@ export async function registerAssignmentRoutes(app, { db }) {
   app.get('/api/assignments',
     { preValidation: [app.requireTeacherSession] },
     async (request) => {
-      const { class_id, archived } = request.query;
+      const { class_id, archived, semester } = request.query;
       const showArchived = archived === '1';
       const archivedClause = showArchived ? 'is_archived = 1' : 'is_archived = 0';
       const rows = class_id
         ? db.prepare(`SELECT * FROM assignments WHERE class_id = ? AND ${archivedClause} ORDER BY due_at ASC, created_at DESC`).all(class_id)
         : db.prepare(`SELECT * FROM assignments WHERE ${archivedClause} ORDER BY due_at ASC, created_at DESC`).all();
-      return { assignments: rows.map(publicAssignment) };
+      let assignments = rows.map(publicAssignment);
+      // Untagged assignments (no semester in settings_json) always show under 'all'.
+      if (semester && SEMESTERS.has(semester)) {
+        assignments = assignments.filter((a) => parseSettings(a.settings_json).semester === semester);
+      }
+      return { assignments };
     }
   );
 

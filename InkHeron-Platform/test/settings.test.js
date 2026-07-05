@@ -118,6 +118,37 @@ test('teacher can store settings and read back only masked values', async () => 
   await app.close();
 });
 
+test('current_semester defaults to S1 and can be updated, ignoring invalid values', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await createTeacherSession(app);
+
+  const initial = await app.inject({ method: 'GET', url: '/api/settings', headers: { cookie: teacher.cookies } });
+  assert.equal(initial.json().current_semester, 'S1');
+
+  const updated = await app.inject({
+    method: 'PATCH',
+    url: '/api/settings',
+    payload: { current_semester: 'S2' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+  });
+  assert.equal(updated.statusCode, 200);
+  assert.equal(updated.json().current_semester, 'S2');
+
+  const reread = await app.inject({ method: 'GET', url: '/api/settings', headers: { cookie: teacher.cookies } });
+  assert.equal(reread.json().current_semester, 'S2');
+
+  const invalid = await app.inject({
+    method: 'PATCH',
+    url: '/api/settings',
+    payload: { current_semester: 'S3' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+  });
+  assert.equal(invalid.statusCode, 200);
+  assert.equal(invalid.json().current_semester, 'S1');
+
+  await app.close();
+});
+
 test('settings API rejects students and missing CSRF', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await createTeacherSession(app);
