@@ -99,10 +99,12 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 <body>
 <div class="appbar">
   <div class="glyph">i</div>
+  <a class="btn sm" id="backBtn" href="/teacher/assignments">← Assignments</a>
   <span class="who" id="studentName">…</span>
   <span class="crumb" id="crumb"></span>
   <span class="spacer"></span>
   <span class="nextprev" id="markedCount"></span>
+  <button class="btn" id="reanalyzeBtn" title="Re-run the AI marking on this essay">Run AI review</button>
   <button class="btn" id="prevBtn">← Prev</button>
   <button class="btn" id="nextBtn">Next →</button>
   <button class="btn primary" id="finishBtn">Finish marking</button>
@@ -183,6 +185,24 @@ function renderTop(){
   nextBtn.disabled = !nextUnmarked; nextBtn.onclick = ()=>{ if(nextUnmarked) location.href = '/teacher/native-review?pad_id='+nextUnmarked.pad_id; };
   prevBtn.disabled = !prev; prevBtn.onclick = ()=>{ if(prev) location.href = '/teacher/native-review?pad_id='+prev.pad_id; };
   document.getElementById('finishBtn').onclick = finishMarking;
+  document.getElementById('reanalyzeBtn').onclick = reanalyze;
+  const back = document.getElementById('backBtn');
+  if (back) back.href = a.id ? '/teacher/assignments?id=' + a.id : '/teacher/assignments';
+}
+
+async function reanalyze(){
+  const btn = document.getElementById('reanalyzeBtn');
+  if (btn.disabled) return;
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Reviewing…';
+  try {
+    const res = await api('/api/native/pads/'+padId+'/reanalyze', { method:'POST' });
+    if (res.status === 'no_key') toast(res.message);
+    else if (res.status === 'empty') toast(res.message);
+    else if (res.status === 'ok') toast('AI review done: '+res.marks+' marks, '+res.suggestions+' suggestions');
+    else toast('AI review finished');
+    if (res.status === 'ok') await loadAll();
+  } catch(e){ toast('AI review failed'); }
+  finally { btn.disabled = false; btn.textContent = label; }
 }
 
 function isAuto(ann){ return ann.type === 'literacy_code'; }

@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-05 — Opus HANDOFF_2 item 1: back button on the marking page
+- Added a compact "← Assignments" link at the far left of the native-review.html top bar. On load it points to /teacher/assignments?id=<assignment id> (from the review payload), falling back to /teacher/assignments before the payload arrives.
+- Verified in preview at 1024px: link resolves to ?id=2 for the seeded pad and the top bar stays on one row with all controls visible.
+- Note: this commit also carries the "Run AI review" button added in the previous session (it was left uncommitted then because native-review.html was being co-edited; the file's uncommitted diff is now all mine).
+
 ## 2026-07-05 — SONNET_HANDOFF_2 item 5: batch feedback release
 
 - Phase/Step worked: SONNET_HANDOFF_2.md item 5 (first of the three remaining items after "go finish the other 3 things").
