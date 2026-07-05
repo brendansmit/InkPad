@@ -367,7 +367,7 @@ test('teacher dashboard links native pads to native review with paste evidence',
   assert.equal(csv.statusCode, 200);
   assert.match(csv.headers['content-type'], /text\/csv/);
   assert.match(csv.headers['content-disposition'], /assignment-/);
-  assert.match(csv.body, /"Student name","Username","Status","Submitted at","Grade","Grade state","Paste flag","Paste count"/);
+  assert.match(csv.body, /"Student name","Username","Status","Submitted at","Score","Score max","Exam score","Exam score max","Grade state","Paste flag","Paste count"/);
   assert.match(csv.body, /"Alice","alice","writing"/);
   assert.match(csv.body, /"yes","1"/);
 
@@ -413,6 +413,128 @@ test('teacher assignment dashboard filters by status and paste flag', async () =
   const marked = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/dashboard?status=marked`,
     headers: { cookie: teacher.cookies } });
   assert.deepEqual(marked.json().students.map(student => student.username), ['bob']);
+
+  await app.close();
+});
+
+test('dashboard shows rubric totals once scored and finish-marking releases them', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+  const alice = await setupStudent(app, teacher, classId, { username: 'alice', display_name: 'Alice' });
+  const bob = await setupStudent(app, teacher, classId, { username: 'bob', display_name: 'Bob' });
+
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Scored essay', settings: { native_inkpad: true } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const assignmentId = created.json().assignment.id;
+
+  const rubric = await app.inject({ method: 'PUT', url: `/api/native/assignments/${assignmentId}/rubric`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { criteria: [
+      { label: 'Ideas', bands: [{ score_value: 0 }, { score_value: 1 }, { score_value: 2 }, { score_value: 3 }] },
+      { label: 'Organisation', bands: [{ score_value: 0 }, { score_value: 1 }, { score_value: 2 }] },
+    ] } });
+  assert.equal(rubric.statusCode, 200);
+  const criteria = rubric.json().rubric.criteria;
+
+  const alicePad = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: alice.cookies } });
+  const alicePadId = alicePad.json().pad.id;
+  await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`, headers: { cookie: bob.cookies } });
+
+  const scored = await app.inject({ method: 'PUT', url: `/api/native/pads/${alicePadId}/rubric-scores`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { scores: [
+      { criterion_id: criteria[0].id, selected_score: 2 },
+      { criterion_id: criteria[1].id, selected_score: 1 },
+    ] } });
+  assert.equal(scored.statusCode, 200);
+
+  const beforeMarking = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/dashboard`,
+    headers: { cookie: teacher.cookies } });
+  const aliceBefore = beforeMarking.json().students.find(s => s.username === 'alice');
+  assert.equal(aliceBefore.score, 3);
+  assert.equal(aliceBefore.score_max, 5);
+  assert.equal(aliceBefore.grade_state, 'held');
+  assert.equal(aliceBefore.grade_released, false);
+  const bobBefore = beforeMarking.json().students.find(s => s.username === 'bob');
+  assert.equal(bobBefore.score, null);
+  assert.equal(bobBefore.score_max, 5);
+
+  await app.inject({ method: 'POST', url: `/api/native/pads/${alicePadId}/finish-marking`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+
+  const afterMarking = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/dashboard`,
+    headers: { cookie: teacher.cookies } });
+  const aliceAfter = afterMarking.json().students.find(s => s.username === 'alice');
+  assert.equal(aliceAfter.status, 'marked');
+  assert.equal(aliceAfter.score, 3);
+  assert.equal(aliceAfter.grade_state, 'released');
+  assert.equal(aliceAfter.grade_released, true);
+
+  const csv = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}/export.csv`,
+    headers: { cookie: teacher.cookies } });
+  assert.match(csv.body, /"Alice","alice","marked",[^\n]*"3","5"/);
+
+  await app.close();
+});
+
+test('AP Lang exam score shows on the dashboard only for AP Lang classes', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath, logger: false });
+  const teacher = await setupTeacher(app);
+  const apCls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'AP Lang Period 3' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const apClassId = apCls.json().class.id;
+  const regularCls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const regularClassId = regularCls.json().class.id;
+
+  const alice = await setupStudent(app, teacher, apClassId, { username: 'alice', display_name: 'Alice' });
+  const bob = await setupStudent(app, teacher, regularClassId, { username: 'bob', display_name: 'Bob' });
+
+  const apAssignment = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: apClassId, title: 'Timed write', settings: { native_inkpad: true } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const apAssignmentId = apAssignment.json().assignment.id;
+  const regularAssignment = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: regularClassId, title: 'Regular essay', settings: { native_inkpad: true } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const regularAssignmentId = regularAssignment.json().assignment.id;
+
+  const examRubric = await app.inject({ method: 'PUT', url: `/api/native/assignments/${apAssignmentId}/exam-rubric`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies }, payload: {} });
+  assert.equal(examRubric.statusCode, 200);
+  const examCriterionId = examRubric.json().rubric.criteria[0].id;
+
+  const alicePad = await app.inject({ method: 'GET', url: `/api/native/assignments/${apAssignmentId}/pad`,
+    headers: { cookie: alice.cookies } });
+  const alicePadId = alicePad.json().pad.id;
+  await app.inject({ method: 'PUT', url: `/api/native/pads/${alicePadId}/exam-rubric-scores`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { scores: [{ criterion_id: examCriterionId, selected_score: 4 }] } });
+
+  await app.inject({ method: 'GET', url: `/api/native/assignments/${regularAssignmentId}/pad`,
+    headers: { cookie: bob.cookies } });
+
+  const apDashboard = await app.inject({ method: 'GET', url: `/api/assignments/${apAssignmentId}/dashboard`,
+    headers: { cookie: teacher.cookies } });
+  assert.equal(apDashboard.json().class.is_ap_lang, true);
+  const aliceRow = apDashboard.json().students.find(s => s.username === 'alice');
+  assert.equal(aliceRow.is_ap_lang, true);
+  assert.equal(aliceRow.exam_score, 4);
+  assert.ok(aliceRow.exam_score_max > 0);
+
+  const regularDashboard = await app.inject({ method: 'GET', url: `/api/assignments/${regularAssignmentId}/dashboard`,
+    headers: { cookie: teacher.cookies } });
+  assert.equal(regularDashboard.json().class.is_ap_lang, false);
+  const bobRow = regularDashboard.json().students.find(s => s.username === 'bob');
+  assert.equal(bobRow.is_ap_lang, false);
+  assert.equal(bobRow.exam_score, null);
+  assert.equal(bobRow.exam_score_max, 0);
 
   await app.close();
 });

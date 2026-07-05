@@ -129,12 +129,23 @@ function deriveTeacherStatus(row) {
   return row.native_pad_state ?? 'writing';
 }
 
-function publicDashboardRow(row) {
+// A pad's marking is visible to the student from 'marked' onward (finish-marking
+// is what releases feedback), so grade_state tracks the same threshold.
+const RELEASED_STATUSES = new Set(['marked', 'green_pen_open', 'resubmitted']);
+
+function isApLangClassName(name) {
+  return /\bap\b[\s._-]*lang/i.test(String(name || ''));
+}
+
+function publicDashboardRow(row, { rubricMax = { internal: 0, exam: 0 }, isApLang = false } = {}) {
   const status = deriveTeacherStatus(row);
   const padId = row.native_pad_id;
   const pasteCount = row.native_paste_count;
   const pasteTotal = row.native_paste_total_length;
   const latestPaste = row.native_latest_paste_at;
+  const internalCount = Number(row.native_rubric_internal_count ?? 0);
+  const examCount = Number(row.native_rubric_exam_count ?? 0);
+  const gradeState = RELEASED_STATUSES.has(status) ? 'released' : 'held';
   return {
     student_id: row.student_id,
     display_name: row.display_name,
@@ -147,9 +158,13 @@ function publicDashboardRow(row) {
     paste_count: Number(pasteCount ?? 0),
     paste_total_length: Number(pasteTotal ?? 0),
     latest_paste_at: latestPaste ?? null,
-    score: null,
-    grade_released: false,
-    grade_state: null,
+    score: internalCount > 0 ? Number(row.native_rubric_internal_total ?? 0) : null,
+    score_max: rubricMax.internal,
+    exam_score: examCount > 0 ? Number(row.native_rubric_exam_total ?? 0) : null,
+    exam_score_max: rubricMax.exam,
+    is_ap_lang: isApLang,
+    grade_released: gradeState === 'released',
+    grade_state: gradeState,
   };
 }
 
@@ -191,7 +206,11 @@ function fetchDashboardRows(db, assignmentId, classId) {
            np.submitted_at AS native_submitted_at,
            native_paste.native_paste_count,
            native_paste.native_paste_total_length,
-           native_paste.native_latest_paste_at
+           native_paste.native_latest_paste_at,
+           rubric_totals.internal_total AS native_rubric_internal_total,
+           rubric_totals.internal_count AS native_rubric_internal_count,
+           rubric_totals.exam_total AS native_rubric_exam_total,
+           rubric_totals.exam_count AS native_rubric_exam_count
     FROM students s
     ${joinClause}
     LEFT JOIN native_pads np ON np.student_id = s.id AND np.assignment_id = ?
@@ -202,8 +221,34 @@ function fetchDashboardRows(db, assignmentId, classId) {
              MAX(at) AS native_latest_paste_at
       FROM native_paste_events GROUP BY native_pad_id
     ) native_paste ON native_paste.native_pad_id = np.id
+    LEFT JOIN (
+      SELECT s2.native_pad_id,
+             SUM(CASE WHEN c.rubric_kind = 'internal' THEN s2.selected_score ELSE 0 END) AS internal_total,
+             COUNT(CASE WHEN c.rubric_kind = 'internal' THEN 1 END) AS internal_count,
+             SUM(CASE WHEN c.rubric_kind = 'exam' THEN s2.selected_score ELSE 0 END) AS exam_total,
+             COUNT(CASE WHEN c.rubric_kind = 'exam' THEN 1 END) AS exam_count
+      FROM native_rubric_scores s2
+      JOIN assignment_rubric_criteria c ON c.id = s2.criterion_id
+      GROUP BY s2.native_pad_id
+    ) rubric_totals ON rubric_totals.native_pad_id = np.id
     ORDER BY s.display_name COLLATE NOCASE
   `).all(assignmentId);
+}
+
+// Sum of each rubric criterion's highest band value for an assignment: the
+// denominator for the dashboard's score column (e.g. "12 / 15").
+function loadRubricMax(db, assignmentId, rubricKind) {
+  const row = db.prepare(`
+    SELECT COALESCE(SUM(max_band), 0) AS total
+    FROM (
+      SELECT MAX(b.score_value) AS max_band
+      FROM assignment_rubric_criteria c
+      JOIN assignment_rubric_bands b ON b.criterion_id = c.id
+      WHERE c.assignment_id = ? AND c.rubric_kind = ?
+      GROUP BY c.id
+    )
+  `).get(assignmentId, rubricKind);
+  return Number(row?.total ?? 0);
 }
 
 export async function registerAssignmentRoutes(app, { db }) {
@@ -288,10 +333,12 @@ export async function registerAssignmentRoutes(app, { db }) {
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
 
       const rows = fetchDashboardRows(db, id, assignment.class_id);
+      const rubricMax = { internal: loadRubricMax(db, id, 'internal'), exam: loadRubricMax(db, id, 'exam') };
+      const isApLang = isApLangClassName(assignment.class_name);
 
       const statusFilter = request.query.status;
       const pasteFilter = request.query.paste;
-      let students = rows.map(publicDashboardRow);
+      let students = rows.map(row => publicDashboardRow(row, { rubricMax, isApLang }));
       if (statusFilter && statusFilter !== 'all') {
         students = students.filter(student => student.status === statusFilter);
       }
@@ -300,7 +347,7 @@ export async function registerAssignmentRoutes(app, { db }) {
 
       return {
         assignment: publicAssignment(assignment),
-        class: { id: assignment.class_id, name: assignment.class_name },
+        class: { id: assignment.class_id, name: assignment.class_name, is_ap_lang: isApLang },
         students: sortDashboardRows(students, request.query.sort),
       };
     }
@@ -318,9 +365,11 @@ export async function registerAssignmentRoutes(app, { db }) {
       `).get(id);
       if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
 
-      const rows = fetchDashboardRows(db, id, assignment.class_id).map(publicDashboardRow);
+      const rubricMax = { internal: loadRubricMax(db, id, 'internal'), exam: loadRubricMax(db, id, 'exam') };
+      const isApLang = isApLangClassName(assignment.class_name);
+      const rows = fetchDashboardRows(db, id, assignment.class_id).map(row => publicDashboardRow(row, { rubricMax, isApLang }));
 
-      const header = ['Student name', 'Username', 'Status', 'Submitted at', 'Grade', 'Grade state', 'Paste flag', 'Paste count'];
+      const header = ['Student name', 'Username', 'Status', 'Submitted at', 'Score', 'Score max', 'Exam score', 'Exam score max', 'Grade state', 'Paste flag', 'Paste count'];
       const lines = [
         header.map(csvCell).join(','),
         ...sortDashboardRows(rows, 'student').map(row => [
@@ -329,6 +378,9 @@ export async function registerAssignmentRoutes(app, { db }) {
           row.status,
           row.submitted_at,
           row.score,
+          row.score_max,
+          row.exam_score,
+          row.exam_score_max,
           row.grade_state,
           row.paste_flag ? 'yes' : 'no',
           row.paste_count,
