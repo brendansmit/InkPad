@@ -100,6 +100,10 @@ async function boot(){
   csrf = me.user.csrf_token;
   data = await api('/api/native/assignments/'+encodeURIComponent(assignmentId)+'/feedback');
   padId = data.pad.id;
+  if (data.feedback_released === false) {
+    document.getElementById('essay').innerHTML = '<div class="loading">'+esc(data.message)+'</div>';
+    return;
+  }
   render();
 }
 

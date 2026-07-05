@@ -135,6 +135,68 @@ test('essay_type and supervision default when absent and are validated when give
   await app.close();
 });
 
+test('feedback_release defaults to immediate and is validated when given', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+
+  const noSettings = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'No settings given' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const defaults = JSON.parse(noSettings.json().assignment.settings_json);
+  assert.equal(defaults.feedback_release, 'immediate');
+  assert.equal(noSettings.json().assignment.feedback_released_at, null);
+
+  const batch = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Batch essay', settings: { feedback_release: 'batch' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const chosen = JSON.parse(batch.json().assignment.settings_json);
+  assert.equal(chosen.feedback_release, 'batch');
+
+  const invalid = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Bad value', settings: { feedback_release: 'whenever' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const fallback = JSON.parse(invalid.json().assignment.settings_json);
+  assert.equal(fallback.feedback_release, 'immediate');
+
+  await app.close();
+});
+
+test('release-feedback stamps feedback_released_at once and is idempotent', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Batch essay', settings: { feedback_release: 'batch' } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const assignmentId = created.json().assignment.id;
+  assert.equal(created.json().assignment.feedback_released_at, null);
+
+  const released = await app.inject({ method: 'POST', url: `/api/assignments/${assignmentId}/release-feedback`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(released.statusCode, 200);
+  assert.equal(released.json().released, true);
+
+  const after = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}`,
+    headers: { cookie: teacher.cookies } });
+  const firstStamp = after.json().assignment.feedback_released_at;
+  assert.ok(firstStamp);
+
+  const releasedAgain = await app.inject({ method: 'POST', url: `/api/assignments/${assignmentId}/release-feedback`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  assert.equal(releasedAgain.statusCode, 200);
+
+  const afterAgain = await app.inject({ method: 'GET', url: `/api/assignments/${assignmentId}`,
+    headers: { cookie: teacher.cookies } });
+  assert.equal(afterAgain.json().assignment.feedback_released_at, firstStamp);
+
+  await app.close();
+});
+
 test('word_count and paste_detection are always true regardless of input', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);

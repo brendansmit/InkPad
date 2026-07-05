@@ -949,7 +949,7 @@ function replaceAssignmentRubric(db, assignmentId, criteria, rubricKind = 'inter
 
 async function resolveNativeAssignmentAndStudent(db, assignmentId, studentId) {
   const assignment = db.prepare(
-    'SELECT id, class_id, title, type, settings_json, opens_at, due_at FROM assignments WHERE id = ?'
+    'SELECT id, class_id, title, type, settings_json, opens_at, due_at, feedback_released_at FROM assignments WHERE id = ?'
   ).get(assignmentId);
   if (!assignment) {
     const error = new Error('assignment_not_found');
@@ -982,6 +982,16 @@ async function resolveNativeAssignmentAndStudent(db, assignmentId, studentId) {
   }
 
   return { assignment, student, settings: parseSettings(assignment.settings_json) };
+}
+
+// In 'batch' feedback_release mode, feedback and green-pen rewrite access stay
+// closed for marked/reopened/resubmitted pads until the teacher releases them.
+function isBatchFeedbackHeld(db, assignmentId, padState) {
+  if (!['marked', 'green_pen_open', 'resubmitted'].includes(padState)) return false;
+  const row = db.prepare('SELECT settings_json, feedback_released_at FROM assignments WHERE id = ?').get(assignmentId);
+  if (!row) return false;
+  const settings = parseSettings(row.settings_json);
+  return settings.feedback_release === 'batch' && !row.feedback_released_at;
 }
 
 function insertRevision(db, padId, reason, row) {
@@ -1241,6 +1251,9 @@ export async function registerNativePadRoutes(app, { db }) {
       if (pad.state !== 'writing' && pad.state !== 'green_pen_open') {
         return reply.code(409).send({ error: 'pad_locked' });
       }
+      if (pad.state === 'green_pen_open' && isBatchFeedbackHeld(db, pad.assignment_id, pad.state)) {
+        return reply.code(403).send({ error: 'feedback_not_released' });
+      }
       const expectedVersion = request.body?.expected_version === undefined ? null : Number(request.body.expected_version);
       if (expectedVersion !== null && (!Number.isInteger(expectedVersion) || expectedVersion !== Number(pad.version ?? 1))) {
         return reply.code(409).send({ error: 'version_conflict', pad: publicNativePad(pad) });
@@ -1271,6 +1284,9 @@ export async function registerNativePadRoutes(app, { db }) {
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
       if (pad.state !== 'writing' && pad.state !== 'green_pen_open') {
         return reply.code(409).send({ error: 'already_submitted' });
+      }
+      if (pad.state === 'green_pen_open' && isBatchFeedbackHeld(db, pad.assignment_id, pad.state)) {
+        return reply.code(403).send({ error: 'feedback_not_released' });
       }
 
       const nextState = pad.state === 'green_pen_open' ? 'resubmitted' : 'submitted';
@@ -1675,6 +1691,14 @@ export async function registerNativePadRoutes(app, { db }) {
       const { assignment, student, settings } = await resolveNativeAssignmentAndStudent(db, assignmentId, studentId);
       const pad = db.prepare('SELECT * FROM native_pads WHERE assignment_id = ? AND student_id = ?').get(assignmentId, studentId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      if (settings.feedback_release === 'batch' && !assignment.feedback_released_at
+          && ['marked', 'green_pen_open', 'resubmitted'].includes(pad.state)) {
+        return {
+          pad: publicNativePad(pad),
+          feedback_released: false,
+          message: 'Your teacher has marked this. Feedback will open soon.',
+        };
+      }
       const annotations = db.prepare(`
         SELECT *
         FROM native_annotations
@@ -1723,6 +1747,7 @@ export async function registerNativePadRoutes(app, { db }) {
         },
         student_profile: loadStudentWritingProfile(db, student.id),
         rewrite_url: `/native/write/${assignment.id}`,
+        feedback_released: true,
       };
     }
   );
@@ -2229,6 +2254,9 @@ ${hasPdf ? `<object class="pdf" data="/api/assignments/${assignment.id}/passage-
       }
 
       const pad = provisionNativePad(db, { assignment, student });
+      if (pad.state === 'green_pen_open' && settings.feedback_release === 'batch' && !assignment.feedback_released_at) {
+        return reply.code(403).send({ error: 'feedback_not_released', message: 'Your teacher has marked this. Feedback will open soon.' });
+      }
       applyDueDateLock(db, pad, assignment);
       const policy = ensurePolicy(db, pad.id, settings);
 

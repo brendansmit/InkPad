@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { exportAssignmentToAdmin } from '../services/adminExport.js';
+import { notifyTeacher } from '../services/serverChan.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
@@ -12,6 +13,19 @@ const ESSAY_TYPES = new Set([
   'short_response', 'rhetorical_analysis', 'synthesis', 'other',
 ]);
 const SUPERVISION_LEVELS = new Set(['in_class', 'mixed', 'homework']);
+const FEEDBACK_RELEASE_MODES = new Set(['immediate', 'batch']);
+
+// Fire-and-forget an async notification without blocking the HTTP response
+// (matches the pattern in src/routes/nativePads.js).
+function runInBackground(label, promiseFactory) {
+  try {
+    Promise.resolve(promiseFactory()).catch((error) => {
+      console.warn(`[assignments:${label}]`, error?.message ?? error);
+    });
+  } catch (error) {
+    console.warn(`[assignments:${label}]`, error?.message ?? error);
+  }
+}
 
 function requirePositiveInteger(value, field) {
   const n = Number(value);
@@ -34,6 +48,7 @@ function publicAssignment(row) {
     due_at: row.due_at ?? null,
     created_at: row.created_at,
     is_archived: row.is_archived === 1,
+    feedback_released_at: row.feedback_released_at ?? null,
   };
 }
 
@@ -69,6 +84,7 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     native_inkpad: true,
     essay_type: ESSAY_TYPES.has(settings.essay_type) ? settings.essay_type : 'other',
     supervision: SUPERVISION_LEVELS.has(settings.supervision) ? settings.supervision : 'in_class',
+    feedback_release: FEEDBACK_RELEASE_MODES.has(settings.feedback_release) ? settings.feedback_release : 'immediate',
   };
   if (type === 'test') {
     base.shuffle = settings.shuffle !== false;
@@ -489,6 +505,26 @@ export async function registerAssignmentRoutes(app, { db }) {
       const newState = existing.is_archived ? 0 : 1;
       db.prepare('UPDATE assignments SET is_archived = ? WHERE id = ?').run(newState, id);
       return { is_archived: newState === 1 };
+    }
+  );
+
+  app.post('/api/assignments/:id/release-feedback',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const existing = db.prepare('SELECT id, title, feedback_released_at FROM assignments WHERE id = ?').get(id);
+      if (!existing) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      if (!existing.feedback_released_at) {
+        db.prepare('UPDATE assignments SET feedback_released_at = datetime(\'now\') WHERE id = ?').run(id);
+        runInBackground('release-feedback-notify', () => notifyTeacher(db, {
+          studentName: 'Feedback',
+          assignmentTitle: existing.title,
+          action: 'released to the class',
+        }));
+      }
+
+      return { released: true };
     }
   );
 

@@ -56,7 +56,7 @@ function multipartPayload({ file }) {
   };
 }
 
-async function seedNativeAssignment(app, { enabled = true, greenPen = false, pasteMode = 'log' } = {}) {
+async function seedNativeAssignment(app, { enabled = true, greenPen = false, pasteMode = 'log', feedbackRelease } = {}) {
   const { cookies: teacherCookies, csrfToken: teacherCsrf } = await createTeacherSession(app);
 
   const classResponse = await app.inject({
@@ -85,6 +85,7 @@ async function seedNativeAssignment(app, { enabled = true, greenPen = false, pas
     paste_mode: pasteMode,
     prompt: 'Write one clear paragraph.',
   };
+  if (feedbackRelease) settings.feedback_release = feedbackRelease;
   const result = db.prepare(`
     INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
     VALUES (?, 'Native essay', 'essay', ?, datetime('now', '-1 day'), datetime('now', '+7 days'))
@@ -850,6 +851,171 @@ test('teacher can return native feedback and student can view it', async () => {
   assert.match(page.body, /api\/native\/assignments/);
   assert.match(page.body, /toggle-check/);
   assert.match(page.body, /Your targets/);
+
+  await app.close();
+});
+
+test('batch feedback_release holds feedback and green pen rewrite until teacher releases', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app, { greenPen: true, feedbackRelease: 'batch' });
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  const padId = created.json().pad.id;
+
+  await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Batch release sample.' }] },
+      plain_text: 'Batch release sample.',
+    },
+  });
+  const submitted = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/submit`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+  });
+  assert.equal(submitted.statusCode, 201);
+
+  const finished = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/finish-marking`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+  });
+  assert.equal(finished.statusCode, 200);
+  assert.equal(finished.json().pad.state, 'green_pen_open');
+
+  // Feedback is held: friendly gate, no feedback/annotations leaked.
+  const heldFeedback = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/feedback`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(heldFeedback.statusCode, 200);
+  assert.equal(heldFeedback.json().feedback_released, false);
+  assert.ok(!('feedback' in heldFeedback.json()));
+  assert.ok(!('annotations' in heldFeedback.json()));
+
+  // Green pen rewrite access is held too, on both the write view and save/submit.
+  const heldWritePage = await app.inject({
+    method: 'GET',
+    url: `/native/write/${assignmentId}`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(heldWritePage.statusCode, 403);
+  assert.equal(heldWritePage.json().error, 'feedback_not_released');
+
+  const heldSave = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: { document: { type: 'doc' }, plain_text: 'trying to rewrite early' },
+  });
+  assert.equal(heldSave.statusCode, 403);
+  assert.equal(heldSave.json().error, 'feedback_not_released');
+
+  const heldSubmit = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/submit`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+  });
+  assert.equal(heldSubmit.statusCode, 403);
+  assert.equal(heldSubmit.json().error, 'feedback_not_released');
+
+  // Teacher releases feedback for the assignment.
+  const released = await app.inject({
+    method: 'POST',
+    url: `/api/assignments/${assignmentId}/release-feedback`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+  });
+  assert.equal(released.statusCode, 200);
+  assert.equal(released.json().released, true);
+
+  const openFeedback = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/feedback`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(openFeedback.statusCode, 200);
+  assert.equal(openFeedback.json().feedback_released, true);
+  assert.equal(openFeedback.json().pad.plain_text, 'Batch release sample.');
+
+  const openWritePage = await app.inject({
+    method: 'GET',
+    url: `/native/write/${assignmentId}`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(openWritePage.statusCode, 200);
+
+  const openSave = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Batch release sample. Revised.' }] },
+      plain_text: 'Batch release sample. Revised.',
+      expected_version: 2,
+    },
+  });
+  assert.equal(openSave.statusCode, 200);
+
+  await app.close();
+});
+
+test('immediate feedback_release (default) is unaffected by the batch gate', async () => {
+  const databasePath = temporaryDatabasePath();
+  const app = await buildApp({ databasePath, logger: false });
+  const { assignmentId, teacherCookies, teacherCsrf } = await seedNativeAssignment(app, { greenPen: true });
+  const { cookies, csrfToken } = await loginStudent(app, 'alice', 'correct horse');
+
+  const created = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  const padId = created.json().pad.id;
+
+  await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/save`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+    payload: {
+      document: { type: 'doc', content: [{ type: 'text', text: 'Immediate release sample.' }] },
+      plain_text: 'Immediate release sample.',
+    },
+  });
+  await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/submit`,
+    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
+  });
+  await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/finish-marking`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+  });
+
+  const feedback = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignmentId}/feedback`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(feedback.statusCode, 200);
+  assert.equal(feedback.json().feedback_released, true);
+
+  const writePage = await app.inject({
+    method: 'GET',
+    url: `/native/write/${assignmentId}`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(writePage.statusCode, 200);
 
   await app.close();
 });

@@ -9,7 +9,7 @@ import { runMigrations } from '../src/db/migrate.js';
 const expectedColumns = {
   students: ['id', 'username', 'display_name', 'password_hash', 'class_id', 'created_at', 'must_change_password', 'is_demo', 'is_ghost'],
   classes: ['id', 'name', 'created_at'],
-  assignments: ['id', 'class_id', 'title', 'type', 'settings_json', 'opens_at', 'due_at', 'created_at', 'is_archived'],
+  assignments: ['id', 'class_id', 'title', 'type', 'settings_json', 'opens_at', 'due_at', 'created_at', 'is_archived', 'feedback_released_at'],
   pads: ['id', 'student_id', 'assignment_id', 'etherpad_pad_id', 'state', 'created_at'],
   pad_allocations: ['pad_suffix', 'etherpad_pad_id', 'created_at'],
   native_pads: ['id', 'student_id', 'assignment_id', 'state', 'document_json', 'plain_text', 'word_count', 'created_at', 'updated_at', 'submitted_at', 'version', 'applied_feedback_table', 'rewrite_of_pad_id'],
@@ -73,6 +73,7 @@ const migrationFiles = [
   '024_ai_grade_estimates.sql',
   '025_style_metrics.sql',
   '026_ai_feedback_item_suggestions.sql',
+  '027_feedback_released_at.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

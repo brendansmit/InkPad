@@ -196,6 +196,14 @@
           <p class="hint">Context for anomaly detection: unsupervised writing is more likely to have outside help.</p>
         </div>
         <div class="field">
+          <label for="fFeedbackRelease">Feedback release</label>
+          <select id="fFeedbackRelease">
+            <option value="immediate" selected>Immediate (as soon as you finish marking each essay)</option>
+            <option value="batch">Batch (hold feedback until you release the whole class at once)</option>
+          </select>
+          <p class="hint">Batch mode also holds green pen rewrite access until you release feedback.</p>
+        </div>
+        <div class="field">
           <label for="fFeedbackTable1">Strengths and targets 1</label>
           <select id="fFeedbackTable1">
             <option value="" selected>None</option>
@@ -330,6 +338,7 @@
       const paste_mode=document.getElementById('fPasteMode').value;
       const essay_type=document.getElementById('fEssayType').value;
       const supervision=document.getElementById('fSupervision').value;
+      const feedback_release=document.getElementById('fFeedbackRelease').value;
       const feedbackTable1=document.getElementById('fFeedbackTable1').value;
       const feedbackTable2=document.getElementById('fFeedbackTable2').value;
       const rubric1=document.getElementById('fRubricTemplate1').value;
@@ -344,7 +353,7 @@
       const passagePdfFile=document.getElementById('fPassagePdf').files[0];
       const feedback_tables=[feedbackTable1,feedbackTable2].filter(Boolean);
       const rubric_names=[rubricNameFor(rubric1),rubricNameFor(rubric2)];
-      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,essay_type,supervision,feedback_tables,rubric_names,native_inkpad:true};
+      const settings={submit_behaviour,spellcheck,green_pen,paste_mode,essay_type,supervision,feedback_release,feedback_tables,rubric_names,native_inkpad:true};
       if(prompt) settings.prompt=prompt;
       if(passageText) settings.passage_text=passageText;
 
