@@ -1243,3 +1243,138 @@ Color picker code ran BEFORE `setInterval(syncWordCount, 500)` and `iframe.addEv
   - ep_align's toolbar buttons hidden via CSS; padchrome is the only visible alignment UI.
 - Decisions: Route through ep_align's DOM buttons rather than execCommand; same result for user, but changeset-based persistence.
 - Open / next: Verify alignment works (student opens pad, selects text, clicks L/C/R). Phase 8.6 — Strengths + Targets.
+## 2026-07-01 - Rebuild native PDF zoom and marking
+- Asked: Replace bad PDF marking, make PDF zoom centre on the document and stop right-side zoom from changing font size.
+- Built: Replaced embedded browser PDF with PDF.js page rendering, selectable text layers and locally persisted canvas-based selected-text highlight/underline.
+- Built: PDF zoom rerenders pages at true scale and restores scroll centre. Right writer zoom now changes page width instead of transform-scaling the editable DOM.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 11/11. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+
+## 2026-07-01 - Fix native PDF zoom and marking
+- Asked: Fix PDF zoom turning white, make the left panel wider, reduce wasted PDF space, fix source highlight/underline and keep right zoom from changing document formatting.
+- Built: PDF zoom now resizes a stable embedded wrapper instead of reloading the PDF URL, left panel can expand to 78%/1100px, PDF padding is tighter and source text selections are restored before marking.
+- Built: Added local PDF highlight/underline rectangle marks as a fallback because embedded browser PDF text is not directly editable.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 11/11. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+
+## 2026-07-01 - Embed PDF reference in native writer
+- Asked: Show PDF passages inside the actual left panel, keep them scrollable without extending the page, allow PDF zoom and resize the task/reference area.
+- Built: Replaced the PDF new-tab link with a contained embedded PDF frame, added PDF zoom controls and added a horizontal drag handle to give either task or reference more vertical space.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 11/11. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: Browser PDF content is contained in an internal scroll frame so the writer page does not grow with the PDF.
+
+## 2026-07-01 - Add native writer assignments back button
+- Asked: Add a back button from the native writer to the assignments page.
+- Built: Added a small `/student` assignments back link in the native writer header and a render test assertion.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: The button uses the fixed student dashboard route instead of browser history.
+
+## 2026-07-01 - Replace toolbar icons with reference-style SVGs
+- Asked: Make the numbered list, bullet list, indent and outdent buttons match the provided reference image and widen the zoom range.
+- Built: Replaced the four CSS-built toolbar symbols with direct SVG shapes for dots/numbers, bars and triangles. Widened visual-only zoom to 70-150%.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: The four reference controls now use fixed SVG geometry instead of browser-rendered CSS/text approximations.
+
+## 2026-07-01 - Fix native writer font size and resize affordance
+- Asked: Fix broken font size, make the panels obviously draggable, match list/indent icons to the provided standard style and make zoom expand from the centre.
+- Built: Font size now restores the editor selection and applies real `font-size:Npx` spans, list/indent icons use filled number/bullet/triangle line forms, the divider has a visible drag grip and zoom uses `transform-origin:top center`.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: Font size remains actual document formatting, while zoom remains visual-only.
+
+## 2026-07-01 - Make native writer zoom visual-only
+- Asked: Limit native writer zoom to 80-125% and ensure zoom never changes the actual font size or text positioning.
+- Built: Replaced browser `zoom` with transform-based visual scaling inside a sizing frame, capped stored and slider zoom at 125% and refreshed the frame as line count/page height changes.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` returned 200.
+- Decision: Zoom is now a viewport-only aid. Formatting and saved document HTML remain controlled by the actual editor commands, not the zoom slider.
+
+## 2026-07-01 - Refine native toolbar and line-number gutter
+- Asked: Keep the left-panel clear button as text, improve the standard-style toolbar icons and remove the coloured line-number gutter.
+- Built: Restored `Clear` text in the task/reference marking toolbar, replaced indent/outdent with cleaner arrow-and-line CSS icons and removed the boxed background from line numbers.
+- Verified: `node --check src/views/nativeWrite.js` and full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public `/` plus `/assets/styles.css` returned 200.
+- Decision: Line numbers now sit on transparent background so the writing page is the only framed surface.
+
+## 2026-07-01 - Replace ugly toolbar SVGs and fix line numbers
+- Asked: Replace bad-looking custom toolbar SVGs with standard symbols and fix the line-number gutter.
+- Built: Removed SVG toolbar icons, replaced them with simpler standard glyph/CSS icons for undo/redo, lists, indent/outdent and alignment; narrowed the line-number gutter.
+- Fixed: Line numbers now render only for actual text lines instead of forcing 30 rows and making the page look over-extended.
+- Verified: Full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public health returned 200.
+
+## 2026-07-01 - Improve native writer toolbar icons
+- Asked: Replace text-heavy toolbar controls with standard symbols and hide colour grids until clicked.
+- Built: Added inline SVG toolbar icons for undo/redo, lists, indent/outdent, alignment, text colour, highlight and eraser; changed text/highlight and left-panel highlight controls to click-open palettes.
+- Verified: Full `test/nativePads.test.js` passed 10/10. Deployed `src/views/nativeWrite.js`, restarted wrapper and public health returned 200.
+
+## 2026-07-01 - Native writer polish and revision return
+- Asked: Build the native writer polish batch and teacher return-for-revision.
+- Built: Added fixed A4-style page, sans serif default text, save button, zoom slider, line numbers, font size dropdown, text/highlight colours, undo/redo, indent/outdent, active toolbar state and local task/reference marking.
+- Built: Added teacher `return-revision` endpoint and review-page button, separate from green pen, allowing edits after deadline.
+- Verified: Full `test/nativePads.test.js` passed 10/10. Deployed writer/routes/review page and public health returned 200.
+
+## 2026-07-01 - Verify Personal Statements import count
+- Asked: Check that `Personal Statements Second Draft` has 19 student works.
+- Found: Live DB has 19 Etherpad pads and 19 native pads across assignment IDs `3`, `4` and `7`; EAP 1 has 8, EAP 2 has 10 and Audit Class has 1.
+- Note: 17 of 19 native pads are non-empty. Empty imported pads are Carina in EAP 2 and Audit in Audit Class.
+
+## 2026-07-01 - Import Etherpad essays to Native InkPad
+- Asked: ASAP copy current Etherpad essays into Native InkPad without preserving revision history.
+- Built: Added `scripts/import-etherpad-to-native.mjs` with dry-run, `--apply`, no-overwrite default, optional `--overwrite` and assignment-native flipping.
+- Verified: Imported live assignments `9`, `8`, `7`, `4` and `3`, creating 21 native pads; tests passed, live counts match and public health returned 200.
+
+## 2026-07-01 - Native writer counters, formatting and resizing
+- Asked: Add more formatting options, character and sentence counters, working reader/pad resizing and working zoom.
+- Built: Added character and sentence counters, more formatting buttons, persisted simple HTML formatting, draggable reader split, page width controls and zoom controls.
+- Verified: Deployed `src/views/nativeWrite.js`, restarted the wrapper, passed syntax/focused native writer checks and live health returned 200.
+
+## 2026-07-01 - Fix native writer horror layout
+- Asked: Native writer rendered as a tiny narrow writing strip.
+- Fixed: Namespaced native writer CSS and markup, made the reference panel a sane fixed width and forced the writing surface to `width:min(100%,860px)`.
+- Deployed: Updated `src/views/nativeWrite.js` on the droplet and restarted `inkheron-wrapper.service`.
+- Verified: Syntax check and focused native writer test passed. Public health returned 200 and live logs show `/api/native/pads/1/policy` returning 200 from your browser.
+
+## 2026-07-01 - Fix nginx route for Native InkPad
+- Asked: `/native/write/9` showed `Cannot GET /native/write/9` after the native redirect fix.
+- Found: Nginx routed `/native/...` to Etherpad on port `9001` because only older wrapper paths were whitelisted for port `3000`.
+- Fixed: Updated both live nginx InkPad configs so `/native` and `/static` go to the InkPad wrapper, moved backups out of `sites-enabled`, tested config and reloaded nginx.
+- Verified: Public `/native/write/9` now returns wrapper `401 unauthenticated` instead of Etherpad `Cannot GET`, which means logged-in students should reach the native page.
+
+## 2026-07-01 - Fix native assignment opening Etherpad
+- Asked: Native assignment still opened Etherpad despite Use Native InkPad being on.
+- Fixed: Added a `/write/:assignmentId` guard that redirects native assignments to `/native/write/:assignmentId` before Etherpad pad provisioning; deployed `src/routes/pads.js` and restarted the wrapper.
+- Verified: Local direct inject and regression test passed. Live wrapper restarted at 14:06:19 CST, public health returned 200 and logs showed no new missing-table or SQLite 500s.
+
+## 2026-06-30 - Kill EP toolbar flash permanently
+
+- Built: Three-layer suppression. (1) applyOuterCleanup() fires synchronously on iframe load with no delay, so toolbar never renders. (2) MutationObserver on padDoc forces display:none on EP chrome elements the instant EP adds them. (3) aceOuter load listener re-runs inner frame injection when EP reloads ace_outer mid-session, which was the main cause of recurring flashes.
+- Commit: 4fa15ee
+
+---
+
+## 2026-06-30 - Fix submit button (Chinese browser blocks confirm())
+
+- Built: Replaced window.confirm() + alert() with double-tap pattern. First click turns button amber and shows "Tap again to confirm" for 3 s; second click submits. Errors show as a fixed toast. Root cause: WeChat and Chinese browsers silently block confirm()/alert().
+- Commit: a50d663
+
+---
+
+## 2026-06-30 - Native InkPad revision viewer
+
+- Asked: continue the Native InkPad batch.
+- Built: native review page now lets teachers click a revision snapshot, inspect its saved text in the main paper pane, then return to current marked text.
+- Verification: native pad tests passed 6/6 and native review inline script parsed.
+- Open / next: run final focused suite for the full batch.
+- Gotchas hit: kept this as a simple snapshot viewer, not a full scrubber yet.
+
+## 2026-06-30 - Native InkPad range marking tools
+
+- Asked: continue the Native InkPad batch.
+- Built: native teacher review page now has range annotation controls for inline comments, literacy-code marks and highlights. Literacy code metadata stores code/category/label.
+- Verification: native pad tests passed 6/6 and native review inline script parsed.
+- Open / next: native revision viewer affordance.
+- Gotchas hit: mapped annotation types to CSS classes explicitly so inline/code/highlight marks render distinctly.
+
+## 2026-06-30 - Native InkPad autosave version guard
+
+- Asked: continue the Native InkPad batch.
+- Built: native autosave now accepts `expected_version` and rejects stale saves with `409 version_conflict` plus current pad data. Student editor tracks the saved version and reports conflicts instead of overwriting newer text.
+- Verification: native pad tests passed 6/6. `nativePads.js` and `nativeWrite.js` syntax checks passed.
+- Open / next: review UI controls for literacy codes and highlights.
+- Gotchas hit: an ad-hoc parser command failed because `nativeWrite.js` is an ES module; proper `node --check` passed.
+
