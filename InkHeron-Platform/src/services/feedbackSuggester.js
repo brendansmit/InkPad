@@ -21,7 +21,11 @@ Tie every item to what the rubric expected versus what the essay actually did. A
 
 Give 2 to 3 strengths and 3 to 5 targets, most important first.
 
-Copy rules: high B1 to low C1 English, plain and direct. No em dashes, no en dashes, no Oxford commas. Metric units only if any unit is mentioned.
+Write like a friendly teacher talking directly to the student, not like a report. Use "you", use contractions, keep sentences short. Low C1 level. No em dashes, no en dashes, no Oxford commas. Metric units only if any unit is mentioned. Titles stay short, 3 to 6 words.
+
+Example of the tone shift, same finding:
+Too stiff: title "Improve verb tense consistency", explanation "The essay demonstrates inconsistent temporal marking."
+Wanted: title "Keep your tenses steady", explanation "You start in the past then jump to the present in the same sentence. Pick the time frame first, then keep every verb in it."
 
 Return ONLY JSON:
 {"strengths": [{"title": "...", "explanation": "..."}], "targets": [{"title": "...", "explanation": "...", "try_now_prompt": "..."}]}`;
