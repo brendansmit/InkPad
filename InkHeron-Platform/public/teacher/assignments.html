@@ -166,6 +166,7 @@
         <select id="detailClassSel" style="min-width:120px;max-width:200px;min-height:32px;padding:6px 10px;font-size:13px;"></select>
         <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
+        <button class="btn sm" id="exportAdminBtn" type="button">Export to gradebook</button>
         <button class="btn sm" id="archiveBtn" type="button">Archive</button>
         <button class="btn sm" id="deleteBtn" type="button" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
       </div>
@@ -589,6 +590,7 @@
       }
       document.getElementById('archiveBtn').textContent = a.is_archived ? 'Unarchive' : 'Archive';
       show('detailView');
+      refreshExportAdminBtn();
       openDetail('all');
     }
 
@@ -610,6 +612,7 @@
       document.getElementById('saveEditBtn').addEventListener('click',saveEdit);
       document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
+      document.getElementById('exportAdminBtn').addEventListener('click',exportToAdmin);
       document.getElementById('archiveBtn').addEventListener('click',archiveAssignment);
       document.getElementById('deleteBtn').addEventListener('click',deleteAssignment);
       document.getElementById('toggleArchiveBtn').addEventListener('click',async()=>{
@@ -689,6 +692,41 @@
     function exportCsv(){
       if(currentId&&currentId!=='all') window.location.href=`/api/assignments/${currentId}/export.csv`;
       else if(currentId==='all'&&detailGroup.length) window.location.href=`/api/assignments/${detailGroup[0].id}/export.csv`;
+    }
+
+    let adminKeySet=null;
+    async function ensureAdminKeyState(){
+      if(adminKeySet!==null) return adminKeySet;
+      try{
+        const s=await fetch('/api/settings').then(r=>r.json());
+        adminKeySet=!!(s.settings&&s.settings.admin_export_key&&s.settings.admin_export_key.is_set);
+      }catch(_){ adminKeySet=false; }
+      return adminKeySet;
+    }
+    async function refreshExportAdminBtn(){
+      const btn=document.getElementById('exportAdminBtn');
+      if(!btn) return;
+      const ok=await ensureAdminKeyState();
+      btn.disabled=!ok;
+      btn.title=ok?'Send these scores to the admin gradebook':'Set an admin export key in Settings first';
+    }
+    function toast(msg){
+      let t=document.getElementById('a11yToast');
+      if(!t){ t=document.createElement('div'); t.id='a11yToast'; t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none;'; document.body.appendChild(t); }
+      t.textContent=msg; t.style.opacity='1'; clearTimeout(t._t); t._t=setTimeout(()=>t.style.opacity='0',2600);
+    }
+    async function exportToAdmin(){
+      const id=(currentId&&currentId!=='all')?currentId:(detailGroup.length?detailGroup[0].id:null);
+      if(!id) return;
+      const btn=document.getElementById('exportAdminBtn');
+      btn.disabled=true; const label=btn.textContent; btn.textContent='Exporting…';
+      try{
+        const r=await fetch(`/api/assignments/${id}/export-to-admin`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+        const d=await r.json().catch(()=>({}));
+        if(r.ok) toast('Exported '+(d.exported??0)+' score'+(d.exported===1?'':'s'));
+        else toast(d.error||'Export failed');
+      }catch(_){ toast('Export failed'); }
+      finally{ btn.textContent=label; btn.disabled=false; refreshExportAdminBtn(); }
     }
 
     async function loadDashboard(){

@@ -20,6 +20,11 @@ Entry format:
 
 ---
 
+## 2026-07-05 — Opus HANDOFF_2 item 4: export to gradebook button
+- assignments.html detail header: added "Export to gradebook" next to the existing "Export CSV" (kept). It calls POST /api/assignments/:id/export-to-admin and toasts the result ("Exported N scores" or the endpoint's friendly error). The button is disabled with a hint title ("Set an admin export key in Settings first") when the key is not configured, probed via /api/settings admin_export_key.is_set on detail open.
+- The score column ("12 / 15" with Released/Held pill), AP exam-score column, and status pills (marked/green_pen_open/resubmitted) were already delivered by Sonnet's dashboard fix; verified they render (Chen Yuxi shows 10.5 / 15 Released, exam 4 / 6, Green pen).
+- Verified in preview at 1440px: button present and disabled with hint (no key set locally), CSV button intact, scores and Profile link render in the row.
+
 ## 2026-07-05 — Opus HANDOFF_2 item 2: teacher dashboard navigation
 - public/teacher/index.html: added an "Analysis" section with two tiles. "Student profiles" has a class picker that loads students from /api/students?class_id and links each to /teacher/student-profile?student_id. "Class insights" lists one link per class to /teacher/class-insights?class_id. Both driven by /api/classes and /api/students, empties handled.
 - public/teacher/assignments.html: added a "Profile" link next to Review in each student dashboard row, to /teacher/student-profile?student_id=<id>, so marking flows into the profile in one click.
