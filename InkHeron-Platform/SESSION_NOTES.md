@@ -20,6 +20,12 @@ Entry format:
 
 ---
 
+## 2026-07-05 — Opus HANDOFF_2 item 5: student-facing AI-mention audit
+- Audited every surface I touched plus the broader student-facing set (native-feedback.html, student-dashboard.html, login/change-password, nativeWrite.js green-pen panel, and the student-version of student-profile.html) for "AI", "model", "checker", "machine", "auto-mark", model names and OpenRouter. No student-visible machine-marking language found.
+- Only near-hits: "sentence machinery" (a writing-craft metaphor for subordination in a teacher-side tooltip) and gpTimer/gpRecheck (green-pen timer variable names). Neither implies machine marking. No change needed.
+- The Report snippet button and the anomaly/provenance cards are teacher-only and hide in the profile's "Student version"; the class-insights page is teacher-only with no student variant. Sonnet's item-4 audit already stripped AI-origin markers from the feedback and marks payloads; this pass confirms my new/changed pages did not reintroduce any.
+- No commit for this item (verification only); logged here per the definition of done.
+
 ## 2026-07-05 — Opus HANDOFF_2 item 7: report snippet UI
 - student-profile.html: added a teacher-only "Report snippet" button in the top bar that opens a modal. The modal POSTs /api/students/:id/report-snippet (Sonnet's endpoint), shows a loading line while generating, then puts the returned paragraph in an editable textarea. Copy button (clipboard, with execCommand fallback) and Regenerate button. A missing key or any failure shows the endpoint's friendly message instead of the paragraph. Nothing is stored; the teacher edits client-side. The button carries the teacher-only class so it disappears in "Student version".
 - Captured the CSRF token in boot() (was not stored before) for the POST.
