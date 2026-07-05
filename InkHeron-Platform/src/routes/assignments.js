@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { exportAssignmentToAdmin } from '../services/adminExport.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
@@ -201,6 +202,8 @@ function fetchDashboardRows(db, assignmentId, classId) {
     SELECT s.id AS student_id,
            s.display_name,
            s.username,
+           s.is_demo AS is_demo,
+           s.is_ghost AS is_ghost,
            np.id AS native_pad_id,
            np.state AS native_pad_state,
            np.submitted_at AS native_submitted_at,
@@ -391,6 +394,39 @@ export async function registerAssignmentRoutes(app, { db }) {
       reply.header('Content-Type', 'text/csv; charset=utf-8');
       reply.header('Content-Disposition', `attachment; filename="${filename}"`);
       return lines.join('\n');
+    }
+  );
+
+  app.post('/api/assignments/:id/export-to-admin',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const assignment = db.prepare(`
+        SELECT a.*, c.name AS class_name
+        FROM assignments a
+        JOIN classes c ON c.id = a.class_id
+        WHERE a.id = ?
+      `).get(id);
+      if (!assignment) return reply.code(404).send({ error: 'assignment_not_found' });
+
+      const rubricMax = { internal: loadRubricMax(db, id, 'internal'), exam: loadRubricMax(db, id, 'exam') };
+      const isApLang = isApLangClassName(assignment.class_name);
+      const rows = fetchDashboardRows(db, id, assignment.class_id)
+        .filter((row) => row.is_demo === 0 && row.is_ghost === 0)
+        .map((row) => publicDashboardRow(row, { rubricMax, isApLang }));
+
+      try {
+        const result = await exportAssignmentToAdmin(db, {
+          className: assignment.class_name,
+          assignmentTitle: assignment.title,
+          scoreMax: rubricMax.internal,
+          rows,
+        });
+        return reply.code(200).send(result);
+      } catch (error) {
+        const message = error?.friendly ? error.message : 'Could not export to the admin gradebook.';
+        return reply.code(error?.friendly ? 400 : 502).send({ error: message });
+      }
     }
   );
 

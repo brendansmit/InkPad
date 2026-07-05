@@ -539,6 +539,125 @@ test('AP Lang exam score shows on the dashboard only for AP Lang classes', async
   await app.close();
 });
 
+test('export-to-admin sends only names and numbers, and excludes ghost/demo students', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath, logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+  const alice = await setupStudent(app, teacher, classId, { username: 'alice', display_name: 'Alice' });
+  const bob = await setupStudent(app, teacher, classId, { username: 'bob', display_name: 'Bob' });
+  const ghost = await setupStudent(app, teacher, classId, { username: 'ghosty', display_name: 'Ghosty' });
+
+  const raw = new DatabaseSync(dbPath);
+  raw.prepare('UPDATE students SET is_ghost = 1 WHERE id = ?').run(ghost.student.id);
+  raw.close();
+
+  await app.inject({ method: 'PATCH', url: '/api/settings',
+    payload: { admin_export_key: 'test-key-12345', admin_export_url: 'https://admin.example.test' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Scored essay', settings: { native_inkpad: true } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const assignmentId = created.json().assignment.id;
+
+  const rubric = await app.inject({ method: 'PUT', url: `/api/native/assignments/${assignmentId}/rubric`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { criteria: [{ label: 'Ideas', bands: [{ score_value: 0 }, { score_value: 1 }, { score_value: 2 }] }] } });
+  const criterionId = rubric.json().rubric.criteria[0].id;
+
+  const alicePad = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`, headers: { cookie: alice.cookies } });
+  const ghostPad = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`, headers: { cookie: ghost.cookies } });
+  await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`, headers: { cookie: bob.cookies } });
+
+  await app.inject({ method: 'PUT', url: `/api/native/pads/${alicePad.json().pad.id}/rubric-scores`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { scores: [{ criterion_id: criterionId, selected_score: 2 }] } });
+  await app.inject({ method: 'PUT', url: `/api/native/pads/${ghostPad.json().pad.id}/rubric-scores`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { scores: [{ criterion_id: criterionId, selected_score: 1 }] } });
+
+  let pushedBody = null;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts = {}) => {
+    if (String(url).includes('/api/sync') && (!opts.method || opts.method === 'GET')) {
+      return { ok: true, status: 200, json: async () => ({ assignments: [], students: [], scores: [] }) };
+    }
+    if (String(url).includes('/api/sync') && opts.method === 'POST') {
+      pushedBody = JSON.parse(opts.body);
+      return { ok: true, status: 200, json: async () => ({ ok: true }) };
+    }
+    throw new Error(`Unexpected fetch in test: ${url}`);
+  };
+
+  try {
+    const res = await app.inject({ method: 'POST', url: `/api/assignments/${assignmentId}/export-to-admin`,
+      headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.json().exported, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.ok(pushedBody);
+  assert.equal(pushedBody.scores.length, 1);
+  assert.equal(pushedBody.students.length, 1);
+  assert.equal(pushedBody.students[0].english_name, 'Alice');
+  assert.equal(pushedBody.assignments[0].name, 'Scored essay');
+  assert.equal(pushedBody.assignments[0].class_filter, 'G9');
+  const wholeBody = JSON.stringify(pushedBody);
+  assert.doesNotMatch(wholeBody, /Ghosty/);
+  assert.doesNotMatch(wholeBody, /\bBob\b/);
+  assert.doesNotMatch(wholeBody, /ai|model|checker|suggestion/i);
+
+  await app.close();
+});
+
+test('export-to-admin surfaces an upstream 401 as a friendly error, never throws', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath, logger: false });
+  const teacher = await setupTeacher(app);
+  const cls = await app.inject({ method: 'POST', url: '/api/classes',
+    payload: { name: 'G9' }, headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const classId = cls.json().class.id;
+  const alice = await setupStudent(app, teacher, classId, { username: 'alice', display_name: 'Alice' });
+
+  await app.inject({ method: 'PATCH', url: '/api/settings',
+    payload: { admin_export_key: 'wrong-key', admin_export_url: 'https://admin.example.test' },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+
+  const created = await app.inject({ method: 'POST', url: '/api/assignments',
+    payload: { class_id: classId, title: 'Scored essay', settings: { native_inkpad: true } },
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+  const assignmentId = created.json().assignment.id;
+
+  const rubric = await app.inject({ method: 'PUT', url: `/api/native/assignments/${assignmentId}/rubric`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { criteria: [{ label: 'Ideas', bands: [{ score_value: 0 }, { score_value: 1 }] }] } });
+  const criterionId = rubric.json().rubric.criteria[0].id;
+
+  const alicePad = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/pad`, headers: { cookie: alice.cookies } });
+  await app.inject({ method: 'PUT', url: `/api/native/pads/${alicePad.json().pad.id}/rubric-scores`,
+    headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies },
+    payload: { scores: [{ criterion_id: criterionId, selected_score: 1 }] } });
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: false, status: 401, json: async () => ({ error: 'unauthorized' }) });
+
+  try {
+    const res = await app.inject({ method: 'POST', url: `/api/assignments/${assignmentId}/export-to-admin`,
+      headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
+    assert.equal(res.statusCode, 400);
+    assert.match(res.json().error, /key/i);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  await app.close();
+});
+
 test('passage PDF upload accepts files over 1 MB (Fastify body limit regression)', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);

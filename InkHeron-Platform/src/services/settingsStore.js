@@ -1,4 +1,5 @@
-export const secretSettingKeys = ['openrouter_api_key', 'serverchan_key'];
+export const secretSettingKeys = ['openrouter_api_key', 'serverchan_key', 'admin_export_key'];
+export const ADMIN_EXPORT_URL_DEFAULT = 'https://admin.inkheron.app';
 
 function cleanSecret(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -35,6 +36,22 @@ export function readSecretSettings(db) {
 export function readRawSetting(db, key) {
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   return row?.value?.trim() ?? null;
+}
+
+export function readAdminExportUrl(db) {
+  return readRawSetting(db, 'admin_export_url') || ADMIN_EXPORT_URL_DEFAULT;
+}
+
+export function writeAdminExportUrl(db, value) {
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('admin_export_url', ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).run(trimmed || ADMIN_EXPORT_URL_DEFAULT);
+  return readAdminExportUrl(db);
 }
 
 export function writeSecretSettings(db, input) {
