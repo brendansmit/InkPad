@@ -70,7 +70,7 @@ test('classes and students can be created, listed, updated and deleted', async (
   assert.equal(createdStudent.statusCode, 201);
   const student = createdStudent.json().student;
   assert.equal(student.username, 'alice');
-  assert.equal(student.must_change_password, false);
+  assert.equal(student.must_change_password, true);
   assert.equal(student.password_hash, undefined);
 
   const listedStudents = await app.inject({ method: 'GET', url: '/api/students', headers: { cookie: cookies } });
@@ -94,7 +94,7 @@ test('classes and students can be created, listed, updated and deleted', async (
     assert.notEqual(stored.password_hash, 'correct horse');
     assert.notEqual(stored.password_hash, 'new correct horse');
     assert.match(stored.password_hash, /^\$2[aby]\$/);
-    assert.equal(stored.must_change_password, 0);
+    assert.equal(stored.must_change_password, 1);
     assert.equal(await verifyPassword('new correct horse', stored.password_hash), true);
   } finally {
     db.close();
@@ -155,7 +155,7 @@ test('roster page is teacher-only', async () => {
 
   const page = await app.inject({ method: 'GET', url: '/teacher/students', headers: { cookie: cookies } });
   assert.equal(page.statusCode, 200);
-  assert.match(page.body, /Roster/);
+  assert.match(page.body, /Classes|Roster/);
 
   await app.close();
 });

@@ -195,7 +195,7 @@ test('EAP library admin manages uploads, visibility, downloads and categories', 
     headers: { cookie: teacher.cookies },
   });
   assert.equal(adminPage.statusCode, 200);
-  assert.match(adminPage.body, /Manage file library/);
+  assert.match(adminPage.body, /EAP Library Admin/);
 
   const createdCategory = await app.inject({
     method: 'POST',

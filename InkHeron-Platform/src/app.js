@@ -128,7 +128,7 @@ export async function buildApp(options = {}) {
   app.get('/student', async (_request, reply) => reply.sendFile('student-dashboard.html', publicDir));
   app.get('/native/feedback/:assignmentId', { preValidation: [app.requireStudentSession] }, async (_request, reply) => reply.sendFile('native-feedback.html', publicDir));
   app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));
-  app.get('/library/admin', async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
+  app.get('/library/admin', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
   // Two domains share this app: inkpad.* is the writing portal, whose root
   // is the student/teacher chooser (signout links land there); any other
   // host gets the EAP portal landing page.

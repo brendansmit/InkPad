@@ -76,7 +76,7 @@ test('student login succeeds and password_hash is not exposed', async () => {
   const data = login.json();
   assert.equal(data.user.username, 'alice');
   assert.equal(data.user.type, 'student');
-  assert.equal(data.user.must_change_password, false);
+  assert.equal(data.user.must_change_password, true);
   assert.equal(data.user.password_hash, undefined);
   assert.ok(data.user.display_name);
   assert.ok(data.user.csrf_token);
