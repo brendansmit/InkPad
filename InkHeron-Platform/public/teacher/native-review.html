@@ -408,19 +408,33 @@ function cardStrengthsTargets(){
   return card;
 }
 
+// Every loaded rubric kind that carries criteria gets a scorable tab. Order:
+// internal, secondary, exam (AP). Exam only when the class is AP Lang.
+function rubricTabs(){
+  const list = [];
+  if (review.rubric && review.rubric.criteria && review.rubric.criteria.length)
+    list.push({ kind:'internal', label: review.rubric.name || 'Rubric 1', data: review.rubric, endpoint:'rubric-scores' });
+  if (review.secondary_rubric && review.secondary_rubric.criteria && review.secondary_rubric.criteria.length)
+    list.push({ kind:'secondary', label: review.secondary_rubric.name || 'Rubric 2', data: review.secondary_rubric, endpoint:'secondary-rubric-scores' });
+  if (review.exam_rubric && review.exam_rubric.visible && review.exam_rubric.criteria && review.exam_rubric.criteria.length)
+    list.push({ kind:'exam', label: review.exam_rubric.name || 'AP Lang', data: review.exam_rubric, endpoint:'exam-rubric-scores' });
+  return list;
+}
+
 function cardRubric(){
   const card = el('div','card');
+  const list = rubricTabs();
+  if (!list.length) return card;
+  if (!list.some(t=>t.kind===activeRubric)) activeRubric = list[0].kind;
   const tabs = el('div','rtabs');
-  const internalTab = el('button','rtab'+(activeRubric==='internal'?' on':'')); internalTab.textContent = review.rubric.name || 'My rubric';
-  internalTab.onclick=()=>{ activeRubric='internal'; renderRail(); };
-  tabs.appendChild(internalTab);
-  if (review.exam_rubric.visible){
-    const apTab = el('button','rtab'+(activeRubric==='exam'?' on':'')); apTab.textContent='AP Lang';
-    apTab.onclick=()=>{ activeRubric='exam'; renderRail(); };
-    tabs.appendChild(apTab);
+  for (const t of list){
+    const tab = el('button','rtab'+(activeRubric===t.kind?' on':''));
+    tab.textContent = t.label;
+    tab.onclick=()=>{ activeRubric=t.kind; renderRail(); };
+    tabs.appendChild(tab);
   }
   card.appendChild(tabs);
-  const rub = activeRubric==='exam' ? review.exam_rubric : review.rubric;
+  const rub = (list.find(t=>t.kind===activeRubric) || list[0]).data;
   const scores = new Map((rub.scores||[]).map(s=>[s.criterion_id, s.selected_score]));
   const body = el('div','body');
   for (const crit of rub.criteria){
@@ -493,7 +507,8 @@ async function addFeedback(){
 }
 async function deleteFeedback(item){ await api('/api/native/pads/'+padId+'/feedback-items/'+item.id, { method:'DELETE' }); toast('Removed'); await loadAll(); }
 async function setScore(criterionId, value){
-  const endpoint = activeRubric==='exam' ? 'exam-rubric-scores' : 'rubric-scores';
+  const tab = rubricTabs().find(t=>t.kind===activeRubric);
+  const endpoint = tab ? tab.endpoint : 'rubric-scores';
   await api('/api/native/pads/'+padId+'/'+endpoint, { method:'PUT', body:{ scores:[{ criterion_id:criterionId, selected_score:value }] } });
   review = await api('/api/native/pads/'+padId+'/review');
   contested = (review.suggestions||[]).filter(s=>s.status==='pending');
