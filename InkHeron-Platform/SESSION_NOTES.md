@@ -120,6 +120,10 @@ Entry format:
 - Open / next: items 2-4 from SONNET_HANDOFF_2.md (tone pass, admin gradebook export, AI-mention audit) still pending.
 - Gotchas hit: the shared "inkheron" launch.json config (port 3472) was in use by another chat session; added a separate `inkheron-verify` config (port 3473) pointing at its own scratch `INKHERON_DB_PATH` rather than touching the shared config or the real teacher database. Commit `f9ae0d6`.
 
+## 2026-07-05 — Batch release is now the default for new assignments
+
+- Teacher decision: "all at once" is the default feedback release mode. Flipped the new-assignment form default (the form always sends an explicit value, so the server-side immediate fallback still grandfathers old assignments; nothing in flight changes behaviour). Deployed (static page only, no restart needed).
+
 ## 2026-07-05 — Round-2 review, baseline failures cleared, production deploy
 
 - Reviewed all 22 round-2 commits (Sonnet items 1-7, Opus items 1-7, plus Sonnet's unrequested but sound nativeReanalyze.js: teacher-triggered AI re-run for pads submitted before the pipeline existed; teacher+CSRF, verified). Contract points hold: adminExport filters is_demo/is_ghost and ships names+numbers only, classInsights uses realStudentsWhere everywhere, release gating covers both feedback and green pen.
