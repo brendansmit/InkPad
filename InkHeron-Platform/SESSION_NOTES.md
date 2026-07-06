@@ -20,6 +20,15 @@ Entry format:
 
 ---
 
+## 2026-07-06 — Opus ROUND3 items 2 to 5: rubric tabs, feedback banks, layered marks, selection toolbar
+- Item 2 (4c32a20) rubric tabs: native-review.html cardRubric() now builds rubricTabs() — a scorable tab for every rubric_kind that has criteria (internal, secondary, exam), each labelled with its real name from settings.rubric_names, exam still gated on is_ap_lang. setScore looks up the per-kind endpoint (rubric-scores / secondary-rubric-scores / exam-rubric-scores). Verified in browser: all three tabs render, secondary and exam scores persist to their columns.
+- Item 3 (269dcee) feedback bank switcher: strengths/targets card regains a "Feedback bank" select (each table plus "All tables"), persisting per pad via the applied-feedback-table PUT then reloading. assets.js feedbackOptionsForAssignment gained an 'all' scope that merges every configured table (dedupe by title); the PUT and review payload now accept 'all'. feedbackSuggester loads the pad's applied bank and passes its options in the evidence; Doer prompt now says to prefer bank items adapted to the essay, invent only when nothing fits. New test asserts the Doer prompt carries the chosen bank and switching (incl 'all') changes what is sent.
+- Item 4 (19e1e85) layered marks: literacyCoder Doer prompt rule 9 (errors can overlap, report BOTH the clause and each word finding). native-review.html and native-feedback.html renderEssay replaced the non-overlapping "sp.s >= lastEnd" filter with segment rendering: split at every mark boundary, each segment carries ALL covering marks, widest = outer underline, narrowest = inner word mark with a faint wash and lowered underline, hover lists all labels, click opens the innermost code changer. nativeWrite.js green-pen wraps the widest quote first so word marks nest inside clause marks (surroundContents needs contiguous text). Tests: two overlapping findings both auto-promote and both appear nested in the review payload; static guards on both renderers, the prompt and the green-pen order. Verified in browser both teacher and student views.
+- Item 5 (30d432d) selection toolbar: selecting text now shows a small toolbar near the selection on mouseup WITHOUT touching selection or focus (Cmd/Ctrl+C keeps working). [Comment] opens the existing comment popover; [Mark error v] reveals a code dropdown (ALL_CODES) and POSTs a literacy_code annotation at the selection offsets with metadata source 'teacher', landing in Auto-marked groups and profile evidence. Toolbar closes on outside click or selection collapse. Verified in browser: select, Mark error, Gra lands as a 4th auto-mark.
+- Item 1 was already committed last session (f3aed59); left as-is.
+- Suite: 151 tests, 0 failures on Node 24 (the old "known 4" stay fixed). Did NOT deploy per handoff.
+- Gotchas: git root is the parent Claude/ dir, staged explicit InkHeron paths only. Verify DB seeded via scratchpad seed.mjs into the inkheron-verify launch DB path; local node is 20 but tests and the app need node:sqlite from v24.
+
 ## 2026-07-06 — Opus ROUND3 item 1: contested pile only flags real doubt
 - src/services/checker.js: the forced least-confident ~10% quota now selects only among findings the checker rated confidence < 0.9. If every judged finding is >= 0.9, nothing extra is flagged, so the teacher stops re-reviewing marks the checker was already sure of. Genuine flags (code_questioned, not_verbatim, MT manual review) are untouched. Quota size still ceil(judged * 0.1), tiny batches (< 5) still exempt.
 - test/literacyCoder.test.js: existing test still asserts the lone 0.8 in a batch of 0.9s is flagged; added an assertion that a batch of six 0.9s produces zero least_confident flags. literacyCoder suite 9/9.
@@ -358,27 +367,3 @@ Entry format:
 - UI: new + edit assignment now have two rubric dropdowns and two strengths/targets dropdowns; removed the create-default and manual AP toggles; AP exam estimate auto-applied when the class name is AP Lang. Reviewer scores both rubrics under their names, shows the AP section only for AP Lang, and has a per-essay table selector that swaps suggestions and saves the choice. Student feedback view shows both rubrics and gates AP.
 - Backward compatible with legacy feedback_table and existing internal/AP rubrics.
 - Verified: full suite 30/30 with Node 24 (local node is 20, tests need node:sqlite). Migration applied on server, column present, wrapper active, teacher route 401 (auth) as expected.
-
-## 2026-07-02 — Remove Etherpad entirely, disentangle to native-only
-- Asked: remove the old Etherpad stuff, disentangle and remove, without deleting/losing any student data and without breaking anything. Confirmed by user: production writing already imported into native_pads; leave the 8 legacy tables inert (no drop).
-- Built (branch `remove-etherpad`, 3 commits):
-  1. assignments.js made native-only: dashboard, student list, status derivation and the teacher notifications count now read native_pads instead of pads/submissions/grades/paste_events. Removed the Etherpad-only bulk release-grades endpoint and its button. Rewrote/pruned the mixed-path cases in assignments.test.js (now 11/11).
-  2. Deleted src/routes/pads.js (+ app.js registration), src/etherpad/ (API, config, ep_inkheron_paste plugin), old views write/locked/greenPen.js, teacher review.html + timeslider.html and their routes, dead /write fallbacks in student-dashboard.html, the obsolete import-etherpad-to-native.mjs, and the Etherpad-only tests (etherpad, pads, submissions, paste, importEtherpad).
-  3. Updated CLAUDE.md §1/§2/§4/§7/§9 to describe native InkPad as the writing surface and document the native data model; marked the 8 legacy tables inert.
-- Decisions: kept serverChan.js and literacyCoder.js (not Etherpad-specific, reusable for the native path — currently unwired). Kept all legacy tables and their data; no drop migration. Repointed the teacher notification badge to native submissions rather than killing it.
-- Verified: app boots clean on Node 24; deleted routes (/teacher/review, /write/:id, /api/pads/:id/timeslider) return 404, native routes intact. Full suite 58 pass / 6 fail, and those 6 are the SAME pre-existing failures present before this work (EAP library upload, student login, classes CRUD, roster page, two native-write-view CSS assertions) — no new regressions.
-- Gotchas hit: this repo's git root is the parent Claude/ dir, not InkHeron-Platform/. A `git add -A` swept in unrelated projects and embedded repos; fixed by soft-resetting and re-staging only InkHeron-Platform paths. Use explicit paths here, never `-A`. Tests need Node 24 (node:sqlite); nvm has v24.18.0.
-- Open / next: serverChan/literacyCoder are unwired on the native path (native submit does not notify WeChat, no AI literacy analysis endpoint yet). Legacy tables can be dropped later as a deliberate backed-up step. SESSION_NOTES is over 400 lines — archive oldest soon.
-
-## 2026-07-02 - Uniform line spacing for clean empty-line numbers
-- Asked: line numbers looked buggy around empty Enter lines.
-- Cause: paragraphs/divs had a 1em bottom margin, so blank lines were taller than text lines and the gutter numbers spaced unevenly.
-- Built: dropped the paragraph/div bottom margin so every line is one uniform ruled-paper height; empty lines now number evenly. Lists keep left indent, lost bottom margin.
-- Verified: node --check passes, wrapper active after deploy.
-
-## 2026-07-02 - Fix line-number alignment
-- Asked: line numbers on the left did not line up with lines that have text.
-- Cause: gutter was a fixed 31.5px-spaced text column counting only newline lines, so wrapped lines and the 1em paragraph bottom margin drifted the numbers off the text.
-- Built: updateLineNumbers now measures each visual line via a Range over the editor content (getClientRects, deduped by top) and absolutely positions a number at each line top, dividing out the current editor zoom.
-- Verified: node --check passes, wrapper active after deploy. Live look for Brendan.
-
