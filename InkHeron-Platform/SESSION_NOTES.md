@@ -20,6 +20,14 @@ Entry format:
 
 ---
 
+## 2026-07-06 — Fix semester filter squeezing out the search box
+
+- Phase/Step worked: bug report from a screenshot of the assignments list search row.
+- Built: `.search-row select` in `assignments.html` had no explicit width, so it inherited the page-wide `select{width:100%}` rule as its flex-basis (`flex:0 1 auto` resolves basis from `width` when set to `auto`). With the search input at `flex:1` (basis 0), nearly all the row's space landed on the select instead of the input, so the semester dropdown filled almost the whole row and the search box collapsed to a sliver. Fixed by giving `.search-row select` `flex:0 0 auto;width:auto;max-width:170px`, so it shrink-wraps to its content and the input's `flex:1` can claim the remaining space as intended.
+- Decisions: capped at 170px rather than removing width entirely, so the dropdown stays a fixed, predictable size next to the now-dominant search box.
+- Open / next: none.
+- Gotchas hit: could not browser-verify this one — the Chrome extension (claude-in-chrome) and computer-use were both disconnected this session, so I verified via the flexbox sizing math and CSS specificity/cascade instead of a live screenshot. Worth a quick manual look next time you're in the app. Commit `256dab8`.
+
 ## 2026-07-05 — Opus HANDOFF_2 item 5: student-facing AI-mention audit
 - Audited every surface I touched plus the broader student-facing set (native-feedback.html, student-dashboard.html, login/change-password, nativeWrite.js green-pen panel, and the student-version of student-profile.html) for "AI", "model", "checker", "machine", "auto-mark", model names and OpenRouter. No student-visible machine-marking language found.
 - Only near-hits: "sentence machinery" (a writing-craft metaphor for subordination in a teacher-side tooltip) and gpTimer/gpRecheck (green-pen timer variable names). Neither implies machine marking. No change needed.
