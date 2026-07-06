@@ -994,7 +994,12 @@ export function renderNativeWriteView({
         editor.querySelectorAll('span[data-gp]').forEach(node => node.replaceWith(...node.childNodes));
         editor.normalize();
         const wordish = ch => Boolean(ch) && /[\\w']/.test(ch);
-        for(const mark of gpMarks){
+        // Wrap the widest quote first so overlapping marks nest: a clause-level
+        // mark (STR, inc, RO) is placed while its text is still one contiguous
+        // node, then a word-level mark (Sp, WW...) inside it wraps within that
+        // node. Doing it the other way splits the clause text and loses it.
+        const gpOrder = gpMarks.slice().sort((a, b) => (b.quote || '').length - (a.quote || '').length);
+        for(const mark of gpOrder){
           mark.found = false;
           if(!mark.quote || !mark.quote.trim()) continue;
           let best = null;

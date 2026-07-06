@@ -34,6 +34,13 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 .mk.flash{background:var(--amber-50);outline:2px solid var(--amber-700);border-radius:3px}
 .tip{position:absolute;bottom:125%;left:0;background:var(--ink);color:#fff;font-family:var(--font);font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:6px;white-space:nowrap;z-index:5;pointer-events:none;display:none}
 .mk[data-kind="lit"]{cursor:pointer}
+/* Layered marks: an outer clause-level mark keeps a plain underline, an inner
+   word-level mark (2+ marks covering the same text) drops its underline lower
+   and wins a faint background wash so both stay visible. */
+.mk.stack-outer{padding-bottom:3px}
+.mk.wash.surface{background:var(--amber-50)}
+.mk.wash.grammar{background:var(--maroon-50,rgba(150,40,40,.08))}
+.mk.wash.format{background:var(--blue-50,rgba(40,80,150,.08))}
 .code-pop{position:absolute;z-index:90;display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border-2);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow-lift)}
 .code-pop-quote{font-family:var(--serif);font-size:12.5px;color:var(--text-2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .code-pop select{border:1.5px solid var(--border-2);border-radius:8px;padding:5px 7px;font:inherit;font-size:12.5px;background:var(--surface)}
@@ -219,16 +226,43 @@ function renderEssay(){
     else if (ann.type === 'inline_comment') spans.push({ s:ann.start_offset, e:ann.end_offset, cls:'comment', tip:'Comment', kind:'comment', id:ann.id });
   }
   for (const c of contested) spans.push({ s:c.start_offset, e:c.end_offset, cls:'contested', tip:'Needs your decision', kind:'contested', id:c.id });
-  spans.sort((a,b)=> a.s - b.s || a.e - b.e);
-  const kept = []; let lastEnd = -1;
-  for (const sp of spans){ if (sp.s >= lastEnd){ kept.push(sp); lastEnd = sp.e; } }
-  let html = ''; let cur = 0;
-  for (const sp of kept){
-    if (sp.s > cur) html += esc(text.slice(cur, sp.s));
-    html += '<span class="mk '+sp.cls+'" data-kind="'+sp.kind+'" data-id="'+sp.id+'"'+(sp.sug?(' data-sug="'+sp.sug+'"'):'')+'>'+esc(text.slice(sp.s, sp.e))+'<span class="tip">'+esc(sp.tip)+'</span></span>';
-    cur = sp.e;
+  const valid = spans.filter(sp => Number.isInteger(sp.s) && Number.isInteger(sp.e) && sp.e > sp.s);
+  // Segment rendering: split the text at every mark boundary so overlapping
+  // marks all show. Each segment carries ALL marks covering it; the widest is
+  // the outer underline, the narrowest is the inner (word-level) mark, which
+  // gets the background wash. A lone mark renders as a plain single underline.
+  const bounds = new Set([0, text.length]);
+  for (const sp of valid){ bounds.add(sp.s); bounds.add(sp.e); }
+  const cuts = [...bounds].filter(b => b >= 0 && b <= text.length).sort((a,b)=>a-b);
+  const openTag = (m, cls) =>
+    '<span class="mk '+m.cls+cls+'" data-kind="'+m.kind+'" data-id="'+m.id+'"'+(m.sug?(' data-sug="'+m.sug+'"'):'')+'>';
+  let html = '';
+  for (let i=0; i<cuts.length-1; i++){
+    const a = cuts[i], b = cuts[i+1];
+    if (b <= a) continue;
+    const piece = esc(text.slice(a, b));
+    // Widest first = outermost; narrowest last = innermost.
+    const covering = valid.filter(m => m.s <= a && m.e >= b).sort((x,y)=> (y.e-y.s) - (x.e-x.s));
+    if (!covering.length){ html += piece; continue; }
+    const layered = covering.length >= 2;
+    let seg = '';
+    covering.forEach((m, idx) => {
+      const innermost = idx === covering.length-1;
+      let cls = '';
+      if (layered && !innermost) cls += ' stack-outer';
+      if (layered && innermost) cls += ' wash';
+      seg += openTag(m, cls);
+    });
+    seg += piece;
+    if (layered){
+      const labels = covering.map(m => m.tip).filter(Boolean);
+      seg += '<span class="tip">'+esc(labels.join(' · '))+'</span>';
+    } else {
+      seg += '<span class="tip">'+esc(covering[0].tip)+'</span>';
+    }
+    seg += covering.map(()=>'</span>').join('');
+    html += seg;
   }
-  if (cur < text.length) html += esc(text.slice(cur));
   const elx = document.getElementById('essay');
   elx.innerHTML = html;
   elx.onmouseup = onSelectText;

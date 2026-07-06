@@ -31,6 +31,11 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 .mk.grammar{border-color:var(--maroon-500)}
 .mk.format{border-color:var(--blue-700)}
 .mk.dim{border-color:var(--surface-3)}
+.mk.stack-outer{padding-bottom:3px}
+.mk.wash.surface{background:var(--amber-50)}
+.mk.wash.grammar{background:var(--maroon-50,rgba(150,40,40,.08))}
+.mk.wash.format{background:var(--blue-50,rgba(40,80,150,.08))}
+.mk.dim.wash{background:transparent}
 .tip{position:absolute;bottom:125%;left:0;background:var(--ink);color:#fff;font-family:var(--font);font-size:11.5px;font-weight:700;padding:4px 8px;border-radius:6px;white-space:nowrap;display:none;z-index:5}
 .mk:hover .tip{display:block}
 .rail{position:sticky;top:64px;display:grid;gap:10px}
@@ -150,18 +155,34 @@ function renderFocusBar(){
 function renderEssay(){
   const text = data.pad.plain_text || '';
   const spans = litAnnotations()
-    .filter(a=>a.start_offset!=null && a.end_offset!=null)
-    .map(a=>({s:a.start_offset,e:a.end_offset,cat:markCategory(a)}))
-    .sort((a,b)=>a.s-b.s||a.e-b.e);
-  const kept=[]; let last=-1;
-  for(const sp of spans){ if(sp.s>=last){ kept.push(sp); last=sp.e; } }
-  let html=''; let cur=0;
-  for(const sp of kept){
-    if(sp.s>cur) html+=esc(text.slice(cur,sp.s));
-    html+='<span class="mk '+sp.cat+'" data-cat="'+sp.cat+'">'+esc(text.slice(sp.s,sp.e))+'<span class="tip">'+esc(CAT_LABEL[sp.cat])+' — find and fix it</span></span>';
-    cur=sp.e;
+    .filter(a=>a.start_offset!=null && a.end_offset!=null && a.end_offset>a.start_offset)
+    .map(a=>({s:a.start_offset,e:a.end_offset,cat:markCategory(a)}));
+  // Segment rendering so overlapping marks all show (a spelling error inside a
+  // structure error stays visible). Widest = outer underline, narrowest = inner
+  // word-level mark with the wash. Each span keeps data-cat for the filter.
+  const bounds = new Set([0, text.length]);
+  for(const sp of spans){ bounds.add(sp.s); bounds.add(sp.e); }
+  const cuts=[...bounds].filter(b=>b>=0&&b<=text.length).sort((a,b)=>a-b);
+  let html='';
+  for(let i=0;i<cuts.length-1;i++){
+    const a=cuts[i], b=cuts[i+1];
+    if(b<=a) continue;
+    const piece=esc(text.slice(a,b));
+    const covering=spans.filter(m=>m.s<=a&&m.e>=b).sort((x,y)=>(y.e-y.s)-(x.e-x.s));
+    if(!covering.length){ html+=piece; continue; }
+    const layered=covering.length>=2;
+    covering.forEach((m,idx)=>{
+      const innermost=idx===covering.length-1;
+      let cls='';
+      if(layered&&!innermost) cls+=' stack-outer';
+      if(layered&&innermost) cls+=' wash';
+      html+='<span class="mk '+m.cat+cls+'" data-cat="'+m.cat+'">';
+    });
+    html+=piece;
+    const labels=[...new Set(covering.map(m=>CAT_LABEL[m.cat]))];
+    html+='<span class="tip">'+esc(labels.join(' · '))+' — find and fix it</span>';
+    html+=covering.map(()=>'</span>').join('');
   }
-  if(cur<text.length) html+=esc(text.slice(cur));
   document.getElementById('essay').innerHTML = html;
   applyFilter();
 }

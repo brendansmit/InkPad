@@ -56,6 +56,7 @@ RULES (follow exactly):
 6. "sentence" is the FULL verbatim sentence the quote sits in. Copy it exactly.
 7. Do not flag style, tone, or things you would merely prefer differently. Errors only.
 8. A paragraph with no errors returns []. That is a valid correct answer.
+9. Errors can overlap. When a whole clause has a structure error (STR, inc, RO) and words inside it also have their own errors (Sp, WW, VT and so on), report BOTH: the clause-level finding AND each word-level finding separately, each as its own object. Never drop a word-level error just because it sits inside a larger structure error.
 
 OUTPUT FORMAT — return ONLY a JSON array, nothing else:
 [{"sentence": "<verbatim sentence>", "quote": "<verbatim error span>", "code": "<one code>"}]

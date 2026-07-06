@@ -83,6 +83,37 @@ test('confident findings auto-promote to marks, contested ones stay pending', as
   await app.close();
 });
 
+test('two overlapping findings both auto-promote and both appear in the review payload', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, csrf, cookies } = await seed(db);
+
+  // A clause-level structure mark over "They is playing outside" and a
+  // word-level grammar mark on "is" inside it. Both confident and flag-free.
+  const clauseId = insertSuggestion(db, padId, { quote: 'They is playing outside', start: 0, end: 23, code: 'STR',
+    checker: { verbatim: true, confidence: 0.9, flag: null } });
+  const wordId = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'Gra',
+    checker: { verbatim: true, confidence: 0.92, flag: null } });
+
+  const result = autoPromoteSuggestions(db, padId);
+  assert.equal(result.promoted, 2, 'both overlapping findings promote, neither drops the other');
+
+  const clauseAnn = db.prepare('SELECT annotation_id FROM ai_literacy_suggestions WHERE id = ?').get(clauseId).annotation_id;
+  const wordAnn = db.prepare('SELECT annotation_id FROM ai_literacy_suggestions WHERE id = ?').get(wordId).annotation_id;
+  assert.ok(clauseAnn && wordAnn);
+
+  const review = await app.inject({ method: 'GET', url: `/api/native/pads/${padId}/review`,
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  const lit = review.json().annotations.filter((a) => a.type === 'literacy_code');
+  const clause = lit.find((a) => a.id === clauseAnn);
+  const word = lit.find((a) => a.id === wordAnn);
+  assert.ok(clause && word, 'both overlapping marks are in the review payload');
+  // The word span sits strictly inside the clause span.
+  assert.ok(clause.start_offset <= word.start_offset && word.end_offset <= clause.end_offset,
+    'the word-level mark is nested inside the clause-level mark');
+
+  await app.close();
+});
+
 test('disagree retracts an auto-accepted mark and its profile data', async () => {
   const db = openDatabase(tmpDb());
   const { app, padId, csrf, cookies, studentId } = await seed(db);
