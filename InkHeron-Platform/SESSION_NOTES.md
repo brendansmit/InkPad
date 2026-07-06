@@ -120,6 +120,13 @@ Entry format:
 - Open / next: items 2-4 from SONNET_HANDOFF_2.md (tone pass, admin gradebook export, AI-mention audit) still pending.
 - Gotchas hit: the shared "inkheron" launch.json config (port 3472) was in use by another chat session; added a separate `inkheron-verify` config (port 3473) pointing at its own scratch `INKHERON_DB_PATH` rather than touching the shared config or the real teacher database. Commit `f9ae0d6`.
 
+## 2026-07-05 — Round-2 review, baseline failures cleared, production deploy
+
+- Reviewed all 22 round-2 commits (Sonnet items 1-7, Opus items 1-7, plus Sonnet's unrequested but sound nativeReanalyze.js: teacher-triggered AI re-run for pads submitted before the pipeline existed; teacher+CSRF, verified). Contract points hold: adminExport filters is_demo/is_ghost and ships names+numbers only, classInsights uses realStudentsWhere everywhere, release gating covers both feedback and green pen.
+- Cleared the 4 "known baseline failures" for good. Three were stale tests asserting pre-redesign behaviour (must_change_password now defaults true for teacher-created students; roster page heading changed; EAP admin page title changed after its rewrite). The fourth was a REAL gap the test was right about: /library/admin served the admin page unauthenticated; route now requires a teacher session. Suite: 144/144 green, first time.
+- Deployed the full committed tree to /opt/inkheron-platform (DB backed up as inkheron.db.pre-round2-*). Migration 027 applied, wrapper active, inkpad/eap live 200, class-insights correctly 401 without a session.
+- State: everything requested through round 2 is live in production.
+
 ## 2026-07-04 — Teacher feedback round 2: diagnosed dashboard bug, wrote round-2 handoffs
 
 - Diagnosed the "finish marking changes nothing" report: rubric clicks DO save (PUT rubric-scores per click) and finish-marking DOES set state, but fetchDashboardRows in assignments.js never joins native_rubric_scores and publicDashboardRow still maps legacy statuses, so the dashboard and CSV cannot show any of it. Fix specced precisely in SONNET_HANDOFF_2.md item 1.
