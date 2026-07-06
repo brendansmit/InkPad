@@ -336,9 +336,27 @@ export function feedbackTablesForAssignment(db, settingsJson) {
 
 // The strengths/targets set to use for a specific essay. Prefers the table the
 // reviewer applied to this pad, else the assignment's first table, else default.
+// The special id 'all' merges every configured table (deduped by title).
 export function feedbackOptionsForAssignment(db, settingsJson, appliedTable = '') {
   const tables = feedbackTablesForAssignment(db, settingsJson);
   const applied = String(appliedTable || '').trim();
+  if (applied === 'all') {
+    const dedupe = (lists) => {
+      const seen = new Set();
+      const out = [];
+      for (const opt of lists.flat()) {
+        const key = (opt?.title || '').toLowerCase();
+        if (key && seen.has(key)) continue;
+        seen.add(key);
+        out.push(opt);
+      }
+      return out;
+    };
+    return {
+      strengths: dedupe(tables.map((t) => t.strengths)),
+      targets: dedupe(tables.map((t) => t.targets)),
+    };
+  }
   const chosen = (applied && tables.find((t) => t.id === applied)) || tables[0];
   return { strengths: chosen.strengths, targets: chosen.targets };
 }

@@ -1547,7 +1547,7 @@ export async function registerNativePadRoutes(app, { db }) {
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
       const tables = feedbackTablesForAssignment(db, pad.settings_json);
       const requested = String(request.body?.table || '').trim();
-      const allowed = new Set(tables.map((t) => t.id));
+      const allowed = new Set([...tables.map((t) => t.id), 'all']);
       const applied = allowed.has(requested) ? requested : (tables[0]?.id ?? 'default');
       db.prepare('UPDATE native_pads SET applied_feedback_table = ? WHERE id = ?').run(applied, padId);
       return { applied_feedback_table: applied, feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, applied) };
@@ -1814,7 +1814,8 @@ function loadImplementationScore(db, padId) {
       const rubricNames = Array.isArray(settings.rubric_names) ? settings.rubric_names : [];
       const isApLang = isApLangClassName(pad.class_name);
       const feedbackTables = feedbackTablesForAssignment(db, pad.settings_json);
-      const appliedTable = pad.applied_feedback_table && feedbackTables.some((t) => t.id === pad.applied_feedback_table)
+      const appliedTable = pad.applied_feedback_table
+        && (pad.applied_feedback_table === 'all' || feedbackTables.some((t) => t.id === pad.applied_feedback_table))
         ? pad.applied_feedback_table
         : (feedbackTables[0]?.id ?? 'default');
       return {

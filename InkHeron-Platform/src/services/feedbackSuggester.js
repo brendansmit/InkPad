@@ -9,6 +9,7 @@
  */
 import { callChat } from './openRouter.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
+import { feedbackOptionsForAssignment } from '../feedback/assets.js';
 
 const DOER_INTENT = 'anthropic claude haiku';
 const CHECKER_INTENT = 'google gemini flash';
@@ -18,6 +19,8 @@ const MAX_TARGETS = 5;
 const DOER_SYSTEM_PROMPT = `You read one student essay against its assignment prompt and rubric, and against the student's recurring issues from past essays, and suggest strengths and targets for the teacher to consider. This is formative coaching for an English learner (L2), not a grade. Grammar and spelling issues are practice targets, never punishment.
 
 Tie every item to what the rubric expected versus what the essay actually did. A strength is something the essay does well against the rubric or the prompt. A target is something the essay could do better against the rubric or the prompt, especially if it matches one of the student's recurring issues. "try_now_prompt" on a target is one short, concrete instruction the student could apply right now in a revision.
+
+The teacher works from this feedback bank. Prefer suggesting items from it, adapted to this essay; invent a new one only when nothing in the bank fits.
 
 Give 2 to 3 strengths and 3 to 5 targets, most important first.
 
@@ -109,11 +112,15 @@ function loadRubricContext(db, assignmentId) {
  */
 export async function suggestFeedbackItems(db, { padId } = {}, { chat = callChat } = {}) {
   try {
-    const pad = db.prepare('SELECT id, plain_text, student_id, assignment_id FROM native_pads WHERE id = ?').get(padId);
+    const pad = db.prepare('SELECT id, plain_text, student_id, assignment_id, applied_feedback_table FROM native_pads WHERE id = ?').get(padId);
     if (!pad || !pad.plain_text || !/\w/.test(pad.plain_text)) return { status: 'skipped' };
 
     const assignment = db.prepare('SELECT settings_json FROM assignments WHERE id = ?').get(pad.assignment_id);
     const settings = parseSettingsJson(assignment?.settings_json);
+
+    // The teacher's chosen feedback bank for this essay (or 'all' tables). The
+    // Doer is told to prefer these items, adapted, over inventing new ones.
+    const bank = feedbackOptionsForAssignment(db, assignment?.settings_json, pad.applied_feedback_table || '');
 
     const rubric = loadRubricContext(db, pad.assignment_id);
 
@@ -130,6 +137,10 @@ export async function suggestFeedbackItems(db, { padId } = {}, { chat = callChat
       essay: pad.plain_text,
       rubric,
       student_recurring_issues: issueRows,
+      feedback_bank: {
+        strengths: (bank.strengths || []).map((o) => ({ title: o.title, explanation: o.explanation })),
+        targets: (bank.targets || []).map((o) => ({ title: o.title, explanation: o.explanation })),
+      },
     };
 
     const result = await chat(db, {

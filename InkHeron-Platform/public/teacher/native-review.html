@@ -380,6 +380,19 @@ function cardStrengthsTargets(){
   const head = el('header'); head.innerHTML = '<strong>Strengths and targets</strong><span class="count">AI suggests '+fbSuggestions.length+'</span>';
   card.appendChild(head);
   const body = el('div','body');
+  // Feedback bank switcher: which uploaded table(s) the AI draws from for this
+  // essay. Persists per pad via applied-feedback-table; reloads so the AI
+  // suggestions re-run against the chosen bank.
+  const tables = review.feedback_tables || [];
+  if (tables.length){
+    const pick = el('div','addrow'); pick.style.marginBottom='10px';
+    const lbl = document.createElement('label'); lbl.textContent='Feedback bank'; lbl.style.cssText='font-size:12px;color:var(--text-2)';
+    const sel = document.createElement('select');
+    for (const t of tables){ const o=document.createElement('option'); o.value=t.id; o.textContent=t.title; if(t.id===review.applied_feedback_table) o.selected=true; sel.appendChild(o); }
+    const allOpt = document.createElement('option'); allOpt.value='all'; allOpt.textContent='All tables'; if(review.applied_feedback_table==='all') allOpt.selected=true; sel.appendChild(allOpt);
+    sel.onchange = async ()=>{ await api('/api/native/pads/'+padId+'/applied-feedback-table', { method:'PUT', body:{ table: sel.value } }); toast('Feedback bank set'); await loadAll(); };
+    pick.append(lbl, sel); body.appendChild(pick);
+  }
   for (const sug of fbSuggestions){
     const div = el('div','sug');
     div.innerHTML = '<strong>'+(sug.kind==='target'?'Target':'Strength')+' · '+esc(sug.title)+'</strong><p>'+esc(sug.explanation||'')+'</p>';

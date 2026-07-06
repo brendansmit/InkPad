@@ -103,6 +103,53 @@ test('suggestFeedbackItems writes strengths and targets, targets keep try_now_pr
   await app.close();
 });
 
+function seedFeedbackTable(db, title, strengths, targets) {
+  const parsed = {
+    strengths: strengths.map((t, i) => ({ id: 'strength_' + i, title: t, explanation: t + ' explained' })),
+    targets: targets.map((t, i) => ({ id: 'target_' + i, title: t, explanation: t + ' explained' })),
+  };
+  return db.prepare(`
+    INSERT INTO feedback_assets (kind, title, parsed_json)
+    VALUES ('strength_target', ?, ?)
+  `).run(title, JSON.stringify(parsed)).lastInsertRowid;
+}
+
+test('the doer prompt carries the chosen feedback bank, and switching the table changes what is sent', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, assignmentId } = await seedPad(db);
+
+  const bankA = seedFeedbackTable(db, 'Bank A', ['Alpha strength'], ['Alpha target']);
+  const bankB = seedFeedbackTable(db, 'Bank B', ['Beta strength'], ['Beta target']);
+  db.prepare('UPDATE assignments SET settings_json = ? WHERE id = ?')
+    .run(JSON.stringify({ prompt: 'Write about a lesson.', feedback_tables: ['asset:' + bankA, 'asset:' + bankB] }), assignmentId);
+
+  let sentToDoer = '';
+  const capture = (db2, { intent, messages }) => {
+    if (!intent.includes('gemini')) sentToDoer = messages.map((m) => m.content).join('\n');
+    return Promise.resolve(intent.includes('gemini') ? checkerResponse([]) : doerResponse());
+  };
+
+  // Default (no applied table) uses the first configured bank, not the second.
+  await suggestFeedbackItems(db, { padId }, { chat: capture });
+  assert.match(sentToDoer, /Alpha strength/);
+  assert.match(sentToDoer, /Alpha target/);
+  assert.doesNotMatch(sentToDoer, /Beta strength/);
+
+  // Switch the pad to bank B and re-run: now bank B items are sent.
+  db.prepare('UPDATE native_pads SET applied_feedback_table = ? WHERE id = ?').run('asset:' + bankB, padId);
+  await suggestFeedbackItems(db, { padId }, { chat: capture });
+  assert.match(sentToDoer, /Beta strength/);
+  assert.doesNotMatch(sentToDoer, /Alpha strength/);
+
+  // 'all' merges both banks into the prompt.
+  db.prepare('UPDATE native_pads SET applied_feedback_table = ? WHERE id = ?').run('all', padId);
+  await suggestFeedbackItems(db, { padId }, { chat: capture });
+  assert.match(sentToDoer, /Alpha strength/);
+  assert.match(sentToDoer, /Beta strength/);
+
+  await app.close();
+});
+
 test('re-run clears prior pending suggestions instead of duplicating them', async () => {
   const db = openDatabase(tmpDb());
   const { app, padId } = await seedPad(db);
