@@ -15,6 +15,7 @@ Entry format:
 - Asked: fresh chat (old context 600k+); log three issues from the latest deployment.
 - Did: added to POLISH_QUEUE.md Open: (1) needs-you colour still not standing out (verify 5c3bbcf is deployed, else stronger colour), (2) list teacher comments in the sidebar for edit/delete, (3) BUG: inline comments not anchoring to the highlighted text. No code changes yet, awaiting go-ahead.
 - Also this session: fixed AI re-run stacking (Gra.Gra / Sp.Sp). New `retractAiMarksForPad` in nativePads.js deletes prior AI-auto annotations with profile-stat recompute and clears spent suggestion rows before every analysis run (reanalyze route and submit path); rejected suggestions are kept and identical re-found findings stay vetoed. Regression test added; suite 152/152 on Node 24. Commit 4e79e26. Server-side clear of Alex's pad + deploy blocked by SSH permission, handed commands to teacher.
+- Needs-you colour: teacher said #fde047 still blends in; changed to neon chartreuse #ccff00 in native-review.html. Verified on a seeded local server (inkheron-verify, port 3473), screenshot checked. POLISH_QUEUE item moved to Done.
 
 ## YYYY-MM-DD — <short title>
 - Phase/Step worked: 
