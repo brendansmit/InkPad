@@ -987,8 +987,10 @@ async function resolveNativeAssignmentAndStudent(db, assignmentId, studentId) {
 
 // In 'batch' feedback_release mode, feedback and green-pen rewrite access stay
 // closed for marked/reopened/resubmitted pads until the teacher releases them.
-function isBatchFeedbackHeld(db, assignmentId, padState) {
+function isBatchFeedbackHeld(db, assignmentId, padState, pad = null) {
   if (!['marked', 'green_pen_open', 'resubmitted'].includes(padState)) return false;
+  // A per-student release on the pad overrides the class-wide hold.
+  if (pad && pad.feedback_released_at) return false;
   const row = db.prepare('SELECT settings_json, feedback_released_at FROM assignments WHERE id = ?').get(assignmentId);
   if (!row) return false;
   const settings = parseSettings(row.settings_json);
@@ -1143,6 +1145,7 @@ function loadTeacherNativePad(db, padId) {
            a.type AS assignment_type,
            a.settings_json,
            a.due_at,
+           a.feedback_released_at AS feedback_released_at_assignment,
            c.id AS class_id,
            c.name AS class_name
     FROM native_pads np
@@ -1252,7 +1255,7 @@ export async function registerNativePadRoutes(app, { db }) {
       if (pad.state !== 'writing' && pad.state !== 'green_pen_open') {
         return reply.code(409).send({ error: 'pad_locked' });
       }
-      if (pad.state === 'green_pen_open' && isBatchFeedbackHeld(db, pad.assignment_id, pad.state)) {
+      if (pad.state === 'green_pen_open' && isBatchFeedbackHeld(db, pad.assignment_id, pad.state, pad)) {
         return reply.code(403).send({ error: 'feedback_not_released' });
       }
       const expectedVersion = request.body?.expected_version === undefined ? null : Number(request.body.expected_version);
@@ -1286,7 +1289,7 @@ export async function registerNativePadRoutes(app, { db }) {
       if (pad.state !== 'writing' && pad.state !== 'green_pen_open') {
         return reply.code(409).send({ error: 'already_submitted' });
       }
-      if (pad.state === 'green_pen_open' && isBatchFeedbackHeld(db, pad.assignment_id, pad.state)) {
+      if (pad.state === 'green_pen_open' && isBatchFeedbackHeld(db, pad.assignment_id, pad.state, pad)) {
         return reply.code(403).send({ error: 'feedback_not_released' });
       }
 
@@ -1693,6 +1696,7 @@ export async function registerNativePadRoutes(app, { db }) {
       const pad = db.prepare('SELECT * FROM native_pads WHERE assignment_id = ? AND student_id = ?').get(assignmentId, studentId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
       if (settings.feedback_release === 'batch' && !assignment.feedback_released_at
+          && !pad.feedback_released_at
           && ['marked', 'green_pen_open', 'resubmitted'].includes(pad.state)) {
         return {
           pad: publicNativePad(pad),
@@ -1822,7 +1826,10 @@ function loadImplementationScore(db, padId) {
           due_at: pad.due_at ?? null,
           essay_type: settings.essay_type ?? 'other',
           supervision: settings.supervision ?? 'in_class',
+          feedback_release: settings.feedback_release === 'immediate' ? 'immediate' : 'batch',
+          feedback_released_at: pad.feedback_released_at_assignment ?? null,
         },
+        pad_feedback_released_at: pad.feedback_released_at ?? null,
         class: { id: pad.class_id, name: pad.class_name, is_ap_lang: isApLang },
         student: { id: pad.student_id, display_name: pad.student_name, username: pad.student_username },
         policy: publicPolicy(policy),
@@ -2210,6 +2217,22 @@ function loadImplementationScore(db, padId) {
   // The original assignment's instructions and reference, opened in a new
   // tab from the green-pen panel (the rewrite view gives its left panel to
   // the editor, so the source material lives here).
+  // Send feedback to ONE student before the class-wide release (batch mode).
+  app.post('/api/native/pads/:padId/release-feedback',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const padId = requirePositiveInteger(request.params.padId, 'padId');
+      const pad = loadTeacherNativePad(db, padId);
+      if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      if (!['marked', 'green_pen_open', 'resubmitted'].includes(pad.state)) {
+        return reply.code(409).send({ error: 'not_marked_yet' });
+      }
+      db.prepare("UPDATE native_pads SET feedback_released_at = datetime('now') WHERE id = ?").run(padId);
+      logTeacherEvent(db, padId, request.session.user.id, 'pad_feedback_released', {});
+      return { released: true };
+    }
+  );
+
   app.get('/native/greenpen-source/:padId',
     { preValidation: [app.requireStudentSession] },
     async (request, reply) => {

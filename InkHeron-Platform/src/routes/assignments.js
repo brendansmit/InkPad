@@ -86,7 +86,7 @@ function buildSettingsJson(settings = {}, type = 'essay') {
     native_inkpad: true,
     essay_type: ESSAY_TYPES.has(settings.essay_type) ? settings.essay_type : 'other',
     supervision: SUPERVISION_LEVELS.has(settings.supervision) ? settings.supervision : 'in_class',
-    feedback_release: FEEDBACK_RELEASE_MODES.has(settings.feedback_release) ? settings.feedback_release : 'immediate',
+    feedback_release: FEEDBACK_RELEASE_MODES.has(settings.feedback_release) ? settings.feedback_release : 'batch',
   };
   // Tag only — untagged assignments simply omit this key and still show under
   // the 'all' semester filter (see GET /api/assignments).

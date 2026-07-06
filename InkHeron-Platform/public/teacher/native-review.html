@@ -107,6 +107,7 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   <button class="btn" id="reanalyzeBtn" title="Re-run the AI marking on this essay">Run AI review</button>
   <button class="btn" id="prevBtn">← Prev</button>
   <button class="btn" id="nextBtn">Next →</button>
+  <button class="btn" id="sendFeedbackBtn" style="display:none">Send feedback</button>
   <button class="btn primary" id="finishBtn">Finish marking</button>
 </div>
 
@@ -185,6 +186,7 @@ function renderTop(){
   nextBtn.disabled = !nextUnmarked; nextBtn.onclick = ()=>{ if(nextUnmarked) location.href = '/teacher/native-review?pad_id='+nextUnmarked.pad_id; };
   prevBtn.disabled = !prev; prevBtn.onclick = ()=>{ if(prev) location.href = '/teacher/native-review?pad_id='+prev.pad_id; };
   document.getElementById('finishBtn').onclick = finishMarking;
+  renderSendFeedback();
   document.getElementById('reanalyzeBtn').onclick = reanalyze;
   const back = document.getElementById('backBtn');
   if (back) back.href = a.id ? '/teacher/assignments?id=' + a.id : '/teacher/assignments';
@@ -497,6 +499,30 @@ async function setScore(criterionId, value){
   contested = (review.suggestions||[]).filter(s=>s.status==='pending');
   renderRail();
 }
+// Per-student early release: only meaningful on batch assignments that are
+// marked but not yet released to the class.
+function renderSendFeedback(){
+  const btn = document.getElementById('sendFeedbackBtn');
+  const marked = ['marked','green_pen_open','resubmitted'].includes(review.pad.state);
+  const held = review.assignment.feedback_release === 'batch' && !review.assignment.feedback_released_at;
+  if (!marked || !held){ btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  if (review.pad_feedback_released_at){
+    btn.textContent = 'Feedback sent';
+    btn.disabled = true;
+    return;
+  }
+  btn.textContent = 'Send feedback';
+  btn.disabled = false;
+  btn.onclick = async ()=>{
+    if(!confirm('Send feedback to this student now, before the class release?')) return;
+    await api('/api/native/pads/'+padId+'/release-feedback', { method:'POST' });
+    toast('Feedback sent to student');
+    review.pad_feedback_released_at = new Date().toISOString();
+    renderSendFeedback();
+  };
+}
+
 async function finishMarking(){
   await api('/api/native/pads/'+padId+'/finish-marking', { method:'POST' });
   toast('Marking finished');

@@ -36,7 +36,7 @@ async function seedGreenPenPad(app) {
   const bobId = bobRes.json().student.id;
 
   const created = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: classId, title: 'Essay', settings: { green_pen: true } },
+    payload: { class_id: classId, title: 'Essay', settings: { green_pen: true, feedback_release: 'immediate' } },
     headers: { 'X-CSRF-Token': t.csrf, cookie: t.cookies } });
   const assignmentId = created.json().assignment.id;
 

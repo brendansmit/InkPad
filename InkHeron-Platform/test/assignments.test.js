@@ -135,7 +135,7 @@ test('essay_type and supervision default when absent and are validated when give
   await app.close();
 });
 
-test('feedback_release defaults to immediate and is validated when given', async () => {
+test('feedback_release defaults to batch and is validated when given', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
   const teacher = await setupTeacher(app);
   const cls = await app.inject({ method: 'POST', url: '/api/classes',
@@ -146,7 +146,7 @@ test('feedback_release defaults to immediate and is validated when given', async
     payload: { class_id: classId, title: 'No settings given' },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
   const defaults = JSON.parse(noSettings.json().assignment.settings_json);
-  assert.equal(defaults.feedback_release, 'immediate');
+  assert.equal(defaults.feedback_release, 'batch');
   assert.equal(noSettings.json().assignment.feedback_released_at, null);
 
   const batch = await app.inject({ method: 'POST', url: '/api/assignments',
@@ -159,7 +159,7 @@ test('feedback_release defaults to immediate and is validated when given', async
     payload: { class_id: classId, title: 'Bad value', settings: { feedback_release: 'whenever' } },
     headers: { 'X-CSRF-Token': teacher.csrf, cookie: teacher.cookies } });
   const fallback = JSON.parse(invalid.json().assignment.settings_json);
-  assert.equal(fallback.feedback_release, 'immediate');
+  assert.equal(fallback.feedback_release, 'batch');
 
   await app.close();
 });

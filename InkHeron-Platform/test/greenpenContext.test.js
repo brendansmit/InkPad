@@ -28,9 +28,9 @@ async function seed(db) {
   await app.inject({ method: 'POST', url: '/api/students',
     payload: { username: 'bob', display_name: 'Bob', password: 'pass12345', class_id: cls.json().class.id }, headers: h });
   const a1 = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: cls.json().class.id, title: 'Essay', settings: { green_pen: true } }, headers: h });
+    payload: { class_id: cls.json().class.id, title: 'Essay', settings: { green_pen: true, feedback_release: 'immediate' } }, headers: h });
   const a2 = await app.inject({ method: 'POST', url: '/api/assignments',
-    payload: { class_id: cls.json().class.id, title: 'Essay rewrite', settings: {} }, headers: h });
+    payload: { class_id: cls.json().class.id, title: 'Essay rewrite', settings: { feedback_release: 'immediate' } }, headers: h });
   const studentId = alice.json().student.id;
 
   const originalId = db.prepare(`
