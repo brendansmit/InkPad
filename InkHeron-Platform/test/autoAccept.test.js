@@ -5,7 +5,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/database.js';
-import { autoPromoteSuggestions } from '../src/routes/nativePads.js';
+import { autoPromoteSuggestions, retractAiMarksForPad } from '../src/routes/nativePads.js';
 import { parseJsonArraySalvage } from '../src/services/literacyCoder.js';
 
 function tmpDb() {
@@ -177,4 +177,39 @@ test('sentenceAround expands to full sentence boundaries', async () => {
   const at = text.indexOf('is');
   assert.equal(sentenceAround(text, at, at + 2), 'They is playing outside today!');
   assert.equal(sentenceAround('no punctuation at all', 3, 5), 'no punctuation at all');
+});
+
+test('retractAiMarksForPad replaces a previous run instead of stacking, and rejected findings stay vetoed', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, studentId } = await seed(db);
+
+  // First run: two confident findings promote to marks.
+  insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'Gra',
+    checker: { verbatim: true, confidence: 0.92, flag: null } });
+  const spId = insertSuggestion(db, padId, { quote: 'recieved', start: 36, end: 44, code: 'Sp',
+    checker: { verbatim: true, confidence: 0.9, flag: null } });
+  autoPromoteSuggestions(db, padId);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'").get(padId).n, 2);
+
+  // Teacher disagrees with the Sp mark.
+  db.prepare('DELETE FROM native_annotations WHERE id = (SELECT annotation_id FROM ai_literacy_suggestions WHERE id = ?)').run(spId);
+  db.prepare("UPDATE ai_literacy_suggestions SET status = 'rejected', annotation_id = NULL WHERE id = ?").run(spId);
+
+  // Second run: retract, then the model re-finds both errors.
+  retractAiMarksForPad(db, padId);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'").get(padId).n, 0,
+    'previous AI marks are gone before the new run promotes');
+  const stat = db.prepare("SELECT * FROM student_literacy_issue_stats WHERE student_id = ? AND code = 'Gra'").get(studentId);
+  assert.ok(!stat || stat.evidence_count === 0, 'profile stat recomputed after retraction');
+
+  insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'Gra',
+    checker: { verbatim: true, confidence: 0.92, flag: null } });
+  insertSuggestion(db, padId, { quote: 'recieved', start: 36, end: 44, code: 'Sp',
+    checker: { verbatim: true, confidence: 0.9, flag: null } });
+  const second = autoPromoteSuggestions(db, padId);
+  assert.equal(second.promoted, 1, 'the rejected Sp finding stays vetoed; only Gra promotes');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'").get(padId).n, 1,
+    'no Gra.Gra stacking after a re-run');
+
+  await app.close();
 });

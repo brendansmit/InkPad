@@ -1094,15 +1094,47 @@ function applyDueDateLock(db, pad, assignment) {
 // auto-applied mark, which retracts it from feedback and the profile data.
 export const AUTO_ACCEPT_CONFIDENCE = 0.75;
 
+// A fresh analysis run must REPLACE the previous run, not stack on it.
+// runLiteracyAnalysis clears pending suggestions itself, but marks that were
+// already auto-promoted live in native_annotations and would otherwise get a
+// second copy (Gra on top of Gra). Retract every AI-auto mark the way the
+// disagree endpoint does: delete the annotation, recompute the profile stat,
+// then remove the spent suggestion rows. Rejected rows are kept so teacher
+// disagreements can veto the same finding when it comes back.
+export function retractAiMarksForPad(db, padId) {
+  const pad = db.prepare('SELECT id, student_id FROM native_pads WHERE id = ?').get(padId);
+  if (!pad) return { retracted: 0 };
+  const accepted = db.prepare(
+    "SELECT * FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'accepted' AND annotation_id IS NOT NULL"
+  ).all(padId);
+  let retracted = 0;
+  for (const suggestion of accepted) {
+    const annotation = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(suggestion.annotation_id);
+    if (annotation) {
+      const key = normalizeLiteracyKey(annotation);
+      db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotation.id);
+      recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);
+      retracted += 1;
+    }
+  }
+  db.prepare("DELETE FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status IN ('pending', 'accepted')").run(padId);
+  return { retracted };
+}
+
 export function autoPromoteSuggestions(db, padId) {
   const pad = db.prepare('SELECT id, student_id, assignment_id FROM native_pads WHERE id = ?').get(padId);
   if (!pad) return { promoted: 0 };
   const pending = db.prepare("SELECT * FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'pending'").all(padId);
+  const rejectedKeys = new Set(db.prepare(
+    "SELECT code, quote FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'rejected'"
+  ).all(padId).map((r) => `${r.code} ${r.quote}`));
   let promoted = 0;
   for (const suggestion of pending) {
     // Some codes (MT: direct translation from Chinese) are teacher-judgement
     // calls by definition and never auto-apply.
     if (MANUAL_REVIEW_CODES.has(suggestion.code)) continue;
+    // The teacher already disagreed with this exact finding on a previous run.
+    if (rejectedKeys.has(`${suggestion.code} ${suggestion.quote}`)) continue;
     let checker = {};
     try { checker = JSON.parse(suggestion.checker_json ?? '{}'); } catch { checker = {}; }
     const confident = checker.verbatim === true && checker.flag == null
@@ -1317,8 +1349,11 @@ export async function registerNativePadRoutes(app, { db }) {
       }));
 
       // Background analysis seams (stubs until Fable fills phases B/D).
-      runInBackground('literacy', () => runLiteracyAnalysis(db, { padId })
-        .then(() => autoPromoteSuggestions(db, padId)));
+      runInBackground('literacy', () => {
+        retractAiMarksForPad(db, padId);
+        return runLiteracyAnalysis(db, { padId })
+          .then(() => autoPromoteSuggestions(db, padId));
+      });
       runInBackground('style-metrics', () => recordStyleMetrics(db, { padId }));
       runInBackground('grade-estimate', () => estimateRubric(db, { padId }));
       runInBackground('feedback-suggestions', () => suggestFeedbackItems(db, { padId }));
