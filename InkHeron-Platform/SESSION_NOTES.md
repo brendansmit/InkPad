@@ -141,6 +141,11 @@ Entry format:
 - Open / next: items 2-4 from SONNET_HANDOFF_2.md (tone pass, admin gradebook export, AI-mention audit) still pending.
 - Gotchas hit: the shared "inkheron" launch.json config (port 3472) was in use by another chat session; added a separate `inkheron-verify` config (port 3473) pointing at its own scratch `INKHERON_DB_PATH` rather than touching the shared config or the real teacher database. Commit `f9ae0d6`.
 
+## 2026-07-05 — Round-3 review and production deploy
+
+- Reviewed all six round-3 commits. Spot checks pass: contested quota now only among findings the checker rated below 0.9 (a batch of all-0.9s contests nothing); every loaded rubric kind renders a scorable tab; feedback-bank switcher restored and the suggester prompt carries the chosen bank with "prefer the bank, invent only when nothing fits"; layered marks (word errors nested inside structure errors) in Doer prompt and all three renderers with tests; selection toolbar (Comment / Mark error) replaces the auto comment popover so highlight-to-copy works and the teacher can tag missed errors with any code.
+- Suite 151/151 green. Deployed full tree to /opt/inkheron-platform (DB backed up pre-round3), wrapper active, both domains 200.
+
 ## 2026-07-05 — Batch default everywhere + per-student Send feedback
 
 - Teacher confirmed nothing has been released yet, so the server-side fallback for assignments without a feedback_release field is now ALSO 'batch' (assignments.js): everything holds until released, old and new alike.
