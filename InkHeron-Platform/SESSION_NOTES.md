@@ -20,6 +20,10 @@ Entry format:
 
 ---
 
+## 2026-07-06 — Opus ROUND3 item 1: contested pile only flags real doubt
+- src/services/checker.js: the forced least-confident ~10% quota now selects only among findings the checker rated confidence < 0.9. If every judged finding is >= 0.9, nothing extra is flagged, so the teacher stops re-reviewing marks the checker was already sure of. Genuine flags (code_questioned, not_verbatim, MT manual review) are untouched. Quota size still ceil(judged * 0.1), tiny batches (< 5) still exempt.
+- test/literacyCoder.test.js: existing test still asserts the lone 0.8 in a batch of 0.9s is flagged; added an assertion that a batch of six 0.9s produces zero least_confident flags. literacyCoder suite 9/9.
+
 ## 2026-07-06 — Fix semester filter squeezing out the search box
 
 - Phase/Step worked: bug report from a screenshot of the assignments list search row.

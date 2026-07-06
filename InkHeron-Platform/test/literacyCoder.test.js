@@ -195,4 +195,12 @@ test('checker always flags the least-confident ~10% of a real batch for review',
   const small = await verifyFindings({}, { padPlainText: text, findings: findings.slice(0, 2) },
     { chat: () => Promise.resolve(chatResponse(JSON.stringify(verdicts.slice(0, 2)))) });
   assert.ok(small.every((f) => f.checker.flag !== 'least_confident'));
+
+  // A confident batch (every finding >= 0.9) flags nothing extra: the teacher
+  // should not have to re-review things the checker was sure of.
+  const allConfident = findings.map((_, i) => ({ index: i, defensible: true, confidence: 0.9 }));
+  const confident = await verifyFindings({}, { padPlainText: text, findings },
+    { chat: () => Promise.resolve(chatResponse(JSON.stringify(allConfident))) });
+  assert.ok(confident.every((f) => f.checker.flag !== 'least_confident'),
+    'six 0.9s produce zero least_confident flags');
 });
