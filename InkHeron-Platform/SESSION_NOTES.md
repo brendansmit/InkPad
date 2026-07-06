@@ -120,6 +120,12 @@ Entry format:
 - Open / next: items 2-4 from SONNET_HANDOFF_2.md (tone pass, admin gradebook export, AI-mention audit) still pending.
 - Gotchas hit: the shared "inkheron" launch.json config (port 3472) was in use by another chat session; added a separate `inkheron-verify` config (port 3473) pointing at its own scratch `INKHERON_DB_PATH` rather than touching the shared config or the real teacher database. Commit `f9ae0d6`.
 
+## 2026-07-05 — Batch default everywhere + per-student Send feedback
+
+- Teacher confirmed nothing has been released yet, so the server-side fallback for assignments without a feedback_release field is now ALSO 'batch' (assignments.js): everything holds until released, old and new alike.
+- Per-student release: migration 028 adds native_pads.feedback_released_at; POST /api/native/pads/:padId/release-feedback (teacher, CSRF, only for marked/green_pen_open/resubmitted pads) opens feedback for that one student; the gate (isBatchFeedbackHeld + the student feedback endpoint) honours the pad-level stamp over the class hold. Review page: "Send feedback" button beside Finish marking, shown only on batch assignments still held, flips to "Feedback sent" once used.
+- Test updates for the default flip (three seeds now opt into immediate; default test asserts batch). Suite 145/145 green. Deployed, migration 028 applied, wrapper active.
+
 ## 2026-07-05 — Batch release is now the default for new assignments
 
 - Teacher decision: "all at once" is the default feedback release mode. Flipped the new-assignment form default (the form always sends an explicit value, so the server-side immediate fallback still grandfathers old assignments; nothing in flight changes behaviour). Deployed (static page only, no restart needed).
