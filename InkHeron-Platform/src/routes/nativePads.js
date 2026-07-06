@@ -1983,6 +1983,21 @@ function loadImplementationScore(db, padId) {
     }
   );
 
+  app.delete('/api/native/annotations/:annotationId',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const annotationId = requirePositiveInteger(request.params.annotationId, 'annotationId');
+      const existing = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annotationId);
+      if (!existing) return reply.code(404).send({ error: 'annotation_not_found' });
+      const pad = loadTeacherNativePad(db, existing.native_pad_id);
+      const key = existing.type === 'literacy_code' ? normalizeLiteracyKey(existing) : null;
+      db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotationId);
+      if (pad && key) recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);
+      logTeacherEvent(db, existing.native_pad_id, request.session.user.id, 'annotation_deleted', { annotation_id: annotationId, type: existing.type });
+      return reply.code(204).send();
+    }
+  );
+
   // ── Strengths and targets (structured feedback items) ──────────────────
 
   app.get('/api/native/pads/:padId/feedback-items',

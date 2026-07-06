@@ -330,6 +330,7 @@ function renderRail(){
   if (impl) rail.appendChild(impl);
   rail.appendChild(cardAutoMarked());
   rail.appendChild(cardNeedsYou());
+  rail.appendChild(cardComments());
   rail.appendChild(cardStrengthsTargets());
   rail.appendChild(cardRubric());
 }
@@ -414,6 +415,44 @@ function cardNeedsYou(){
     if (contested.length>1){ const more=el('div','autonote'); more.style.padding='0'; more.textContent='+ '+(contested.length-1)+' more after this one'; body.appendChild(more); }
     body.tabIndex = 0;
     body.onkeydown = (e)=>{ if(e.key==='a'||e.key==='A') resolveContested(c,'keep'); if(e.key==='d'||e.key==='D') resolveContested(c,'reject'); };
+  }
+  card.appendChild(body);
+  return card;
+}
+
+// The teacher's own inline comments, listed so they can be found, edited or
+// deleted after placement.
+function cardComments(){
+  const comments = review.annotations.filter(a => a.type === 'inline_comment');
+  const card = el('div','card');
+  const head = el('header'); head.innerHTML = '<strong>Your comments</strong><span class="count">'+comments.length+'</span>';
+  card.appendChild(head);
+  const body = el('div','body');
+  if (!comments.length){
+    const n = el('div','autonote'); n.style.padding='0';
+    n.textContent = 'No comments yet. Select any text in the essay to add one.';
+    body.appendChild(n);
+  }
+  for (const ann of comments){
+    const div = el('div','cst');
+    div.innerHTML = '<div class="q">"'+esc((ann.selected_text||'').slice(0,80))+'"</div>'+
+      '<div class="why">'+esc(ann.body||'')+'</div>';
+    const acts = el('div','acts');
+    const find = el('button','btn sm'); find.textContent='find'; find.onclick=()=>flashMark(ann.id);
+    const edit = el('button','btn sm'); edit.textContent='Edit'; edit.onclick=async ()=>{
+      const next = prompt('Edit comment', ann.body || '');
+      if (next == null) return;
+      const trimmed = next.trim();
+      if (!trimmed){ toast('Comment cannot be empty'); return; }
+      await api('/api/native/annotations/'+ann.id, { method:'PATCH', body:{ body: trimmed } });
+      toast('Comment updated'); await loadAll();
+    };
+    const del = el('button','btn sm'); del.textContent='✕ Delete'; del.onclick=async ()=>{
+      await api('/api/native/annotations/'+ann.id, { method:'DELETE' });
+      toast('Comment deleted'); await loadAll();
+    };
+    acts.append(find, edit, del); div.appendChild(acts);
+    body.appendChild(div);
   }
   card.appendChild(body);
   return card;
@@ -660,11 +699,20 @@ document.getElementById('selCode').onchange = async ()=>{
     metadata:{ code, category:CODE_CAT(code), label, source:'teacher' }, document_version:review.pad.version } });
   toast('Marked '+code); await loadAll();
 };
+// The essay DOM carries hidden tooltip labels (<span class="tip">) inside
+// every mark, so counting characters with Range.toString() drifts right by
+// each tip before the selection and the comment lands on the wrong text.
+// Clone the ranges and strip the tips before measuring.
+function rangeTextWithoutTips(range){
+  const frag = range.cloneContents();
+  frag.querySelectorAll('.tip').forEach(t => t.remove());
+  return frag.textContent;
+}
 function offsetsWithin(container, range){
   const pre = document.createRange(); pre.selectNodeContents(container); pre.setEnd(range.startContainer, range.startOffset);
-  const start = pre.toString().length;
-  const end = start + range.toString().length;
-  return { start, end, text: range.toString() };
+  const start = rangeTextWithoutTips(pre).length;
+  const text = rangeTextWithoutTips(range);
+  return { start, end: start + text.length, text };
 }
 document.getElementById('commentSave').onclick = async ()=>{
   if (!pendingSel) return;

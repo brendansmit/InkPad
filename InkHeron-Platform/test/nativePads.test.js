@@ -413,6 +413,33 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(highlight.statusCode, 201);
   assert.equal(highlight.json().annotation.type, 'highlight');
 
+  // Teachers can delete an annotation outright (sidebar comment list).
+  const disposable = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${padId}/annotations`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+    payload: {
+      type: 'inline_comment',
+      start_offset: 14,
+      end_offset: 26,
+      selected_text: 'Sentence two',
+      body: 'Delete me.',
+    },
+  });
+  assert.equal(disposable.statusCode, 201);
+  const deleted = await app.inject({
+    method: 'DELETE',
+    url: `/api/native/annotations/${disposable.json().annotation.id}`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+  });
+  assert.equal(deleted.statusCode, 204);
+  const deletedAgain = await app.inject({
+    method: 'DELETE',
+    url: `/api/native/annotations/${disposable.json().annotation.id}`,
+    headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
+  });
+  assert.equal(deletedAgain.statusCode, 404);
+
   const review = await app.inject({
     method: 'GET',
     url: `/api/native/pads/${padId}/review`,
