@@ -22,6 +22,11 @@ function hasText(pad) {
 
 async function main() {
   const db = openDatabase();
+  // The live app writes to the same rollback-journal DB. Wait for its short
+  // write locks instead of throwing SQLITE_BUSY, so this can run without
+  // taking the site down. The slow AI calls happen between transactions and
+  // hold no lock.
+  db.exec('PRAGMA busy_timeout = 15000');
 
   if (!readRawSetting(db, 'openrouter_api_key')) {
     console.error('No OpenRouter key is set in settings. Aborting; nothing was changed.');
