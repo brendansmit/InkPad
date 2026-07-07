@@ -69,3 +69,28 @@ AND the SRQ answers become one revisable InkPad rewrite.
 
 Definition of done: suite fully green (156 + new), committed in small
 steps on `test-greenpen`, logged in SESSION_NOTES.md, no deploy.
+
+## Part 2 — sections as passages, question shuffle within section only
+
+The AP Lang model: each section IS a passage with its questions. Two changes
+to the test portal (same branch, separate commit):
+
+1. Section passages: settings_json.test.sections gains an optional
+   `passage_text` (plain text, may be long). The test builder page gets a
+   textarea per section; the student take-test page renders the passage in a
+   readable serif block ABOVE that section's questions (same visual language
+   as the reference panel in the write view). The teacher review page shows
+   it collapsed with a toggle. No PDFs in this pass, text only.
+2. Question order shuffle WITHIN a section, per student, mirroring the
+   existing option shuffle exactly (CLAUDE.md §5: permute within group only,
+   NEVER across sections). In studentTestPayload, when the assignment's
+   shuffle setting is true, order each section's questions with the same
+   deterministic LCG pattern as shuffledOptions but seeded
+   ((studentId * 104729) + sectionIndex) so it is stable across reloads and
+   independent of the option shuffle. Section ORDER never changes. Teacher
+   review keeps authoring order. FRQ sections are exempt (they have one
+   question).
+3. Tests: two students get different question orders within a section but
+   identical section order; the same student reloads to the same order;
+   shuffle=false keeps authoring order; passage_text appears in the take
+   payload and never leaks answer data with it.

@@ -96,7 +96,7 @@ function parseSettings(settingsJson) {
 }
 
 function nativeEnabled(assignment) {
-  return parseSettings(assignment.settings_json).native_inkpad === true;
+  return assignment?.type === 'test' || parseSettings(assignment.settings_json).native_inkpad === true;
 }
 
 function countWords(text) {
@@ -749,6 +749,79 @@ function copyPassagePdf(sourceAssignmentId, targetAssignmentId) {
   }
 }
 
+function greenpenRewriteSettingsForSource(source, settings) {
+  if (source.type !== 'test') {
+    return {
+      ...settings,
+      native_inkpad: true,
+      green_pen: false,
+      source_assignment_id: source.id,
+      greenpen_rewrite: true,
+      prompt: settings.prompt || `Rewrite ${source.title} using your feedback.`,
+    };
+  }
+  return {
+    type: 'essay',
+    submit_behaviour: 'draft',
+    spellcheck: true,
+    word_count: true,
+    paste_detection: true,
+    paste_mode: 'log',
+    native_inkpad: true,
+    green_pen: false,
+    greenpen_rewrite: true,
+    source_assignment_id: source.id,
+    essay_type: settings.essay_type || 'other',
+    supervision: 'in_class',
+    feedback_release: 'batch',
+    prompt: 'Rewrite your test answers using your feedback.',
+  };
+}
+
+function testSrqQuestionsInOrder(db, settings) {
+  const ids = [];
+  const sections = Array.isArray(settings.test?.sections) ? settings.test.sections : [];
+  for (const section of sections) {
+    if (section?.kind !== 'srq') continue;
+    for (const id of section.question_ids ?? []) {
+      const questionId = Number(id);
+      if (Number.isInteger(questionId) && questionId > 0) ids.push(questionId);
+    }
+  }
+  if (!ids.length) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = db.prepare(`SELECT id, prompt_text FROM test_questions WHERE id IN (${placeholders})`).all(...ids);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.map((id) => byId.get(id)).filter(Boolean);
+}
+
+function testAnswerText(answerJson) {
+  const answer = parseMetadataJson(answerJson);
+  return String(answer.text ?? '').trim();
+}
+
+function compositeTestRewriteForStudent(db, { settings, frqPad, attempt }) {
+  const parts = [];
+  const frqText = String(frqPad?.plain_text ?? '').trim();
+  if (frqText) parts.push(frqText);
+  if (attempt) {
+    const response = db.prepare('SELECT answer_json FROM test_responses WHERE attempt_id = ? AND question_id = ?');
+    for (const question of testSrqQuestionsInOrder(db, settings)) {
+      const text = testAnswerText(response.get(attempt.id, question.id)?.answer_json);
+      if (text) parts.push(`${question.prompt_text}\n${text}`);
+    }
+  }
+  if (!parts.length) return null;
+  const plainText = parts.join('\n\n');
+  return {
+    plainText,
+    documentJson: normalizeDocumentJson(documentForPlainText(plainText)),
+    wordCount: countWords(plainText),
+    copyAnnotationsFromPadId: frqText && frqPad ? frqPad.id : null,
+    rewriteOfPadId: frqPad?.id ?? null,
+  };
+}
+
 function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requestedTitle) {
   const source = db.prepare(`
     SELECT *
@@ -767,14 +840,8 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
     180,
     `Greenpen rewrite: ${source.title}`
   ) || `Greenpen rewrite: ${source.title}`;
-  const rewriteSettings = {
-    ...settings,
-    native_inkpad: true,
-    green_pen: false,
-    source_assignment_id: source.id,
-    greenpen_rewrite: true,
-    prompt: settings.prompt || `Rewrite ${source.title} using your feedback.`,
-  };
+  const rewriteSettings = greenpenRewriteSettingsForSource(source, settings);
+  const rewriteType = source.type === 'test' ? 'essay' : source.type;
 
   let targetAssignmentId = null;
   let copiedPads = 0;
@@ -784,7 +851,7 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
     const assignmentResult = db.prepare(`
       INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
       VALUES (?, ?, ?, ?, datetime('now'), ?)
-    `).run(source.class_id, title, source.type, JSON.stringify(rewriteSettings), source.due_at ?? null);
+    `).run(source.class_id, title, rewriteType, JSON.stringify(rewriteSettings), source.due_at ?? null);
     targetAssignmentId = assignmentResult.lastInsertRowid;
 
     const overrideRows = db.prepare('SELECT student_id FROM assignment_students WHERE assignment_id = ?').all(source.id);
@@ -801,6 +868,14 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
       WHERE assignment_id = ?
       ORDER BY student_id ASC, id ASC
     `).all(source.id);
+    const sourcePadsByStudent = new Map(sourcePads.map((pad) => [pad.student_id, pad]));
+    const attempts = source.type === 'test'
+      ? db.prepare('SELECT * FROM test_attempts WHERE assignment_id = ? ORDER BY student_id ASC, id ASC').all(source.id)
+      : [];
+    const attemptsByStudent = new Map(attempts.map((attempt) => [attempt.student_id, attempt]));
+    const studentIds = source.type === 'test'
+      ? [...new Set([...sourcePads.map((pad) => pad.student_id), ...attempts.map((attempt) => attempt.student_id)])].sort((a, b) => a - b)
+      : sourcePads.map((pad) => pad.student_id);
     const insertPad = db.prepare(`
       INSERT INTO native_pads (student_id, assignment_id, state, document_json, plain_text, word_count, version, rewrite_of_pad_id)
       VALUES (?, ?, 'writing', ?, ?, ?, 1, ?)
@@ -816,14 +891,25 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
       WHERE native_pad_id = ?
       ORDER BY id ASC
     `);
-    for (const pad of sourcePads) {
+    for (const studentId of studentIds) {
+      const pad = sourcePadsByStudent.get(studentId);
+      const seed = source.type === 'test'
+        ? compositeTestRewriteForStudent(db, { settings, frqPad: pad, attempt: attemptsByStudent.get(studentId) })
+        : {
+            plainText: pad.plain_text ?? '',
+            documentJson: pad.document_json,
+            wordCount: Number(pad.word_count ?? 0),
+            copyAnnotationsFromPadId: pad.id,
+            rewriteOfPadId: pad.id,
+          };
+      if (!seed) continue;
       const result = insertPad.run(
-        pad.student_id,
+        studentId,
         targetAssignmentId,
-        pad.document_json,
-        pad.plain_text ?? '',
-        Number(pad.word_count ?? 0),
-        pad.id
+        seed.documentJson,
+        seed.plainText,
+        seed.wordCount,
+        seed.rewriteOfPadId
       );
       const newPadId = result.lastInsertRowid;
       const newPad = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(newPadId);
@@ -831,7 +917,8 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
       ensurePolicy(db, newPadId, rewriteSettings, teacherId);
       copiedPads += 1;
 
-      for (const annotation of sourceAnnotationRows.all(pad.id)) {
+      if (!seed.copyAnnotationsFromPadId) continue;
+      for (const annotation of sourceAnnotationRows.all(seed.copyAnnotationsFromPadId)) {
         const metadata = parseMetadataJson(annotation.metadata_json);
         metadata.source_annotation_id = annotation.id;
         metadata.source_assignment_id = source.id;

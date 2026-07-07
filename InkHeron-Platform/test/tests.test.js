@@ -88,6 +88,24 @@ async function createTestAssignment(app, teacher, classId, questions, extra = {}
   return res.json().assignment;
 }
 
+async function createCustomTestAssignment(app, teacher, classId, sections, extra = {}) {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/tests/assignments',
+    payload: {
+      class_id: classId,
+      title: extra.title ?? 'Unit test',
+      timer_minutes: extra.timer_minutes ?? null,
+      sections,
+      due_at: extra.due_at ?? null,
+      essay_type: extra.essay_type,
+    },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(res.statusCode, 201);
+  return res.json().assignment;
+}
+
 function assertNoAnswerLeak(value) {
   if (!value || typeof value !== 'object') return;
   for (const [key, child] of Object.entries(value)) {
@@ -376,6 +394,182 @@ test('test portal pages are served behind the right sessions and dashboard links
   assert.match(teacherAssignments, /\/teacher\/test-review\?assignment_id=/);
   assert.match(teacherAssignments, /\/teacher\/question-bank/);
   assert.match(teacherAssignments, /\/teacher\/new-test/);
+  const testReview = fs.readFileSync(path.join(process.cwd(), 'public/teacher/test-review.html'), 'utf8');
+  assert.match(testReview, /Green pen rewrite/);
+  assert.match(testReview, /\/api\/native\/assignments\/\$\{assignmentId\}\/greenpen-rewrite/);
+
+  await app.close();
+});
+
+test('green-penning a test creates an essay rewrite seeded from FRQ then SRQs', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath, logger: false });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const alice = await createStudent(app, teacher, classId, 'alice');
+  const bob = await createStudent(app, teacher, classId, 'bob');
+
+  const srqOne = await createQuestion(app, teacher, { kind: 'srq', prompt_text: 'Explain the first choice.', points: 2 });
+  const srqTwo = await createQuestion(app, teacher, { kind: 'srq', prompt_text: 'Explain the second choice.', points: 2 });
+  const frq = await createQuestion(app, teacher, { kind: 'frq', prompt_text: 'Write the full response.', points: 6 });
+  const assignment = await createCustomTestAssignment(app, teacher, classId, [
+    { kind: 'frq', title: 'Essay', question_ids: [frq.id] },
+    { kind: 'srq', title: 'Short answers', question_ids: [srqOne.id, srqTwo.id] },
+  ], { essay_type: 'synthesis', timer_minutes: 40 });
+
+  const start = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/start`,
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(start.statusCode, 201);
+  const bobStart = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/start`,
+    headers: { cookie: bob.cookies, 'X-CSRF-Token': bob.csrf },
+  });
+  assert.equal(bobStart.statusCode, 201);
+
+  const frqPad = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${assignment.id}/pad`,
+    headers: { cookie: alice.cookies },
+  });
+  assert.equal(frqPad.statusCode, 200);
+  const frqPadId = frqPad.json().pad.id;
+  const frqText = 'FRQ answer begins here. It needs work.';
+  const savedFrq = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${frqPadId}/save`,
+    payload: { document: { type: 'doc' }, plain_text: frqText, expected_version: 1 },
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(savedFrq.statusCode, 200);
+  const mark = await app.inject({
+    method: 'POST',
+    url: `/api/native/pads/${frqPadId}/annotations`,
+    payload: {
+      type: 'literacy_code',
+      start_offset: 0,
+      end_offset: 3,
+      selected_text: 'FRQ',
+      body: '',
+      metadata: { code: 'Gra', category: 'grammar', label: 'Grammar' },
+    },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(mark.statusCode, 201);
+
+  for (const [question, text] of [[srqOne, 'First short answer.'], [srqTwo, 'Second short answer.']]) {
+    const answer = await app.inject({
+      method: 'PUT',
+      url: `/api/tests/${assignment.id}/answers/${question.id}`,
+      payload: { text },
+      headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+    });
+    assert.equal(answer.statusCode, 200);
+  }
+
+  const rewrite = await app.inject({
+    method: 'POST',
+    url: `/api/native/assignments/${assignment.id}/greenpen-rewrite`,
+    payload: { title: 'Greenpen rewrite: Unit test' },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(rewrite.statusCode, 201);
+  assert.equal(rewrite.json().assignment.type, 'essay');
+  assert.equal(rewrite.json().copied_pads, 1);
+  assert.equal(rewrite.json().copied_annotations, 1);
+
+  const rewriteSettings = JSON.parse(rewrite.json().assignment.settings_json);
+  assert.equal(rewriteSettings.type, 'essay');
+  assert.equal(rewriteSettings.submit_behaviour, 'draft');
+  assert.equal(rewriteSettings.native_inkpad, true);
+  assert.equal(rewriteSettings.green_pen, false);
+  assert.equal(rewriteSettings.greenpen_rewrite, true);
+  assert.equal(rewriteSettings.source_assignment_id, assignment.id);
+  assert.equal(rewriteSettings.essay_type, 'synthesis');
+  assert.equal(rewriteSettings.supervision, 'in_class');
+  assert.equal(rewriteSettings.feedback_release, 'batch');
+  assert.equal(rewriteSettings.prompt, 'Rewrite your test answers using your feedback.');
+  for (const key of ['test', 'timer_minutes', 'shuffle', 'focus_warning', 'pooling']) {
+    assert.equal(Object.hasOwn(rewriteSettings, key), false, key);
+  }
+
+  const db = new DatabaseSync(dbPath);
+  const rewritePad = db.prepare('SELECT * FROM native_pads WHERE assignment_id = ? AND student_id = ?')
+    .get(rewrite.json().assignment.id, alice.student.id);
+  assert.ok(rewritePad);
+  assert.equal(rewritePad.rewrite_of_pad_id, frqPadId);
+  assert.ok(rewritePad.plain_text.startsWith(frqText));
+  assert.ok(rewritePad.plain_text.indexOf('Explain the first choice.') < rewritePad.plain_text.indexOf('First short answer.'));
+  assert.ok(rewritePad.plain_text.indexOf('First short answer.') < rewritePad.plain_text.indexOf('Explain the second choice.'));
+  assert.ok(rewritePad.plain_text.indexOf('Explain the second choice.') < rewritePad.plain_text.indexOf('Second short answer.'));
+  const copiedMark = db.prepare('SELECT * FROM native_annotations WHERE native_pad_id = ?').get(rewritePad.id);
+  assert.equal(copiedMark.start_offset, 0);
+  assert.equal(copiedMark.end_offset, 3);
+  assert.equal(copiedMark.selected_text, 'FRQ');
+  assert.equal(JSON.parse(copiedMark.metadata_json).source_assignment_id, assignment.id);
+  const bobPads = db.prepare('SELECT COUNT(*) AS n FROM native_pads WHERE assignment_id = ? AND student_id = ?')
+    .get(rewrite.json().assignment.id, bob.student.id);
+  assert.equal(bobPads.n, 0);
+  db.close();
+
+  const ctx = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${rewritePad.id}/greenpen-context`,
+    headers: { cookie: alice.cookies },
+  });
+  assert.equal(ctx.statusCode, 200);
+  assert.equal(ctx.json().original_pad_id, frqPadId);
+  assert.equal(ctx.json().marks.length, 1);
+  assert.equal(ctx.json().marks[0].quote, 'FRQ');
+  assert.equal(ctx.json().marks[0].category, 'grammar');
+
+  await app.close();
+});
+
+test('green-penning an SRQ-only test seeds pads from SRQs with no rewrite_of_pad_id', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath, logger: false });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const alice = await createStudent(app, teacher, classId, 'alice');
+  const srq = await createQuestion(app, teacher, { kind: 'srq', prompt_text: 'Give one reason.', points: 2 });
+  const assignment = await createCustomTestAssignment(app, teacher, classId, [
+    { kind: 'srq', title: 'Short answers', question_ids: [srq.id] },
+  ]);
+
+  const start = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/start`,
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(start.statusCode, 201);
+  const answer = await app.inject({
+    method: 'PUT',
+    url: `/api/tests/${assignment.id}/answers/${srq.id}`,
+    payload: { text: 'Because the evidence is clear.' },
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(answer.statusCode, 200);
+
+  const rewrite = await app.inject({
+    method: 'POST',
+    url: `/api/native/assignments/${assignment.id}/greenpen-rewrite`,
+    payload: { title: 'Greenpen rewrite: SRQ test' },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(rewrite.statusCode, 201);
+  assert.equal(rewrite.json().copied_pads, 1);
+  assert.equal(rewrite.json().copied_annotations, 0);
+
+  const db = new DatabaseSync(dbPath);
+  const rewritePad = db.prepare('SELECT * FROM native_pads WHERE assignment_id = ? AND student_id = ?')
+    .get(rewrite.json().assignment.id, alice.student.id);
+  assert.equal(rewritePad.rewrite_of_pad_id, null);
+  assert.equal(rewritePad.plain_text, 'Give one reason.\nBecause the evidence is clear.');
+  db.close();
 
   await app.close();
 });
