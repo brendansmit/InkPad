@@ -10,7 +10,13 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
-## 2026-07-07 — Deployed everything on test-greenpen to production
+## 2026-07-07 — Genre-aware voice analysis for AP Lang
+
+- Asked: make the voice/writing analysis AP Lang aware — synthesis, rhetorical analysis and argument each demand a different voice; track more and convey more. Also plan (not build) a teacher-only TOEFL writing score predictor.
+- Found: the fingerprint was genre-blind. essay_type existed on assignments but style_metrics ignored it: aggregation blended all types, anomaly detection compared across genres, the AI voice summary described one blended voice.
+- Built (commit 1a44ac7): 7 new deterministic register features (attribution verbs, rhetoric terms, concession markers, quoted evidence, second person, contractions, nominalizations, all per 100 words); migration 030 adds essay_type to style_metrics with backfill from assignment settings; aggregateStyleProfile returns by_essay_type fingerprints; detectStyleAnomaly uses same-type history when >= 3 same-type essays exist (returns baseline: same_type|all_types) so a genre shift no longer reads as an anomaly; profileSummarizer evidence gains per-type fingerprints and per-type score trajectory, and the Doer prompt teaches the three AP registers and asks for voice-shift assessment and type-tagged targets.
+- Tests: 3 new in styleMetrics.test.js; suite 168/168 on Node 24. NOT deployed.
+- TOEFL predictor: plan delivered in chat, not built. Awaiting go-ahead.
 
 - Deployed in two steps to inkpad.inkheron.app (git archive of committed tree only, DB backed up before each: inkheron.db.pre-testgp-202607071620 and .pre-gpscore-202607071633, /login 200 both times, journal clean):
   1. 9e21cc9: Codex part 1 (green pen for tests), part 2 (section passages + within-section LCG shuffle, f227add, spot-checked against spec: correct files, seed (studentId*104729)+sectionIndex, both shuffle tests, additive, no migration), mobile native review UI, AI review reset for strengths and targets.
