@@ -189,6 +189,7 @@ function render(){
   wrap.appendChild(scoresOverTimeCard());
   if (data.student.is_ap_lang) wrap.appendChild(apByTypeCard());
   wrap.appendChild(toeflCard());
+  loadToefl();
 }
 
 // TOEFL writing estimate. Teacher only: the whole card carries the
@@ -200,7 +201,8 @@ function toeflCard(){
   const body = el('div','body'); body.id='toeflBody';
   body.innerHTML = '<p class="sub">Loading…</p>';
   card.appendChild(body);
-  loadToefl();
+  // loadToefl() is called by the boot render AFTER this card is attached to
+  // the DOM; calling it here would find no #toeflBody and silently bail.
   return card;
 }
 
