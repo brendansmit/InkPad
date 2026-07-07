@@ -10,6 +10,16 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Built teacher-only TOEFL writing estimate (branch toefl-estimate)
+
+- Asked: build the TOEFL estimate per SONNET_TOEFL_HANDOFF.md exactly, off test-greenpen, keep the suite green, no deploy.
+- Migration 031_toefl_estimates.sql: toefl_estimates (history kept, newest wins) and known_toefl_scores (teacher-entered real scores 0-30, class anchors). Registered in migration.test.js.
+- src/services/toeflEstimator.js: Doer/Checker modelled line for line on profileSummarizer. Evidence = literacy issue rates per 100 words, rubric trajectory, aggregateStyleProfile (overall + by_essay_type), word counts, real classmate scores as anchors (demo/ghost excluded via realStudentsWhere). Output is a range, checker can only blank fields, reversed ranges reordered, skips cleanly under 2 style essays.
+- src/routes/toefl.js (registered in app.js): GET latest+history+known scores, POST generate+store, POST record known score. All requireTeacherSession, POSTs requireCsrfToken, 404 on unknown student.
+- UI: teacher-only "TOEFL estimate" card on student-profile.html with range, bands, confidence, rationale, Generate/Refresh, real-score input, fixed disclaimer. Hidden in student mode.
+- The wall: added assertion to padRelease.test.js that a released student feedback payload contains no "toefl". New estimator/route tests cover shape, range ordering, checker blanking, skip, known-score insert + evidence inclusion, auth 401, 404, bad score.
+- Suite 176/176 green on Node 24 (was 168, +8). Not deployed. Committed in small steps.
+
 ## 2026-07-07 — Softened AP register prompt; TOEFL handoff written
 
 - Teacher feedback: the register guidance must not prescribe how the essay types should sound unless grounded in AP theory; phrase as tendencies ("this essay type usually leans toward..."). Rewrote the profileSummarizer Doer prompt: tendencies not rules, describe never prescribe, deviations are observations to think about, not faults (20f4c19).
