@@ -930,6 +930,19 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
     }
   );
 
+  app.get('/api/tests/topics',
+    { preValidation: [app.requireTeacherSession] },
+    async () => {
+      const rows = db.prepare(`
+        SELECT DISTINCT topic
+        FROM test_questions
+        WHERE is_archived = 0 AND topic != ''
+        ORDER BY topic COLLATE NOCASE
+      `).all();
+      return { topics: rows.map((row) => row.topic) };
+    }
+  );
+
   app.post('/api/tests/questions',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
