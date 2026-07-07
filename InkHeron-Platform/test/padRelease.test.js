@@ -50,6 +50,9 @@ test('per-student release opens feedback for one student while the class stays h
 
   const aliceFb = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/feedback`, headers: { cookie: pads.alice.cookie } });
   assert.notEqual(aliceFb.json().feedback_released, false, 'alice now sees feedback');
+  // The wall: TOEFL estimates are teacher only and must never reach a
+  // student-facing payload, even after feedback is released.
+  assert.ok(!JSON.stringify(aliceFb.json()).toLowerCase().includes('toefl'), 'student feedback payload leaks no toefl data');
   const bobFb = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/feedback`, headers: { cookie: pads.bob.cookie } });
   assert.equal(bobFb.json().feedback_released, false, 'bob still held');
 

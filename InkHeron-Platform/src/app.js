@@ -16,6 +16,7 @@ import { registerSettingsRoutes } from './routes/settings.js';
 import { registerSettingsTestRoutes } from './routes/settingsTests.js';
 import { registerLibraryRoutes } from './routes/library.js';
 import { registerFeedbackAssetRoutes } from './routes/feedbackAssets.js';
+import { registerToeflRoutes } from './routes/toefl.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -114,6 +115,7 @@ export async function buildApp(options = {}) {
   await registerNativePadRoutes(app, { db });
   await registerNativeReanalyzeRoutes(app, { db });
   await registerClassInsightsRoutes(app, { db });
+  await registerToeflRoutes(app, { db });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
   app.get('/student/change-password', async (_request, reply) => reply.sendFile('student-change-password.html', publicDir));
