@@ -286,3 +286,11 @@ Committed `fac26be`.
 **Did:** Recommended a narrow remote admin design: HTTPS-only, Cloudflare Access or equivalent identity gate, app-level admin auth, allowlisted server actions, no shell command box, CSRF protection, audit logging, rate limits and a restricted deploy runner user on the droplet.
 
 **Decision:** No code was started. Next step is explicit go-ahead to inspect the admin app and launcher dashboard before implementing.
+
+## 2026-07-07: admin ops subdomain decision
+
+**Asked:** Whether to protect only part of `admin.inkheron.app` or create another subdomain with a button from admin to the remote server controls.
+
+**Did:** Recommended a separate locked-down ops subdomain for restart/deploy/log controls, linked from the normal admin UI, so high-risk droplet actions can sit behind stricter access without changing the security posture of the whole admin app.
+
+**Decision:** No code was started. Preferred direction is an `ops.inkheron.app` style control panel with a link from admin.
