@@ -10,6 +10,23 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-06 — Test Portal (Codex build) audited, merged, deployed
+
+- Audited Codex's test-portal branch against all nine CODEX_TESTPORTAL_HANDOFF ground rules. PASS:
+  auth on every endpoint (teacher+CSRF / student session with own-row checks via ensureStudentTestAssignment);
+  studentQuestion strips answer_index and model_answer with a key-walking leak test; results require
+  submitted_at AND feedback_released_at, correct answers only shown when reveal_answers is explicitly true;
+  server-side timer enforcement (due_at, seconds_allowed + 30 s grace) on answers and submit; deterministic
+  per-student MCQ shuffle; focus events recorded; roster uses realStudentsWhere; migrations additive (029 in
+  canon); no edits to services, the editor or the AI pipeline. Standout: submitFrqPad re-injects through the
+  REAL /api/native/pads/:id/submit with the student's session, so FRQ essays get revisions, state machine and
+  the full AI marking chain untouched.
+- Fast-forward merged test-portal into analysis-ai, suite 156/156, deployed to /opt/inkheron-platform
+  (DB backup pre-testportal), migration 029 applied, wrapper active, live 200.
+- Teacher flow: /teacher/question-bank to build the bank, /teacher/new-test to assemble and assign,
+  /teacher/test-review to mark SRQs and see totals (FRQ links into native-review). Students: dashboard shows
+  a Test pill linking to /native/test/:assignmentId.
+
 ## 2026-07-06 — Deploy sweep + Codex Test Portal handoff
 
 - Deployed everything committed since the round-3 deploy (10 commits from parallel sessions: re-run replaces prior AI marks via retractAiMarksForPad, anchored sidebar comments, neon chartreuse needs-you colour, reanalyze-all script, launcher/deploy-dashboard updates). Suite 152/152 before deploy, DB backed up (pre-deploy5), wrapper active, live 200.
