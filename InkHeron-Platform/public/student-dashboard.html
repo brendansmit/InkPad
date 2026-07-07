@@ -114,7 +114,8 @@
     }
 
     function assignmentCard(a){
-      return `<a class="acard" href="${escapeHtml(a.write_url)}"><span class="tile ${a.type==='test'?'test':''}">${a.type==='test'?'T':'E'}</span><span><span class="title">${escapeHtml(a.title)}</span><span class="meta">${dateLabel(a.due_at)}</span></span><span class="pill ${pillClass(a.status)}">${statusLabel(a.status)}</span></a>`;
+      const href=a.type==='test'?`/native/test/${a.id}`:a.write_url;
+      return `<a class="acard" href="${escapeHtml(href)}"><span class="tile ${a.type==='test'?'test':''}">${a.type==='test'?'T':'E'}</span><span><span class="title">${escapeHtml(a.title)}</span><span class="meta">${dateLabel(a.due_at)}</span></span><span class="pill ${pillClass(a.status)}">${a.type==='test'?'Test':statusLabel(a.status)}</span></a>`;
     }
 
     function timelineRow(a){

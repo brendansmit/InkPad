@@ -145,6 +145,8 @@
       <div style="display:flex;align-items:center;gap:12px;">
         <h1 id="listHeading">Assignments</h1>
         <button class="btn sm" id="toggleArchiveBtn" type="button" style="margin-left:auto;">Show archived</button>
+        <a class="btn sm" href="/teacher/question-bank">Question bank</a>
+        <a class="btn sm" href="/teacher/new-test">New test</a>
         <a class="btn p sm" href="/teacher/new-assignment">+ New assignment</a>
       </div>
       <div class="search-row">
@@ -539,15 +541,22 @@
       }).join('');
       box.querySelectorAll('.card-click').forEach(el=>{
         const ids=el.dataset.ids.split(',').map(Number);
-        el.addEventListener('click',()=>openGroup(ids));
-        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')openGroup(ids);});
+        const first=assignments.find(a=>a.id===ids[0]);
+        const open=()=>{ if(first?.type==='test') window.location.href=`/teacher/test-review?assignment_id=${ids[0]}`; else openGroup(ids); };
+        el.addEventListener('click',open);
+        el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')open();});
       });
       box.querySelectorAll('[data-students]').forEach(btn=>{
         const ids=btn.dataset.students.split(',').map(Number);
         btn.addEventListener('click',e=>{e.stopPropagation();openStudentModal(ids);});
       });
       box.querySelectorAll('[data-edit]').forEach(btn=>{
-        btn.addEventListener('click',e=>{e.stopPropagation();openEdit(Number(btn.dataset.edit),false);});
+        btn.addEventListener('click',e=>{
+          e.stopPropagation();
+          const a=assignments.find(x=>x.id===Number(btn.dataset.edit));
+          if(a?.type==='test') window.location.href=`/teacher/test-review?assignment_id=${a.id}`;
+          else openEdit(Number(btn.dataset.edit),false);
+        });
       });
       box.querySelectorAll('[data-archive-ids]').forEach(btn=>{
         btn.addEventListener('click',async e=>{

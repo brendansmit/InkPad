@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Question bank - InkHeron</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.5;color:var(--text);background:var(--bg);}
+    *{box-sizing:border-box;}
+    .appbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,.92);border-bottom:1px solid var(--border);}
+    .glyph{width:34px;height:34px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700;}
+    .nm{font-family:var(--serif);font-size:18px;font-weight:700}.sp{flex:1}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;border-radius:var(--r-sm);border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-weight:800;text-decoration:none;cursor:pointer}
+    .btn.p{background:var(--green-600);color:#fff;border-color:var(--green-600)}
+    .wrap{max-width:1120px;margin:0 auto;padding:28px 24px 80px}
+    h1{font-family:var(--serif);font-size:32px;margin:0 0 16px;color:var(--ink)}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start}
+    .panel,.q{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card)}
+    .panel{padding:18px}.q{padding:14px 16px;margin-bottom:10px}
+    label{display:block;font-size:12px;font-weight:800;color:var(--text-2);margin:10px 0 5px}
+    input,select,textarea{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:9px 10px;font:inherit;background:var(--surface);color:var(--text)}
+    textarea{min-height:84px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+    .filters{display:flex;gap:10px;align-items:center;margin-bottom:14px}.filters select,.filters input{width:auto;min-width:130px}
+    .kind{display:inline-flex;border-radius:999px;padding:2px 8px;background:var(--blue-50);color:var(--blue-700);font-size:12px;font-weight:800;text-transform:uppercase}
+    .meta{color:var(--text-3);font-size:12px}.empty{padding:22px;text-align:center;color:var(--text-3);border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface)}
+    @media(max-width:820px){.grid{grid-template-columns:1fr}.wrap{padding:22px 16px 70px}.filters{align-items:stretch;flex-direction:column}.filters select,.filters input{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="appbar"><div class="glyph">i</div><div class="nm">InkHeron</div><span class="sp"></span><a class="btn" href="/teacher/assignments">Assignments</a><a class="btn p" href="/teacher/new-test">New test</a></div>
+  <main class="wrap">
+    <h1>Question bank</h1>
+    <div class="grid">
+      <section class="panel">
+        <h2 id="formTitle" style="margin:0 0 8px;font-size:18px;">New question</h2>
+        <label>Kind</label>
+        <select id="kind"><option value="mcq">MCQ</option><option value="srq">SRQ</option><option value="frq">FRQ</option></select>
+        <label>Prompt</label>
+        <textarea id="prompt"></textarea>
+        <div id="mcqFields">
+          <label>Options, one per line</label>
+          <textarea id="options"></textarea>
+          <label>Correct option number</label>
+          <input id="answer" type="number" min="1" step="1">
+        </div>
+        <div id="srqFields" style="display:none">
+          <label>Teacher guidance</label>
+          <textarea id="model"></textarea>
+        </div>
+        <div class="row">
+          <div><label>Points</label><input id="points" type="number" min="0" step="0.5" value="1"></div>
+          <div><label>Tag</label><input id="tag" type="text"></div>
+        </div>
+        <div class="actions"><button class="btn p" id="saveBtn" type="button">Save</button><button class="btn" id="resetBtn" type="button">Clear</button></div>
+        <p class="meta" id="msg"></p>
+      </section>
+      <section>
+        <div class="filters">
+          <select id="filterKind"><option value="">All kinds</option><option value="mcq">MCQ</option><option value="srq">SRQ</option><option value="frq">FRQ</option></select>
+          <input id="filterTag" type="text" placeholder="Tag">
+          <button class="btn" id="refreshBtn" type="button">Refresh</button>
+        </div>
+        <div id="list"></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    let csrfToken='',editing=null,questions=[];
+    async function boot(){
+      const me=await fetch('/api/me'); if(!me.ok){location.href='/teacher-login';return;}
+      const u=await me.json(); if(u.user.type!=='teacher'){location.href='/';return;} csrfToken=u.user.csrf_token;
+      bind(); await load();
+    }
+    function bind(){
+      kind.onchange=syncKind; saveBtn.onclick=save; resetBtn.onclick=resetForm; refreshBtn.onclick=load; filterKind.onchange=load;
+      filterTag.addEventListener('input',()=>{clearTimeout(window.tagTimer);window.tagTimer=setTimeout(load,250);});
+    }
+    function syncKind(){
+      mcqFields.style.display=kind.value==='mcq'?'':'none';
+      srqFields.style.display=kind.value==='srq'?'':'none';
+    }
+    async function load(){
+      const qs=new URLSearchParams(); if(filterKind.value)qs.set('kind',filterKind.value); if(filterTag.value.trim())qs.set('tag',filterTag.value.trim());
+      const r=await fetch('/api/tests/questions?'+qs); const d=await r.json(); questions=d.questions||[]; render();
+    }
+    function render(){
+      if(!questions.length){list.innerHTML='<div class="empty">No questions match these filters.</div>';return;}
+      list.innerHTML=questions.map(q=>`<article class="q"><div style="display:flex;gap:8px;align-items:center;"><span class="kind">${q.kind}</span><strong>${escapeHtml(q.prompt_text)}</strong></div><div class="meta">${q.points} point${q.points===1?'':'s'}${q.tag?' · '+escapeHtml(q.tag):''}</div><div class="actions"><button class="btn" data-edit="${q.id}">Edit</button><button class="btn" data-archive="${q.id}">Archive</button></div></article>`).join('');
+      list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(Number(b.dataset.edit)));
+      list.querySelectorAll('[data-archive]').forEach(b=>b.onclick=()=>archiveQuestion(Number(b.dataset.archive)));
+    }
+    function edit(id){
+      const q=questions.find(x=>x.id===id); if(!q)return; editing=q; formTitle.textContent='Edit question'; kind.value=q.kind; prompt.value=q.prompt_text; options.value=(q.options||[]).join('\n'); answer.value=q.answer_index===null?'':Number(q.answer_index)+1; model.value=q.model_answer||''; points.value=q.points; tag.value=q.tag||''; syncKind();
+    }
+    function resetForm(){editing=null;formTitle.textContent='New question';kind.value='mcq';prompt.value='';options.value='';answer.value='';model.value='';points.value='1';tag.value='';msg.textContent='';syncKind();}
+    async function save(){
+      const payload={kind:kind.value,prompt_text:prompt.value,points:Number(points.value),tag:tag.value};
+      if(kind.value==='mcq'){payload.options=options.value.split('\n').map(x=>x.trim()).filter(Boolean);payload.answer_index=Number(answer.value)-1;}
+      if(kind.value==='srq') payload.model_answer=model.value;
+      const r=await fetch(editing?`/api/tests/questions/${editing.id}`:'/api/tests/questions',{method:editing?'PUT':'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify(payload)});
+      msg.textContent=r.ok?'Saved.':'Could not save.'; if(r.ok){resetForm();await load();}
+    }
+    async function archiveQuestion(id){await fetch(`/api/tests/questions/${id}/archive`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});await load();}
+    function escapeHtml(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML;}
+    boot();
+  </script>
+</body>
+</html>

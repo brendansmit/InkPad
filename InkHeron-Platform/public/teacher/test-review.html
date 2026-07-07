@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test review - InkHeron</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.5;color:var(--text);background:var(--bg)}*{box-sizing:border-box}.appbar{position:sticky;top:0;z-index:30;display:flex;gap:14px;align-items:center;padding:14px 26px;background:rgba(247,246,242,.92);border-bottom:1px solid var(--border)}.glyph{width:34px;height:34px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700}.nm{font-family:var(--serif);font-size:18px;font-weight:700}.sp{flex:1}.btn{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 11px;border-radius:var(--r-sm);border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-weight:800;text-decoration:none;cursor:pointer}.btn.p{background:var(--green-600);color:#fff;border-color:var(--green-600)}.wrap{max-width:1180px;margin:0 auto;padding:28px 24px 80px}h1{font-family:var(--serif);font-size:32px;margin:0 0 6px;color:var(--ink)}.top{display:flex;gap:10px;align-items:center;margin-bottom:16px}.row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:16px;margin-bottom:12px;box-shadow:var(--shadow-card)}.totals{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.pill{display:inline-flex;border-radius:999px;padding:3px 9px;background:var(--surface-2);color:var(--text-2);font-size:12px;font-weight:800}.resp{border-top:1px solid var(--border);padding-top:10px;margin-top:10px}.resp textarea{width:100%;min-height:56px;border:1px solid var(--border);border-radius:var(--r-sm);padding:8px;font:inherit;background:#fff}.score{width:90px;border:1px solid var(--border-2);border-radius:var(--r-sm);padding:7px}.muted{color:var(--text-3)}@media(max-width:760px){.top{align-items:flex-start;flex-direction:column}.wrap{padding:22px 16px 70px}}
+  </style>
+</head>
+<body>
+  <div class="appbar"><div class="glyph">i</div><div class="nm">InkHeron</div><span class="sp"></span><a class="btn" href="/teacher/assignments">Assignments</a></div>
+  <main class="wrap">
+    <div class="top"><div><h1 id="title">Test review</h1><div class="muted" id="releaseState"></div></div><span class="sp"></span><button class="btn p" id="releaseBtn" type="button">Release results</button></div>
+    <div id="rows"></div>
+  </main>
+  <script>
+    const params=new URLSearchParams(location.search); const assignmentId=Number(params.get('assignment_id')); let csrfToken='';
+    async function boot(){const me=await fetch('/api/me');if(!me.ok){location.href='/teacher-login';return;}const u=await me.json();csrfToken=u.user.csrf_token;releaseBtn.onclick=releaseResults;await load();}
+    async function load(){const r=await fetch(`/api/tests/${assignmentId}/review`);if(!r.ok){rows.innerHTML='<div class="row">Could not load this test.</div>';return;}const d=await r.json();title.textContent=d.assignment.title;releaseState.textContent=d.assignment.feedback_released_at?'Results released.':'Results are held.';releaseBtn.style.display=d.assignment.feedback_released_at?'none':'';render(d.rows||[]);}
+    function render(data){rows.innerHTML=data.length?data.map(rowHtml).join(''):'<div class="row">No students to show.</div>';rows.querySelectorAll('[data-save-score]').forEach(b=>b.onclick=()=>saveScore(Number(b.dataset.saveScore)));}
+    function rowHtml(row){const srqs=row.responses.filter(r=>r.kind==='srq');return `<section class="row"><h2 style="margin:0;font-size:18px">${escapeHtml(row.student.display_name)}</h2><div class="totals"><span class="pill">MCQ ${row.totals.mcq} / ${row.totals.mcq_possible}</span><span class="pill">SRQ ${row.totals.srq} / ${row.totals.srq_possible}</span><span class="pill">FRQ rubric ${row.totals.frq_rubric}</span><span class="pill">Total ${row.totals.total}</span></div>${row.frq.review_url?`<a class="btn" href="${row.frq.review_url}">Open FRQ review</a>`:'<span class="muted">No FRQ pad yet.</span>'}${srqs.map(srqHtml).join('')}</section>`;}
+    function srqHtml(r){return `<div class="resp"><strong>${escapeHtml(r.prompt_text)}</strong><textarea readonly>${escapeHtml(r.answer?.text||'')}</textarea><div style="display:flex;gap:8px;align-items:center;margin-top:8px;"><span class="muted">Teacher guidance: ${escapeHtml(r.model_answer||'None')}</span><span class="sp"></span><input class="score" id="score-${r.id}" type="number" min="0" step="0.5" max="${r.points}" value="${r.points_awarded??''}"><button class="btn" data-save-score="${r.id}" type="button">Save score</button></div></div>`;}
+    async function saveScore(id){await fetch(`/api/tests/responses/${id}/score`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({points_awarded:Number(document.getElementById('score-'+id).value)})});await load();}
+    async function releaseResults(){await fetch(`/api/assignments/${assignmentId}/release-feedback`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});await load();}
+    function escapeHtml(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML;}
+    boot();
+  </script>
+</body>
+</html>

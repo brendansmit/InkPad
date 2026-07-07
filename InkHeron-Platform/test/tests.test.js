@@ -356,3 +356,26 @@ test('student writes are rejected after timer expiry and other students cannot o
 
   await app.close();
 });
+
+test('test portal pages are served behind the right sessions and dashboard links point to test pages', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const student = await createStudent(app, teacher, classId, 'alice');
+
+  for (const url of ['/teacher/question-bank', '/teacher/new-test', '/teacher/test-review']) {
+    const res = await app.inject({ method: 'GET', url, headers: { cookie: teacher.cookies } });
+    assert.equal(res.statusCode, 200);
+  }
+  const studentTest = await app.inject({ method: 'GET', url: '/native/test/1', headers: { cookie: student.cookies } });
+  assert.equal(studentTest.statusCode, 200);
+
+  const studentDashboard = fs.readFileSync(path.join(process.cwd(), 'public/student-dashboard.html'), 'utf8');
+  const teacherAssignments = fs.readFileSync(path.join(process.cwd(), 'public/teacher/assignments.html'), 'utf8');
+  assert.match(studentDashboard, /\/native\/test\/\$\{a\.id\}/);
+  assert.match(teacherAssignments, /\/teacher\/test-review\?assignment_id=/);
+  assert.match(teacherAssignments, /\/teacher\/question-bank/);
+  assert.match(teacherAssignments, /\/teacher\/new-test/);
+
+  await app.close();
+});

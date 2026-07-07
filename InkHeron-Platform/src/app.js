@@ -121,6 +121,9 @@ export async function buildApp(options = {}) {
   app.get('/teacher', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/index.html', publicDir));
   app.get('/teacher/students', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/students.html', publicDir));
   app.get('/teacher/assignments', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/assignments.html', publicDir));
+  app.get('/teacher/question-bank', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/question-bank.html', publicDir));
+  app.get('/teacher/new-test', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/new-test.html', publicDir));
+  app.get('/teacher/test-review', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/test-review.html', publicDir));
   app.get('/teacher/native-review', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/native-review.html', publicDir));
   app.get('/teacher/student-profile', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/student-profile.html', publicDir));
   app.get('/teacher/class-insights', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/class-insights.html', publicDir));
@@ -129,6 +132,7 @@ export async function buildApp(options = {}) {
   app.get('/teacher/feedback', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('teacher/feedback.html', publicDir));
   app.get('/student', async (_request, reply) => reply.sendFile('student-dashboard.html', publicDir));
   app.get('/native/feedback/:assignmentId', { preValidation: [app.requireStudentSession] }, async (_request, reply) => reply.sendFile('native-feedback.html', publicDir));
+  app.get('/native/test/:assignmentId', { preValidation: [app.requireStudentSession] }, async (_request, reply) => reply.sendFile('native-test.html', publicDir));
   app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));
   app.get('/library/admin', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
   // Two domains share this app: inkpad.* is the writing portal, whose root
