@@ -302,3 +302,11 @@ Committed `fac26be`.
 **Did:** Confirmed it is a suitable name for the locked-down restart/deploy/log dashboard.
 
 **Decision:** No code was started. Use `serve.inkheron.app` as the planned remote ops subdomain.
+
+## 2026-07-07: serve repo question
+
+**Asked:** Whether a GitHub repo needs to be created for `serve.inkheron.app`.
+
+**Did:** Recommended a separate private repo only if the serve panel will be deployed independently on the droplet. For initial implementation, it can also start inside the existing workspace and be split later.
+
+**Decision:** No code was started. Preferred production direction is a private `inkheron-serve` repo, but it is not required before inspection.
