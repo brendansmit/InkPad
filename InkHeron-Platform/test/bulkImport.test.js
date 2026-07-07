@@ -173,3 +173,40 @@ test('loose text import uses injected chat and flags missing answers without inv
   assert.deepEqual(review.json().sections[0].question_ids, [starter.id, json.created[0].id]);
   await app.close();
 });
+
+test('txt file bulk import uses loose parser and appends to quiz', async () => {
+  let rawText = '';
+  const chat = async (_db, { messages }) => {
+    rawText = messages.find((message) => message.role === 'user')?.content ?? '';
+    return {
+      choices: [{
+        message: {
+          content: JSON.stringify([
+            { prompt_text: 'Which answer is marked?', options: ['Alpha', 'Beta'], answer_index: 1, topic: 'TXT Import', tags: ['file'] },
+          ]),
+        },
+      }],
+    };
+  };
+  const app = await buildApp({ databasePath: tmpDb(), chat });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const starter = await createQuestion(app, teacher);
+  const assignment = await createAssignment(app, teacher, classId, starter.id);
+  const body = multipartPayload({
+    fields: { assignment_id: assignment.id, description: 'teacher note' },
+    file: { fieldName: 'file', filename: 'questions.txt', contentType: 'text/plain', body: 'Loose MCQ text from a document.' },
+  });
+
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/tests/questions/bulk-import',
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf, 'content-type': body.contentType },
+    payload: body.payload,
+  });
+  assert.equal(res.statusCode, 201);
+  assert.match(rawText, /Loose MCQ text/);
+  assert.equal(res.json().created[0].topic, 'TXT Import');
+  assert.equal(res.json().added_to_quiz, 1);
+  await app.close();
+});

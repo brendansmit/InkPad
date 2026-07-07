@@ -46,9 +46,9 @@
           <textarea id="importDescription" placeholder="Optional topic, unit or source notes"></textarea>
           <label>Paste questions</label>
           <textarea id="importRaw" placeholder="Paste loose MCQs here"></textarea>
-          <label>CSV or docx file</label>
-          <input id="importFile" type="file" accept=".csv,.docx,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-          <p class="import-note">CSV header: prompt, optionA, optionB, optionC, optionD, answer, points, topic, tags.</p>
+          <label>CSV, TXT, PDF or docx file</label>
+          <input id="importFile" type="file" accept=".csv,.txt,.pdf,.docx,text/plain,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+          <p class="import-note">CSV header: prompt, optionA, optionB, optionC, optionD, answer, points, topic, tags. Other files are parsed with AI.</p>
           <div class="row">
             <div><label>Kind</label><select id="importKind"><option value="mcq">MCQ</option></select></div>
             <div><label>Target quiz</label><select id="importQuiz"><option value="">Bank only</option></select></div>

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { realStudentsWhere } from '../db/realStudents.js';
-import { extractDocxText } from '../feedback/assets.js';
+import { extractDocxText, extractPdfText } from '../feedback/assets.js';
 import { callChat } from '../services/openRouter.js';
 import { readDoerIntent } from '../services/settingsStore.js';
 import { parseJsonArraySalvage } from '../services/literacyCoder.js';
@@ -581,8 +581,14 @@ async function readBulkImportRequest(request) {
   if (ext === '.csv') {
     return { fields, text: file.buffer.toString('utf8').replace(/^\uFEFF/, '').trim(), filename: file.filename, fileKind: 'csv' };
   }
+  if (ext === '.txt' || /^text\//.test(file.mimeType)) {
+    return { fields, text: file.buffer.toString('utf8').replace(/^\uFEFF/, '').trim(), filename: file.filename, fileKind: 'txt' };
+  }
   if (ext === '.docx' || file.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
     return { fields, text: extractDocxText(file.buffer), filename: file.filename, fileKind: 'docx' };
+  }
+  if (ext === '.pdf' || file.mimeType === 'application/pdf') {
+    return { fields, text: await extractPdfText(file.buffer), filename: file.filename, fileKind: 'pdf' };
   }
   const err = new Error('unsupported_file_type');
   err.statusCode = 400;

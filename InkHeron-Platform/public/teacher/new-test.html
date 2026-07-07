@@ -50,8 +50,8 @@
           <h2>Import into active section</h2>
           <label>Teacher description</label><textarea id="importDescription"></textarea>
           <label>Paste MCQs</label><textarea id="importRaw"></textarea>
-          <label>CSV or docx file</label><input id="importFile" type="file" accept=".csv,.docx,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-          <p class="meta">CSV header: prompt, optionA, optionB, optionC, optionD, answer, points, topic, tags.</p>
+          <label>CSV, TXT, PDF or docx file</label><input id="importFile" type="file" accept=".csv,.txt,.pdf,.docx,text/plain,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+          <p class="meta">CSV header: prompt, optionA, optionB, optionC, optionD, answer, points, topic, tags. Other files are parsed with AI.</p>
           <button class="btn p" id="importBtn" type="button" style="margin-top:12px;width:100%">Import to section</button>
           <p class="status" id="importMsg"></p>
         </section>
