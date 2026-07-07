@@ -5,7 +5,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/database.js';
-import { autoPromoteSuggestions, retractAiMarksForPad } from '../src/routes/nativePads.js';
+import { autoPromoteSuggestions, retractAiMarksForPad, retractAiFeedbackForPad } from '../src/routes/nativePads.js';
 import { parseJsonArraySalvage } from '../src/services/literacyCoder.js';
 
 function tmpDb() {
@@ -210,6 +210,49 @@ test('retractAiMarksForPad replaces a previous run instead of stacking, and reje
   assert.equal(second.promoted, 1, 'the rejected Sp finding stays vetoed; only Gra promotes');
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'").get(padId).n, 1,
     'no Gra.Gra stacking after a re-run');
+
+  await app.close();
+});
+
+test('retractAiFeedbackForPad clears AI strengths and targets but never teacher-written items', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, csrf, cookies } = await seed(db);
+
+  const insertFeedbackSuggestion = (kind, title) => db.prepare(`
+    INSERT INTO ai_feedback_item_suggestions
+      (native_pad_id, kind, title, explanation, try_now_prompt, model, checker_json, status)
+    VALUES (?, ?, ?, 'Because.', '', 'fake/doer', '{}', 'pending')
+  `).run(padId, kind, title).lastInsertRowid;
+
+  const acceptedId = insertFeedbackSuggestion('strength', 'Clear thesis');
+  const rejectedId = insertFeedbackSuggestion('target', 'Vary sentence openings');
+  insertFeedbackSuggestion('target', 'Use linking words');
+
+  const accept = await app.inject({ method: 'POST',
+    url: `/api/native/pads/${padId}/feedback-suggestions/${acceptedId}/accept`,
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  assert.equal(accept.statusCode, 201);
+  await app.inject({ method: 'POST',
+    url: `/api/native/pads/${padId}/feedback-suggestions/${rejectedId}/reject`,
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+
+  const teacherItem = await app.inject({ method: 'POST',
+    url: `/api/native/pads/${padId}/feedback-items`,
+    payload: { kind: 'target', title: 'Check subject-verb agreement' },
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  assert.equal(teacherItem.statusCode, 201);
+
+  const result = retractAiFeedbackForPad(db, padId);
+  assert.equal(result.retracted, 1, 'the accepted AI item is removed');
+
+  const items = db.prepare('SELECT source, title FROM native_feedback_items WHERE native_pad_id = ?').all(padId);
+  assert.equal(items.length, 1, 'only the teacher-written item survives');
+  assert.equal(items[0].source, 'teacher');
+  assert.equal(items[0].title, 'Check subject-verb agreement');
+
+  const suggestions = db.prepare('SELECT status FROM ai_feedback_item_suggestions WHERE native_pad_id = ?').all(padId);
+  assert.equal(suggestions.length, 1, 'pending and accepted suggestions are cleared');
+  assert.equal(suggestions[0].status, 'rejected', 'the rejection stays on record');
 
   await app.close();
 });

@@ -1208,6 +1208,22 @@ export function retractAiMarksForPad(db, padId) {
   return { retracted };
 }
 
+// Companion to retractAiMarksForPad for strengths and targets: a re-run
+// replaces the previous AI pass, so accepted AI suggestions and the feedback
+// items they were promoted to go too. Teacher-authored items are never
+// linked from a suggestion and stay. Rejected suggestions stay on record.
+export function retractAiFeedbackForPad(db, padId) {
+  const removed = db.prepare(`
+    DELETE FROM native_feedback_items
+    WHERE source = 'ai' AND id IN (
+      SELECT feedback_item_id FROM ai_feedback_item_suggestions
+      WHERE native_pad_id = ? AND status = 'accepted' AND feedback_item_id IS NOT NULL
+    )
+  `).run(padId).changes;
+  db.prepare("DELETE FROM ai_feedback_item_suggestions WHERE native_pad_id = ? AND status IN ('pending', 'accepted')").run(padId);
+  return { retracted: removed };
+}
+
 export function autoPromoteSuggestions(db, padId) {
   const pad = db.prepare('SELECT id, student_id, assignment_id FROM native_pads WHERE id = ?').get(padId);
   if (!pad) return { promoted: 0 };

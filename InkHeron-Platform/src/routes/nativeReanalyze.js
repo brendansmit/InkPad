@@ -13,7 +13,7 @@ import { estimateRubric } from '../services/markerProfile.js';
 import { recordStyleMetrics } from '../services/styleMetrics.js';
 import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
-import { autoPromoteSuggestions, retractAiMarksForPad } from './nativePads.js';
+import { autoPromoteSuggestions, retractAiMarksForPad, retractAiFeedbackForPad } from './nativePads.js';
 import { readRawSetting } from '../services/settingsStore.js';
 
 const ELIGIBLE_STATES = new Set(['submitted', 'marked', 'green_pen_open', 'resubmitted']);
@@ -32,7 +32,10 @@ function hasText(pad) {
 export async function reanalyzePad(db, pad) {
   const padId = pad.id;
   // Replace the previous AI run rather than stacking marks on top of it.
+  // Literacy marks and strength/target suggestions both reset; marks and
+  // feedback items the teacher placed by hand are untouched.
   retractAiMarksForPad(db, padId);
+  retractAiFeedbackForPad(db, padId);
   const literacy = await runLiteracyAnalysis(db, { padId });
   autoPromoteSuggestions(db, padId);
   recordStyleMetrics(db, { padId });
