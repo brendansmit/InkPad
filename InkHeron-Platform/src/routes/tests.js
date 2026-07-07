@@ -228,6 +228,7 @@ function normalizeSections(db, sections) {
     output.push({
       kind,
       title: String(raw?.title ?? kind.toUpperCase()).trim().slice(0, 120),
+      passage_text: String(raw?.passage_text ?? '').trim().slice(0, 30000),
       question_ids: ids,
     });
   }
@@ -344,6 +345,21 @@ function shuffledOptions(question, studentId) {
   return options;
 }
 
+function shuffledSectionQuestions(section, studentId, sectionIndex, shuffle) {
+  const questions = [...(section.question_ids ?? [])];
+  if (!shuffle || section.kind === 'frq' || questions.length <= 1) return questions;
+  let seed = ((Number(studentId) * 104729) + Number(sectionIndex)) >>> 0;
+  const next = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed;
+  };
+  for (let i = questions.length - 1; i > 0; i -= 1) {
+    const j = next() % (i + 1);
+    [questions[i], questions[j]] = [questions[j], questions[i]];
+  }
+  return questions;
+}
+
 function publicAttempt(assignment, attempt) {
   return {
     id: attempt.id,
@@ -358,10 +374,11 @@ function publicAttempt(assignment, attempt) {
 function studentTestPayload(db, assignment, studentId, attempt) {
   const config = testConfig(assignment);
   const responses = attempt ? responseMap(db, attempt.id) : new Map();
-  const sections = config.sections.map((section) => ({
+  const sections = config.sections.map((section, sectionIndex) => ({
     kind: section.kind,
     title: section.title,
-    questions: section.question_ids.map((questionId) => {
+    passage_text: section.passage_text ?? '',
+    questions: shuffledSectionQuestions(section, studentId, sectionIndex, config.shuffle).map((questionId) => {
       const question = loadQuestion(db, questionId);
       const response = responses.get(questionId);
       return {
@@ -496,7 +513,7 @@ function releaseGatedResults(db, assignment, attempt, studentId) {
     });
     totalEarned += earned;
     totalPossible += possible;
-    return { kind: section.kind, title: section.title, earned, possible, questions };
+    return { kind: section.kind, title: section.title, passage_text: section.passage_text ?? '', earned, possible, questions };
   });
   const pad = db.prepare('SELECT id FROM native_pads WHERE assignment_id = ? AND student_id = ?')
     .get(assignment.id, studentId);

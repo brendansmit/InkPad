@@ -99,6 +99,7 @@ async function createCustomTestAssignment(app, teacher, classId, sections, extra
       sections,
       due_at: extra.due_at ?? null,
       essay_type: extra.essay_type,
+      shuffle: extra.shuffle,
     },
     headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
   });
@@ -316,6 +317,122 @@ test('student test flow hides answer data, shuffles deterministically, records f
   assert.equal(results.json().total.earned, 4.5);
   assert.equal(results.json().sections[0].questions[0].is_correct, true);
   assert.equal(Object.hasOwn(results.json().sections[0].questions[0], 'correct_index'), false);
+
+  await app.close();
+});
+
+test('section passages appear in take payload and questions shuffle within sections only', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const alice = await createStudent(app, teacher, classId, 'alice');
+  const bob = await createStudent(app, teacher, classId, 'bob');
+
+  const mcqs = [];
+  for (const prompt of ['First MCQ', 'Second MCQ', 'Third MCQ', 'Fourth MCQ']) {
+    mcqs.push(await createQuestion(app, teacher, {
+      kind: 'mcq',
+      prompt_text: prompt,
+      options: ['A', 'B', 'C'],
+      answer_index: 1,
+      points: 1,
+    }));
+  }
+  const srq = await createQuestion(app, teacher, {
+    kind: 'srq',
+    prompt_text: 'Explain the passage.',
+    model_answer: 'Mentions evidence.',
+    points: 2,
+  });
+  const assignment = await createCustomTestAssignment(app, teacher, classId, [
+    { kind: 'mcq', title: 'Passage A', passage_text: 'Passage A text for the first section.', question_ids: mcqs.map((q) => q.id) },
+    { kind: 'srq', title: 'Passage B', passage_text: 'Passage B text for the second section.', question_ids: [srq.id] },
+  ]);
+
+  for (const student of [alice, bob]) {
+    const start = await app.inject({
+      method: 'POST',
+      url: `/api/tests/${assignment.id}/start`,
+      headers: { cookie: student.cookies, 'X-CSRF-Token': student.csrf },
+    });
+    assert.equal(start.statusCode, 201);
+  }
+
+  const aliceTake = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/take`,
+    headers: { cookie: alice.cookies },
+  });
+  const bobTake = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/take`,
+    headers: { cookie: bob.cookies },
+  });
+  const aliceReload = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/take`,
+    headers: { cookie: alice.cookies },
+  });
+  assert.equal(aliceTake.statusCode, 200);
+  assert.equal(bobTake.statusCode, 200);
+  assert.equal(aliceReload.statusCode, 200);
+  assertNoAnswerLeak(aliceTake.json());
+  assert.equal(aliceTake.json().sections[0].passage_text, 'Passage A text for the first section.');
+  assert.equal(aliceTake.json().sections[1].passage_text, 'Passage B text for the second section.');
+  assert.deepEqual(aliceTake.json().sections.map((section) => section.title), ['Passage A', 'Passage B']);
+  assert.deepEqual(bobTake.json().sections.map((section) => section.title), ['Passage A', 'Passage B']);
+
+  const aliceOrder = aliceTake.json().sections[0].questions.map((question) => question.id);
+  const bobOrder = bobTake.json().sections[0].questions.map((question) => question.id);
+  assert.deepEqual(aliceReload.json().sections[0].questions.map((question) => question.id), aliceOrder);
+  assert.notDeepEqual(bobOrder, aliceOrder);
+  assert.deepEqual(new Set(aliceOrder), new Set(mcqs.map((q) => q.id)));
+  assert.deepEqual(aliceTake.json().sections[1].questions.map((question) => question.id), [srq.id]);
+
+  const review = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/review`,
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(review.statusCode, 200);
+  assert.deepEqual(review.json().sections[0].question_ids, mcqs.map((q) => q.id));
+  assert.equal(review.json().sections[0].passage_text, 'Passage A text for the first section.');
+
+  await app.close();
+});
+
+test('shuffle false keeps authoring order inside each section', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const alice = await createStudent(app, teacher, classId, 'alice');
+  const mcqs = [];
+  for (const prompt of ['Alpha', 'Beta', 'Gamma']) {
+    mcqs.push(await createQuestion(app, teacher, {
+      kind: 'mcq',
+      prompt_text: prompt,
+      options: ['A', 'B'],
+      answer_index: 0,
+      points: 1,
+    }));
+  }
+  const assignment = await createCustomTestAssignment(app, teacher, classId, [
+    { kind: 'mcq', title: 'Fixed order', passage_text: 'Read this short passage.', question_ids: mcqs.map((q) => q.id) },
+  ], { shuffle: false });
+  const start = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/start`,
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(start.statusCode, 201);
+  const take = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/take`,
+    headers: { cookie: alice.cookies },
+  });
+  assert.equal(take.statusCode, 200);
+  assert.deepEqual(take.json().sections[0].questions.map((question) => question.id), mcqs.map((q) => q.id));
+  assert.equal(take.json().sections[0].passage_text, 'Read this short passage.');
 
   await app.close();
 });
