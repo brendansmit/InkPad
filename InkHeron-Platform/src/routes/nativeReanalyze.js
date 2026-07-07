@@ -29,7 +29,7 @@ function hasText(pad) {
 
 // Run the full chain for one pad and return a count summary. Never throws:
 // each service already swallows its own errors and returns a status.
-async function reanalyzePad(db, pad) {
+export async function reanalyzePad(db, pad) {
   const padId = pad.id;
   // Replace the previous AI run rather than stacking marks on top of it.
   retractAiMarksForPad(db, padId);
