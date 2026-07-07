@@ -10,6 +10,12 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-06 — Learning loop: teacher corrections calibrate the marking prompts
+
+- New src/services/promptCalibration.js: buildCalibration(db) mines the three correction signals already recorded (rejected/disagreed suggestions = false positives; teacher-added literacy_code annotations = misses; annotation_updated events with code_from/code_to = confusion pairs, now logged with before/after codes and the quote) and renders a hard-capped CALIBRATION block ("the teacher rejected findings like these, do not flag similar", "the teacher had to add these by hand, watch for similar", "the teacher often changes Exp -> WW"). Appended to BOTH the Doer and Checker system prompts on every run, so accuracy improves for this teacher with every essay marked, no training step, ~zero cost.
+- Also fixed a shell-tooling scare: the session's grep wrapper (ugrep --ignore-files) silently skipped nativePads.js making it look gutted; /usr/bin/grep confirmed the file intact. Use /usr/bin/grep or git grep in this repo.
+- Suite 160/160. Committed 188cc70, deployed (DB backup pre-calib), wrapper active.
+
 ## 2026-07-06 — Test Portal (Codex build) audited, merged, deployed
 
 - Audited Codex's test-portal branch against all nine CODEX_TESTPORTAL_HANDOFF ground rules. PASS:
