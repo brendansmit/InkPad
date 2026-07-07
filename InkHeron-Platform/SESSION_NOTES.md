@@ -10,6 +10,14 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Run AI review now replaces AI strengths and targets too
+
+- Asked: re-running AI review must clear the previous AI marks (accepted or rejected AI marks count as AI, only hand-placed marks are the teacher's) and also reset strengths and targets. Finished students (Alex, Aurora) must be untouched.
+- Literacy codes already behaved this way (a102088, deployed). Added retractAiFeedbackForPad in nativePads.js: on re-run it deletes accepted AI suggestions and the source 'ai' feedback items they were promoted to, plus pendings; rejected suggestions stay on record; teacher-written items are never touched. Wired into reanalyzePad. New test in autoAccept.test.js.
+- Retract only fires on a pad the teacher re-runs, so finished students stay untouched unless the assignment-wide reanalyze endpoint is used, which re-runs everyone.
+- NOTE: another session is editing this working tree concurrently (assignments.html, assignments.js, nativePads.js, two test files). Staged only my hunk of nativePads.js via git apply --cached. Commit 2a6c36e. Suite 165/165 green in the shared working tree.
+- Not deployed yet; rides along with the pending test-greenpen merge decision.
+
 ## 2026-07-07 — Mobile native review UI
 
 - Asked: make `/teacher/native-review*` usable for grading and feedback on a phone or iPad.
