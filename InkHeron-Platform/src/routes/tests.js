@@ -50,6 +50,24 @@ function normalizePoints(value) {
   return points;
 }
 
+function normalizeTags(value, fallback = []) {
+  const raw = Array.isArray(value)
+    ? value
+    : (typeof value === 'string' && value.trim() ? value.split(',') : fallback);
+  const tags = [];
+  const seen = new Set();
+  for (const item of raw) {
+    const tag = String(item ?? '').trim().slice(0, 40);
+    if (!tag) continue;
+    const key = tag.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+    if (tags.length >= 10) break;
+  }
+  return tags;
+}
+
 function normalizeQuestionInput(body, existing = {}) {
   const kind = String(body?.kind ?? existing.kind ?? '').trim();
   if (!QUESTION_KINDS.has(kind)) {
@@ -86,6 +104,10 @@ function normalizeQuestionInput(body, existing = {}) {
     modelAnswer = String(body?.model_answer ?? existing.model_answer ?? '').trim() || null;
   }
 
+  const existingTags = normalizeTags(parseJson(existing.tags_json, []), existing.tag ? [existing.tag] : []);
+  const tagFallback = body?.tag ? [body.tag] : existingTags;
+  const tags = normalizeTags(body?.tags, tagFallback);
+
   return {
     kind,
     promptText,
@@ -93,11 +115,19 @@ function normalizeQuestionInput(body, existing = {}) {
     answerIndex,
     modelAnswer,
     points: normalizePoints(body?.points ?? existing.points ?? 1),
-    tag: String(body?.tag ?? existing.tag ?? '').trim().slice(0, 80),
+    topic: String(body?.topic ?? existing.topic ?? '').trim().slice(0, 80),
+    tags,
+    tagsJson: JSON.stringify(tags),
+    tag: tags[0] ?? '',
   };
 }
 
 function teacherQuestion(row) {
+  const parsedTags = normalizeTags(parseJson(row.tags_json, []), []);
+  const tags = parsedTags.length ? parsedTags : normalizeTags(row.tag ? [row.tag] : [], []);
+  if (row.tag && !tags.some((tag) => tag.toLowerCase() === String(row.tag).toLowerCase())) {
+    tags.unshift(String(row.tag).trim().slice(0, 40));
+  }
   return {
     id: row.id,
     kind: row.kind,
@@ -107,6 +137,9 @@ function teacherQuestion(row) {
     model_answer: row.model_answer ?? null,
     points: Number(row.points ?? 0),
     tag: row.tag ?? '',
+    topic: row.topic ?? '',
+    tags,
+    origin_assignment_id: row.origin_assignment_id ?? null,
     is_archived: row.is_archived === 1,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -599,9 +632,23 @@ export async function registerTestRoutes(app, { db }) {
     async (request) => {
       const kind = QUESTION_KINDS.has(request.query.kind) ? request.query.kind : null;
       const tag = String(request.query.tag ?? '').trim();
+      const topic = String(request.query.topic ?? '').trim();
+      const search = String(request.query.q ?? '').trim();
       const archived = request.query.archived === '1' ? 1 : 0;
       const clauses = ['is_archived = ?'];
       const params = [archived];
+      const inAssignment = request.query.in_assignment
+        ? ensureTeacherTestAssignment(db, requirePositiveInteger(request.query.in_assignment, 'in_assignment'))
+        : null;
+      if (inAssignment) {
+        const ids = [];
+        for (const section of testConfig(inAssignment).sections) {
+          for (const id of section.question_ids ?? []) ids.push(id);
+        }
+        if (!ids.length) return { questions: [] };
+        clauses.push(`id IN (${ids.map(() => '?').join(',')})`);
+        params.push(...ids);
+      }
       if (kind) {
         clauses.push('kind = ?');
         params.push(kind);
@@ -609,6 +656,14 @@ export async function registerTestRoutes(app, { db }) {
       if (tag) {
         clauses.push('tag = ?');
         params.push(tag);
+      }
+      if (topic) {
+        clauses.push('LOWER(topic) = LOWER(?)');
+        params.push(topic);
+      }
+      if (search) {
+        clauses.push('prompt_text LIKE ? COLLATE NOCASE');
+        params.push(`%${search}%`);
       }
       const rows = db.prepare(`
         SELECT * FROM test_questions
@@ -625,9 +680,9 @@ export async function registerTestRoutes(app, { db }) {
       const q = normalizeQuestionInput(request.body);
       const result = db.prepare(`
         INSERT INTO test_questions
-          (kind, prompt_text, options_json, answer_index, model_answer, points, tag)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(q.kind, q.promptText, q.optionsJson, q.answerIndex, q.modelAnswer, q.points, q.tag);
+          (kind, prompt_text, options_json, answer_index, model_answer, points, tag, topic, tags_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(q.kind, q.promptText, q.optionsJson, q.answerIndex, q.modelAnswer, q.points, q.tag, q.topic, q.tagsJson);
       return reply.code(201).send({ question: teacherQuestion(loadQuestion(db, result.lastInsertRowid)) });
     }
   );
@@ -642,9 +697,9 @@ export async function registerTestRoutes(app, { db }) {
       db.prepare(`
         UPDATE test_questions
         SET kind = ?, prompt_text = ?, options_json = ?, answer_index = ?,
-            model_answer = ?, points = ?, tag = ?, updated_at = datetime('now')
+            model_answer = ?, points = ?, tag = ?, topic = ?, tags_json = ?, updated_at = datetime('now')
         WHERE id = ?
-      `).run(q.kind, q.promptText, q.optionsJson, q.answerIndex, q.modelAnswer, q.points, q.tag, id);
+      `).run(q.kind, q.promptText, q.optionsJson, q.answerIndex, q.modelAnswer, q.points, q.tag, q.topic, q.tagsJson, id);
       return { question: teacherQuestion(loadQuestion(db, id)) };
     }
   );
