@@ -132,7 +132,10 @@
       if(!activeQuestion||!activeStarted)return;
       const elapsed=Math.max(0,Math.round((Date.now()-activeStarted)/1000));
       const key=activeQuestion.dataset.qkey;
-      if(elapsed>0&&elapsed<900)durations.set(key,(durations.get(key)||0)+elapsed);
+      if(elapsed>0&&elapsed<900){
+        durations.set(key,(durations.get(key)||0)+elapsed);
+        postActivity('question_time',{question_id:Number(activeQuestion.dataset.qid),section_index:Number(activeQuestion.dataset.section),metadata:{seconds:elapsed}});
+      }
       activeQuestion=null;activeStarted=0;
     }
 

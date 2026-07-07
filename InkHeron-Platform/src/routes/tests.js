@@ -20,6 +20,7 @@ const ACTIVITY_EVENTS = new Set([
   'paste_attempt',
   'context_menu_attempt',
   'question_focus',
+  'question_time',
   'answer_input',
   'idle_timeout',
   'flag_review',

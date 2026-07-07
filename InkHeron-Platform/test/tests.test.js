@@ -767,6 +767,13 @@ test('test exam activity supports acknowledgement, live monitor, pause, unlock a
     headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
   });
   assert.equal(warning.statusCode, 201);
+  const timing = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/activity`,
+    payload: { event_type: 'question_time', question_id: mcq.id, metadata: { seconds: 12 } },
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(timing.statusCode, 201);
 
   const answer = await app.inject({
     method: 'PUT',
