@@ -112,6 +112,46 @@ function normalizeTags(value, fallback = []) {
   return tags;
 }
 
+function cleanImportText(value, limit = 50000) {
+  return String(value ?? '').trim().slice(0, limit);
+}
+
+function normalizeConfidence(value, fallback = '') {
+  const text = String(value ?? fallback ?? '').trim().toLowerCase();
+  if (['high', 'medium', 'low', 'uncertain'].includes(text)) return text;
+  return fallback;
+}
+
+function sourceExcerptFor(rawText, promptText) {
+  const source = cleanImportText(rawText, 50000);
+  if (!source) return '';
+  const prompt = String(promptText ?? '').trim();
+  const needle = prompt.slice(0, Math.min(40, prompt.length)).toLowerCase();
+  const lower = source.toLowerCase();
+  const index = needle ? lower.indexOf(needle) : -1;
+  if (index >= 0) return source.slice(Math.max(0, index - 180), Math.min(source.length, index + 520)).trim();
+  return source.slice(0, 700).trim();
+}
+
+function questionFingerprint(promptText, optionsJson) {
+  const prompt = String(promptText ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+  const options = parseJson(optionsJson, [])
+    .map((option) => String(option ?? '').toLowerCase().replace(/\s+/g, ' ').trim());
+  return JSON.stringify({ prompt, options });
+}
+
+function findDuplicateQuestionId(db, item) {
+  const fingerprint = questionFingerprint(item.promptText, item.optionsJson);
+  const rows = db.prepare(`
+    SELECT id, prompt_text, options_json
+    FROM test_questions
+    WHERE kind = 'mcq' AND is_archived = 0
+    ORDER BY id
+  `).all();
+  const match = rows.find((row) => questionFingerprint(row.prompt_text, row.options_json) === fingerprint);
+  return match?.id ?? null;
+}
+
 function normalizeQuestionInput(body, existing = {}) {
   const kind = String(body?.kind ?? existing.kind ?? '').trim();
   if (!QUESTION_KINDS.has(kind)) {
@@ -166,7 +206,7 @@ function normalizeQuestionInput(body, existing = {}) {
   };
 }
 
-function normalizeBulkMcqItem(item, index = 0) {
+function normalizeBulkMcqItem(item, index = 0, sourceText = '', defaults = {}) {
   const promptText = String(item?.prompt_text ?? item?.prompt ?? '').trim();
   const options = Array.isArray(item?.options)
     ? item.options.map((option) => String(option ?? '').trim()).filter(Boolean).slice(0, 8)
@@ -189,6 +229,9 @@ function normalizeBulkMcqItem(item, index = 0) {
     points: normalizePoints(item?.points ?? 1),
     topic: String(item?.topic ?? '').trim().slice(0, 80),
     tags: normalizeTags(item?.tags, []),
+    answerSource: cleanImportText(item?.answer_source ?? item?.answer_source_label ?? defaults.answerSource, 120),
+    importConfidence: normalizeConfidence(item?.confidence ?? item?.import_confidence, defaults.importConfidence),
+    sourceExcerpt: cleanImportText(item?.source_excerpt ?? '', 1000) || sourceExcerptFor(sourceText, promptText),
   };
 }
 
@@ -210,6 +253,11 @@ function teacherQuestion(row) {
     topic: row.topic ?? '',
     tags,
     origin_assignment_id: row.origin_assignment_id ?? null,
+    answer_source: row.answer_source ?? '',
+    import_confidence: row.import_confidence ?? '',
+    source_excerpt: row.import_source_excerpt ?? '',
+    has_source: Boolean(row.import_source_text),
+    duplicate_of_question_id: row.duplicate_of_question_id ?? null,
     is_archived: row.is_archived === 1,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -520,7 +568,10 @@ function parseStructuredCsvQuestions(text) {
       points: csvValue(row, headers, 'points') || 1,
       topic: csvValue(row, headers, 'topic'),
       tags: normalizeTags(csvValue(row, headers, 'tags').split(/[;,]/), []),
-    }, index);
+      answer_source: csvValue(row, headers, 'answer') ? 'CSV answer column' : '',
+      confidence: csvValue(row, headers, 'answer') ? 'high' : 'uncertain',
+      source_excerpt: row.map((cell) => String(cell ?? '')).join(', '),
+    }, index, text, { answerSource: 'CSV answer column', importConfidence: answerIndex === null ? 'uncertain' : 'high' });
   });
 }
 
@@ -530,7 +581,7 @@ async function parseLooseMcqQuestions(db, text, description, chat) {
     messages: [
       {
         role: 'system',
-        content: `You convert a teacher's raw multiple-choice questions into structured JSON. Return ONLY a JSON array. Each item: { prompt_text, options: [..2-8..], answer_index (0-based; null if the correct answer is not marked), topic (2-4 word subject label), tags (1-4 short labels) }. Infer topic and tags from the question content and this teacher description: ${String(description ?? '')}`,
+        content: `You convert a teacher's raw multiple-choice questions into structured JSON. Return ONLY a JSON array. Each item: { prompt_text, options: [..2-8..], answer_index (0-based; null if the correct answer is not marked), topic (2-4 word subject label), tags (1-4 short labels), answer_source, confidence, source_excerpt }. For answer_source, use labels like "answer detected from final key", "answer detected from explicit line", "answer detected from bold", "answer detected from underline", "answer detected from highlight", "answer detected from circle" or "answer uncertain". confidence must be high, medium, low or uncertain. Never invent a correct answer. Infer topic and tags from the question content and this teacher description: ${String(description ?? '')}`,
       },
       { role: 'user', content: String(text ?? '').slice(0, 50000) },
     ],
@@ -538,7 +589,10 @@ async function parseLooseMcqQuestions(db, text, description, chat) {
     temperature: 0.1,
   });
   return extractJsonArray(result?.choices?.[0]?.message?.content ?? '')
-    .map((item, index) => normalizeBulkMcqItem(item, index));
+    .map((item, index) => normalizeBulkMcqItem(item, index, text, {
+      answerSource: item?.answer_index === null || item?.answer_index === undefined ? 'answer uncertain' : 'answer detected by AI',
+      importConfidence: item?.answer_index === null || item?.answer_index === undefined ? 'uncertain' : 'medium',
+    }));
 }
 
 async function readBulkImportRequest(request) {
@@ -1184,6 +1238,24 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
     }
   );
 
+  app.get('/api/tests/questions/:id/source',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const id = requirePositiveInteger(request.params.id, 'id');
+      const question = loadQuestion(db, id);
+      if (!question) return reply.code(404).send({ error: 'question_not_found' });
+      return {
+        question_id: question.id,
+        prompt_text: question.prompt_text,
+        answer_source: question.answer_source ?? '',
+        import_confidence: question.import_confidence ?? '',
+        source_excerpt: question.import_source_excerpt ?? '',
+        source_text: question.import_source_text ?? '',
+        duplicate_of_question_id: question.duplicate_of_question_id ?? null,
+      };
+    }
+  );
+
   app.post('/api/tests/questions/bulk-import',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
@@ -1211,11 +1283,18 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
       try {
         const insert = db.prepare(`
           INSERT INTO test_questions
-            (kind, prompt_text, options_json, answer_index, model_answer, points, tag, topic, tags_json, origin_assignment_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (kind, prompt_text, options_json, answer_index, model_answer, points, tag, topic, tags_json,
+             origin_assignment_id, import_source_text, import_source_excerpt, answer_source, import_confidence,
+             duplicate_of_question_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const item of parsed) {
           const tagsJson = JSON.stringify(item.tags);
+          const duplicateId = findDuplicateQuestionId(db, item);
+          const confidence = item.answerIndex === null
+            ? 'uncertain'
+            : normalizeConfidence(item.importConfidence, input.fileKind === 'csv' ? 'high' : 'medium');
+          const answerSource = item.answerSource || (item.answerIndex === null ? 'answer uncertain' : (input.fileKind === 'csv' ? 'CSV answer column' : 'answer detected by AI'));
           const result = insert.run(
             'mcq',
             item.promptText,
@@ -1226,8 +1305,14 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
             item.tags[0] ?? '',
             item.topic,
             tagsJson,
-            assignmentId
+            assignmentId,
+            cleanImportText(rawText, 50000),
+            item.sourceExcerpt,
+            answerSource,
+            confidence,
+            duplicateId
           );
+          if (duplicateId) warnings.push(`Question ${result.lastInsertRowid} may duplicate question ${duplicateId}.`);
           createdIds.push(result.lastInsertRowid);
         }
         let addedToQuiz = 0;
