@@ -8,11 +8,9 @@
  * the AI can only describe patterns the numbers actually show.
  */
 import { callChat } from './openRouter.js';
-import { readDoerIntent } from './settingsStore.js';
+import { readDoerIntent, readCheckerIntent } from './settingsStore.js';
 import { aggregateStyleProfile } from './styleMetrics.js';
 
-
-const CHECKER_INTENT = 'google gemini flash';
 const MAX_TARGETS = 4;
 
 const DOER_SYSTEM_PROMPT = `You write a short profile summary for one English learner (L2) student in an AP Language and Composition course, based only on the evidence given. This is formative coaching, not a grade. Grammar and spelling issues are practice targets, never punishment.
@@ -160,7 +158,7 @@ export async function generateProfileSummary(db, { studentId } = {}, { chat = ca
 
     try {
       const checkerResult = await chat(db, {
-        intent: CHECKER_INTENT,
+        intent: readCheckerIntent(db),
         messages: [
           { role: 'system', content: CHECKER_SYSTEM_PROMPT },
           { role: 'user', content: `EVIDENCE:\n${JSON.stringify(evidence)}\n\nSUMMARY:\n${JSON.stringify(fields)}` },

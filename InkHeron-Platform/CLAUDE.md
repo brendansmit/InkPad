@@ -192,6 +192,9 @@ No Etherpad plugins are installed or supported. Do not add any.
 - **Checker** = a DIFFERENT, cheaper, faster model (e.g. Gemini Flash / DeepSeek) that validates
   the doer's output against source. Different family on purpose — a model is bad at catching its
   own blind spots. Checker flags only; it NEVER auto-corrects.
+- Doer and Checker are stored as fuzzy intent settings, not concrete model ids:
+  `ai_doer_intent` and `ai_checker_intent`. The Checker setting must remain a different family
+  from the Doer setting.
 - **Fuzzy model-name resolution:** never hardcode an exact OpenRouter model string. Store INTENT
   (family + tier), resolve against the live model list at call time, pick closest match. A
   confident near-match auto-resolves; a weak match surfaces to the human rather than silently

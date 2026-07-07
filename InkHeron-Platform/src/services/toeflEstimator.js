@@ -11,16 +11,15 @@
  * RANGE (scaled_low to scaled_high), never a single number.
  *
  * Modelled line for line on the Doer/Checker pattern in profileSummarizer.js:
- * a capable Doer proposes JSON, a different cheaper Checker (Gemini Flash)
+ * a capable Doer proposes JSON, a different cheaper Checker
  * validates it against the evidence and can ONLY blank fields it cannot
  * support, never rewrite them.
  */
 import { callChat } from './openRouter.js';
-import { readDoerIntent } from './settingsStore.js';
+import { readDoerIntent, readCheckerIntent } from './settingsStore.js';
 import { aggregateStyleProfile } from './styleMetrics.js';
 import { realStudentsWhere } from '../db/realStudents.js';
 
-const CHECKER_INTENT = 'google gemini flash';
 const MIN_ESSAYS = 2;
 
 const DOER_SYSTEM_PROMPT = `You estimate a TOEFL iBT writing score for one English learner (L2) student, based only on the evidence given. This is a directional signal for the student's teacher, never a promise and never shown to the student.
@@ -171,7 +170,7 @@ export async function generateToeflEstimate(db, { studentId } = {}, { chat = cal
 
     try {
       const checkerResult = await chat(db, {
-        intent: CHECKER_INTENT,
+        intent: readCheckerIntent(db),
         messages: [
           { role: 'system', content: CHECKER_SYSTEM_PROMPT },
           { role: 'user', content: `EVIDENCE:\n${JSON.stringify(evidence)}\n\nESTIMATE:\n${JSON.stringify(fields)}` },

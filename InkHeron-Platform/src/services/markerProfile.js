@@ -7,11 +7,8 @@
  * this teacher marks relative to the model.
  */
 import { callChat } from './openRouter.js';
-import { readDoerIntent } from './settingsStore.js';
+import { readDoerIntent, readCheckerIntent } from './settingsStore.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
-
-
-const CHECKER_INTENT = 'google gemini flash';
 
 function doerSystemPrompt(criteria) {
   const criteriaText = criteria.map((c) => {
@@ -155,7 +152,7 @@ export async function estimateRubric(db, { padId } = {}, { chat = callChat } = {
           return `${i}. criterion="${criterion.label}" valid_range=${criterion.min}-${criterion.max} score=${c.score} rationale="${c.rationale}"`;
         }).join('\n');
         const checkerResult = await chat(db, {
-          intent: CHECKER_INTENT,
+          intent: readCheckerIntent(db),
           messages: [
             { role: 'system', content: CHECKER_SYSTEM_PROMPT },
             { role: 'user', content: `ESSAY:\n${pad.plain_text}\n\nESTIMATES:\n${listing}` },

@@ -36,6 +36,7 @@ export function readSecretSettings(db) {
 }
 
 export function readRawSetting(db, key) {
+  if (!db?.prepare) return null;
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
   return row?.value?.trim() ?? null;
 }
@@ -78,8 +79,9 @@ export function writeCurrentSemester(db, value) {
 // estimate, rewrite judge, suggesters). A fuzzy intent, never an exact id
 // (CLAUDE.md §8). Default is DeepSeek: strong on Chinese-English transfer
 // errors, cheap, and it outperformed haiku on finding density in the live
-// smoke test. The Checker stays a DIFFERENT family (gemini flash).
+// smoke test. The Checker stays a DIFFERENT family.
 const DOER_INTENT_DEFAULT = 'deepseek chat v3';
+const CHECKER_INTENT_DEFAULT = 'google gemini flash';
 
 export function readDoerIntent(db) {
   const value = (readRawSetting(db, 'ai_doer_intent') ?? '').trim();
@@ -96,6 +98,23 @@ export function writeDoerIntent(db, value) {
       updated_at = excluded.updated_at
   `).run(intent);
   return readDoerIntent(db);
+}
+
+export function readCheckerIntent(db) {
+  const value = (readRawSetting(db, 'ai_checker_intent') ?? '').trim();
+  return value || CHECKER_INTENT_DEFAULT;
+}
+
+export function writeCheckerIntent(db, value) {
+  const intent = String(value ?? '').trim().slice(0, 120) || CHECKER_INTENT_DEFAULT;
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('ai_checker_intent', ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).run(intent);
+  return readCheckerIntent(db);
 }
 
 export function writeSecretSettings(db, input) {

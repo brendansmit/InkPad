@@ -8,12 +8,10 @@
  * accept/reject endpoints in nativePads.js). Nothing here auto-applies.
  */
 import { callChat } from './openRouter.js';
-import { readDoerIntent } from './settingsStore.js';
+import { readDoerIntent, readCheckerIntent } from './settingsStore.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
 import { feedbackOptionsForAssignment } from '../feedback/assets.js';
 
-
-const CHECKER_INTENT = 'google gemini flash';
 const MAX_STRENGTHS = 3;
 const MAX_TARGETS = 5;
 
@@ -171,7 +169,7 @@ export async function suggestFeedbackItems(db, { padId } = {}, { chat = callChat
     try {
       const listing = items.map((item, i) => `${i}. [${item.kind}] "${item.title}" — ${item.explanation}`).join('\n');
       const checkerResult = await chat(db, {
-        intent: CHECKER_INTENT,
+        intent: readCheckerIntent(db),
         messages: [
           { role: 'system', content: CHECKER_SYSTEM_PROMPT },
           { role: 'user', content: `ESSAY:\n${pad.plain_text}\n\nITEMS:\n${listing}` },

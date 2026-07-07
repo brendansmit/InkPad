@@ -17,8 +17,7 @@
 import { callChat } from './openRouter.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
 import { buildCalibration } from './promptCalibration.js';
-
-const CHECKER_INTENT = 'google gemini flash';
+import { readCheckerIntent } from './settingsStore.js';
 
 const CHECKER_SYSTEM_PROMPT = `You are a strict verifier of literacy error findings made by another model on a student paragraph. You NEVER add findings and NEVER rewrite anything. Each numbered finding shows the code, the quoted span and the FULL SENTENCE it sits in. For each one, judge only:
 - "defensible": is the labelled error genuinely present at the quoted span, read inside its sentence? A correct standard English phrase flagged as an error is NOT defensible. Neither is natural everyday usage: if fluent speakers write or say the sentence exactly that way (informal register, sentence-initial And/But, stranded prepositions, singular they, common colloquial phrasing), mark it NOT defensible even if a style guide would object. Read the whole sentence aloud in your head; if it sounds like normal English, the finding is wrong. Check each finding independently; do not assume the other model is right.
@@ -84,7 +83,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
     const listing = toJudge.map((f, i) =>
       `${i}. code=${f.code} quote="${f.quote}" sentence="${sentenceAround(padPlainText, f.start_offset, f.end_offset)}"`).join('\n');
     const result = await chat(db, {
-      intent: CHECKER_INTENT,
+      intent: readCheckerIntent(db),
       messages: [
         { role: 'system', content: CHECKER_SYSTEM_PROMPT + buildCalibration(db) },
         { role: 'user', content: `TEXT:\n${padPlainText}\n\nFINDINGS:\n${listing}` },
