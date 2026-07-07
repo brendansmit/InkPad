@@ -952,6 +952,142 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
   return { assignment, copiedPads, copiedAnnotations };
 }
 
+// Copy one marked source essay pad into an existing green-pen rewrite
+// assignment: a fresh 'writing' pad seeded with the student's text, linked back
+// via rewrite_of_pad_id, with the teacher marks copied as reference. Shared by
+// the release-time ensure path below.
+function copyEssayPadIntoRewrite(db, { source, sourcePad, targetAssignmentId, teacherId, rewriteSettings }) {
+  const result = db.prepare(`
+    INSERT INTO native_pads (student_id, assignment_id, state, document_json, plain_text, word_count, version, rewrite_of_pad_id)
+    VALUES (?, ?, 'writing', ?, ?, ?, 1, ?)
+  `).run(
+    sourcePad.student_id,
+    targetAssignmentId,
+    sourcePad.document_json,
+    sourcePad.plain_text ?? '',
+    Number(sourcePad.word_count ?? 0),
+    sourcePad.id
+  );
+  const newPadId = result.lastInsertRowid;
+  const newPad = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(newPadId);
+  insertRevision(db, newPadId, 'create', newPad);
+  ensurePolicy(db, newPadId, rewriteSettings, teacherId);
+
+  const insertAnnotation = db.prepare(`
+    INSERT INTO native_annotations (
+      native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, resolved, document_version
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const sourceAnnotations = db.prepare('SELECT * FROM native_annotations WHERE native_pad_id = ? ORDER BY id ASC').all(sourcePad.id);
+  let copiedAnnotations = 0;
+  for (const annotation of sourceAnnotations) {
+    const metadata = parseMetadataJson(annotation.metadata_json);
+    metadata.source_annotation_id = annotation.id;
+    metadata.source_assignment_id = source.id;
+    insertAnnotation.run(
+      newPadId,
+      annotation.teacher_id ?? teacherId,
+      annotation.type,
+      annotation.start_offset,
+      annotation.end_offset,
+      annotation.selected_text ?? '',
+      annotation.body ?? '',
+      normalizeMetadata(metadata),
+      annotation.resolved === 1 ? 1 : 0,
+      1
+    );
+    copiedAnnotations += 1;
+  }
+  logTeacherEvent(db, newPadId, teacherId, 'greenpen_rewrite_created', {
+    source_assignment_id: source.id,
+    source_native_pad_id: sourcePad.id,
+  });
+  return { newPadId, copiedAnnotations };
+}
+
+// The green-pen rewrite assignment spun off from a source essay is found by
+// following the rewrite_of_pad_id links, not a settings field: this survives a
+// later edit of either assignment (buildSettingsJson strips unknown keys).
+function findRewriteAssignmentId(db, sourceAssignmentId) {
+  const row = db.prepare(`
+    SELECT rp.assignment_id AS id
+    FROM native_pads sp
+    JOIN native_pads rp ON rp.rewrite_of_pad_id = sp.id
+    WHERE sp.assignment_id = ?
+    ORDER BY rp.id ASC
+    LIMIT 1
+  `).get(sourceAssignmentId);
+  return row ? row.id : null;
+}
+
+const REWRITE_ELIGIBLE_STATES = "('marked','green_pen_open','resubmitted')";
+
+// Ensure a SEPARATE green-pen rewrite assignment exists for a source essay and
+// that each given (marked) student has a rewrite pad in it. Called at feedback
+// release time (class-wide with studentIds=null, or per student with a list).
+// Idempotent: creates the assignment on the first release, then only adds
+// students not already present. Returns null when the source is not a native
+// essay or green pen is off for it.
+export function ensureGreenpenRewriteForStudents(db, sourceAssignmentId, teacherId, studentIds = null) {
+  const source = db.prepare('SELECT * FROM assignments WHERE id = ?').get(sourceAssignmentId);
+  if (!source || !nativeEnabled(source) || source.type === 'test') return null;
+  const settings = parseSettings(source.settings_json);
+  if (settings.green_pen !== true) return null;
+
+  let sourcePads;
+  if (Array.isArray(studentIds) && studentIds.length) {
+    const placeholders = studentIds.map(() => '?').join(',');
+    sourcePads = db.prepare(
+      `SELECT * FROM native_pads WHERE assignment_id = ? AND student_id IN (${placeholders}) AND state IN ${REWRITE_ELIGIBLE_STATES}`
+    ).all(sourceAssignmentId, ...studentIds);
+  } else {
+    sourcePads = db.prepare(
+      `SELECT * FROM native_pads WHERE assignment_id = ? AND state IN ${REWRITE_ELIGIBLE_STATES} ORDER BY student_id ASC`
+    ).all(sourceAssignmentId);
+  }
+  // Nothing marked yet and no rewrite assignment to add to: nothing to do.
+  if (!sourcePads.length && findRewriteAssignmentId(db, sourceAssignmentId) == null) return null;
+
+  const rewriteSettings = greenpenRewriteSettingsForSource(source, settings);
+  let created = false;
+  let addedPads = 0;
+  let addedAnnotations = 0;
+  db.exec('BEGIN');
+  let targetAssignmentId;
+  try {
+    targetAssignmentId = findRewriteAssignmentId(db, sourceAssignmentId);
+    if (targetAssignmentId == null) {
+      const title = `Greenpen rewrite: ${source.title}`.slice(0, 180);
+      const assignmentResult = db.prepare(`
+        INSERT INTO assignments (class_id, title, type, settings_json, opens_at, due_at)
+        VALUES (?, ?, ?, ?, datetime('now'), ?)
+      `).run(source.class_id, title, source.type, JSON.stringify(rewriteSettings), source.due_at ?? null);
+      targetAssignmentId = assignmentResult.lastInsertRowid;
+      const overrideRows = db.prepare('SELECT student_id FROM assignment_students WHERE assignment_id = ?').all(source.id);
+      if (overrideRows.length) {
+        const insertOverride = db.prepare('INSERT OR IGNORE INTO assignment_students (assignment_id, student_id) VALUES (?, ?)');
+        for (const r of overrideRows) insertOverride.run(targetAssignmentId, r.student_id);
+      }
+      copyAssignmentRubric(db, source.id, targetAssignmentId);
+      created = true;
+    }
+    const existingRewritePad = db.prepare('SELECT 1 FROM native_pads WHERE assignment_id = ? AND rewrite_of_pad_id = ?');
+    for (const pad of sourcePads) {
+      if (existingRewritePad.get(targetAssignmentId, pad.id)) continue;
+      const r = copyEssayPadIntoRewrite(db, { source, sourcePad: pad, targetAssignmentId, teacherId, rewriteSettings });
+      addedPads += 1;
+      addedAnnotations += r.copiedAnnotations;
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+  if (created) copyPassagePdf(source.id, targetAssignmentId);
+  const assignment = db.prepare('SELECT * FROM assignments WHERE id = ?').get(targetAssignmentId);
+  return { assignment, created, addedPads, addedAnnotations };
+}
+
 function loadBackupRubricScores(db, padIds) {
   if (!padIds.length) return new Map();
   const placeholders = padIds.map(() => '?').join(',');
@@ -1474,17 +1610,35 @@ export async function registerNativePadRoutes(app, { db }) {
       const padId = requirePositiveInteger(request.params.padId, 'padId');
       const pad = loadTeacherNativePad(db, padId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
-      const settings = parseSettings(pad.settings_json);
-      const nextState = settings.green_pen === true ? 'green_pen_open' : 'marked';
+      // Finish-marking only MARKS the pad. It no longer reveals anything to the
+      // student or opens a rewrite: under batch release (the default) the score
+      // and feedback stay held until the teacher releases, and the green-pen
+      // rewrite is a separate assignment created at release time (see
+      // ensureGreenpenRewriteForStudents). This keeps the teacher in control of
+      // exactly when scores go out.
+      const nextState = 'marked';
       db.prepare("UPDATE native_pads SET state = ?, updated_at = datetime('now') WHERE id = ?").run(nextState, padId);
-      logTeacherEvent(db, padId, request.session.user.id, 'feedback_released', { state: nextState });
+      logTeacherEvent(db, padId, request.session.user.id, 'marking_finished', { state: nextState });
       const updated = db.prepare('SELECT * FROM native_pads WHERE id = ?').get(padId);
       // Append rubric score history so performance can be tracked over time.
       for (const kind of ['internal', 'secondary', 'exam']) writeScoreSnapshot(db, updated, kind);
       // Finish-marking is when new evidence lands, so refresh the profile
       // summary in the background rather than on a scheduler.
       runInBackground('profile-summary', () => generateProfileSummary(db, { studentId: updated.student_id }));
-      return { pad: publicNativePad(updated) };
+      // Under IMMEDIATE feedback release there is no separate release click, so
+      // finish-marking is the release: spin up the green-pen rewrite assignment
+      // now. Batch mode defers this to the release endpoints.
+      let rewrite = null;
+      const settings = parseSettings(pad.settings_json);
+      if (settings.feedback_release !== 'batch') {
+        rewrite = ensureGreenpenRewriteForStudents(db, pad.assignment_id, request.session.user.id, [pad.student_id]);
+      }
+      return {
+        pad: publicNativePad(updated),
+        rewrite_assignment: rewrite?.assignment
+          ? { id: rewrite.assignment.id, title: rewrite.assignment.title, created: rewrite.created }
+          : null,
+      };
     }
   );
 
@@ -2174,8 +2328,21 @@ function loadImplementationScore(db, padId) {
       const studentId = request.session.user.id;
       const pad = loadOwnedNativePad(db, padId, studentId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
-      if (pad.state !== 'green_pen_open') return reply.code(409).send({ error: 'green_pen_not_open' });
-      const item = db.prepare('SELECT * FROM native_feedback_items WHERE id = ? AND native_pad_id = ?').get(itemId, padId);
+      // Tick-off is allowed either on a legacy in-place green_pen_open pad, or
+      // on a separate green-pen rewrite pad while the student is still writing
+      // it. The feedback items live on the ORIGINAL pad, so a rewrite pad
+      // targets its source.
+      let targetPadId = padId;
+      if (pad.state !== 'green_pen_open') {
+        if (pad.rewrite_of_pad_id && pad.state === 'writing') {
+          const original = db.prepare('SELECT id FROM native_pads WHERE id = ? AND student_id = ?').get(pad.rewrite_of_pad_id, studentId);
+          if (!original) return reply.code(404).send({ error: 'original_not_found' });
+          targetPadId = original.id;
+        } else {
+          return reply.code(409).send({ error: 'green_pen_not_open' });
+        }
+      }
+      const item = db.prepare('SELECT * FROM native_feedback_items WHERE id = ? AND native_pad_id = ?').get(itemId, targetPadId);
       if (!item) return reply.code(404).send({ error: 'feedback_item_not_found' });
       const nextChecked = item.student_checked === 1 ? 0 : 1;
       db.prepare(`
@@ -2400,7 +2567,15 @@ function loadImplementationScore(db, padId) {
       }
       db.prepare("UPDATE native_pads SET feedback_released_at = datetime('now') WHERE id = ?").run(padId);
       logTeacherEvent(db, padId, request.session.user.id, 'pad_feedback_released', {});
-      return { released: true };
+      // Releasing to this student also spins up (or extends) the separate
+      // green-pen rewrite assignment so they have somewhere to do the rewrite.
+      const rewrite = ensureGreenpenRewriteForStudents(db, pad.assignment_id, request.session.user.id, [pad.student_id]);
+      return {
+        released: true,
+        rewrite_assignment: rewrite?.assignment
+          ? { id: rewrite.assignment.id, title: rewrite.assignment.title, created: rewrite.created }
+          : null,
+      };
     }
   );
 

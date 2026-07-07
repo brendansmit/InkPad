@@ -786,7 +786,8 @@ test('teacher can return native feedback and student can view it', async () => {
     headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
   });
   assert.equal(returned.statusCode, 200);
-  assert.equal(returned.json().pad.state, 'green_pen_open');
+  assert.equal(returned.json().pad.state, 'marked');
+  const rewriteAssignmentId = returned.json().rewrite_assignment.id;
 
   const dashboard = await app.inject({
     method: 'GET',
@@ -795,7 +796,10 @@ test('teacher can return native feedback and student can view it', async () => {
   });
   assert.equal(dashboard.statusCode, 200);
   const assignment = dashboard.json().assignments.find(item => item.id === assignmentId);
-  assert.equal(assignment.status, 'needs_rewrite');
+  assert.equal(assignment.status, 'marked');
+  const rewriteOnDashboard = dashboard.json().assignments.find(item => item.id === rewriteAssignmentId);
+  assert.ok(rewriteOnDashboard, 'the separate rewrite assignment appears on the student dashboard');
+  assert.match(rewriteOnDashboard.title, /rewrite/i);
   assert.equal(assignment.feedback_url, `/native/feedback/${assignmentId}`);
   assert.equal(assignment.write_url, `/native/write/${assignmentId}`);
 
@@ -810,63 +814,45 @@ test('teacher can return native feedback and student can view it', async () => {
   assert.equal(feedback.json().rewrite_url, `/native/write/${assignmentId}`);
   assert.deepEqual(feedback.json().annotations.map(annotation => annotation.type), ['general_comment', 'inline_comment']);
 
-  const rewritePage = await app.inject({
+  // The rewrite happens in the SEPARATE assignment: alice's pad there is seeded
+  // with her essay and the teacher marks copied as reference.
+  const rewritePad = await app.inject({
     method: 'GET',
-    url: `/native/write/${assignmentId}`,
+    url: `/api/native/assignments/${rewriteAssignmentId}/pad`,
     headers: { cookie: cookies },
   });
-  assert.equal(rewritePage.statusCode, 200);
-  assert.match(rewritePage.body, /Resubmit/);
+  assert.equal(rewritePad.statusCode, 200);
+  const rewritePadId = rewritePad.json().pad.id;
+  assert.equal(rewritePad.json().pad.plain_text, 'Feedback text sample.');
 
   const rewriteSaved = await app.inject({
     method: 'POST',
-    url: `/api/native/pads/${padId}/save`,
+    url: `/api/native/pads/${rewritePadId}/save`,
     headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
     payload: {
       document: { type: 'doc', content: [{ type: 'text', text: 'Feedback text sample. Revised ending.' }] },
       plain_text: 'Feedback text sample. Revised ending.',
-      expected_version: 2,
+      expected_version: 1,
     },
   });
   assert.equal(rewriteSaved.statusCode, 200);
 
   const resubmitted = await app.inject({
     method: 'POST',
-    url: `/api/native/pads/${padId}/submit`,
+    url: `/api/native/pads/${rewritePadId}/submit`,
     headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
   });
   assert.equal(resubmitted.statusCode, 201);
-  assert.equal(resubmitted.json().pad.state, 'resubmitted');
-  assert.equal(resubmitted.json().resubmitted, true);
+  assert.equal(resubmitted.json().pad.state, 'submitted');
 
-  const blockedRewriteSave = await app.inject({
-    method: 'POST',
-    url: `/api/native/pads/${padId}/save`,
-    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
-    payload: { document: { type: 'doc' }, plain_text: 'late rewrite' },
-  });
-  assert.equal(blockedRewriteSave.statusCode, 409);
-
-  const resubmittedDashboard = await app.inject({
+  // Teacher grades the rewrite independently: its review shows the revised text.
+  const rewriteReview = await app.inject({
     method: 'GET',
-    url: '/api/student/assignments',
-    headers: { cookie: cookies },
-  });
-  assert.equal(resubmittedDashboard.statusCode, 200);
-  const resubmittedAssignment = resubmittedDashboard.json().assignments.find(item => item.id === assignmentId);
-  assert.equal(resubmittedAssignment.status, 'resubmitted');
-
-  const resubmittedReview = await app.inject({
-    method: 'GET',
-    url: `/api/native/pads/${padId}/review`,
+    url: `/api/native/pads/${rewritePadId}/review`,
     headers: { cookie: teacherCookies },
   });
-  assert.equal(resubmittedReview.statusCode, 200);
-  assert.equal(resubmittedReview.json().pad.plain_text, 'Feedback text sample. Revised ending.');
-  assert.equal(resubmittedReview.json().comparison.rewrite_available, true);
-  assert.equal(resubmittedReview.json().comparison.submission_count, 2);
-  assert.equal(resubmittedReview.json().comparison.original_submission.plain_text, 'Feedback text sample.');
-  assert.equal(resubmittedReview.json().comparison.latest_submission.plain_text, 'Feedback text sample. Revised ending.');
+  assert.equal(rewriteReview.statusCode, 200);
+  assert.equal(rewriteReview.json().pad.plain_text, 'Feedback text sample. Revised ending.');
 
   const page = await app.inject({
     method: 'GET',
@@ -917,7 +903,8 @@ test('batch feedback_release holds feedback and green pen rewrite until teacher 
     headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
   });
   assert.equal(finished.statusCode, 200);
-  assert.equal(finished.json().pad.state, 'green_pen_open');
+  assert.equal(finished.json().pad.state, 'marked');
+  assert.equal(finished.json().rewrite_assignment, null, 'batch mode does not create the rewrite until release');
 
   // Feedback is held: friendly gate, no feedback/annotations leaked.
   const heldFeedback = await app.inject({
@@ -930,31 +917,14 @@ test('batch feedback_release holds feedback and green pen rewrite until teacher 
   assert.ok(!('feedback' in heldFeedback.json()));
   assert.ok(!('annotations' in heldFeedback.json()));
 
-  // Green pen rewrite access is held too, on both the write view and save/submit.
-  const heldWritePage = await app.inject({
+  // The green-pen rewrite assignment does not exist yet: nothing is released.
+  const heldDashboard = await app.inject({
     method: 'GET',
-    url: `/native/write/${assignmentId}`,
+    url: '/api/student/assignments',
     headers: { cookie: cookies },
   });
-  assert.equal(heldWritePage.statusCode, 403);
-  assert.equal(heldWritePage.json().error, 'feedback_not_released');
-
-  const heldSave = await app.inject({
-    method: 'POST',
-    url: `/api/native/pads/${padId}/save`,
-    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
-    payload: { document: { type: 'doc' }, plain_text: 'trying to rewrite early' },
-  });
-  assert.equal(heldSave.statusCode, 403);
-  assert.equal(heldSave.json().error, 'feedback_not_released');
-
-  const heldSubmit = await app.inject({
-    method: 'POST',
-    url: `/api/native/pads/${padId}/submit`,
-    headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
-  });
-  assert.equal(heldSubmit.statusCode, 403);
-  assert.equal(heldSubmit.json().error, 'feedback_not_released');
+  assert.ok(!heldDashboard.json().assignments.some(a => /rewrite/i.test(a.title)),
+    'no rewrite assignment before release');
 
   // Teacher releases feedback for the assignment.
   const released = await app.inject({
@@ -964,6 +934,8 @@ test('batch feedback_release holds feedback and green pen rewrite until teacher 
   });
   assert.equal(released.statusCode, 200);
   assert.equal(released.json().released, true);
+  assert.ok(released.json().rewrite_assignment, 'release creates the rewrite assignment');
+  const rewriteAssignmentId = released.json().rewrite_assignment.id;
 
   const openFeedback = await app.inject({
     method: 'GET',
@@ -974,21 +946,24 @@ test('batch feedback_release holds feedback and green pen rewrite until teacher 
   assert.equal(openFeedback.json().feedback_released, true);
   assert.equal(openFeedback.json().pad.plain_text, 'Batch release sample.');
 
-  const openWritePage = await app.inject({
+  // After release the rewrite assignment is live and alice can write in it.
+  const rewritePad = await app.inject({
     method: 'GET',
-    url: `/native/write/${assignmentId}`,
+    url: `/api/native/assignments/${rewriteAssignmentId}/pad`,
     headers: { cookie: cookies },
   });
-  assert.equal(openWritePage.statusCode, 200);
+  assert.equal(rewritePad.statusCode, 200);
+  const rewritePadId = rewritePad.json().pad.id;
+  assert.equal(rewritePad.json().pad.plain_text, 'Batch release sample.');
 
   const openSave = await app.inject({
     method: 'POST',
-    url: `/api/native/pads/${padId}/save`,
+    url: `/api/native/pads/${rewritePadId}/save`,
     headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
     payload: {
       document: { type: 'doc', content: [{ type: 'text', text: 'Batch release sample. Revised.' }] },
       plain_text: 'Batch release sample. Revised.',
-      expected_version: 2,
+      expected_version: 1,
     },
   });
   assert.equal(openSave.statusCode, 200);
@@ -1098,7 +1073,14 @@ test('student-facing feedback and marks never reveal AI as the source', async ()
     headers: { cookie: teacherCookies, 'X-CSRF-Token': teacherCsrf },
   });
   assert.equal(finished.statusCode, 200);
-  assert.equal(finished.json().pad.state, 'green_pen_open');
+  assert.equal(finished.json().pad.state, 'marked');
+  const rewriteAssignmentId = finished.json().rewrite_assignment.id;
+  const rewritePad = await app.inject({
+    method: 'GET',
+    url: `/api/native/assignments/${rewriteAssignmentId}/pad`,
+    headers: { cookie: cookies },
+  });
+  const rewritePadId = rewritePad.json().pad.id;
 
   const feedback = await app.inject({
     method: 'GET',
@@ -1113,7 +1095,7 @@ test('student-facing feedback and marks never reveal AI as the source', async ()
 
   const toggle = await app.inject({
     method: 'POST',
-    url: `/api/native/pads/${padId}/feedback-items/${itemResult.lastInsertRowid}/toggle-check`,
+    url: `/api/native/pads/${rewritePadId}/feedback-items/${itemResult.lastInsertRowid}/toggle-check`,
     headers: { cookie: cookies, 'X-CSRF-Token': csrfToken },
   });
   assert.equal(toggle.statusCode, 200);

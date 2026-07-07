@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { exportAssignmentToAdmin } from '../services/adminExport.js';
 import { notifyTeacher } from '../services/serverChan.js';
 import { readCurrentSemester } from '../services/settingsStore.js';
+import { ensureGreenpenRewriteForStudents } from './nativePads.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __routesDir = path.dirname(__filename);
@@ -535,7 +536,17 @@ export async function registerAssignmentRoutes(app, { db }) {
         }));
       }
 
-      return { released: true };
+      // Releasing to the class also creates (or extends) the separate green-pen
+      // rewrite assignment covering every student marked so far. Idempotent, so
+      // a repeat release just adds newly marked students.
+      const rewrite = ensureGreenpenRewriteForStudents(db, id, request.session.user.id, null);
+
+      return {
+        released: true,
+        rewrite_assignment: rewrite?.assignment
+          ? { id: rewrite.assignment.id, title: rewrite.assignment.title, created: rewrite.created, added_pads: rewrite.addedPads }
+          : null,
+      };
     }
   );
 

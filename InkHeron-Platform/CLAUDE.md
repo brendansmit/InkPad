@@ -147,13 +147,27 @@ and NOT a per-student setting. Adding a future toggle = adding a field.
 - **submitted** — student hit Submit. For `submit_behaviour: "exam"` this is TERMINAL: pad
   locks read-only forever. For `"draft"` it marks "this is the gradeable version" but stays
   editable until `due_at`, at which point it locks.
-- **marked** — teacher has graded; codes/targets/strengths attached.
-- **green_pen_open** — if `green_pen: true`, marking reopens the pad for the student to revise
-  using the feedback. (So lock is not always permanent — marking can release a new round.)
-- **resubmitted** — student sent the revised version back.
+- **marked** — teacher has graded; codes/targets/strengths attached. `finish-marking` ALWAYS
+  lands here (2026-07-07 teacher decision). It only marks: it reveals nothing to the student.
+  Under `feedback_release: "batch"` (the default) the score and feedback stay held until the
+  teacher explicitly releases. Marking never auto-opens a rewrite any more.
+- **green_pen_open** — legacy in-place rewrite state. No longer produced by `finish-marking`.
+  The green-pen rewrite is now a SEPARATE assignment (see below), not a reopening of the same
+  pad. The state and its student read-model mapping are retained only for old pads.
+- **resubmitted** — student sent the revised version back (used by the rewrite assignment's
+  own pads).
 
-Two AIs could contradict each other here ("submit locks" vs "green-pen reopens"). It is BOTH,
-gated by state. Always check the state, never assume a boolean.
+Green-pen rewrite flow (2026-07-07): when the teacher RELEASES feedback (class-wide via
+`POST /api/assignments/:id/release-feedback`, or per student via
+`POST /api/native/pads/:padId/release-feedback`), for any source essay with `green_pen: true`
+the platform creates ONE separate rewrite assignment (idempotent, found via `rewrite_of_pad_id`
+links, extended with newly released students on later releases). Each released student gets a
+fresh `writing` pad in it seeded with their essay plus the teacher's marks as reference, graded
+independently with its own rubric. See `ensureGreenpenRewriteForStudents` in nativePads.js.
+
+Two AIs could contradict each other here ("submit locks" vs "green-pen reopens"). Locking is
+gated by state; the rewrite is a separate assignment, not a reopen. Always check the state,
+never assume a boolean.
 
 ---
 

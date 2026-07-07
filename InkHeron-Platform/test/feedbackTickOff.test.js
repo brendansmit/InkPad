@@ -18,8 +18,11 @@ async function teacherSession(app) {
   return { cookies: login.headers['set-cookie'], csrf: login.json().user.csrf_token };
 }
 
-// Seeds a class, two students, a greenpen-enabled assignment, submits alice's
-// pad, adds a target, and finishes marking so the pad reaches green_pen_open.
+// Seeds a class, two students, a greenpen-enabled assignment (immediate
+// release), submits alice's pad, adds a target, and finishes marking. Under the
+// separate-assignment model finish-marking lands the source pad on 'marked' and
+// spins up the green-pen rewrite assignment; alice ticks targets off on her
+// rewrite pad there.
 async function seedGreenPenPad(app) {
   const t = await teacherSession(app);
   const cls = await app.inject({ method: 'POST', url: '/api/classes',
@@ -64,22 +67,29 @@ async function seedGreenPenPad(app) {
 
   const finished = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/finish-marking`,
     headers: { cookie: t.cookies, 'X-CSRF-Token': t.csrf } });
-  assert.equal(finished.json().pad.state, 'green_pen_open');
+  assert.equal(finished.json().pad.state, 'marked');
+  const rewriteAssignmentId = finished.json().rewrite_assignment.id;
 
-  return { t, assignmentId, padId, itemId, aliceId, aliceCookies, aliceCsrf, bobId, bobCookies, bobCsrf };
+  // Alice's rewrite pad in the new assignment (created by finish-marking under
+  // immediate release). This is where she does the green-pen round.
+  const rewritePadRes = await app.inject({ method: 'GET', url: `/api/native/assignments/${rewriteAssignmentId}/pad`,
+    headers: { cookie: aliceCookies } });
+  const rewritePadId = rewritePadRes.json().pad.id;
+
+  return { t, assignmentId, rewriteAssignmentId, padId, rewritePadId, itemId, aliceId, aliceCookies, aliceCsrf, bobId, bobCookies, bobCsrf };
 }
 
 test('the owning student can toggle a target checked and unchecked', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
-  const { padId, itemId, aliceCookies, aliceCsrf } = await seedGreenPenPad(app);
+  const { rewritePadId, itemId, aliceCookies, aliceCsrf } = await seedGreenPenPad(app);
 
-  const on = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/feedback-items/${itemId}/toggle-check`,
+  const on = await app.inject({ method: 'POST', url: `/api/native/pads/${rewritePadId}/feedback-items/${itemId}/toggle-check`,
     headers: { cookie: aliceCookies, 'X-CSRF-Token': aliceCsrf } });
   assert.equal(on.statusCode, 200);
   assert.equal(on.json().item.student_checked, true);
   assert.ok(on.json().item.student_checked_at);
 
-  const off = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/feedback-items/${itemId}/toggle-check`,
+  const off = await app.inject({ method: 'POST', url: `/api/native/pads/${rewritePadId}/feedback-items/${itemId}/toggle-check`,
     headers: { cookie: aliceCookies, 'X-CSRF-Token': aliceCsrf } });
   assert.equal(off.statusCode, 200);
   assert.equal(off.json().item.student_checked, false);
@@ -90,9 +100,9 @@ test('the owning student can toggle a target checked and unchecked', async () =>
 
 test('another student gets 404, not the owner\'s pad', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
-  const { padId, itemId, bobCookies, bobCsrf } = await seedGreenPenPad(app);
+  const { rewritePadId, itemId, bobCookies, bobCsrf } = await seedGreenPenPad(app);
 
-  const res = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/feedback-items/${itemId}/toggle-check`,
+  const res = await app.inject({ method: 'POST', url: `/api/native/pads/${rewritePadId}/feedback-items/${itemId}/toggle-check`,
     headers: { cookie: bobCookies, 'X-CSRF-Token': bobCsrf } });
   assert.equal(res.statusCode, 404);
 
@@ -139,9 +149,9 @@ test('toggle is rejected once the pad is outside the green pen window', async ()
 
 test('student_checked appears in both the student feedback view and the teacher review payload', async () => {
   const app = await buildApp({ databasePath: tmpDb(), logger: false });
-  const { t, assignmentId, padId, itemId, aliceCookies, aliceCsrf } = await seedGreenPenPad(app);
+  const { t, assignmentId, padId, rewritePadId, itemId, aliceCookies, aliceCsrf } = await seedGreenPenPad(app);
 
-  await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/feedback-items/${itemId}/toggle-check`,
+  await app.inject({ method: 'POST', url: `/api/native/pads/${rewritePadId}/feedback-items/${itemId}/toggle-check`,
     headers: { cookie: aliceCookies, 'X-CSRF-Token': aliceCsrf } });
 
   const feedback = await app.inject({ method: 'GET', url: `/api/native/assignments/${assignmentId}/feedback`,

@@ -10,6 +10,15 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Green pen: hold scores at finish-marking, create a separate rewrite assignment on release
+
+- Asked (teacher, real marking): finish-marking was releasing the score immediately; scores must stay hidden until "Release to class". And on release OR per-student "Send feedback", auto-create a NEW assignment for the green-pen rewrite that is graded separately (own rubric, renamed later). Teacher chose: create on release OR send feedback (idempotent).
+- Model change (updates CLAUDE.md §6): finish-marking now always lands the pad on 'marked' and reveals nothing. The green-pen rewrite is a SEPARATE assignment, not an in-place reopen of the same pad.
+- Backend (nativePads.js): new exported ensureGreenpenRewriteForStudents(db, sourceAssignmentId, teacherId, studentIds) — idempotent, finds the existing rewrite assignment via rewrite_of_pad_id links (survives assignment edits, no settings field to strip), creates it on first release, adds only students not already present. Extracted copyEssayPadIntoRewrite (seeds a fresh 'writing' pad with the student's essay + copied teacher marks as reference). finish-marking → 'marked'; under immediate release it also creates the rewrite (no separate release click in immediate mode); batch defers to the release endpoints. Per-pad release-feedback and class-wide /api/assignments/:id/release-feedback both call ensure and return {rewrite_assignment}. toggle-check extended so target tick-off works on the separate rewrite pad (items resolve to the original).
+- UI: native-review finish toast now "Marked. Score held until you release to the class."; Send feedback and Release to class toasts report the rewrite assignment created.
+- Tests: migrated the in-place green-pen tests (feedbackTickOff, three nativePads flows) to the separate-assignment model; suite 165/165 on Node 24. Browser + API smoke on inkheron-verify confirmed: batch finish-marking holds and creates no rewrite, release creates "Greenpen rewrite: ..." with the essay seeded, appears on the student dashboard.
+- Not deployed: still local on analysis-ai. Needs droplet pull + pm2 restart. NOTE for teacher: existing assignments already sitting in green_pen_open from the old flow keep working; the new behaviour applies to newly finished marking.
+
 ## 2026-07-07 — Run AI review now replaces AI strengths and targets too
 
 - Asked: re-running AI review must clear the previous AI marks (accepted or rejected AI marks count as AI, only hand-placed marks are the teacher's) and also reset strengths and targets. Finished students (Alex, Aurora) must be untouched.

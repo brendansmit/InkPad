@@ -752,14 +752,14 @@
       if(!confirm('Release feedback to all marked students?')) return;
       const btn=document.getElementById('releaseBtn');
       btn.disabled=true; btn.textContent='Releasing…';
-      let ok=0;
+      let ok=0; let rewrites=0;
       for(const a of held){
         try{
           const r=await fetch(`/api/assignments/${a.id}/release-feedback`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
-          if(r.ok){ ok++; a.feedback_released_at=new Date().toISOString(); const idx=assignments.findIndex(x=>x.id===a.id); if(idx>=0) assignments[idx].feedback_released_at=a.feedback_released_at; }
+          if(r.ok){ ok++; a.feedback_released_at=new Date().toISOString(); const idx=assignments.findIndex(x=>x.id===a.id); if(idx>=0) assignments[idx].feedback_released_at=a.feedback_released_at; const d=await r.json().catch(()=>({})); if(d.rewrite_assignment) rewrites++; }
         }catch(_){ }
       }
-      toast(ok?('Feedback released to '+ok+' class'+(ok===1?'':'es')):'Release failed');
+      toast(ok?('Feedback released'+(rewrites?', '+rewrites+' rewrite assignment'+(rewrites===1?'':'s')+' created':'')):'Release failed');
       refreshReleaseControl();
     }
 
