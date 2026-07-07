@@ -78,7 +78,8 @@ Entry format:
 - Built: student take payload now shuffles question order within each non-FRQ section only when shuffle is true, using deterministic seed `(studentId * 104729) + sectionIndex`. Section order never changes; teacher review stays in authoring order; shuffle=false preserves authoring order.
 - Verified: `node --test test/tests.test.js` passed 8/8, including passage payload/no-answer-leak, stable reload order, different per-student section-question order and shuffle=false authoring order. No deploy.
 - Commit: `f227add` (`Add test section passages and section shuffle`).
-- Open / next: full suite still to run.
+- Full suite: Node 24 `npm test` ran 164 tests, 161 pass / 3 fail. The failures are pre-existing dirty-worktree `nativePads.js` semantics: finish-marking now returns `marked`, while three older native pad tests still expect `green_pen_open`. Part 2 touched only `src/routes/tests.js`, `public/teacher/new-test.html`, `public/native-test.html`, `public/teacher/test-review.html` and `test/tests.test.js`; those files are clean and committed.
+- Open / next: reconcile the dirty `nativePads.js` finish-marking behaviour with its tests in the owning session, then rerun full suite. No deploy.
 
 ## 2026-07-07 — Test green-pen rewrites
 
