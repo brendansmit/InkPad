@@ -294,3 +294,11 @@ Committed `fac26be`.
 **Did:** Recommended a separate locked-down ops subdomain for restart/deploy/log controls, linked from the normal admin UI, so high-risk droplet actions can sit behind stricter access without changing the security posture of the whole admin app.
 
 **Decision:** No code was started. Preferred direction is an `ops.inkheron.app` style control panel with a link from admin.
+
+## 2026-07-07: serve.inkheron.app name chosen
+
+**Asked:** Proposed `serve.inkheron.app` as the subdomain for the separate droplet control panel.
+
+**Did:** Confirmed it is a suitable name for the locked-down restart/deploy/log dashboard.
+
+**Decision:** No code was started. Use `serve.inkheron.app` as the planned remote ops subdomain.
