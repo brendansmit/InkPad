@@ -51,6 +51,14 @@ Entry format:
 
 ---
 
+## 2026-07-07 — Test green-pen rewrites
+
+- Asked: on branch `test-greenpen` from `analysis-ai`, follow `CODEX_TESTGP_HANDOFF.md` exactly; do not deploy; never `git add -A`.
+- Built: test assignments are now eligible for the existing greenpen-rewrite endpoint. Test rewrites are created as essay assignments with test config stripped, draft submit behaviour, native InkPad on, green pen off, `greenpen_rewrite` true, `source_assignment_id`, `feedback_release: batch`, `supervision: in_class` and prompt "Rewrite your test answers using your feedback." For tests, rewrite pads are seeded from FRQ text first, then SRQ prompt/answer blocks in section order. FRQ annotations copy with identical offsets; `rewrite_of_pad_id` points to the FRQ pad when present and stays NULL for SRQ-only tests. Students with no written answers get no rewrite pad.
+- UI: `/teacher/test-review` now shows a "Green pen rewrite" button once at least one attempt has been submitted and calls the existing rewrite endpoint.
+- Verified: targeted `node --test test/nativePads.test.js test/greenpenContext.test.js test/tests.test.js` passed 27/27; full Node 24 `npm test` passed 158/158. No deploy.
+- Commit: `7da2c0d` on `test-greenpen` contains the implementation and tests, though its commit title is mismatched ("Add section passages and within-section question shuffle to Codex handoff"). Left history intact rather than rewriting.
+
 ## 2026-07-07 — Test Portal MVP schema checkpoint
 
 - Asked: build the Test Portal MVP on branch `test-portal` from `analysis-ai`, following `CLAUDE.md`, `TEST_PORTAL_SPEC.md` and `CODEX_TESTPORTAL_HANDOFF.md`.
