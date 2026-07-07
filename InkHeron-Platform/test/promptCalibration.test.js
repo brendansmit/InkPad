@@ -16,6 +16,7 @@ function bareDb() {
     CREATE TABLE native_teacher_events (id INTEGER PRIMARY KEY, native_pad_id INTEGER, teacher_id INTEGER,
       action TEXT, metadata_json TEXT DEFAULT '{}', created_at TEXT DEFAULT CURRENT_TIMESTAMP);
     CREATE TABLE native_pads (id INTEGER PRIMARY KEY, plain_text TEXT, version INTEGER DEFAULT 1);
+    CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT);
   `);
   return db;
 }
