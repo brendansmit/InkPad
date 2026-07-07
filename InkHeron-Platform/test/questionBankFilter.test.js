@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
 
 function tmpDb() {
@@ -78,5 +79,57 @@ test('question bank filters by topic and by quiz membership', async () => {
   });
   assert.equal(byQuiz.statusCode, 200);
   assert.deepEqual(byQuiz.json().questions.map((q) => q.id), [q2.id]);
+  await app.close();
+});
+
+test('question bank cleanup tools merge topics, rename tags and archive duplicates', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath });
+  const teacher = await setupTeacher(app);
+  const q1 = (await post(app, teacher, '/api/tests/questions', {
+    kind: 'mcq',
+    prompt_text: 'First cleanup question?',
+    options: ['A', 'B'],
+    answer_index: 0,
+    topic: 'Old Topic',
+    tags: ['oldtag', 'keep'],
+  })).question;
+  const q2 = (await post(app, teacher, '/api/tests/questions', {
+    kind: 'mcq',
+    prompt_text: 'Second cleanup question?',
+    options: ['A', 'B'],
+    answer_index: 1,
+    topic: 'Old Topic',
+    tags: ['oldtag'],
+  })).question;
+
+  const merged = await post(app, teacher, '/api/tests/questions/topics/merge', { from: 'old topic', to: 'New Topic' });
+  assert.equal(merged.updated, 2);
+  const renamed = await post(app, teacher, '/api/tests/questions/tags/rename', { from: 'oldtag', to: 'newtag' });
+  assert.equal(renamed.updated, 2);
+
+  const db = new DatabaseSync(dbPath);
+  db.prepare('UPDATE test_questions SET duplicate_of_question_id = ? WHERE id = ?').run(q1.id, q2.id);
+  db.close();
+
+  const archived = await post(app, teacher, '/api/tests/questions/archive-duplicates', { question_ids: [q2.id] });
+  assert.equal(archived.archived, 1);
+
+  const list = await app.inject({
+    method: 'GET',
+    url: '/api/tests/questions?topic=New Topic&archived=1',
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(list.statusCode, 200);
+  assert.equal(list.json().questions[0].id, q2.id);
+  assert.deepEqual(list.json().questions[0].tags, ['newtag']);
+
+  const active = await app.inject({
+    method: 'GET',
+    url: '/api/tests/questions?topic=New Topic',
+    headers: { cookie: teacher.cookies },
+  });
+  assert.deepEqual(active.json().questions.map((q) => q.id), [q1.id]);
+  assert.deepEqual(active.json().questions[0].tags, ['newtag', 'keep']);
   await app.close();
 });

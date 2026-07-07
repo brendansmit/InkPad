@@ -61,6 +61,21 @@
         </section>
 
         <section class="panel">
+          <h2>Cleanup tools</h2>
+          <div class="row">
+            <div><label>Merge topic</label><input id="topicFrom" type="text" placeholder="Old topic"></div>
+            <div><label>Into</label><input id="topicTo" type="text" placeholder="New topic"></div>
+          </div>
+          <div class="actions"><button class="btn" id="mergeTopicBtn" type="button">Merge topic</button></div>
+          <div class="row">
+            <div><label>Rename tag</label><input id="tagFrom" type="text" placeholder="Old tag"></div>
+            <div><label>To</label><input id="tagTo" type="text" placeholder="New tag"></div>
+          </div>
+          <div class="actions"><button class="btn" id="renameTagBtn" type="button">Rename tag</button><button class="btn" id="archiveDupesBtn" type="button">Archive duplicates</button></div>
+          <p class="status" id="cleanupMsg"></p>
+        </section>
+
+        <section class="panel">
           <h2 id="formTitle">New question</h2>
           <label>Kind</label>
           <select id="kind"><option value="mcq">MCQ</option><option value="srq">SRQ</option><option value="frq">FRQ</option></select>
@@ -123,6 +138,7 @@
       kind.onchange=syncKind; saveBtn.onclick=save; resetBtn.onclick=resetForm; refreshBtn.onclick=load; importBtn.onclick=importQuestions;
       filterKind.onchange=load; filterTopic.onchange=load; filterQuiz.onchange=load; filterQ.addEventListener('input',debouncedLoad);
       selectAllBtn.onclick=selectVisible; selectNoneBtn.onclick=clearSelection; addSelectedBtn.onclick=addSelected; archiveSelectedBtn.onclick=archiveSelected;
+      mergeTopicBtn.onclick=mergeTopic; renameTagBtn.onclick=renameTag; archiveDupesBtn.onclick=archiveDuplicates;
       bulkQuiz.onchange=()=>populateSectionSelect(bulkQuiz,bulkSection,true); importQuiz.onchange=()=>populateSectionSelect(importQuiz,importSection,false);
     }
 
@@ -254,6 +270,31 @@
       const ids=[...selected]; if(!ids.length)return;
       await Promise.all(ids.map(id=>fetch(`/api/tests/questions/${id}/archive`,{method:'POST',headers:{'X-CSRF-Token':csrfToken}})));
       clearSelection(); await loadTopics(); await load();
+    }
+
+    async function mergeTopic(){
+      const r=await fetch('/api/tests/questions/topics/merge',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({from:topicFrom.value,to:topicTo.value})});
+      const d=await r.json().catch(()=>({}));
+      cleanupMsg.textContent=r.ok?`Updated ${d.updated} questions.`:(d.error||'Could not merge topic.');
+      cleanupMsg.classList.toggle('err',!r.ok);
+      if(r.ok){topicFrom.value='';topicTo.value='';await loadTopics();await load();}
+    }
+
+    async function renameTag(){
+      const r=await fetch('/api/tests/questions/tags/rename',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({from:tagFrom.value,to:tagTo.value})});
+      const d=await r.json().catch(()=>({}));
+      cleanupMsg.textContent=r.ok?`Updated ${d.updated} questions.`:(d.error||'Could not rename tag.');
+      cleanupMsg.classList.toggle('err',!r.ok);
+      if(r.ok){tagFrom.value='';tagTo.value='';await load();}
+    }
+
+    async function archiveDuplicates(){
+      const ids=[...selected];
+      const r=await fetch('/api/tests/questions/archive-duplicates',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify({question_ids:ids})});
+      const d=await r.json().catch(()=>({}));
+      cleanupMsg.textContent=r.ok?`Archived ${d.archived} duplicates.`:(d.error||'Could not archive duplicates.');
+      cleanupMsg.classList.toggle('err',!r.ok);
+      if(r.ok){clearSelection();await loadTopics();await load();}
     }
 
     async function addSelected(){

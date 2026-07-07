@@ -1196,6 +1196,73 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
     }
   );
 
+  app.post('/api/tests/questions/topics/merge',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const from = String(request.body?.from ?? '').trim();
+      const to = String(request.body?.to ?? '').trim().slice(0, 80);
+      if (!from || !to) {
+        const err = new Error('topic_from_and_to_required');
+        err.statusCode = 400;
+        throw err;
+      }
+      const result = db.prepare('UPDATE test_questions SET topic = ?, updated_at = CURRENT_TIMESTAMP WHERE LOWER(topic) = LOWER(?)')
+        .run(to, from);
+      return { updated: result.changes, topic: to };
+    }
+  );
+
+  app.post('/api/tests/questions/tags/rename',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const from = String(request.body?.from ?? '').trim();
+      const to = String(request.body?.to ?? '').trim().slice(0, 40);
+      if (!from || !to) {
+        const err = new Error('tag_from_and_to_required');
+        err.statusCode = 400;
+        throw err;
+      }
+      const rows = db.prepare('SELECT id, tag, tags_json FROM test_questions').all();
+      const update = db.prepare('UPDATE test_questions SET tag = ?, tags_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+      let updated = 0;
+      for (const row of rows) {
+        const tags = normalizeTags(parseJson(row.tags_json, []), row.tag ? [row.tag] : []);
+        let changed = false;
+        const next = tags.map((tag) => {
+          if (tag.toLowerCase() !== from.toLowerCase()) return tag;
+          changed = true;
+          return to;
+        });
+        if (!changed) continue;
+        const normalized = normalizeTags(next, []);
+        update.run(normalized[0] ?? '', JSON.stringify(normalized), row.id);
+        updated += 1;
+      }
+      return { updated, tag: to };
+    }
+  );
+
+  app.post('/api/tests/questions/archive-duplicates',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const ids = Array.isArray(request.body?.question_ids)
+        ? request.body.question_ids.map((id) => requirePositiveInteger(id, 'question_id'))
+        : [];
+      const clauses = ['duplicate_of_question_id IS NOT NULL', 'is_archived = 0'];
+      const params = [];
+      if (ids.length) {
+        clauses.push(`id IN (${ids.map(() => '?').join(',')})`);
+        params.push(...ids);
+      }
+      const result = db.prepare(`
+        UPDATE test_questions
+        SET is_archived = 1, updated_at = CURRENT_TIMESTAMP
+        WHERE ${clauses.join(' AND ')}
+      `).run(...params);
+      return { archived: result.changes };
+    }
+  );
+
   app.post('/api/tests/questions',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
