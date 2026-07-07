@@ -11,6 +11,7 @@ import { registerNativePadRoutes } from './routes/nativePads.js';
 import { registerNativeReanalyzeRoutes } from './routes/nativeReanalyze.js';
 import { registerClassInsightsRoutes } from './routes/classInsights.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
+import { registerTestRoutes } from './routes/tests.js';
 import { registerSettingsRoutes } from './routes/settings.js';
 import { registerSettingsTestRoutes } from './routes/settingsTests.js';
 import { registerLibraryRoutes } from './routes/library.js';
@@ -105,6 +106,7 @@ export async function buildApp(options = {}) {
   await registerAuth(app, { db });
   await registerIdentityRoutes(app, { db });
   await registerAssignmentRoutes(app, { db });
+  await registerTestRoutes(app, { db });
   await registerSettingsRoutes(app, { db });
   await registerSettingsTestRoutes(app, { db });
   await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });
