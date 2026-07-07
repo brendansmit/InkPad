@@ -10,6 +10,21 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## YYYY-MM-DD - Short title
+
+- Asked:
+- Did:
+- Verified:
+```
+
+## 2026-07-08 - Test and exam portal build run
+
+- Asked: turn the expanded test and exam requirements into a build plan, then keep building in committed checkpoints until session usage runs out.
+- Did: added CODEX_TEST_EXAM_BUILDPLAN.md, exam attempt activity schema, rules acknowledgement, server timer controls, teacher pause/resume/unlock/add-time/force-submit/accessibility/warning-excusal routes, live test-day payload, student exam shell with rules gate, timer, fullscreen handling, warning color pulse, navigation map, flag for review, SRQ mini pad and question-time logging, FRQ InkPad banner/back link, teacher test-day monitor UI and TXT/PDF bulk import support.
+- Commits: 6464a6b, 45e121b, 7abaedb, a637520, bf30113, 7866023, 7548846.
+- Verified: `PATH=/Users/brendansmit/.nvm/versions/node/v24.18.0/bin:$PATH npm test` passed 183/183. Git pull was blocked because this checkout is a parent repo with unrelated dirty sibling projects, so work proceeded on the current checkout and staged only InkHeron files.
+- Still open: importer confidence/source snippets/raw viewer, cleanup tools, printable backup and item-analysis export need later checkpoints.
+
 ## 2026-07-08 - Test portal build plan scope agreed
 
 - Asked: turn the expanded test/exam discussion into a build plan and record accepted optional items by number.
@@ -363,31 +378,3 @@ Entry format:
 - OPUS_HANDOFF_2.md (run after Sonnet): back button on native-review, teacher dashboard navigation to student profiles, NEW class-insights page + /api/classes/:classId/insights endpoint (recurring codes by students-affected, class err/100 trend, fix rate, rubric averages, marker-profile deltas only where teacher_score exists and >= 10 samples), assignment dashboard score column + Export to gradebook button.
 - Deploys stay with Fable (handoffs forbid the models from touching the droplet).
 - Teacher picked three extras, added to the same handoffs (items 5-7 in each): batch feedback release (settings feedback_release immediate/batch, migration 027 feedback_released_at, release-feedback endpoint gating student feedback AND green pen), semester tags S1/S2 (tag + filter only, no purge ever, batch archive later via the existing archive toggle), and a parent report snippet (reportSnippet.js Doer service + profile-page modal, 60-100 warm plain words, never stored, never mentions AI).
-
-## 2026-07-04 — Accuracy layer, MT code, click-to-change
-
-- False-positive accuracy layer: Doer rule 1b (judge by how the sentence reads; natural informal usage is not an error) and the Checker now receives the FULL SENTENCE per finding (new sentenceAround helper) with an explicit instruction that natural everyday phrasing is NOT defensible even if a style guide objects.
-- New code MT = direct translation from Chinese (word-for-word calque of a saying/idiom/structure). In VALID_CODES, prompt, labels, category grammar, gp colour teal, student explainer. MANUAL_REVIEW_CODES gate in autoPromoteSuggestions: MT NEVER auto-applies, it always lands in the Needs-you pile regardless of checker confidence.
-- Click-to-change: clicking any placed literacy mark on the review page opens a popover (quote + 21-code select) that PATCHes /api/native/annotations/:id with merged metadata; evidence re-sync and old-code stat recompute were already in the endpoint. Browser-verified on the seeded dev server: changed "goes" Gra to MT, label/category updated, ai_auto source preserved, MT group appears in Auto-marked rail.
-- Suite 129 tests, 125 pass, known 4. Commit 5fdbac4. Hot-deployed all five changed files to /opt/inkheron-platform, wrapper active, 200.
-- Teacher correction, same day: MT was too broad. Narrowed to mistranslated NAMES and FIXED EXPRESSIONS only (book/film/show titles, proper nouns, sayings, idioms rendered literally when an established English version or natural equivalent exists), explicitly RARE (a few per essay at most). Chinese-influenced grammar/structure stays Gra/STR/WO/Exp, never MT. Prompt, labels ("Mistranslated name or saying"), student explainer and review-page code list updated; redeployed.
-
-## 2026-07-03 — Cache heavy PDF.js assets to harden PDF loading on flaky networks
-- Reported: passage PDFs failed to load on school computers (both Safari and Chrome), then worked ~10 hours later elsewhere. Both browsers failing rules out a browser code bug; the client render path works fine locally. Pattern points to the school network, not the code.
-- Finding: static assets were served `cache-control: public, max-age=0`, so the 1.24 MB PDF.js worker was revalidated over the network on every pad load. On a slow or filtered school network that per-load fetch of a big file can intermittently fail, then succeed later. Filenames are not hashed, so they were never cached.
-- Fix (src/app.js): `cacheControl:false` on the /assets and /static registrations plus a `setHeaders` that sets `max-age=31536000, immutable` for vendored heavy assets (`/static/pdfjs/`, fonts) and `max-age=0, must-revalidate` for everything else. So the worker downloads once and is then immune to network flakiness, while app HTML/CSS/JS still revalidates so deploys land immediately. Verified headers per asset; app+assignments tests green apart from the known EAP baseline failure.
-- Note: best-supported hypothesis, not a confirmed root cause. If it recurs on the school computers, still need the Console error and Network status of passage-pdf + the two .mjs files. The earlier >1 MB upload bodyLimit fix and the nginx client_max_body_size heads-up still stand.
-
-## 2026-07-03 — Opus: fix assignment start/due dates staying locked
-- Reported: an assignment stays locked even after its start date and time has passed.
-- Root cause: the create and edit forms sent the raw `datetime-local` value (the teacher's LOCAL wall clock, no timezone, e.g. `2026-07-05T14:00`) and it was stored verbatim. Every server gate compares against `new Date().toISOString()` (UTC) with a plain string comparison (`opens_at > now` in nativePads.js:1201 and deriveStatus in assignments.js). A Hangzhou (UTC+8) start of 14:00 is 06:00 UTC, but the naive string "14:00" string-compares as greater than the UTC "06:00", so the pad stays `not_open_yet` for the full 8-hour offset. The client's own `parseServerDate` already assumed stored dates were UTC, so the create/edit path was the odd one out.
-- Fix: convert the datetime-local value local -> UTC ISO before sending, in both send sites — `public/teacher/new-assignment.html` (create) and `public/teacher/assignments.html` (edit), via a small `localToIso(v)=new Date(v).toISOString()`. Stored values are now unambiguous UTC ISO, matching every server comparison and parseServerDate.
-- Verified end to end against the real student open gate (`GET /api/native/assignments/:id/pad`): old naive-local past start -> 403 not_open_yet (the bug); same start stored as UTC ISO past -> 200 open; future start -> 403. No server logic changed.
-- Open / next: EXISTING assignments already saved on the droplet still hold naive-local strings and stay wrong. They need either a one-time migration (treat stored naive dates as UTC+8 -> subtract 8h, append Z) or the teacher re-entering the start/due time once on each. Flagged to the user.
-
-## 2026-07-03 — Opus: profile dashboard + writing-profile endpoint
-- Built the new backend read model `GET /api/students/:studentId/writing-profile` (teacher session) in nativePads.js: headline err/100 first vs last, per-essay strip with essay_type/supervision provenance and per-pad `detectStyleAnomaly` flags, recurring-code per-100 series with resolved counts and trend, `aggregateStyleProfile` vs a real-student class median (via realStudents helper, excludes demo/ghost), and score history grouped by rubric_kind and essay_type. Route added.
-- Built page 3: new `public/teacher/student-profile.html` from the profile-dashboard mockup, plus a `/teacher/student-profile` route in app.js. EAP + AP-per-type tabs (locked under 2 essays), anomaly banner, headline stats, essay strip with provenance badges and flagged borders, recurring-errors bars, voice fingerprint vs class median with click explainer, voice-in-words findings with an evidence quote, scores-over-time spark and AP-by-type cards. The "Student version" button hides the anomaly banner and provenance strips client-side (both teacher-only per the handoff); the endpoint itself returns the full teacher payload.
-- Fixed: the two review/feedback page tests in nativePads.test.js asserted the OLD page markup (pasteMode, revision-panel, Open rewrite, etc). Updated both to assert the redesigned pages' real structure. npm test under Node 24: 115 pass, only the 4 known baseline failures remain.
-- Verified in preview at 1440px and 1024px: full dashboard renders, anomaly on E6 (homework), spark bars render, Student version hides anomaly + provenance.
-- Decision: profile-page provenance and anomaly are teacher-only and hidden via a body class in student mode rather than a server variant, matching "renders the same data with teacher-only cards removed".
