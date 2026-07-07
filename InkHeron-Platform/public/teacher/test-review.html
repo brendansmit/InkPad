@@ -13,13 +13,13 @@
 <body>
   <div class="appbar"><div class="glyph">i</div><div class="nm">InkHeron</div><span class="sp"></span><a class="btn" href="/teacher/assignments">Assignments</a></div>
   <main class="wrap">
-    <div class="top"><div><h1 id="title">Test review</h1><div class="muted" id="releaseState"></div></div><span class="sp"></span><button class="btn" id="refreshBtn" type="button">Refresh</button><button class="btn" id="pauseBtn" type="button">Pause test</button><button class="btn" id="resumeBtn" type="button">Resume test</button><button class="btn" id="greenpenBtn" type="button" style="display:none">Green pen rewrite</button><button class="btn p" id="releaseBtn" type="button">Release results</button></div>
+    <div class="top"><div><h1 id="title">Test review</h1><div class="muted" id="releaseState"></div></div><span class="sp"></span><button class="btn" id="printBtn" type="button">Print backup</button><button class="btn" id="analysisBtn" type="button">Item analysis CSV</button><button class="btn" id="refreshBtn" type="button">Refresh</button><button class="btn" id="pauseBtn" type="button">Pause test</button><button class="btn" id="resumeBtn" type="button">Resume test</button><button class="btn" id="greenpenBtn" type="button" style="display:none">Green pen rewrite</button><button class="btn p" id="releaseBtn" type="button">Release results</button></div>
     <div id="liveBox"></div>
     <div id="rows"></div>
   </main>
   <script>
     const params=new URLSearchParams(location.search); const assignmentId=Number(params.get('assignment_id')); let csrfToken='',lastReview=null,lastLive=null,refreshHandle=null;
-    async function boot(){const me=await fetch('/api/me');if(!me.ok){location.href='/teacher-login';return;}const u=await me.json();csrfToken=u.user.csrf_token;releaseBtn.onclick=releaseResults;greenpenBtn.onclick=createGreenpen;refreshBtn.onclick=load;pauseBtn.onclick=pauseTest;resumeBtn.onclick=resumeTest;await load();refreshHandle=setInterval(load,60000);}
+    async function boot(){const me=await fetch('/api/me');if(!me.ok){location.href='/teacher-login';return;}const u=await me.json();csrfToken=u.user.csrf_token;releaseBtn.onclick=releaseResults;greenpenBtn.onclick=createGreenpen;refreshBtn.onclick=load;pauseBtn.onclick=pauseTest;resumeBtn.onclick=resumeTest;printBtn.onclick=()=>{location.href=`/api/tests/${assignmentId}/printable.pdf`;};analysisBtn.onclick=()=>{location.href=`/api/tests/${assignmentId}/item-analysis.csv`;};await load();refreshHandle=setInterval(load,60000);}
     async function load(){
       const [reviewRes,liveRes]=await Promise.all([fetch(`/api/tests/${assignmentId}/review`),fetch(`/api/tests/${assignmentId}/live`)]);
       if(!reviewRes.ok){rows.innerHTML='<div class="row">Could not load this test.</div>';return;}

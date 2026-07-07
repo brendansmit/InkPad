@@ -796,6 +796,26 @@ test('test exam activity supports acknowledgement, live monitor, pause, unlock a
   assert.equal(live.json().rows[0].warning_count, 1);
   assert.equal(live.json().rows[0].latest_warning.id, warning.json().event.id);
 
+  const printable = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/printable.pdf`,
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(printable.statusCode, 200);
+  assert.match(printable.headers['content-type'], /application\/pdf/);
+  assert.match(printable.body.slice(0, 20), /%PDF/);
+
+  const analysis = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/item-analysis.csv`,
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(analysis.statusCode, 200);
+  assert.match(analysis.headers['content-type'], /text\/csv/);
+  assert.match(analysis.body, /question_id,kind,topic,tags,prompt_text,attempts,answered,answer_rate,correct_rate,average_seconds,revisit_rate,weakness_flag/);
+  assert.match(analysis.body, new RegExp(`${mcq.id},mcq`));
+  assert.match(analysis.body, /,1,1,1\.000,1\.000,12,/);
+
   const paused = await app.inject({
     method: 'POST',
     url: `/api/tests/${assignment.id}/pause`,

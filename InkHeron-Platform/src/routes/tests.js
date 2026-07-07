@@ -1135,6 +1135,171 @@ function teacherId(request) {
   return request.session?.user?.id ?? null;
 }
 
+function csvCell(value) {
+  const text = String(value ?? '');
+  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function testPrintableLines(db, assignment) {
+  const lines = [assignment.title, ''];
+  for (const section of testConfig(assignment).sections) {
+    lines.push(section.title || section.kind.toUpperCase());
+    if (section.passage_text) {
+      lines.push('Passage');
+      lines.push(...String(section.passage_text).split(/\r?\n/).filter(Boolean));
+    }
+    for (const id of section.question_ids ?? []) {
+      const question = loadQuestion(db, id);
+      if (!question) continue;
+      lines.push(`${question.id}. ${question.prompt_text}`);
+      if (question.kind === 'mcq') {
+        parseJson(question.options_json, []).forEach((option, index) => {
+          lines.push(`   ${String.fromCharCode(65 + index)}. ${option}`);
+        });
+      } else {
+        lines.push('   Answer:');
+        lines.push('   ________________________________________________');
+        lines.push('   ________________________________________________');
+      }
+      lines.push('');
+    }
+  }
+  return lines;
+}
+
+function wrapPdfLine(text, width = 92) {
+  const words = String(text ?? '').replace(/\s+/g, ' ').trim().split(' ').filter(Boolean);
+  if (!words.length) return [''];
+  const lines = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > width && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+function pdfText(value) {
+  return String(value ?? '').replace(/[\\()]/g, '\\$&').replace(/[^\x09\x0A\x0D\x20-\x7E]/g, '?');
+}
+
+function simplePdf(title, lines) {
+  const wrapped = lines.flatMap((line) => wrapPdfLine(line));
+  const objects = [];
+  const pages = [];
+  for (let start = 0; start < wrapped.length; start += 48) {
+    const pageLines = wrapped.slice(start, start + 48);
+    const content = [
+      'BT',
+      '/F1 11 Tf',
+      '50 790 Td',
+      '14 TL',
+      ...pageLines.map((line, index) => `${index === 0 ? '' : 'T* '}(${pdfText(line)}) Tj`),
+      'ET',
+    ].join('\n');
+    const contentId = objects.length + 1;
+    objects.push(`<< /Length ${Buffer.byteLength(content)} >>\nstream\n${content}\nendstream`);
+    const pageId = objects.length + 1;
+    pages.push(pageId);
+    objects.push(`<< /Type /Page /Parent 0 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 0 0 R >> >> /Contents ${contentId} 0 R >>`);
+  }
+  const fontId = objects.length + 1;
+  objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+  const pagesId = objects.length + 1;
+  objects.push(`<< /Type /Pages /Kids [${pages.map((id) => `${id} 0 R`).join(' ')}] /Count ${pages.length} >>`);
+  const catalogId = objects.length + 1;
+  objects.push(`<< /Type /Catalog /Pages ${pagesId} 0 R >>`);
+  const resolved = objects.map((object) => object
+    .replaceAll('/Parent 0 0 R', `/Parent ${pagesId} 0 R`)
+    .replaceAll('/F1 0 0 R', `/F1 ${fontId} 0 R`));
+  const chunks = [`%PDF-1.4\n% ${pdfText(title)}\n`];
+  const offsets = [0];
+  resolved.forEach((object, index) => {
+    offsets.push(Buffer.byteLength(chunks.join('')));
+    chunks.push(`${index + 1} 0 obj\n${object}\nendobj\n`);
+  });
+  const xrefOffset = Buffer.byteLength(chunks.join(''));
+  chunks.push(`xref\n0 ${resolved.length + 1}\n0000000000 65535 f \n`);
+  for (let i = 1; i < offsets.length; i += 1) {
+    chunks.push(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
+  }
+  chunks.push(`trailer\n<< /Size ${resolved.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+  return Buffer.from(chunks.join(''), 'utf8');
+}
+
+function itemAnalysisRows(db, assignment) {
+  const questions = questionIdsForAssignment(db, assignment);
+  const attempts = db.prepare(`
+    SELECT ta.*
+    FROM test_attempts ta
+    JOIN students s ON s.id = ta.student_id
+    WHERE ta.assignment_id = ? AND ${realStudentsWhere('s')}
+  `).all(assignment.id);
+  const attemptIds = attempts.map((attempt) => attempt.id);
+  const rows = [];
+  for (const question of questions) {
+    const responses = attemptIds.length ? db.prepare(`
+      SELECT r.*
+      FROM test_responses r
+      WHERE r.question_id = ? AND r.attempt_id IN (${attemptIds.map(() => '?').join(',')})
+    `).all(question.id, ...attemptIds) : [];
+    const answered = responses.filter((response) => {
+      const answer = parseJson(response.answer_json, null);
+      return question.kind === 'mcq'
+        ? answer?.chosen_index !== null && answer?.chosen_index !== undefined
+        : Boolean(String(answer?.text ?? '').trim());
+    }).length;
+    const correct = question.kind === 'mcq'
+      ? responses.filter((response) => {
+        const answer = parseJson(response.answer_json, null);
+        return Number(answer?.chosen_index) === Number(question.answer_index);
+      }).length
+      : null;
+    const timeRows = attemptIds.length ? db.prepare(`
+      SELECT attempt_id, metadata_json
+      FROM test_activity_events
+      WHERE question_id = ? AND event_type = 'question_time'
+        AND attempt_id IN (${attemptIds.map(() => '?').join(',')})
+    `).all(question.id, ...attemptIds) : [];
+    const seconds = timeRows.map((row) => Number(parseJson(row.metadata_json, {})?.seconds ?? 0)).filter((n) => Number.isFinite(n) && n > 0);
+    const focusRows = attemptIds.length ? db.prepare(`
+      SELECT attempt_id, COUNT(*) AS count
+      FROM test_activity_events
+      WHERE question_id = ? AND event_type = 'question_focus'
+        AND attempt_id IN (${attemptIds.map(() => '?').join(',')})
+      GROUP BY attempt_id
+    `).all(question.id, ...attemptIds) : [];
+    const answerRate = attempts.length ? answered / attempts.length : 0;
+    const correctRate = question.kind === 'mcq' && attempts.length ? correct / attempts.length : '';
+    const averageSeconds = seconds.length ? Math.round(seconds.reduce((sum, n) => sum + n, 0) / seconds.length) : 0;
+    const revisitRate = attempts.length ? focusRows.filter((row) => Number(row.count) > 1).length / attempts.length : 0;
+    const weakness = (question.kind === 'mcq' && correctRate !== '' && correctRate < 0.6)
+      || (averageSeconds > 180 && answerRate < 0.8)
+      || revisitRate > 0.5;
+    rows.push({
+      question_id: question.id,
+      kind: question.kind,
+      topic: question.topic ?? '',
+      tags: teacherQuestion(question).tags.join('; '),
+      prompt_text: question.prompt_text,
+      attempts: attempts.length,
+      answered,
+      answer_rate: answerRate.toFixed(3),
+      correct_rate: correctRate === '' ? '' : correctRate.toFixed(3),
+      average_seconds: averageSeconds,
+      revisit_rate: revisitRate.toFixed(3),
+      weakness_flag: weakness ? 'review' : '',
+    });
+  }
+  return rows;
+}
+
 export async function registerTestRoutes(app, { db, chat = callChat }) {
   app.get('/api/tests/questions',
     { preValidation: [app.requireTeacherSession] },
@@ -1477,6 +1642,37 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
         generated_at: nowIso(),
         rows: liveMonitorRows(db, assignment),
       };
+    }
+  );
+
+  app.get('/api/tests/:assignmentId/printable.pdf',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = ensureTeacherTestAssignment(db, assignmentId);
+      const pdf = simplePdf(assignment.title, testPrintableLines(db, assignment));
+      return reply
+        .type('application/pdf')
+        .header('content-disposition', `attachment; filename="test-${assignment.id}-backup.pdf"`)
+        .send(pdf);
+    }
+  );
+
+  app.get('/api/tests/:assignmentId/item-analysis.csv',
+    { preValidation: [app.requireTeacherSession] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = ensureTeacherTestAssignment(db, assignmentId);
+      const headers = ['question_id', 'kind', 'topic', 'tags', 'prompt_text', 'attempts', 'answered', 'answer_rate', 'correct_rate', 'average_seconds', 'revisit_rate', 'weakness_flag'];
+      const rows = itemAnalysisRows(db, assignment);
+      const csv = [
+        headers.join(','),
+        ...rows.map((row) => headers.map((header) => csvCell(row[header])).join(',')),
+      ].join('\n');
+      return reply
+        .type('text/csv; charset=utf-8')
+        .header('content-disposition', `attachment; filename="test-${assignment.id}-item-analysis.csv"`)
+        .send(csv);
     }
   );
 
