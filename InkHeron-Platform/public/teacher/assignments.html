@@ -80,11 +80,14 @@
     .mono{font-family:var(--mono);font-size:12.5px;color:var(--text-2);}
     .empty{color:var(--text-3);font-size:13.5px;text-align:center;padding:28px;}
     .student-cards{display:none;}
+    .mobile-roster-tools{display:none;}
+    .mobile-float-search{display:none;}
+    .mobile-top-btn{display:none;}
     .student-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:14px;display:grid;gap:10px;}
     .student-card .sc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
     .student-card .sc-name{font-weight:800;font-size:15px;line-height:1.25;}
     .student-card .sc-user{display:block;color:var(--text-3);font-size:12.5px;font-weight:400;margin-top:2px;}
-    .student-card .sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .student-card .sc-main,.student-card .sc-extra{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
     .student-card .sc-field{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:8px;min-width:0;}
     .student-card .sc-label{display:block;color:var(--text-3);font-size:11px;font-weight:800;text-transform:uppercase;margin-bottom:3px;}
     .student-card .sc-value{font-size:13px;color:var(--text);overflow-wrap:anywhere;}
@@ -173,9 +176,19 @@
       .metric{padding:12px;}
       .metric .n{font-size:22px;}
       .table-wrap{display:none;}
-      .student-cards{display:grid;gap:10px;}
-      .student-card .sc-grid{grid-template-columns:1fr;}
+      .mobile-roster-tools{position:sticky;top:66px;z-index:25;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px;padding:8px;border:1px solid var(--border);border-radius:12px;background:rgba(247,246,242,.94);backdrop-filter:blur(10px);}
+      .mobile-roster-tools .count{color:var(--text-2);font-size:12.5px;font-weight:700;}
+      .student-cards{display:grid;gap:10px;margin-bottom:88px;}
+      .student-card .sc-main{grid-template-columns:1fr 1fr;}
+      .student-card .sc-extra{display:none;grid-template-columns:1fr;}
+      .student-cards.expanded .student-card .sc-extra{display:grid;}
       .student-card .sc-actions{grid-template-columns:1fr 1fr;}
+      .student-card .sc-actions .review-big{grid-column:1/-1;min-height:52px;font-size:14.5px;}
+      .student-card .sc-actions .minor{min-height:38px;font-size:12.5px;}
+      .mobile-float-search{position:fixed;left:10px;right:74px;bottom:10px;z-index:120;display:flex;align-items:center;gap:8px;padding:8px;border:1px solid var(--border-2);border-radius:12px;background:rgba(255,255,255,.96);box-shadow:var(--shadow-lift);}
+      .mobile-float-search input{width:100%;min-height:40px;border:0;background:transparent;font:inherit;font-size:16px;color:var(--text);}
+      .mobile-float-search input:focus{outline:none;}
+      .mobile-top-btn{position:fixed;right:10px;bottom:10px;z-index:121;display:flex;width:56px;min-height:56px;padding:0;border-radius:50%;box-shadow:var(--shadow-lift);}
       .row2{grid-template-columns:1fr;}
       .edit-card{padding:18px 16px;}
       .edit-footer,.modal-foot{display:grid;grid-template-columns:1fr;gap:8px;}
@@ -270,7 +283,15 @@
           <tbody id="studentsBody"></tbody>
         </table>
       </div>
+      <div class="mobile-roster-tools">
+        <span class="count" id="mobileRosterCount">0 students</span>
+        <button class="btn sm" id="mobileDetailsToggle" type="button">Show details</button>
+      </div>
       <div class="student-cards" id="studentCards"></div>
+      <div class="mobile-float-search" id="mobileRosterSearchWrap">
+        <input type="search" id="mobileRosterSearch" placeholder="Find student..." autocomplete="off">
+      </div>
+      <button class="btn p mobile-top-btn" id="mobileTopBtn" type="button" aria-label="Back to top">Top</button>
     </div>
 
     <!-- ── Edit view ── -->
@@ -459,6 +480,8 @@
     let editGroup=[];
     let modalId=null;
     let currentPassagePdfExists=false;
+    let mobileDetailsOpen=false;
+    let lastDashboardRows=[];
     const filterStateKey='inkheronAssignmentFilters';
 
     window.setPassageTab=function(tab){
@@ -707,6 +730,16 @@
           saveFilterState();
           loadDashboard();
         });
+      });
+      document.getElementById('mobileDetailsToggle').addEventListener('click',()=>{
+        mobileDetailsOpen=!mobileDetailsOpen;
+        updateMobileRosterTools();
+      });
+      document.getElementById('mobileRosterSearch').addEventListener('input',()=>{
+        renderMobileCards(lastDashboardRows);
+      });
+      document.getElementById('mobileTopBtn').addEventListener('click',()=>{
+        document.getElementById('detailView').scrollIntoView({behavior:'smooth',block:'start'});
       });
       document.getElementById('searchInput').addEventListener('input',e=>{
         renderList(e.target.value);
@@ -1193,7 +1226,7 @@
 
     function renderRows(rows){
       const body=document.getElementById('studentsBody');
-      const cards=document.getElementById('studentCards');
+      lastDashboardRows=rows;
       if(!rows.length){renderEmpty('No students match these filters.');return;}
       body.innerHTML=rows.map(row=>`
         <tr>
@@ -1209,7 +1242,24 @@
       body.querySelectorAll('[data-unassign]').forEach(btn=>{
         btn.addEventListener('click',()=>unassignStudent(Number(btn.dataset.assignment),Number(btn.dataset.unassign),btn.dataset.name));
       });
-      cards.innerHTML=rows.map(row=>{
+      renderMobileCards(rows);
+    }
+
+    function renderMobileCards(rows){
+      const cards=document.getElementById('studentCards');
+      const query=document.getElementById('mobileRosterSearch').value.trim().toLowerCase();
+      const filtered=query
+        ? rows.filter(row=>
+            String(row.display_name||'').toLowerCase().includes(query) ||
+            String(row.username||'').toLowerCase().includes(query)
+          )
+        : rows;
+      if(!filtered.length){
+        cards.innerHTML=`<div class="empty">${query?'No students match this search.':'No students match these filters.'}</div>`;
+        updateMobileRosterTools(filtered.length, rows.length);
+        return;
+      }
+      cards.innerHTML=filtered.map(row=>{
         const assignmentId=row.assignment_id||currentId;
         const submitted=row.submitted_at?formatDate(row.submitted_at):'-';
         const paste=row.paste_flag?`${row.paste_count} event${row.paste_count===1?'':'s'}`:'-';
@@ -1220,33 +1270,46 @@
             <div><span class="sc-name">${escapeHtml(row.display_name)}</span><span class="sc-user">${escapeHtml(row.username)}</span></div>
             <span class="pill ${escapeHtml(row.status)}">${statusLabel(row.status)}</span>
           </div>
-          <div class="sc-grid">
+          <div class="sc-main">
             <div class="sc-field"><span class="sc-label">Submitted</span><span class="sc-value">${escapeHtml(submitted)}</span></div>
-            <div class="sc-field"><span class="sc-label">Paste</span><span class="sc-value">${escapeHtml(paste)}</span></div>
             <div class="sc-field"><span class="sc-label">Score</span><span class="sc-value">${score}</span></div>
+          </div>
+          <div class="sc-extra">
+            <div class="sc-field"><span class="sc-label">Paste</span><span class="sc-value">${escapeHtml(paste)}</span></div>
             <div class="sc-field"><span class="sc-label">Exam score</span><span class="sc-value">${exam}</span></div>
           </div>
           <div class="sc-actions">
-            ${row.review_url?`<a class="btn p sm" href="${escapeHtml(row.review_url)}">Review essay</a>`:''}
-            <a class="btn sm ${row.review_url?'':'sc-wide'}" href="/teacher/student-profile?student_id=${row.student_id}">Profile</a>
-            <button class="btn sm sc-wide" style="color:#8C2F3B;border-color:#8C2F3B;" data-unassign="${row.student_id}" data-assignment="${assignmentId}" data-name="${escapeHtml(row.display_name)}">Unassign</button>
+            ${row.review_url?`<a class="btn p sm review-big" href="${escapeHtml(row.review_url)}">Review essay</a>`:''}
+            <a class="btn sm minor" href="/teacher/student-profile?student_id=${row.student_id}">Profile</a>
+            <button class="btn sm minor" style="color:#8C2F3B;border-color:#8C2F3B;" data-unassign="${row.student_id}" data-assignment="${assignmentId}" data-name="${escapeHtml(row.display_name)}">Unassign</button>
           </div>
         </article>`;
       }).join('');
       cards.querySelectorAll('[data-unassign]').forEach(btn=>{
         btn.addEventListener('click',()=>unassignStudent(Number(btn.dataset.assignment),Number(btn.dataset.unassign),btn.dataset.name));
       });
+      updateMobileRosterTools(filtered.length, rows.length);
     }
 
     function renderEmpty(msg){
       document.getElementById('summary').innerHTML='';
       document.getElementById('studentsBody').innerHTML=`<tr><td class="empty" colspan="8">${escapeHtml(msg)}</td></tr>`;
       document.getElementById('studentCards').innerHTML=`<div class="empty">${escapeHtml(msg)}</div>`;
+      updateMobileRosterTools(0,0);
     }
     function renderLoadingDashboard(){
       document.getElementById('summary').innerHTML='';
       document.getElementById('studentsBody').innerHTML='<tr><td class="empty" colspan="8">Loading roster...</td></tr>';
       document.getElementById('studentCards').innerHTML='<div class="empty">Loading roster...</div>';
+      updateMobileRosterTools(0,0);
+    }
+    function updateMobileRosterTools(showing=lastDashboardRows.length,total=lastDashboardRows.length){
+      const cards=document.getElementById('studentCards');
+      const toggle=document.getElementById('mobileDetailsToggle');
+      const count=document.getElementById('mobileRosterCount');
+      cards.classList.toggle('expanded',mobileDetailsOpen);
+      toggle.textContent=mobileDetailsOpen?'Hide details':'Show details';
+      count.textContent=showing===total ? `${total} student${total===1?'':'s'}` : `${showing} of ${total} students`;
     }
 
     // ── Utilities ──────────────────────────────────────────
