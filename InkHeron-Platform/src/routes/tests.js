@@ -303,6 +303,7 @@ function normalizeSections(db, sections) {
       kind,
       title: String(raw?.title ?? kind.toUpperCase()).trim().slice(0, 120),
       passage_text: String(raw?.passage_text ?? '').trim().slice(0, 30000),
+      shuffle: raw?.shuffle !== false,
       question_ids: ids,
     });
   }
@@ -667,7 +668,8 @@ function studentTestPayload(db, assignment, studentId, attempt) {
     kind: section.kind,
     title: section.title,
     passage_text: section.passage_text ?? '',
-    questions: shuffledSectionQuestions(section, studentId, sectionIndex, config.shuffle).map((questionId) => {
+    shuffle: section.shuffle !== false,
+    questions: shuffledSectionQuestions(section, studentId, sectionIndex, section.shuffle !== false && config.shuffle !== false).map((questionId) => {
       const question = loadQuestion(db, questionId);
       const response = responses.get(questionId);
       return {

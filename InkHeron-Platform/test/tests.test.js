@@ -437,6 +437,41 @@ test('shuffle false keeps authoring order inside each section', async () => {
   await app.close();
 });
 
+test('section shuffle false overrides global shuffle for that section', async () => {
+  const app = await buildApp({ databasePath: tmpDb(), logger: false });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const alice = await createStudent(app, teacher, classId, 'alice');
+  const mcqs = [];
+  for (const prompt of ['One', 'Two', 'Three', 'Four']) {
+    mcqs.push(await createQuestion(app, teacher, {
+      kind: 'mcq',
+      prompt_text: prompt,
+      options: ['A', 'B'],
+      answer_index: 0,
+      points: 1,
+    }));
+  }
+  const assignment = await createCustomTestAssignment(app, teacher, classId, [
+    { kind: 'mcq', title: 'Fixed section', shuffle: false, question_ids: mcqs.map((q) => q.id) },
+  ], { shuffle: true });
+  await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/start`,
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  const take = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/take`,
+    headers: { cookie: alice.cookies },
+  });
+  assert.equal(take.statusCode, 200);
+  assert.equal(take.json().sections[0].shuffle, false);
+  assert.deepEqual(take.json().sections[0].questions.map((question) => question.id), mcqs.map((q) => q.id));
+
+  await app.close();
+});
+
 test('student writes are rejected after timer expiry and other students cannot open a private test', async () => {
   const dbPath = tmpDb();
   const app = await buildApp({ databasePath: dbPath, logger: false });

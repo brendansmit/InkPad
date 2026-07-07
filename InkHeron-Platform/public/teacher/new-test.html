@@ -9,12 +9,17 @@
   <style>
     body{margin:0;font-family:var(--font);font-size:14px;line-height:1.5;color:var(--text);background:var(--bg)}*{box-sizing:border-box}
     .appbar{position:sticky;top:0;z-index:30;display:flex;gap:14px;align-items:center;padding:14px 26px;background:rgba(247,246,242,.92);border-bottom:1px solid var(--border)}.glyph{width:34px;height:34px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-weight:700}.nm{font-family:var(--serif);font-size:18px;font-weight:700}.sp{flex:1}
-    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;border-radius:var(--r-sm);border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-weight:800;text-decoration:none;cursor:pointer}.btn.p{background:var(--green-600);color:#fff;border-color:var(--green-600)}
-    .wrap{max-width:1040px;margin:0 auto;padding:28px 24px 80px}h1{font-family:var(--serif);font-size:32px;margin:0 0 16px;color:var(--ink)}
-    .grid{display:grid;grid-template-columns:330px 1fr;gap:18px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:18px;box-shadow:var(--shadow-card)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;border-radius:var(--r-sm);border:1.5px solid var(--border-2);background:var(--surface);color:var(--text);font-weight:800;text-decoration:none;cursor:pointer}.btn.p{background:var(--green-600);color:#fff;border-color:var(--green-600)}.btn:disabled{opacity:.55;cursor:default}
+    .wrap{max-width:1240px;margin:0 auto;padding:28px 24px 80px}h1{font-family:var(--serif);font-size:32px;margin:0 0 16px;color:var(--ink)}h2{font-size:18px;margin:0 0 8px}h3{font-size:15px;margin:0}
+    .grid{display:grid;grid-template-columns:330px 1fr;gap:18px;align-items:start}.panel,.section-card,.pick-row{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card)}.panel{padding:18px}.stack{display:grid;gap:14px}
     label{display:block;font-size:12px;font-weight:800;color:var(--text-2);margin:10px 0 5px}input,select,textarea{width:100%;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:9px 10px;font:inherit;background:var(--surface);color:var(--text)}textarea{min-height:90px;resize:vertical}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.section{margin-bottom:16px}.section h2{font-size:15px;margin:0 0 8px}.choice{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;padding:10px;border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px;background:#fff}.choice input{width:16px;margin-top:3px}.meta{color:var(--text-3);font-size:12px}.empty{padding:18px;text-align:center;color:var(--text-3);border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface)}
-    @media(max-width:820px){.grid{grid-template-columns:1fr}.wrap{padding:22px 16px 70px}.row{grid-template-columns:1fr}}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.meta{color:var(--text-3);font-size:12px}.status{font-size:13px;color:var(--text-2);margin:8px 0 0}.status.err{color:var(--maroon-500)}
+    .section-card{padding:14px;margin-bottom:12px;border-color:var(--border)}.section-card.active{border-color:var(--green-600);box-shadow:0 0 0 2px rgba(36,99,67,.12)}.section-head{display:flex;gap:10px;align-items:center;justify-content:space-between}.section-head .title{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .kind{display:inline-flex;border-radius:999px;padding:2px 8px;background:var(--blue-50);color:var(--blue-700);font-size:12px;font-weight:800;text-transform:uppercase}.qitem{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--border)}.qitem:first-child{border-top:0}.qprompt{font-weight:800}
+    .totals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:12px;box-shadow:var(--shadow-card)}.metric strong{display:block;font-size:22px}
+    .filters{display:grid;grid-template-columns:150px 1fr 1fr;gap:10px}.pick-row{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:10px;margin-top:8px}.pick-row input{width:16px;margin-top:3px}.empty{padding:18px;text-align:center;color:var(--text-3);border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface)}
+    .switchline{display:flex;align-items:center;gap:8px;margin-top:10px}.switchline input{width:auto}.picker-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.wrap{padding:22px 16px 70px}.row,.filters,.totals{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column}}
   </style>
 </head>
 <body>
@@ -22,45 +27,225 @@
   <main class="wrap">
     <h1>New test</h1>
     <div class="grid">
-      <section class="panel">
-        <label>Title</label><input id="title" type="text">
-        <label>Class</label><select id="classId"></select>
-        <div class="row"><div><label>Timer minutes</label><input id="timer" type="number" min="1" step="1"></div><div><label>Due at</label><input id="due" type="datetime-local"></div></div>
-        <label><input id="shuffle" type="checkbox" checked style="width:auto"> Shuffle MCQ options</label>
-        <label><input id="focus" type="checkbox" checked style="width:auto"> Record focus changes</label>
-        <button class="btn p" id="createBtn" type="button" style="margin-top:12px;width:100%">Create test</button>
-        <p class="meta" id="msg"></p>
-      </section>
-      <section class="panel">
-        <div class="section"><h2>MCQ section</h2><label>Passage text</label><textarea id="mcqPassage"></textarea><div id="mcqList"></div></div>
-        <div class="section"><h2>SRQ section</h2><label>Passage text</label><textarea id="srqPassage"></textarea><div id="srqList"></div></div>
-        <div class="section"><h2>FRQ section</h2><label>Passage text</label><textarea id="frqPassage"></textarea><div id="frqList"></div></div>
-      </section>
+      <div class="stack">
+        <section class="panel">
+          <h2>Test details</h2>
+          <label>Title</label><input id="title" type="text">
+          <label>Class</label><select id="classId"></select>
+          <div class="row"><div><label>Timer minutes</label><input id="timer" type="number" min="1" step="1"></div><div><label>Due at</label><input id="due" type="datetime-local"></div></div>
+          <label class="switchline"><input id="shuffle" type="checkbox" checked> Allow section shuffles</label>
+          <label class="switchline"><input id="focus" type="checkbox" checked> Record focus changes</label>
+          <button class="btn p" id="createBtn" type="button" style="margin-top:12px;width:100%">Create test</button>
+          <p class="status" id="msg"></p>
+        </section>
+        <section class="panel">
+          <h2>Add section</h2>
+          <div class="row">
+            <div><label>Kind</label><select id="newSectionKind"><option value="mcq">MCQ</option><option value="srq">SRQ</option><option value="frq">FRQ</option></select></div>
+            <div><label>Title</label><input id="newSectionTitle" type="text" placeholder="Section title"></div>
+          </div>
+          <button class="btn" id="addSectionBtn" type="button" style="margin-top:12px;width:100%">Add section</button>
+        </section>
+        <section class="panel">
+          <h2>Import into active section</h2>
+          <label>Teacher description</label><textarea id="importDescription"></textarea>
+          <label>Paste MCQs</label><textarea id="importRaw"></textarea>
+          <label>CSV or docx file</label><input id="importFile" type="file" accept=".csv,.docx,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+          <p class="meta">CSV header: prompt, optionA, optionB, optionC, optionD, answer, points, topic, tags.</p>
+          <button class="btn p" id="importBtn" type="button" style="margin-top:12px;width:100%">Import to section</button>
+          <p class="status" id="importMsg"></p>
+        </section>
+      </div>
+      <div class="stack">
+        <section>
+          <div class="totals">
+            <div class="metric"><strong id="totalSections">0</strong><span class="meta">sections</span></div>
+            <div class="metric"><strong id="totalQuestions">0</strong><span class="meta">questions</span></div>
+            <div class="metric"><strong id="totalPoints">0</strong><span class="meta">points</span></div>
+          </div>
+          <div id="sectionsBox"></div>
+        </section>
+        <section class="panel">
+          <div class="picker-title"><h2 id="pickerTitle">Question picker</h2><button class="btn" id="addPickedBtn" type="button">Add selected</button></div>
+          <div class="filters">
+            <div><label>Topic</label><select id="pickTopic"><option value="">All topics</option></select></div>
+            <div><label>Quiz</label><select id="pickQuiz"><option value="">Any quiz</option></select></div>
+            <div><label>Search</label><input id="pickQ" type="search" placeholder="Prompt text"></div>
+          </div>
+          <div class="actions"><button class="btn" id="pickAllBtn" type="button">Select all</button><button class="btn" id="pickNoneBtn" type="button">None</button></div>
+          <div id="bankList"></div>
+        </section>
+      </div>
     </div>
   </main>
   <script>
-    let csrfToken='',questions=[];
+    let csrfToken='',questions=[],bank=[],quizzes=[],sections=[],activeIndex=0,picked=new Set(),lastPickIndex=null;
+    const defaultSections=[['mcq','MCQ'],['srq','SRQ'],['frq','FRQ']];
+
     async function boot(){
       const me=await fetch('/api/me'); if(!me.ok){location.href='/teacher-login';return;}
       const u=await me.json(); if(u.user.type!=='teacher'){location.href='/';return;} csrfToken=u.user.csrf_token;
-      const cls=await fetch('/api/classes').then(r=>r.json()); classId.innerHTML=(cls.classes||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-      const q=await fetch('/api/tests/questions').then(r=>r.json()); questions=q.questions||[]; renderQuestions(); createBtn.onclick=create;
+      sections=defaultSections.map(([kind,title])=>newSection(kind,title));
+      bind();
+      await loadClasses(); await loadQuizzes(); await loadTopics(); await loadAllQuestions(); await loadBank();
+      renderAll();
     }
-    function renderQuestions(){
-      renderKind('mcq',mcqList,'checkbox'); renderKind('srq',srqList,'checkbox'); renderKind('frq',frqList,'radio');
+
+    function bind(){
+      createBtn.onclick=create; addSectionBtn.onclick=addSection; addPickedBtn.onclick=addPicked; importBtn.onclick=importIntoSection;
+      pickTopic.onchange=loadBankAndRender; pickQuiz.onchange=loadBankAndRender; pickQ.addEventListener('input',debouncedBank);
+      pickAllBtn.onclick=()=>{bank.forEach(q=>picked.add(q.id));renderBank();}; pickNoneBtn.onclick=()=>{picked.clear();lastPickIndex=null;renderBank();};
     }
-    function renderKind(kind,el,type){
-      const rows=questions.filter(q=>q.kind===kind);
-      el.innerHTML=rows.length?rows.map(q=>`<label class="choice"><input type="${type}" name="${kind}" value="${q.id}"><span>${escapeHtml(q.prompt_text)}<br><span class="meta">${q.points} point${q.points===1?'':'s'}${q.tag?' · '+escapeHtml(q.tag):''}</span></span></label>`).join(''):'<div class="empty">No questions yet.</div>';
+
+    const debouncedBank=(()=>{let t;return()=>{clearTimeout(t);t=setTimeout(loadBankAndRender,250);};})();
+    const questionById=()=>new Map(questions.map(q=>[q.id,q]));
+    function newSection(kind,title){return{kind,title:title||kind.toUpperCase(),passage_text:'',shuffle:true,question_ids:[]};}
+
+    async function loadClasses(){
+      const d=await fetch('/api/classes').then(r=>r.json());
+      classId.innerHTML=(d.classes||[]).map(c=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
     }
+    async function loadQuizzes(){
+      const d=await fetch('/api/assignments').then(r=>r.json());
+      quizzes=(d.assignments||[]).filter(a=>a.type==='test'&&!a.is_archived);
+      pickQuiz.innerHTML='<option value="">Any quiz</option>'+quizzes.map(q=>`<option value="${q.id}">${escapeHtml(q.title)}</option>`).join('');
+    }
+    async function loadTopics(){
+      const d=await fetch('/api/tests/topics').then(r=>r.json());
+      pickTopic.innerHTML='<option value="">All topics</option>'+(d.topics||[]).map(t=>`<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('');
+    }
+    async function loadAllQuestions(){
+      const d=await fetch('/api/tests/questions').then(r=>r.json());
+      questions=d.questions||[];
+    }
+    async function loadBank(){
+      const active=sections[activeIndex]; if(!active){bank=[];return;}
+      const qs=new URLSearchParams({kind:active.kind});
+      if(pickTopic.value)qs.set('topic',pickTopic.value);
+      if(pickQuiz.value)qs.set('in_assignment',pickQuiz.value);
+      if(pickQ.value.trim())qs.set('q',pickQ.value.trim());
+      const d=await fetch('/api/tests/questions?'+qs).then(r=>r.json());
+      bank=d.questions||[];
+      picked=new Set([...picked].filter(id=>bank.some(q=>q.id===id)));
+    }
+    async function loadBankAndRender(){await loadBank();renderBank();}
+
+    function renderAll(){renderTotals();renderSections();renderBank();}
+    function renderTotals(){
+      const map=questionById();
+      totalSections.textContent=String(sections.length);
+      totalQuestions.textContent=String(sections.reduce((sum,s)=>sum+s.question_ids.length,0));
+      totalPoints.textContent=String(sections.reduce((sum,s)=>sum+s.question_ids.reduce((n,id)=>n+Number(map.get(id)?.points||0),0),0));
+    }
+    function renderSections(){
+      const map=questionById();
+      sectionsBox.innerHTML=sections.map((s,i)=>{
+        const points=s.question_ids.reduce((sum,id)=>sum+Number(map.get(id)?.points||0),0);
+        return `<article class="section-card ${i===activeIndex?'active':''}">
+          <div class="section-head">
+            <div class="title"><span class="kind">${s.kind}</span><h3>${escapeHtml(s.title)}</h3><span class="meta">${s.question_ids.length} question${s.question_ids.length===1?'':'s'} · ${points} point${points===1?'':'s'}</span></div>
+            <div class="actions" style="margin:0"><button class="btn" data-active="${i}" type="button">Pick</button><button class="btn" data-up="${i}" type="button">Up</button><button class="btn" data-down="${i}" type="button">Down</button><button class="btn" data-remove-section="${i}" type="button">Remove</button></div>
+          </div>
+          <div class="row"><div><label>Section title</label><input data-title="${i}" value="${escapeAttr(s.title)}"></div><div><label>Kind</label><select data-kind="${i}"><option value="mcq"${s.kind==='mcq'?' selected':''}>MCQ</option><option value="srq"${s.kind==='srq'?' selected':''}>SRQ</option><option value="frq"${s.kind==='frq'?' selected':''}>FRQ</option></select></div></div>
+          <label>Passage text</label><textarea data-passage="${i}">${escapeHtml(s.passage_text)}</textarea>
+          <label class="switchline"><input data-shuffle="${i}" type="checkbox" ${s.shuffle?'checked':''}> Shuffle questions inside this section</label>
+          <div>${s.question_ids.map(id=>renderQuestionItem(map.get(id),i,id)).join('')||'<div class="empty">No questions in this section.</div>'}</div>
+        </article>`;
+      }).join('');
+      sectionsBox.querySelectorAll('[data-active]').forEach(b=>b.onclick=()=>setActive(Number(b.dataset.active)));
+      sectionsBox.querySelectorAll('[data-up]').forEach(b=>b.onclick=()=>moveSection(Number(b.dataset.up),-1));
+      sectionsBox.querySelectorAll('[data-down]').forEach(b=>b.onclick=()=>moveSection(Number(b.dataset.down),1));
+      sectionsBox.querySelectorAll('[data-remove-section]').forEach(b=>b.onclick=()=>removeSection(Number(b.dataset.removeSection)));
+      sectionsBox.querySelectorAll('[data-remove-question]').forEach(b=>b.onclick=()=>removeQuestion(Number(b.dataset.section),Number(b.dataset.removeQuestion)));
+      sectionsBox.querySelectorAll('[data-title]').forEach(input=>input.oninput=()=>{sections[Number(input.dataset.title)].title=input.value;});
+      sectionsBox.querySelectorAll('[data-passage]').forEach(input=>input.oninput=()=>{sections[Number(input.dataset.passage)].passage_text=input.value;});
+      sectionsBox.querySelectorAll('[data-shuffle]').forEach(input=>input.onchange=()=>{sections[Number(input.dataset.shuffle)].shuffle=input.checked;});
+      sectionsBox.querySelectorAll('[data-kind]').forEach(input=>input.onchange=async()=>changeKind(Number(input.dataset.kind),input.value));
+    }
+    function renderQuestionItem(q,sectionIndex,id){
+      if(!q)return `<div class="qitem"><span class="meta">Question ${id} missing</span><button class="btn" data-section="${sectionIndex}" data-remove-question="${id}" type="button">Remove</button></div>`;
+      return `<div class="qitem"><div><div class="qprompt">${escapeHtml(q.prompt_text)}</div><div class="meta">${q.points} point${q.points===1?'':'s'}${q.topic?' · '+escapeHtml(q.topic):''}</div></div><button class="btn" data-section="${sectionIndex}" data-remove-question="${id}" type="button">Remove</button></div>`;
+    }
+    function renderBank(){
+      const active=sections[activeIndex];
+      pickerTitle.textContent=active?`Question picker: ${active.title}`:'Question picker';
+      if(!active){bankList.innerHTML='<div class="empty">Add a section first.</div>';return;}
+      if(!bank.length){bankList.innerHTML='<div class="empty">No matching bank questions.</div>';return;}
+      bankList.innerHTML=bank.map((q,i)=>`<label class="pick-row"><input type="checkbox" data-pick="${q.id}" data-index="${i}" ${picked.has(q.id)?'checked':''}><span><strong>${escapeHtml(q.prompt_text)}</strong><br><span class="meta">${q.points} point${q.points===1?'':'s'}${q.topic?' · '+escapeHtml(q.topic):''}</span></span></label>`).join('');
+      bankList.querySelectorAll('[data-pick]').forEach(input=>input.onclick=(event)=>togglePick(event,input));
+    }
+
+    async function setActive(index){activeIndex=index;picked.clear();lastPickIndex=null;await loadBank();renderAll();}
+    function moveSection(index,delta){const next=index+delta;if(next<0||next>=sections.length)return;[sections[index],sections[next]]=[sections[next],sections[index]];activeIndex=next;renderAll();}
+    function removeSection(index){sections.splice(index,1);activeIndex=Math.max(0,Math.min(activeIndex,sections.length-1));renderAll();}
+    async function changeKind(index,kind){
+      if(kind==='frq'&&sections.some((s,i)=>i!==index&&s.kind==='frq')){msg.textContent='Only one FRQ section is allowed.';msg.classList.add('err');renderSections();return;}
+      sections[index].kind=kind;sections[index].question_ids=[];await setActive(index);
+    }
+    function addSection(){
+      const kind=newSectionKind.value;
+      if(kind==='frq'&&sections.some(s=>s.kind==='frq')){msg.textContent='Only one FRQ section is allowed.';msg.classList.add('err');return;}
+      sections.push(newSection(kind,newSectionTitle.value.trim()||kind.toUpperCase()));newSectionTitle.value='';setActive(sections.length-1);
+    }
+    function removeQuestion(sectionIndex,id){sections[sectionIndex].question_ids=sections[sectionIndex].question_ids.filter(qid=>qid!==id);renderAll();}
+
+    function togglePick(event,input){
+      const id=Number(input.dataset.pick), index=Number(input.dataset.index);
+      if(event.shiftKey&&lastPickIndex!==null){
+        const [a,b]=[lastPickIndex,index].sort((x,y)=>x-y);
+        for(let i=a;i<=b;i++) picked.add(bank[i].id);
+      }else{
+        if(input.checked)picked.add(id);else picked.delete(id);
+        lastPickIndex=index;
+      }
+      renderBank();
+    }
+    function addPicked(){
+      const active=sections[activeIndex]; if(!active||!picked.size)return;
+      const ids=[...picked];
+      if(active.kind==='frq'){
+        active.question_ids=ids.slice(0,1);
+        msg.textContent=ids.length>1?'FRQ sections hold one question. Added the first selected question.':'Added selected question.';
+      }else{
+        const existing=new Set(active.question_ids);
+        ids.forEach(id=>{if(!existing.has(id)){active.question_ids.push(id);existing.add(id);}});
+        msg.textContent='Questions added.';
+      }
+      msg.classList.remove('err');picked.clear();renderAll();
+    }
+
+    async function importIntoSection(){
+      const active=sections[activeIndex];
+      if(!active||active.kind!=='mcq'){importMsg.textContent='Bulk import is for MCQ sections.';importMsg.classList.add('err');return;}
+      importBtn.disabled=true;importMsg.textContent='Importing...';importMsg.classList.remove('err');
+      let body,headers={'X-CSRF-Token':csrfToken};
+      if(importFile.files[0]){
+        body=new FormData();body.append('description',importDescription.value);body.append('kind','mcq');body.append('file',importFile.files[0]);
+      }else{
+        headers['Content-Type']='application/json';
+        body=JSON.stringify({description:importDescription.value,kind:'mcq',raw_text:importRaw.value});
+      }
+      const r=await fetch('/api/tests/questions/bulk-import',{method:'POST',headers,body});
+      const d=await r.json().catch(()=>({}));
+      importBtn.disabled=false;
+      if(!r.ok){importMsg.textContent=d.error||'Import failed.';importMsg.classList.add('err');return;}
+      questions=[...d.created,...questions.filter(q=>!d.created.some(n=>n.id===q.id))];
+      d.created.forEach(q=>{if(!active.question_ids.includes(q.id))active.question_ids.push(q.id);});
+      importMsg.textContent=`Imported ${d.created.length}.${(d.needs_answer||[]).length?` ${(d.needs_answer||[]).length} need an answer set.`:''}`;
+      importRaw.value='';importFile.value='';await loadTopics();await loadBank();renderAll();
+    }
+
     async function create(){
-      const sections=['mcq','srq','frq'].map(kind=>({kind,title:kind.toUpperCase(),passage_text:document.getElementById(kind+'Passage').value,question_ids:[...document.querySelectorAll(`input[name="${kind}"]:checked`)].map(x=>Number(x.value))})).filter(s=>s.question_ids.length);
-      const payload={title:title.value,class_id:Number(classId.value),timer_minutes:timer.value?Number(timer.value):null,due_at:due.value?new Date(due.value).toISOString():null,shuffle:shuffle.checked,focus_warning:focus.checked,sections};
+      const cleanSections=sections.map(s=>({kind:s.kind,title:s.title.trim()||s.kind.toUpperCase(),passage_text:s.passage_text,shuffle:s.shuffle!==false,question_ids:s.question_ids})).filter(s=>s.question_ids.length);
+      if(!cleanSections.length){msg.textContent='Add at least one question.';msg.classList.add('err');return;}
+      const payload={title:title.value,class_id:Number(classId.value),timer_minutes:timer.value?Number(timer.value):null,due_at:due.value?new Date(due.value).toISOString():null,shuffle:shuffle.checked,focus_warning:focus.checked,sections:cleanSections};
       const r=await fetch('/api/tests/assignments',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':csrfToken},body:JSON.stringify(payload)});
       if(r.ok){const d=await r.json();location.href=`/teacher/test-review?assignment_id=${d.assignment.id}`;return;}
-      const d=await r.json().catch(()=>({}));msg.textContent=d.error||'Could not create this test.';
+      const d=await r.json().catch(()=>({}));msg.textContent=d.error||'Could not create this test.';msg.classList.add('err');
     }
+
     function escapeHtml(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML;}
+    function escapeAttr(s){return escapeHtml(s).replace(/"/g,'&quot;');}
     boot();
   </script>
 </body>
