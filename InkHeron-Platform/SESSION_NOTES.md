@@ -10,6 +10,14 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Audit of Codex test-greenpen run: part 1 done, part 2 missing
+
+- Audited branch test-greenpen against CODEX_TESTGP_HANDOFF.md and the nine ground rules.
+- Part 1 (green pen for tests) is implemented in commit 7da2c0d: rewrite becomes type 'essay' with the test config stripped, pads seeded FRQ text first then SRQ Q+A blocks, FRQ annotations copied with valid offsets, rewrite_of_pad_id = FRQ pad or NULL, Green pen rewrite button on /teacher/test-review. Two new inject tests cover composite seeding, greenpen-context and the SRQ-only case. Suite 162/162 green on Node 24.
+- nativeEnabled() was broadened to treat any type 'test' assignment as native-enabled; redundant (test settings already set native_inkpad true) and gated routes are teacher-only, so accepted.
+- Part 2 (section passage_text plus within-section question shuffle, LCG seed (studentId*104729)+sectionIndex) was NOT built. No changes to src/routes/tests.js or the take-test page anywhere on the branch; the only passage_text hits are the old essay-level passage feature. Codex only added the part 2 spec text to the handoff doc.
+- Not merged, not deployed. Waiting on the teacher: ship part 1 alone or send Codex back for part 2 first.
+
 ## 2026-07-06 — Reject any mark + configurable Doer model (DeepSeek default)
 
 - Reject button in the click-a-mark popover: AI-suggestion marks route through the disagree endpoint (feeds calibration and blocks re-analysis resurrection); other marks use the existing DELETE annotations route, which now also records the rejection when a suggestion links to the annotation.
