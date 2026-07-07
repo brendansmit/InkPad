@@ -537,6 +537,14 @@
           <button class="btn btn-primary" onclick="saveSyncSettings()">Save</button>
         </div>
       </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Current sync key</label>
+        <div class="api-key-row">
+          <input type="password" id="sync-key-current" readonly placeholder="No key saved" autocomplete="off">
+          <button class="btn btn-ghost" onclick="toggleSyncKeyReveal()" id="show-sync-key-btn">Show</button>
+          <button class="btn btn-ghost" onclick="copySyncKey()">Copy</button>
+        </div>
+      </div>
       <div id="sync-settings-status"></div>
       <div id="sync-status-bar" style="font-size:0.78rem;color:#94a3b8;margin-top:8px"></div>
     </div>
@@ -1441,6 +1449,7 @@ async function loadSettings() {
   const urlEl = document.getElementById('sync-url-input');
   const syncStatus = document.getElementById('sync-settings-status');
   if (urlEl) urlEl.value = data.sync_url || '';
+  renderCurrentSyncKey();
   if (syncStatus) {
     if (data.sync_url && data.sync_key_set) {
       syncStatus.innerHTML = `<div class="alert alert-success">Sync active → <code>${data.sync_url}</code> &nbsp; Key: <code>${data.sync_key_masked}</code></div>`;
@@ -1473,9 +1482,43 @@ async function saveSyncSettings() {
     body: JSON.stringify({ sync_url: url, ...(key ? { sync_key: key } : {}) })
   });
   document.getElementById('sync-key-input').value = '';
-  await loadSettings();
   // Re-initialise sync with new config
   await initSync();
+  await loadSettings();
+}
+
+function renderCurrentSyncKey() {
+  const input = document.getElementById('sync-key-current');
+  if (!input) return;
+  input.value = syncKey || '';
+  input.placeholder = syncKey ? '' : 'No key saved';
+  input.type = 'password';
+  const btn = document.getElementById('show-sync-key-btn');
+  if (btn) btn.textContent = 'Show';
+}
+
+function toggleSyncKeyReveal() {
+  const input = document.getElementById('sync-key-current');
+  const btn = document.getElementById('show-sync-key-btn');
+  if (!input || !syncKey) return;
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  if (btn) btn.textContent = showing ? 'Show' : 'Hide';
+}
+
+async function copySyncKey() {
+  if (!syncKey) return;
+  try {
+    await navigator.clipboard.writeText(syncKey);
+    setSyncBar('Sync key copied');
+  } catch(e) {
+    const input = document.getElementById('sync-key-current');
+    if (!input) return;
+    input.type = 'text';
+    input.select();
+    document.execCommand('copy');
+    setSyncBar('Sync key copied');
+  }
 }
 
 function toggleShowKey() {
