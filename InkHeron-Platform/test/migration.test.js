@@ -45,9 +45,11 @@ const expectedColumns = {
   ai_grade_estimates: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'criterion_id', 'ai_score', 'teacher_score', 'delta', 'model', 'rationale', 'created_at', 'scored_at'],
   ai_feedback_item_suggestions: ['id', 'native_pad_id', 'kind', 'title', 'explanation', 'try_now_prompt', 'model', 'checker_json', 'status', 'feedback_item_id', 'created_at', 'resolved_at'],
   test_questions: ['id', 'kind', 'prompt_text', 'options_json', 'answer_index', 'model_answer', 'points', 'tag', 'is_archived', 'created_at', 'updated_at', 'topic', 'tags_json', 'origin_assignment_id'],
-  test_attempts: ['id', 'assignment_id', 'student_id', 'started_at', 'submitted_at', 'seconds_allowed'],
+  test_attempts: ['id', 'assignment_id', 'student_id', 'started_at', 'submitted_at', 'seconds_allowed', 'rules_acknowledged_at', 'last_activity_at', 'extra_seconds', 'unlocked_until', 'unlock_reason', 'force_submitted_at', 'sound_disabled', 'pulse_disabled'],
   test_responses: ['id', 'attempt_id', 'question_id', 'answer_json', 'is_correct', 'points_awarded', 'updated_at'],
   test_focus_events: ['id', 'attempt_id', 'at', 'kind'],
+  test_assignment_controls: ['assignment_id', 'paused_at', 'pause_total_seconds', 'updated_at', 'updated_by_teacher_id'],
+  test_activity_events: ['id', 'attempt_id', 'assignment_id', 'student_id', 'question_id', 'section_index', 'event_type', 'metadata_json', 'excused_at', 'excused_by_teacher_id', 'excuse_reason', 'created_at'],
   toefl_estimates: ['id', 'student_id', 'integrated_band', 'discussion_band', 'scaled_low', 'scaled_high', 'confidence', 'rationale', 'evidence_json', 'model', 'created_at'],
   known_toefl_scores: ['id', 'student_id', 'writing_score', 'noted_at', 'created_at'],
 };
@@ -85,6 +87,7 @@ const migrationFiles = [
   '030_style_metrics_essay_type.sql',
   '031_toefl_estimates.sql',
   '032_question_bank_topics.sql',
+  '033_test_exam_activity.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

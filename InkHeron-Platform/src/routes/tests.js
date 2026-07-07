@@ -8,6 +8,34 @@ import { parseJsonArraySalvage } from '../services/literacyCoder.js';
 const QUESTION_KINDS = new Set(['mcq', 'srq', 'frq']);
 const FOCUS_KINDS = new Set(['blur', 'focus']);
 const TEST_SECTION_KINDS = new Set(['mcq', 'srq', 'frq']);
+const ACTIVITY_EVENTS = new Set([
+  'rules_acknowledged',
+  'fullscreen_enter',
+  'fullscreen_exit',
+  'visibility_hidden',
+  'visibility_visible',
+  'window_blur',
+  'window_focus',
+  'copy_attempt',
+  'paste_attempt',
+  'context_menu_attempt',
+  'question_focus',
+  'answer_input',
+  'idle_timeout',
+  'flag_review',
+  'unflag_review',
+  'manual_submit_prompt',
+  'autosubmit_warning',
+]);
+const WARNING_EVENTS = new Set([
+  'fullscreen_exit',
+  'visibility_hidden',
+  'window_blur',
+  'copy_attempt',
+  'paste_attempt',
+  'context_menu_attempt',
+  'idle_timeout',
+]);
 const TIMER_GRACE_SECONDS = 30;
 const MAX_BULK_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 
@@ -577,27 +605,65 @@ function loadAttempt(db, assignmentId, studentId) {
     .get(assignmentId, studentId);
 }
 
-function secondsRemaining(assignment, attempt, date = new Date()) {
+function loadAttemptById(db, attemptId) {
+  return db.prepare(`
+    SELECT ta.*, a.type AS assignment_type
+    FROM test_attempts ta
+    JOIN assignments a ON a.id = ta.assignment_id
+    WHERE ta.id = ? AND a.type = 'test'
+  `).get(attemptId);
+}
+
+function loadAssignmentControl(db, assignmentId) {
+  return db.prepare('SELECT * FROM test_assignment_controls WHERE assignment_id = ?').get(assignmentId) ?? {
+    assignment_id: assignmentId,
+    paused_at: null,
+    pause_total_seconds: 0,
+  };
+}
+
+function timerDateForControl(control, date = new Date()) {
+  const paused = parseDbDate(control?.paused_at);
+  return paused ?? date;
+}
+
+function timerPauseSeconds(control) {
+  return Number(control?.pause_total_seconds ?? 0);
+}
+
+function rawSecondsRemaining(db, assignment, attempt, date = new Date()) {
   if (!attempt?.seconds_allowed) return null;
   const started = parseDbDate(attempt.started_at);
   if (!started) return null;
-  const due = new Date(started.getTime() + Number(attempt.seconds_allowed) * 1000);
-  return Math.max(0, Math.ceil((due.getTime() - date.getTime()) / 1000));
+  const control = loadAssignmentControl(db, assignment.id);
+  const effectiveNow = timerDateForControl(control, date);
+  const allowed = Number(attempt.seconds_allowed)
+    + Number(attempt.extra_seconds ?? 0)
+    + timerPauseSeconds(control);
+  const due = new Date(started.getTime() + allowed * 1000);
+  return Math.ceil((due.getTime() - effectiveNow.getTime()) / 1000);
 }
 
-function canWriteAttempt(assignment, attempt, date = new Date()) {
+function secondsRemaining(db, assignment, attempt, date = new Date()) {
+  const seconds = rawSecondsRemaining(db, assignment, attempt, date);
+  return seconds === null ? null : Math.max(0, seconds);
+}
+
+function canWriteAttempt(db, assignment, attempt, date = new Date()) {
   if (!attempt || attempt.submitted_at) return false;
   const dueAt = parseDbDate(assignment.due_at);
   if (dueAt && dueAt.getTime() < date.getTime()) return false;
+  const unlockedUntil = parseDbDate(attempt.unlocked_until);
+  if (unlockedUntil && unlockedUntil.getTime() >= date.getTime()) return true;
   if (!attempt.seconds_allowed) return true;
   const started = parseDbDate(attempt.started_at);
   if (!started) return false;
-  const closesAt = started.getTime() + (Number(attempt.seconds_allowed) + TIMER_GRACE_SECONDS) * 1000;
-  return closesAt >= date.getTime();
+  const seconds = rawSecondsRemaining(db, assignment, attempt, date);
+  return seconds !== null && seconds >= -TIMER_GRACE_SECONDS;
 }
 
-function requireWritableAttempt(assignment, attempt) {
-  if (!canWriteAttempt(assignment, attempt)) {
+function requireWritableAttempt(db, assignment, attempt) {
+  if (!canWriteAttempt(db, assignment, attempt)) {
     const err = new Error('attempt_locked');
     err.statusCode = 409;
     throw err;
@@ -650,14 +716,22 @@ function shuffledSectionQuestions(section, studentId, sectionIndex, shuffle) {
   return questions;
 }
 
-function publicAttempt(assignment, attempt) {
+function publicAttempt(db, assignment, attempt) {
+  const control = loadAssignmentControl(db, assignment.id);
   return {
     id: attempt.id,
     assignment_id: attempt.assignment_id,
     started_at: attempt.started_at,
     submitted_at: attempt.submitted_at ?? null,
+    rules_acknowledged_at: attempt.rules_acknowledged_at ?? null,
+    last_activity_at: attempt.last_activity_at ?? null,
     seconds_allowed: attempt.seconds_allowed ?? null,
-    seconds_remaining: secondsRemaining(assignment, attempt),
+    extra_seconds: Number(attempt.extra_seconds ?? 0),
+    seconds_remaining: secondsRemaining(db, assignment, attempt),
+    paused: Boolean(control.paused_at),
+    unlocked_until: attempt.unlocked_until ?? null,
+    sound_disabled: attempt.sound_disabled === 1,
+    pulse_disabled: attempt.pulse_disabled === 1,
   };
 }
 
@@ -685,7 +759,7 @@ function studentTestPayload(db, assignment, studentId, attempt) {
       due_at: assignment.due_at ?? null,
       feedback_released_at: assignment.feedback_released_at ?? null,
     },
-    attempt: attempt ? publicAttempt(assignment, attempt) : null,
+    attempt: attempt ? publicAttempt(db, assignment, attempt) : null,
     submitted: Boolean(attempt?.submitted_at),
     results_released: Boolean(assignment.feedback_released_at),
     timer_minutes: config.timer_minutes,
@@ -853,7 +927,7 @@ function loadReviewRows(db, assignment) {
     const frqRubricTotal = rubricTotalForPad(db, pad?.id);
     return {
       student,
-      attempt: attempt ? publicAttempt(assignment, attempt) : null,
+      attempt: attempt ? publicAttempt(db, assignment, attempt) : null,
       totals: {
         mcq: byKind.mcq.earned,
         mcq_possible: questions.filter((q) => q.kind === 'mcq').reduce((sum, q) => sum + Number(q.points ?? 0), 0),
@@ -882,6 +956,108 @@ function loadReviewRows(db, assignment) {
       },
     };
   });
+}
+
+function normalizeActivityMetadata(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '{}';
+  return JSON.stringify(value).slice(0, 4000);
+}
+
+function recordActivityEvent(db, attempt, eventType, body = {}) {
+  if (!ACTIVITY_EVENTS.has(eventType)) {
+    const err = new Error('invalid_activity_event');
+    err.statusCode = 400;
+    throw err;
+  }
+  const questionId = body?.question_id === undefined || body?.question_id === null || body?.question_id === ''
+    ? null
+    : requirePositiveInteger(body.question_id, 'question_id');
+  const sectionIndex = body?.section_index === undefined || body?.section_index === null || body?.section_index === ''
+    ? null
+    : Number(body.section_index);
+  if (sectionIndex !== null && (!Number.isInteger(sectionIndex) || sectionIndex < 0)) {
+    const err = new Error('invalid_section_index');
+    err.statusCode = 400;
+    throw err;
+  }
+  const result = db.prepare(`
+    INSERT INTO test_activity_events
+      (attempt_id, assignment_id, student_id, question_id, section_index, event_type, metadata_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    attempt.id,
+    attempt.assignment_id,
+    attempt.student_id,
+    questionId,
+    sectionIndex,
+    eventType,
+    normalizeActivityMetadata(body?.metadata)
+  );
+  db.prepare('UPDATE test_attempts SET last_activity_at = CURRENT_TIMESTAMP WHERE id = ?').run(attempt.id);
+  return db.prepare('SELECT * FROM test_activity_events WHERE id = ?').get(result.lastInsertRowid);
+}
+
+function warningWhere() {
+  return WARNING_EVENTS.size ? `event_type IN (${[...WARNING_EVENTS].map(() => '?').join(',')})` : '0';
+}
+
+function liveMonitorRows(db, assignment) {
+  const reviewRows = loadReviewRows(db, assignment);
+  const warningSql = warningWhere();
+  const latestEvent = db.prepare(`
+    SELECT * FROM test_activity_events
+    WHERE attempt_id = ?
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  `);
+  const latestQuestion = db.prepare(`
+    SELECT e.question_id, q.prompt_text
+    FROM test_activity_events e
+    LEFT JOIN test_questions q ON q.id = e.question_id
+    WHERE e.attempt_id = ? AND e.event_type = 'question_focus' AND e.question_id IS NOT NULL
+    ORDER BY e.created_at DESC, e.id DESC
+    LIMIT 1
+  `);
+  const warningCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM test_activity_events
+    WHERE attempt_id = ? AND excused_at IS NULL AND ${warningSql}
+  `);
+  const excusedCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM test_activity_events
+    WHERE attempt_id = ? AND excused_at IS NOT NULL AND ${warningSql}
+  `);
+  const answerCount = db.prepare('SELECT COUNT(*) AS count FROM test_responses WHERE attempt_id = ?');
+  return reviewRows.map((row) => {
+    const attempt = row.attempt ? db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(row.attempt.id) : null;
+    const latest = attempt ? latestEvent.get(attempt.id) : null;
+    const current = attempt ? latestQuestion.get(attempt.id) : null;
+    const warningParams = attempt ? [attempt.id, ...WARNING_EVENTS] : [];
+    return {
+      student: row.student,
+      attempt: attempt ? publicAttempt(db, assignment, attempt) : null,
+      status: !attempt ? 'not_started' : (attempt.submitted_at ? 'submitted' : 'in_progress'),
+      current_question: current ? {
+        id: current.question_id,
+        prompt_text: current.prompt_text ?? '',
+      } : null,
+      answered_count: attempt ? Number(answerCount.get(attempt.id)?.count ?? 0) : 0,
+      warning_count: attempt ? Number(warningCount.get(...warningParams)?.count ?? 0) : 0,
+      excused_warning_count: attempt ? Number(excusedCount.get(...warningParams)?.count ?? 0) : 0,
+      latest_event: latest ? {
+        id: latest.id,
+        event_type: latest.event_type,
+        question_id: latest.question_id ?? null,
+        section_index: latest.section_index ?? null,
+        created_at: latest.created_at,
+      } : null,
+    };
+  });
+}
+
+function teacherId(request) {
+  return request.session?.user?.id ?? null;
 }
 
 export async function registerTestRoutes(app, { db, chat = callChat }) {
@@ -1112,6 +1288,174 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
     }
   );
 
+  app.get('/api/tests/:assignmentId/live',
+    { preValidation: [app.requireTeacherSession] },
+    async (request) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = ensureTeacherTestAssignment(db, assignmentId);
+      const control = loadAssignmentControl(db, assignment.id);
+      return {
+        assignment,
+        control: {
+          paused: Boolean(control.paused_at),
+          paused_at: control.paused_at ?? null,
+          pause_total_seconds: Number(control.pause_total_seconds ?? 0),
+        },
+        generated_at: nowIso(),
+        rows: liveMonitorRows(db, assignment),
+      };
+    }
+  );
+
+  app.post('/api/tests/:assignmentId/pause',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = ensureTeacherTestAssignment(db, assignmentId);
+      db.prepare(`
+        INSERT INTO test_assignment_controls (assignment_id, paused_at, updated_by_teacher_id)
+        VALUES (?, CURRENT_TIMESTAMP, ?)
+        ON CONFLICT(assignment_id) DO UPDATE SET
+          paused_at = COALESCE(test_assignment_controls.paused_at, CURRENT_TIMESTAMP),
+          updated_at = CURRENT_TIMESTAMP,
+          updated_by_teacher_id = excluded.updated_by_teacher_id
+      `).run(assignment.id, teacherId(request));
+      return { control: loadAssignmentControl(db, assignment.id) };
+    }
+  );
+
+  app.post('/api/tests/:assignmentId/resume',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = ensureTeacherTestAssignment(db, assignmentId);
+      const control = loadAssignmentControl(db, assignment.id);
+      const pausedAt = parseDbDate(control.paused_at);
+      const additional = pausedAt ? Math.max(0, Math.ceil((Date.now() - pausedAt.getTime()) / 1000)) : 0;
+      db.prepare(`
+        INSERT INTO test_assignment_controls
+          (assignment_id, paused_at, pause_total_seconds, updated_by_teacher_id)
+        VALUES (?, NULL, ?, ?)
+        ON CONFLICT(assignment_id) DO UPDATE SET
+          paused_at = NULL,
+          pause_total_seconds = test_assignment_controls.pause_total_seconds + ?,
+          updated_at = CURRENT_TIMESTAMP,
+          updated_by_teacher_id = excluded.updated_by_teacher_id
+      `).run(assignment.id, additional, teacherId(request), additional);
+      return { control: loadAssignmentControl(db, assignment.id) };
+    }
+  );
+
+  app.post('/api/tests/attempts/:attemptId/add-time',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const attemptId = requirePositiveInteger(request.params.attemptId, 'attemptId');
+      const minutes = Number(request.body?.minutes ?? 0);
+      if (!Number.isFinite(minutes) || minutes <= 0) {
+        const err = new Error('minutes_required');
+        err.statusCode = 400;
+        throw err;
+      }
+      const attempt = loadAttemptById(db, attemptId);
+      if (!attempt) {
+        const err = new Error('attempt_not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      db.prepare('UPDATE test_attempts SET extra_seconds = extra_seconds + ? WHERE id = ?')
+        .run(Math.ceil(minutes * 60), attempt.id);
+      const assignment = ensureTeacherTestAssignment(db, attempt.assignment_id);
+      return { attempt: publicAttempt(db, assignment, db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(attempt.id)) };
+    }
+  );
+
+  app.post('/api/tests/attempts/:attemptId/unlock',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const attemptId = requirePositiveInteger(request.params.attemptId, 'attemptId');
+      const minutes = Number(request.body?.minutes ?? 15);
+      const reason = String(request.body?.reason ?? '').trim().slice(0, 300);
+      if (!Number.isFinite(minutes) || minutes <= 0) {
+        const err = new Error('minutes_required');
+        err.statusCode = 400;
+        throw err;
+      }
+      const attempt = loadAttemptById(db, attemptId);
+      if (!attempt) {
+        const err = new Error('attempt_not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      db.prepare(`
+        UPDATE test_attempts
+        SET submitted_at = NULL,
+            unlocked_until = datetime('now', ?),
+            unlock_reason = ?,
+            extra_seconds = extra_seconds + ?
+        WHERE id = ?
+      `).run(`+${Math.ceil(minutes)} minutes`, reason, Math.ceil(minutes * 60), attempt.id);
+      const assignment = ensureTeacherTestAssignment(db, attempt.assignment_id);
+      return { attempt: publicAttempt(db, assignment, db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(attempt.id)) };
+    }
+  );
+
+  app.post('/api/tests/attempts/:attemptId/accessibility',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const attemptId = requirePositiveInteger(request.params.attemptId, 'attemptId');
+      const attempt = loadAttemptById(db, attemptId);
+      if (!attempt) {
+        const err = new Error('attempt_not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      db.prepare('UPDATE test_attempts SET sound_disabled = ?, pulse_disabled = ? WHERE id = ?')
+        .run(request.body?.sound_disabled === true ? 1 : 0, request.body?.pulse_disabled === true ? 1 : 0, attempt.id);
+      const assignment = ensureTeacherTestAssignment(db, attempt.assignment_id);
+      return { attempt: publicAttempt(db, assignment, db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(attempt.id)) };
+    }
+  );
+
+  app.post('/api/tests/attempts/:attemptId/force-submit',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const attemptId = requirePositiveInteger(request.params.attemptId, 'attemptId');
+      const attempt = loadAttemptById(db, attemptId);
+      if (!attempt) {
+        const err = new Error('attempt_not_found');
+        err.statusCode = 404;
+        throw err;
+      }
+      const assignment = ensureTeacherTestAssignment(db, attempt.assignment_id);
+      scoreMcqResponses(db, assignment, attempt.id);
+      db.prepare(`
+        UPDATE test_attempts
+        SET submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP),
+            force_submitted_at = COALESCE(force_submitted_at, CURRENT_TIMESTAMP)
+        WHERE id = ?
+      `).run(attempt.id);
+      return { attempt: publicAttempt(db, assignment, db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(attempt.id)) };
+    }
+  );
+
+  app.post('/api/tests/activity-events/:eventId/excuse',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const eventId = requirePositiveInteger(request.params.eventId, 'eventId');
+      const event = db.prepare('SELECT * FROM test_activity_events WHERE id = ?').get(eventId);
+      if (!event) return reply.code(404).send({ error: 'event_not_found' });
+      const reason = String(request.body?.reason ?? '').trim().slice(0, 300);
+      db.prepare(`
+        UPDATE test_activity_events
+        SET excused_at = CURRENT_TIMESTAMP,
+            excused_by_teacher_id = ?,
+            excuse_reason = ?
+        WHERE id = ?
+      `).run(teacherId(request), reason, event.id);
+      return { event: db.prepare('SELECT * FROM test_activity_events WHERE id = ?').get(event.id) };
+    }
+  );
+
   app.put('/api/tests/responses/:responseId/score',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request, reply) => {
@@ -1140,7 +1484,27 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
       const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
       const assignment = ensureStudentTestAssignment(db, assignmentId, request.session.user.id);
       const attempt = insertOrGetAttempt(db, assignment, request.session.user.id);
+      db.prepare('UPDATE test_attempts SET last_activity_at = COALESCE(last_activity_at, CURRENT_TIMESTAMP) WHERE id = ?')
+        .run(attempt.id);
       return reply.code(201).send(studentTestPayload(db, assignment, request.session.user.id, attempt));
+    }
+  );
+
+  app.post('/api/tests/:assignmentId/acknowledge-rules',
+    { preValidation: [app.requireStudentSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = ensureStudentTestAssignment(db, assignmentId, request.session.user.id);
+      const attempt = insertOrGetAttempt(db, assignment, request.session.user.id);
+      db.prepare(`
+        UPDATE test_attempts
+        SET rules_acknowledged_at = COALESCE(rules_acknowledged_at, CURRENT_TIMESTAMP),
+            last_activity_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(attempt.id);
+      const updated = db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(attempt.id);
+      recordActivityEvent(db, updated, 'rules_acknowledged', { metadata: { version: 1 } });
+      return reply.code(201).send(studentTestPayload(db, assignment, request.session.user.id, updated));
     }
   );
 
@@ -1162,7 +1526,7 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
       const assignment = ensureStudentTestAssignment(db, assignmentId, request.session.user.id);
       const attempt = loadAttempt(db, assignment.id, request.session.user.id);
       if (!attempt) return reply.code(409).send({ error: 'attempt_not_started' });
-      requireWritableAttempt(assignment, attempt);
+      requireWritableAttempt(db, assignment, attempt);
       const allowed = new Set(questionIdsForAssignment(db, assignment).map((q) => q.id));
       if (!allowed.has(questionId)) return reply.code(404).send({ error: 'question_not_in_test' });
       const question = loadQuestion(db, questionId);
@@ -1185,7 +1549,35 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
           answer_json = excluded.answer_json,
           updated_at = datetime('now')
       `).run(attempt.id, question.id, JSON.stringify(answer));
+      recordActivityEvent(db, attempt, 'answer_input', {
+        question_id: question.id,
+        metadata: { kind: question.kind },
+      });
       return { saved: true };
+    }
+  );
+
+  app.post('/api/tests/:assignmentId/activity',
+    { preValidation: [app.requireStudentSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const assignmentId = requirePositiveInteger(request.params.assignmentId, 'assignmentId');
+      const assignment = ensureStudentTestAssignment(db, assignmentId, request.session.user.id);
+      const attempt = loadAttempt(db, assignment.id, request.session.user.id);
+      if (!attempt) return reply.code(409).send({ error: 'attempt_not_started' });
+      const questionId = request.body?.question_id === undefined || request.body?.question_id === null || request.body?.question_id === ''
+        ? null
+        : requirePositiveInteger(request.body.question_id, 'question_id');
+      if (questionId !== null) {
+        const allowed = new Set(questionIdsForAssignment(db, assignment).map((q) => q.id));
+        if (!allowed.has(questionId)) return reply.code(404).send({ error: 'question_not_in_test' });
+      }
+      const eventType = String(request.body?.event_type ?? '');
+      const event = recordActivityEvent(db, attempt, eventType, {
+        question_id: questionId,
+        section_index: request.body?.section_index,
+        metadata: request.body?.metadata,
+      });
+      return reply.code(201).send({ event });
     }
   );
 
@@ -1199,6 +1591,7 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
       const kind = String(request.body?.kind ?? '');
       if (!FOCUS_KINDS.has(kind)) return reply.code(400).send({ error: 'invalid_focus_kind' });
       db.prepare('INSERT INTO test_focus_events (attempt_id, kind) VALUES (?, ?)').run(attempt.id, kind);
+      recordActivityEvent(db, attempt, kind === 'blur' ? 'window_blur' : 'window_focus', {});
       return reply.code(201).send({ recorded: true });
     }
   );
@@ -1210,7 +1603,7 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
       const assignment = ensureStudentTestAssignment(db, assignmentId, request.session.user.id);
       const attempt = loadAttempt(db, assignment.id, request.session.user.id);
       if (!attempt) return reply.code(409).send({ error: 'attempt_not_started' });
-      requireWritableAttempt(assignment, attempt);
+      requireWritableAttempt(db, assignment, attempt);
       scoreMcqResponses(db, assignment, attempt.id);
       const frqPad = await submitFrqPad(app, db, assignment, request);
       db.prepare(`
@@ -1221,7 +1614,7 @@ export async function registerTestRoutes(app, { db, chat = callChat }) {
       const updated = db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(attempt.id);
       return reply.code(201).send({
         submitted: true,
-        attempt: publicAttempt(assignment, updated),
+        attempt: publicAttempt(db, assignment, updated),
         frq_pad_id: frqPad?.id ?? null,
       });
     }

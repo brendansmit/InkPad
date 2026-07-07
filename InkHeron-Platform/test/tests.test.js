@@ -725,3 +725,140 @@ test('green-penning an SRQ-only test seeds pads from SRQs with no rewrite_of_pad
 
   await app.close();
 });
+
+test('test exam activity supports acknowledgement, live monitor, pause, unlock and excusal', async () => {
+  const dbPath = tmpDb();
+  const app = await buildApp({ databasePath: dbPath, logger: false });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const alice = await createStudent(app, teacher, classId, 'alice');
+  const mcq = await createQuestion(app, teacher, {
+    kind: 'mcq',
+    prompt_text: 'Choose the valid claim.',
+    options: ['First', 'Second'],
+    answer_index: 0,
+    points: 1,
+  });
+  const assignment = await createCustomTestAssignment(app, teacher, classId, [
+    { kind: 'mcq', title: 'Multiple choice', question_ids: [mcq.id] },
+  ], { timer_minutes: 20 });
+
+  const acknowledged = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/acknowledge-rules`,
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(acknowledged.statusCode, 201);
+  assert.ok(acknowledged.json().attempt.rules_acknowledged_at);
+  assert.equal(acknowledged.json().attempt.seconds_remaining <= 1200, true);
+
+  const focus = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/activity`,
+    payload: { event_type: 'question_focus', question_id: mcq.id, section_index: 0 },
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(focus.statusCode, 201);
+
+  const warning = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/activity`,
+    payload: { event_type: 'fullscreen_exit', question_id: mcq.id, metadata: { warning_number: 1 } },
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(warning.statusCode, 201);
+
+  const answer = await app.inject({
+    method: 'PUT',
+    url: `/api/tests/${assignment.id}/answers/${mcq.id}`,
+    payload: { chosen_index: 0 },
+    headers: { cookie: alice.cookies, 'X-CSRF-Token': alice.csrf },
+  });
+  assert.equal(answer.statusCode, 200);
+
+  const live = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/live`,
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(live.statusCode, 200);
+  assert.equal(live.json().rows.length, 1);
+  assert.equal(live.json().rows[0].student.id, alice.student.id);
+  assert.equal(live.json().rows[0].current_question.id, mcq.id);
+  assert.equal(live.json().rows[0].answered_count, 1);
+  assert.equal(live.json().rows[0].warning_count, 1);
+
+  const paused = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/pause`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(paused.statusCode, 200);
+  assert.ok(paused.json().control.paused_at);
+
+  const resumed = await app.inject({
+    method: 'POST',
+    url: `/api/tests/${assignment.id}/resume`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(resumed.statusCode, 200);
+  assert.equal(resumed.json().control.paused_at, null);
+
+  const attemptId = acknowledged.json().attempt.id;
+  const added = await app.inject({
+    method: 'POST',
+    url: `/api/tests/attempts/${attemptId}/add-time`,
+    payload: { minutes: 5 },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(added.statusCode, 200);
+  assert.equal(added.json().attempt.extra_seconds, 300);
+
+  const accessible = await app.inject({
+    method: 'POST',
+    url: `/api/tests/attempts/${attemptId}/accessibility`,
+    payload: { sound_disabled: true, pulse_disabled: true },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(accessible.statusCode, 200);
+  assert.equal(accessible.json().attempt.sound_disabled, true);
+  assert.equal(accessible.json().attempt.pulse_disabled, true);
+
+  const excused = await app.inject({
+    method: 'POST',
+    url: `/api/tests/activity-events/${warning.json().event.id}/excuse`,
+    payload: { reason: 'Browser issue' },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(excused.statusCode, 200);
+  assert.ok(excused.json().event.excused_at);
+
+  const liveAfterExcuse = await app.inject({
+    method: 'GET',
+    url: `/api/tests/${assignment.id}/live`,
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(liveAfterExcuse.statusCode, 200);
+  assert.equal(liveAfterExcuse.json().rows[0].warning_count, 0);
+  assert.equal(liveAfterExcuse.json().rows[0].excused_warning_count, 1);
+
+  const force = await app.inject({
+    method: 'POST',
+    url: `/api/tests/attempts/${attemptId}/force-submit`,
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(force.statusCode, 200);
+  assert.ok(force.json().attempt.submitted_at);
+
+  const unlocked = await app.inject({
+    method: 'POST',
+    url: `/api/tests/attempts/${attemptId}/unlock`,
+    payload: { minutes: 10, reason: 'Reopened after browser problem' },
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
+  });
+  assert.equal(unlocked.statusCode, 200);
+  assert.equal(unlocked.json().attempt.submitted_at, null);
+  assert.ok(unlocked.json().attempt.unlocked_until);
+
+  await app.close();
+});
