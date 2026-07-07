@@ -217,8 +217,8 @@
         <div class="list-actions">
           <button class="btn sm" id="toggleArchiveBtn" type="button">Show archived</button>
           <a class="btn sm" href="/teacher/question-bank">Question bank</a>
-          <a class="btn sm" href="/teacher/new-test">New test</a>
-          <a class="btn p sm" href="/teacher/new-assignment">+ New assignment</a>
+          <a class="btn sm" id="newTestLink" href="/teacher/new-test">New test</a>
+          <a class="btn p sm" id="newAssignmentLink" href="/teacher/new-assignment">+ New assignment</a>
         </div>
       </div>
       <div class="search-row">
@@ -483,6 +483,8 @@
     let mobileDetailsOpen=false;
     let lastDashboardRows=[];
     const filterStateKey='inkheronAssignmentFilters';
+    const initialType=new URLSearchParams(window.location.search).get('type');
+    const assignmentTypeFilter=(initialType==='test'||initialType==='essay')?initialType:'';
 
     window.setPassageTab=function(tab){
       document.getElementById('ptabText').classList.toggle('active',tab==='text');
@@ -512,7 +514,9 @@
       const url=qs.toString()?`/api/assignments?${qs}`:'/api/assignments';
       const ar=await fetch(url);
       const ad=await ar.json(); assignments=ad.assignments||[];
-      document.getElementById('listHeading').textContent=showingArchived?'Archived assignments':'Assignments';
+      if(assignmentTypeFilter) assignments=assignments.filter(a=>a.type===assignmentTypeFilter);
+      const noun=assignmentTypeFilter==='test'?'tests':(assignmentTypeFilter==='essay'?'essays':'assignments');
+      document.getElementById('listHeading').textContent=showingArchived?`Archived ${noun}`:capitalize(noun);
       document.getElementById('toggleArchiveBtn').textContent=showingArchived?'Active assignments':'Show archived';
     }
 
@@ -522,6 +526,7 @@
       const user=await me.json();
       if(user.user.type!=='teacher'){window.location.href='/';return;}
       csrfToken=user.user.csrf_token;
+      applyTypeFilterUi();
       restoreFilterState();
       fetch('/api/teacher/notifications/clear',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
       const [,cr]=await Promise.all([fetchAssignments(),fetch('/api/classes'),fetchFeedbackAssets()]);
@@ -585,7 +590,9 @@
       const box=document.getElementById('asgnList');
       const q=filter.toLowerCase();
       if(!assignments.length){
-        box.innerHTML=`<div class="empty-state"><p>No assignments yet.</p><a class="btn p" href="/teacher/new-assignment">+ Create your first assignment</a></div>`;
+        const target=assignmentTypeFilter==='test'?'/teacher/new-test':'/teacher/new-assignment';
+        const label=assignmentTypeFilter==='test'?'Create your first test':'Create your first assignment';
+        box.innerHTML=`<div class="empty-state"><p>No ${assignmentTypeFilter==='test'?'tests':'assignments'} yet.</p><a class="btn p" href="${target}">+ ${label}</a></div>`;
         return;
       }
       const groups=groupAssignments().filter(grp=>
@@ -1371,6 +1378,15 @@
       }catch(_){}
     }
     function escapeHtml(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+    function capitalize(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+    function applyTypeFilterUi(){
+      if(assignmentTypeFilter==='test'){
+        document.getElementById('searchInput').placeholder='Search by test or class...';
+        document.getElementById('newAssignmentLink').href='/teacher/new-test';
+        document.getElementById('newAssignmentLink').textContent='+ New test';
+        document.getElementById('newTestLink').style.display='none';
+      }
+    }
 
     init();
   }());
