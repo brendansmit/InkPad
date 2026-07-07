@@ -10,6 +10,15 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Deployed everything on test-greenpen to production
+
+- Deployed in two steps to inkpad.inkheron.app (git archive of committed tree only, DB backed up before each: inkheron.db.pre-testgp-202607071620 and .pre-gpscore-202607071633, /login 200 both times, journal clean):
+  1. 9e21cc9: Codex part 1 (green pen for tests), part 2 (section passages + within-section LCG shuffle, f227add, spot-checked against spec: correct files, seed (studentId*104729)+sectionIndex, both shuffle tests, additive, no migration), mobile native review UI, AI review reset for strengths and targets.
+  2. ab1e4ef: green pen score hold + separate gradeable rewrite assignment on release (see entry below). ab1e4ef is the cleaned redo of f2db8bc, which had swept ~12k lines of unrelated files (data/passages PDFs, other projects) into the commit; ab1e4ef drops them.
+- Each deployed commit was independently verified in an isolated git worktree: npm test 165/165 on Node 24 at both 9e21cc9 and ab1e4ef.
+- analysis-ai fast-forwarded to ab1e4ef = test-greenpen. Everything through ab1e4ef is now DEPLOYED.
+- Gotcha for next time: two sessions were editing this working tree at once; refs moved mid-deploy twice. Staged my own hunk via git apply --cached and pinned every verify/deploy to a commit hash, never a branch.
+
 ## 2026-07-07 — Green pen: hold scores at finish-marking, create a separate rewrite assignment on release
 
 - Asked (teacher, real marking): finish-marking was releasing the score immediately; scores must stay hidden until "Release to class". And on release OR per-student "Send feedback", auto-create a NEW assignment for the green-pen rewrite that is graded separately (own rubric, renamed later). Teacher chose: create on release OR send feedback (idempotent).
