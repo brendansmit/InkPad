@@ -80,6 +80,7 @@ const migrationFiles = [
   '027_feedback_released_at.sql',
   '028_pad_feedback_release.sql',
   '029_test_portal.sql',
+  '030_style_metrics_essay_type.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

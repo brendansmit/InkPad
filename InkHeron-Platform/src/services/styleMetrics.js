@@ -18,6 +18,15 @@ const TRANSITIONS = new Set(['however', 'therefore', 'moreover', 'furthermore', 
 const HEDGES = new Set(['maybe', 'perhaps', 'might', 'may', 'could', 'possibly', 'probably', 'somewhat', 'seem', 'seems', 'seemed', 'appear', 'appears', 'suggest', 'suggests', 'likely', 'arguably']);
 const BOOSTERS = new Set(['very', 'really', 'extremely', 'absolutely', 'definitely', 'certainly', 'always', 'never', 'completely', 'totally', 'highly', 'strongly']);
 const FIRST_PERSON = new Set(['i', 'me', 'my', 'mine', 'myself', 'we', 'us', 'our', 'ours']);
+const SECOND_PERSON = new Set(['you', 'your', 'yours', 'yourself', 'yourselves']);
+// AP Lang register markers. Attribution verbs signal source engagement
+// (synthesis and rhetorical analysis); concession markers signal
+// counterargument handling (argument); rhetoric terms signal explicit
+// analysis of choices and effect (rhetorical analysis).
+const ATTRIBUTION_VERBS = new Set(['argues', 'argued', 'claims', 'claimed', 'asserts', 'asserted', 'contends', 'contended', 'states', 'stated', 'notes', 'noted', 'observes', 'observed', 'writes', 'wrote', 'according', 'acknowledges', 'maintains', 'insists', 'points']);
+const CONCESSION_MARKERS = new Set(['admittedly', 'granted', 'critics', 'opponents', 'skeptics', 'counterargument', 'concede', 'concedes', 'conceding', 'undeniably', 'certainly', 'true', 'detractors']);
+const RHETORIC_TERMS = new Set(['audience', 'tone', 'diction', 'imagery', 'appeal', 'appeals', 'ethos', 'pathos', 'logos', 'rhetorical', 'juxtaposition', 'repetition', 'anecdote', 'irony', 'metaphor', 'simile', 'syntax', 'shift', 'strategy', 'strategies', 'persuade', 'persuades', 'convey', 'conveys', 'emphasize', 'emphasizes', 'evoke', 'evokes']);
+const NOMINALIZATION_SUFFIX = /(tion|sion|ment|ness|ance|ence|ity)s?$/;
 const BE_FORMS = new Set(['is', 'are', 'was', 'were', 'be', 'been', 'being']);
 const FUNCTION_WORDS = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'so', 'of', 'to', 'in', 'on', 'at', 'by', 'for', 'with', 'from', 'as', 'that', 'this', 'these', 'those', 'it', 'its', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'can', 'could', 'shall', 'should', 'may', 'might', 'must', 'not', 'no', 'i', 'you', 'he', 'she', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your', 'his', 'their', 'our', 'there', 'here', 'what', 'which', 'who', 'when', 'where', 'how', 'than', 'then', 'if', 'because', 'while', 'about', 'into', 'over', 'under', 'up', 'down', 'out', 'off', 'again', 'also', 'just', 'only', 'both', 'each', 'all', 'any', 'some', 'more', 'most', 'other', 'such', 'own', 'same', 'too', 'am']);
 
@@ -89,7 +98,8 @@ export function computeStyleMetrics(text) {
 
   let subord = 0; let coord = 0; let transitions = 0; let hedges = 0; let boosters = 0;
   let firstPerson = 0; let functionWords = 0; let longWords = 0; let charSum = 0;
-  let passiveHits = 0;
+  let passiveHits = 0; let secondPerson = 0; let attribution = 0; let concession = 0;
+  let rhetoric = 0; let nominalizations = 0;
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     if (SUBORDINATORS.has(t)) subord++;
@@ -98,11 +108,19 @@ export function computeStyleMetrics(text) {
     if (HEDGES.has(t)) hedges++;
     if (BOOSTERS.has(t)) boosters++;
     if (FIRST_PERSON.has(t)) firstPerson++;
+    if (SECOND_PERSON.has(t)) secondPerson++;
+    if (ATTRIBUTION_VERBS.has(t)) attribution++;
+    if (CONCESSION_MARKERS.has(t)) concession++;
+    if (RHETORIC_TERMS.has(t)) rhetoric++;
+    if (t.length >= 6 && !FUNCTION_WORDS.has(t) && NOMINALIZATION_SUFFIX.test(t)) nominalizations++;
     if (FUNCTION_WORDS.has(t)) functionWords++;
     if (t.length >= 7) longWords++;
     charSum += t.length;
     if (BE_FORMS.has(t) && i + 1 < tokens.length && /(ed|en)$/.test(tokens[i + 1]) && tokens[i + 1].length > 4) passiveHits++;
   }
+  const contractions = (plain.match(/\b\w+'(t|s|re|ve|ll|d|m)\b/gi) ?? []).length;
+  // Straight and curly double quotes, counted as pairs: quoted evidence rate.
+  const quotePairs = Math.floor(((plain.match(/["“”]/g) ?? []).length) / 2);
 
   const punct = (re) => (plain.match(re) ?? []).length;
   const sentenceCount = sentences.length || 1;
@@ -136,6 +154,14 @@ export function computeStyleMetrics(text) {
     hedges_per_100_words: per100(hedges),
     boosters_per_100_words: per100(boosters),
     first_person_per_100_words: per100(firstPerson),
+    // AP Lang register markers (genre voice: synthesis, rhetorical analysis, argument)
+    second_person_per_100_words: per100(secondPerson),
+    attribution_verbs_per_100_words: per100(attribution),
+    concession_markers_per_100_words: per100(concession),
+    rhetoric_terms_per_100_words: per100(rhetoric),
+    quoted_evidence_per_100_words: per100(quotePairs),
+    contractions_per_100_words: per100(contractions),
+    nominalizations_per_100_words: per100(nominalizations),
   };
 }
 
@@ -147,14 +173,18 @@ export function recordStyleMetrics(db, { padId } = {}) {
     const pad = db.prepare('SELECT id, student_id, assignment_id, plain_text FROM native_pads WHERE id = ?').get(padId);
     if (!pad || !pad.plain_text || !/\w/.test(pad.plain_text)) return { status: 'skipped' };
     const metrics = computeStyleMetrics(pad.plain_text);
+    const essayType = db.prepare(
+      "SELECT COALESCE(json_extract(settings_json, '$.essay_type'), 'other') AS t FROM assignments WHERE id = ?"
+    ).get(pad.assignment_id)?.t ?? 'other';
     db.prepare(`
-      INSERT INTO style_metrics (native_pad_id, student_id, assignment_id, word_count, metrics_json)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO style_metrics (native_pad_id, student_id, assignment_id, word_count, metrics_json, essay_type)
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(native_pad_id) DO UPDATE SET
         word_count = excluded.word_count,
         metrics_json = excluded.metrics_json,
+        essay_type = excluded.essay_type,
         created_at = CURRENT_TIMESTAMP
-    `).run(pad.id, pad.student_id, pad.assignment_id, metrics.word_count, JSON.stringify(metrics));
+    `).run(pad.id, pad.student_id, pad.assignment_id, metrics.word_count, JSON.stringify(metrics), essayType);
     return { status: 'ok', metrics };
   } catch (error) {
     console.warn('[styleMetrics]', error?.message ?? error);
@@ -174,11 +204,21 @@ const LENGTH_FEATURES = new Set(['word_count', 'sentence_count', 'paragraph_coun
  * type and provenance next to it, never as an accusation on its own.
  */
 export function detectStyleAnomaly(db, { padId, threshold = 2 } = {}) {
-  const row = db.prepare('SELECT student_id, metrics_json FROM style_metrics WHERE native_pad_id = ?').get(padId);
+  const row = db.prepare('SELECT student_id, essay_type, metrics_json FROM style_metrics WHERE native_pad_id = ?').get(padId);
   if (!row) return { status: 'skipped', anomalies: [] };
-  const history = db.prepare(
-    'SELECT metrics_json FROM style_metrics WHERE student_id = ? AND native_pad_id != ? ORDER BY created_at, id'
-  ).all(row.student_id, padId);
+  // Compare within the same essay type when there is enough of it: a
+  // synthesis essay judged against argument history reads as an anomaly
+  // when it is really a genre shift. Fall back to all essays when thin.
+  let history = db.prepare(
+    'SELECT metrics_json FROM style_metrics WHERE student_id = ? AND native_pad_id != ? AND essay_type = ? ORDER BY created_at, id'
+  ).all(row.student_id, padId, row.essay_type ?? 'other');
+  let baseline = 'same_type';
+  if (history.length < 3) {
+    history = db.prepare(
+      'SELECT metrics_json FROM style_metrics WHERE student_id = ? AND native_pad_id != ? ORDER BY created_at, id'
+    ).all(row.student_id, padId);
+    baseline = 'all_types';
+  }
   const series = history.map((r) => { try { return JSON.parse(r.metrics_json); } catch { return null; } }).filter(Boolean);
   if (series.length < 3) return { status: 'insufficient_history', essays: series.length, anomalies: [] };
 
@@ -199,7 +239,7 @@ export function detectStyleAnomaly(db, { padId, threshold = 2 } = {}) {
     }
   }
   anomalies.sort((a, b) => Math.abs(b.z) - Math.abs(a.z));
-  return { status: 'ok', essays: series.length, anomalies };
+  return { status: 'ok', essays: series.length, baseline, anomalies };
 }
 
 /**
@@ -209,21 +249,38 @@ export function detectStyleAnomaly(db, { padId, threshold = 2 } = {}) {
  */
 export function aggregateStyleProfile(db, { studentId } = {}) {
   const rows = db.prepare(
-    'SELECT metrics_json, created_at FROM style_metrics WHERE student_id = ? ORDER BY created_at, id'
+    'SELECT metrics_json, essay_type, created_at FROM style_metrics WHERE student_id = ? ORDER BY created_at, id'
   ).all(studentId);
-  const series = rows.map((r) => { try { return JSON.parse(r.metrics_json); } catch { return null; } }).filter(Boolean);
-  if (!series.length) return { essays: 0, features: {} };
-  const features = {};
-  for (const key of Object.keys(series[0])) {
-    const vals = series.map((m) => Number(m[key])).filter(Number.isFinite);
-    if (!vals.length) continue;
-    const half = Math.floor(vals.length / 2);
-    features[key] = {
-      mean: round(mean(vals)),
-      sd: round(stdev(vals)),
-      latest: round(vals[vals.length - 1]),
-      trend: vals.length >= 4 ? round(mean(vals.slice(half)) - mean(vals.slice(0, half))) : null,
-    };
+  const parsed = rows
+    .map((r) => { try { return { metrics: JSON.parse(r.metrics_json), essay_type: r.essay_type ?? 'other' }; } catch { return null; } })
+    .filter(Boolean);
+  if (!parsed.length) return { essays: 0, features: {}, by_essay_type: {} };
+
+  const summarize = (series) => {
+    const features = {};
+    for (const key of Object.keys(series[0])) {
+      const vals = series.map((m) => Number(m[key])).filter(Number.isFinite);
+      if (!vals.length) continue;
+      const half = Math.floor(vals.length / 2);
+      features[key] = {
+        mean: round(mean(vals)),
+        sd: round(stdev(vals)),
+        latest: round(vals[vals.length - 1]),
+        trend: vals.length >= 4 ? round(mean(vals.slice(half)) - mean(vals.slice(0, half))) : null,
+      };
+    }
+    return features;
+  };
+
+  // The three AP Lang tasks demand different voices, so the profile keeps a
+  // per-type fingerprint next to the overall one (types with a single essay
+  // still show, with sd 0 and no trend).
+  const byType = {};
+  for (const p of parsed) (byType[p.essay_type] ??= []).push(p.metrics);
+  const by_essay_type = {};
+  for (const [type, series] of Object.entries(byType)) {
+    by_essay_type[type] = { essays: series.length, features: summarize(series) };
   }
-  return { essays: series.length, features };
+
+  return { essays: parsed.length, features: summarize(parsed.map((p) => p.metrics)), by_essay_type };
 }

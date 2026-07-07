@@ -15,9 +15,15 @@ import { aggregateStyleProfile } from './styleMetrics.js';
 const CHECKER_INTENT = 'google gemini flash';
 const MAX_TARGETS = 4;
 
-const DOER_SYSTEM_PROMPT = `You write a short profile summary for one English learner (L2) student, based only on the evidence given. This is formative coaching, not a grade. Grammar and spelling issues are practice targets, never punishment.
+const DOER_SYSTEM_PROMPT = `You write a short profile summary for one English learner (L2) student in an AP Language and Composition course, based only on the evidence given. This is formative coaching, not a grade. Grammar and spelling issues are practice targets, never punishment.
 
-Ground every claim in the numbers you are given. "writing_summary" describes recurring TECHNICAL issues using the per-100-words rates provided, not raw counts (essays differ in length, so counts alone mislead). "voice_summary" describes style and voice patterns using ONLY the stylometric numbers given (e.g. long flowing sentences with heavy coordination, an I-heavy personal register, few transitions) — never invent a pattern the numbers do not support. "targets" is a prioritised, exam-focused coaching list, at most 4 items, most important first.
+The course has three exam essay types and each demands a DIFFERENT voice:
+- synthesis: builds the student's own argument from provided sources; wants quoted evidence woven in with attribution verbs (argues, claims, contends), source names, and the student's position staying in charge of the sources.
+- rhetorical_analysis: analyses HOW another writer persuades; wants an analytical third-person register, rhetoric terms (tone, diction, appeals, audience), verbs of effect (conveys, evokes, emphasizes), and no personal opinion on the topic itself.
+- argument: defends the student's own position from their knowledge; wants a confident claim-driven voice with concession and refutation markers (admittedly, granted, critics) and controlled hedging.
+The stylometric fingerprint includes direct measures of these registers (attribution_verbs, rhetoric_terms, concession_markers, quoted_evidence, hedges, boosters, first/second person, contractions, nominalizations, all per 100 words). "by_essay_type" gives the fingerprint separately per type. When the data covers more than one type, say how well the student SHIFTS voice between types (e.g. strong argument voice but their rhetorical analysis still argues instead of analysing) and flag a register used in the wrong task (contractions or second person in formal tasks, no attribution in synthesis, no concession in argument).
+
+Ground every claim in the numbers you are given. "writing_summary" describes recurring TECHNICAL issues using the per-100-words rates provided, not raw counts (essays differ in length, so counts alone mislead). "voice_summary" describes style and voice patterns using ONLY the stylometric numbers given (e.g. long flowing sentences with heavy coordination, an I-heavy personal register, few transitions), including the per-type register shifts above when the data allows — never invent a pattern the numbers do not support. "targets" is a prioritised, exam-focused coaching list, at most 4 items, most important first; tie a target to the essay type it matters for when the evidence is type-specific.
 
 Write like a friendly teacher talking directly to the student, not like a report. Use "you", use contractions, keep sentences short. Low C1 level. No em dashes, no en dashes, no Oxford commas. Metric units only if any unit is mentioned. Target titles stay short, 3 to 6 words.
 
@@ -94,10 +100,12 @@ export async function generateProfileSummary(db, { studentId } = {}, { chat = ca
     `).all(studentId);
 
     const snapshotRows = db.prepare(`
-      SELECT rubric_kind, total, recorded_at
-      FROM score_snapshots
-      WHERE student_id = ?
-      ORDER BY recorded_at ASC
+      SELECT ss.rubric_kind, ss.total, ss.recorded_at,
+             COALESCE(json_extract(a.settings_json, '$.essay_type'), 'other') AS essay_type
+      FROM score_snapshots ss
+      JOIN assignments a ON a.id = ss.assignment_id
+      WHERE ss.student_id = ?
+      ORDER BY ss.recorded_at ASC
     `).all(studentId);
 
     const styleProfile = aggregateStyleProfile(db, { studentId });
@@ -126,8 +134,9 @@ export async function generateProfileSummary(db, { studentId } = {}, { chat = ca
       recurring_issues: issueRates,
       example_quotes: evidenceRows.map((r) => ({ code: r.code, label: r.label, quote: r.selected_text })),
       known_targets: targetRows,
-      score_trajectory: snapshotRows.map((r) => ({ rubric_kind: r.rubric_kind, total: r.total, at: r.recorded_at })),
+      score_trajectory: snapshotRows.map((r) => ({ rubric_kind: r.rubric_kind, essay_type: r.essay_type, total: r.total, at: r.recorded_at })),
       style_fingerprint: styleProfile.features,
+      style_fingerprint_by_essay_type: styleProfile.by_essay_type,
       essays_with_style_data: styleProfile.essays,
     };
 

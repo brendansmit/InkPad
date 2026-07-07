@@ -100,7 +100,8 @@ test('detectStyleAnomaly flags an essay that does not match the student voice', 
   db.exec(`CREATE TABLE style_metrics (
     id INTEGER PRIMARY KEY, native_pad_id INTEGER NOT NULL UNIQUE, student_id INTEGER NOT NULL,
     assignment_id INTEGER NOT NULL, word_count INTEGER NOT NULL DEFAULT 0,
-    metrics_json TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+    metrics_json TEXT NOT NULL DEFAULT '{}', essay_type TEXT NOT NULL DEFAULT 'other',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
 
   // Their normal: short simple sentences. Slight natural variation.
   const usual = 'I like my city. It is big. We walk to school. My friend comes too. The food is good. We eat noodles. Then we go home. My mother cooks rice.';
@@ -133,4 +134,83 @@ test('detectStyleAnomaly flags an essay that does not match the student voice', 
   // Too little history is reported, not guessed.
   db.exec('DELETE FROM style_metrics WHERE native_pad_id NOT IN (1, 99)');
   assert.equal(detectStyleAnomaly(db, { padId: 99 }).status, 'insufficient_history');
+});
+
+test('AP register features count attribution, rhetoric, concession, quotes and formality', () => {
+  const synthesis = 'Smith argues that "cities must adapt quickly" and the author of Source B claims the opposite. According to Jones, "planning fails without data". These sources suggest a middle path.';
+  const ms = computeStyleMetrics(synthesis);
+  assert.ok(ms.attribution_verbs_per_100_words > 5, 'argues, claims, according counted');
+  assert.ok(ms.quoted_evidence_per_100_words > 0, 'two quote pairs counted');
+
+  const rhetorical = 'The author uses vivid imagery and an urgent tone to persuade her audience. This diction conveys fear while the appeal to logos emphasizes the data.';
+  const mr = computeStyleMetrics(rhetorical);
+  assert.ok(mr.rhetoric_terms_per_100_words > 10, 'imagery, tone, diction, audience, appeal, logos counted');
+
+  const argument = "Admittedly, critics contend that homework helps. Granted, some practice matters. But it's clear the evidence points the other way and you can see it.";
+  const ma = computeStyleMetrics(argument);
+  assert.ok(ma.concession_markers_per_100_words > 5, 'admittedly, critics, granted counted');
+  assert.ok(ma.contractions_per_100_words > 0, "it's counted as informal register");
+  assert.ok(ma.second_person_per_100_words > 0, 'you counted');
+
+  const nominal = 'The implementation of the regulation caused significant transformation and the establishment of new governance.';
+  const mn = computeStyleMetrics(nominal);
+  assert.ok(mn.nominalizations_per_100_words > 10, 'implementation, regulation, transformation, establishment counted');
+});
+
+test('aggregateStyleProfile groups fingerprints per essay type', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE style_metrics (
+    id INTEGER PRIMARY KEY, native_pad_id INTEGER NOT NULL UNIQUE, student_id INTEGER NOT NULL,
+    assignment_id INTEGER NOT NULL, word_count INTEGER NOT NULL DEFAULT 0,
+    metrics_json TEXT NOT NULL DEFAULT '{}', essay_type TEXT NOT NULL DEFAULT 'other',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  const insert = db.prepare('INSERT INTO style_metrics (native_pad_id, student_id, assignment_id, word_count, metrics_json, essay_type) VALUES (?, 1, 1, ?, ?, ?)');
+  const synth = computeStyleMetrics('Smith argues that "data matters". According to Jones, "plans fail". I agree with Smith because the evidence is strong.');
+  const arg = computeStyleMetrics('Admittedly, critics disagree. But homework clearly helps because practice builds skill, although balance matters.');
+  insert.run(1, synth.word_count, JSON.stringify(synth), 'synthesis');
+  insert.run(2, arg.word_count, JSON.stringify(arg), 'argument');
+
+  const profile = aggregateStyleProfile(db, { studentId: 1 });
+  assert.equal(profile.essays, 2);
+  assert.deepEqual(Object.keys(profile.by_essay_type).sort(), ['argument', 'synthesis']);
+  assert.equal(profile.by_essay_type.synthesis.essays, 1);
+  assert.ok(profile.by_essay_type.synthesis.features.attribution_verbs_per_100_words.mean
+    > profile.by_essay_type.argument.features.attribution_verbs_per_100_words.mean,
+  'synthesis fingerprint shows more attribution than argument');
+  assert.ok(profile.by_essay_type.argument.features.concession_markers_per_100_words.mean > 0);
+});
+
+test('detectStyleAnomaly prefers same-type history so a genre shift is not an anomaly', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`CREATE TABLE style_metrics (
+    id INTEGER PRIMARY KEY, native_pad_id INTEGER NOT NULL UNIQUE, student_id INTEGER NOT NULL,
+    assignment_id INTEGER NOT NULL, word_count INTEGER NOT NULL DEFAULT 0,
+    metrics_json TEXT NOT NULL DEFAULT '{}', essay_type TEXT NOT NULL DEFAULT 'other',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
+  const insert = db.prepare('INSERT INTO style_metrics (native_pad_id, student_id, assignment_id, word_count, metrics_json, essay_type) VALUES (?, 1, 1, ?, ?, ?)');
+  const simple = 'I like my city. It is big. We walk to school. My friend comes too. The food is good.';
+  const academic = 'Although urbanization transforms cities, residents adapt because technology facilitates connectivity; consequently, communities negotiate configurations that scholars characterize as liberating.';
+  // Three personal essays and three rhetorical analyses in two distinct voices.
+  [simple, simple + ' We eat noodles.', simple + ' Then we go home. It is fun.'].forEach((t, i) => {
+    const m = computeStyleMetrics(t);
+    insert.run(i + 1, m.word_count, JSON.stringify(m), 'personal');
+  });
+  [academic, academic + ' The tone conveys urgency.', academic + ' Her diction emphasizes appeals to the audience and evokes fear.'].forEach((t, i) => {
+    const m = computeStyleMetrics(t);
+    insert.run(i + 10, m.word_count, JSON.stringify(m), 'rhetorical_analysis');
+  });
+  // A fourth rhetorical analysis in the same academic voice: with same-type
+  // baseline this is calm; against the personal essays it would scream.
+  const next = computeStyleMetrics(academic + ' The author uses imagery to persuade.');
+  insert.run(20, next.word_count, JSON.stringify(next), 'rhetorical_analysis');
+  const result = detectStyleAnomaly(db, { padId: 20 });
+  assert.equal(result.status, 'ok');
+  assert.equal(result.baseline, 'same_type');
+  assert.equal(result.anomalies.some((a) => a.feature === 'mean_sentence_length'), false,
+    'long academic sentences are normal for THIS task type');
+
+  // With no same-type history the baseline falls back to all essays.
+  db.exec("DELETE FROM style_metrics WHERE essay_type = 'rhetorical_analysis' AND native_pad_id != 20");
+  const fallback = detectStyleAnomaly(db, { padId: 20 });
+  assert.equal(fallback.baseline, 'all_types');
 });
