@@ -10,6 +10,12 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-06 — Reject any mark + configurable Doer model (DeepSeek default)
+
+- Reject button in the click-a-mark popover: AI-suggestion marks route through the disagree endpoint (feeds calibration and blocks re-analysis resurrection); other marks use the existing DELETE annotations route, which now also records the rejection when a suggestion links to the annotation.
+- Doer model is now a setting: ai_doer_intent (settingsStore read/writeDoerIntent, exposed in GET/PATCH /api/settings). Default flipped from 'anthropic claude haiku' to 'deepseek chat v3' on the teacher's call, with my agreement: DeepSeek found more genuine errors in the live smoke (64 vs 46), is trained heavily on Chinese-English usage (better calque/MT instincts), and is cheaper. All six Doer services (literacyCoder, markerProfile, implementationScorer, feedbackSuggester, profileSummarizer, reportSnippet) read the setting per call. Checker stays gemini flash (different family, CLAUDE.md §8 intact). Change models any time by PATCHing ai_doer_intent, e.g. 'moonshot kimi k2' or back to 'anthropic claude haiku'.
+- Suite 162/162. Deployed (DB backup pre-doer), wrapper active.
+
 ## 2026-07-06 — Learning loop: teacher corrections calibrate the marking prompts
 
 - New src/services/promptCalibration.js: buildCalibration(db) mines the three correction signals already recorded (rejected/disagreed suggestions = false positives; teacher-added literacy_code annotations = misses; annotation_updated events with code_from/code_to = confusion pairs, now logged with before/after codes and the quote) and renders a hard-capped CALIBRATION block ("the teacher rejected findings like these, do not flag similar", "the teacher had to add these by hand, watch for similar", "the teacher often changes Exp -> WW"). Appended to BOTH the Doer and Checker system prompts on every run, so accuracy improves for this teacher with every essay marked, no training step, ~zero cost.
