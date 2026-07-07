@@ -41,7 +41,7 @@ Entry format:
 - Asked: the assignment list and student essay list were still not mobile-friendly; the review page fix was too narrow.
 - Did: updated `public/teacher/assignments.html` so the assignment list header/actions stack on mobile, assignment cards expose usable full-width action buttons, the assignment detail controls stack and the student roster gets a dedicated mobile card view with prominent Review essay/Profile/Unassign actions.
 - Did: added a visible roster loading state so slow network/server restart does not look like a dead blank table.
-- Verified: assignments inline script syntax OK; `test/assignments.test.js` passed 20/20 on Node 24.
+- Verified: assignments inline script syntax OK; `test/assignments.test.js` passed 20/20 on Node 24. Live `https://inkpad.inkheron.app/assets/teacher/assignments.html` is still the old file and does not contain this commit yet.
 
 ## 2026-07-07 — Checked mobile review deployment
 
