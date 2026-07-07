@@ -48,6 +48,8 @@ const expectedColumns = {
   test_attempts: ['id', 'assignment_id', 'student_id', 'started_at', 'submitted_at', 'seconds_allowed'],
   test_responses: ['id', 'attempt_id', 'question_id', 'answer_json', 'is_correct', 'points_awarded', 'updated_at'],
   test_focus_events: ['id', 'attempt_id', 'at', 'kind'],
+  toefl_estimates: ['id', 'student_id', 'integrated_band', 'discussion_band', 'scaled_low', 'scaled_high', 'confidence', 'rationale', 'evidence_json', 'model', 'created_at'],
+  known_toefl_scores: ['id', 'student_id', 'writing_score', 'noted_at', 'created_at'],
 };
 
 const migrationFiles = [
@@ -81,6 +83,7 @@ const migrationFiles = [
   '028_pad_feedback_release.sql',
   '029_test_portal.sql',
   '030_style_metrics_essay_type.sql',
+  '031_toefl_estimates.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {
