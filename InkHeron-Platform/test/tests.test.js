@@ -787,6 +787,7 @@ test('test exam activity supports acknowledgement, live monitor, pause, unlock a
   assert.equal(live.json().rows[0].current_question.id, mcq.id);
   assert.equal(live.json().rows[0].answered_count, 1);
   assert.equal(live.json().rows[0].warning_count, 1);
+  assert.equal(live.json().rows[0].latest_warning.id, warning.json().event.id);
 
   const paused = await app.inject({
     method: 'POST',
@@ -841,6 +842,7 @@ test('test exam activity supports acknowledgement, live monitor, pause, unlock a
   assert.equal(liveAfterExcuse.statusCode, 200);
   assert.equal(liveAfterExcuse.json().rows[0].warning_count, 0);
   assert.equal(liveAfterExcuse.json().rows[0].excused_warning_count, 1);
+  assert.equal(liveAfterExcuse.json().rows[0].latest_warning, null);
 
   const force = await app.inject({
     method: 'POST',

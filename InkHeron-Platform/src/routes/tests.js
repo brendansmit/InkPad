@@ -1028,12 +1028,19 @@ function liveMonitorRows(db, assignment) {
     FROM test_activity_events
     WHERE attempt_id = ? AND excused_at IS NOT NULL AND ${warningSql}
   `);
+  const latestWarning = db.prepare(`
+    SELECT * FROM test_activity_events
+    WHERE attempt_id = ? AND excused_at IS NULL AND ${warningSql}
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  `);
   const answerCount = db.prepare('SELECT COUNT(*) AS count FROM test_responses WHERE attempt_id = ?');
   return reviewRows.map((row) => {
     const attempt = row.attempt ? db.prepare('SELECT * FROM test_attempts WHERE id = ?').get(row.attempt.id) : null;
     const latest = attempt ? latestEvent.get(attempt.id) : null;
     const current = attempt ? latestQuestion.get(attempt.id) : null;
     const warningParams = attempt ? [attempt.id, ...WARNING_EVENTS] : [];
+    const warning = attempt ? latestWarning.get(...warningParams) : null;
     return {
       student: row.student,
       attempt: attempt ? publicAttempt(db, assignment, attempt) : null,
@@ -1051,6 +1058,13 @@ function liveMonitorRows(db, assignment) {
         question_id: latest.question_id ?? null,
         section_index: latest.section_index ?? null,
         created_at: latest.created_at,
+      } : null,
+      latest_warning: warning ? {
+        id: warning.id,
+        event_type: warning.event_type,
+        question_id: warning.question_id ?? null,
+        section_index: warning.section_index ?? null,
+        created_at: warning.created_at,
       } : null,
     };
   });
