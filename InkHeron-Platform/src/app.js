@@ -107,7 +107,7 @@ export async function buildApp(options = {}) {
   await registerAuth(app, { db });
   await registerIdentityRoutes(app, { db });
   await registerAssignmentRoutes(app, { db });
-  await registerTestRoutes(app, { db });
+  await registerTestRoutes(app, { db, chat: options.chat });
   await registerSettingsRoutes(app, { db });
   await registerSettingsTestRoutes(app, { db });
   await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });

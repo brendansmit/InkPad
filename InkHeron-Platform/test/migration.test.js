@@ -44,7 +44,7 @@ const expectedColumns = {
   implementation_scores: ['id', 'rewrite_pad_id', 'original_pad_id', 'student_id', 'addressed_json', 'cosmetic_ratio', 'meaningful', 'summary', 'model', 'created_at'],
   ai_grade_estimates: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'criterion_id', 'ai_score', 'teacher_score', 'delta', 'model', 'rationale', 'created_at', 'scored_at'],
   ai_feedback_item_suggestions: ['id', 'native_pad_id', 'kind', 'title', 'explanation', 'try_now_prompt', 'model', 'checker_json', 'status', 'feedback_item_id', 'created_at', 'resolved_at'],
-  test_questions: ['id', 'kind', 'prompt_text', 'options_json', 'answer_index', 'model_answer', 'points', 'tag', 'is_archived', 'created_at', 'updated_at'],
+  test_questions: ['id', 'kind', 'prompt_text', 'options_json', 'answer_index', 'model_answer', 'points', 'tag', 'is_archived', 'created_at', 'updated_at', 'topic', 'tags_json', 'origin_assignment_id'],
   test_attempts: ['id', 'assignment_id', 'student_id', 'started_at', 'submitted_at', 'seconds_allowed'],
   test_responses: ['id', 'attempt_id', 'question_id', 'answer_json', 'is_correct', 'points_awarded', 'updated_at'],
   test_focus_events: ['id', 'attempt_id', 'at', 'kind'],
@@ -84,6 +84,7 @@ const migrationFiles = [
   '029_test_portal.sql',
   '030_style_metrics_essay_type.sql',
   '031_toefl_estimates.sql',
+  '032_question_bank_topics.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

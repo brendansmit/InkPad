@@ -1,9 +1,15 @@
+import path from 'node:path';
 import { realStudentsWhere } from '../db/realStudents.js';
+import { extractDocxText } from '../feedback/assets.js';
+import { callChat } from '../services/openRouter.js';
+import { readDoerIntent } from '../services/settingsStore.js';
+import { parseJsonArraySalvage } from '../services/literacyCoder.js';
 
 const QUESTION_KINDS = new Set(['mcq', 'srq', 'frq']);
 const FOCUS_KINDS = new Set(['blur', 'focus']);
 const TEST_SECTION_KINDS = new Set(['mcq', 'srq', 'frq']);
 const TIMER_GRACE_SECONDS = 30;
+const MAX_BULK_IMPORT_FILE_BYTES = 5 * 1024 * 1024;
 
 function nowIso() {
   return new Date().toISOString();
@@ -34,6 +40,15 @@ function parseJson(value, fallback) {
   } catch (_) {
     return fallback;
   }
+}
+
+function extractJsonArray(raw) {
+  const text = String(raw ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```json|```/g, '');
+  const start = text.indexOf('[');
+  if (start < 0) return [];
+  const end = text.lastIndexOf(']');
+  const slice = end > start ? text.slice(start, end + 1) : text.slice(start);
+  return parseJsonArraySalvage(slice) ?? [];
 }
 
 function parseSettings(row) {
@@ -119,6 +134,32 @@ function normalizeQuestionInput(body, existing = {}) {
     tags,
     tagsJson: JSON.stringify(tags),
     tag: tags[0] ?? '',
+  };
+}
+
+function normalizeBulkMcqItem(item, index = 0) {
+  const promptText = String(item?.prompt_text ?? item?.prompt ?? '').trim();
+  const options = Array.isArray(item?.options)
+    ? item.options.map((option) => String(option ?? '').trim()).filter(Boolean).slice(0, 8)
+    : [];
+  if (!promptText || options.length < 2) {
+    const err = new Error(`invalid_bulk_question_${index + 1}`);
+    err.statusCode = 400;
+    throw err;
+  }
+  const rawAnswer = item?.answer_index;
+  const answerIndex = rawAnswer === null || rawAnswer === undefined || rawAnswer === ''
+    ? null
+    : (Number.isInteger(Number(rawAnswer)) ? Number(rawAnswer) : null);
+  return {
+    kind: 'mcq',
+    promptText,
+    optionsJson: JSON.stringify(options),
+    answerIndex: answerIndex !== null && answerIndex >= 0 && answerIndex < options.length ? answerIndex : null,
+    modelAnswer: null,
+    points: normalizePoints(item?.points ?? 1),
+    topic: String(item?.topic ?? '').trim().slice(0, 80),
+    tags: normalizeTags(item?.tags, []),
   };
 }
 
@@ -302,6 +343,221 @@ function buildTestSettings(body) {
       reveal_answers: body?.reveal_answers === true,
     },
   };
+}
+
+function updateAssignmentSections(db, assignment, sections) {
+  const settings = parseSettings(assignment);
+  settings.test = settings.test && typeof settings.test === 'object' ? settings.test : {};
+  settings.test.sections = normalizeSections(db, sections);
+  db.prepare('UPDATE assignments SET settings_json = ? WHERE id = ?').run(JSON.stringify(settings), assignment.id);
+  return settings.test.sections;
+}
+
+function appendQuestionIdsToAssignment(db, assignmentId, questionIds, sectionIndex = null) {
+  if (!questionIds.length) return { added: 0, sections: [] };
+  const assignment = ensureTeacherTestAssignment(db, assignmentId);
+  const sections = testConfig(assignment).sections.map((section) => ({
+    ...section,
+    question_ids: [...(section.question_ids ?? [])],
+  }));
+  const questions = questionIds.map((id) => {
+    const question = loadQuestion(db, id);
+    if (!question || question.is_archived === 1) {
+      const err = new Error('question_not_found');
+      err.statusCode = 404;
+      throw err;
+    }
+    return question;
+  });
+  const kindSet = new Set(questions.map((question) => question.kind));
+  if (kindSet.size !== 1) {
+    const err = new Error('mixed_question_kinds_need_section');
+    err.statusCode = 400;
+    throw err;
+  }
+  const kind = questions[0].kind;
+  let targetIndex = sectionIndex === null || sectionIndex === undefined || sectionIndex === ''
+    ? sections.findIndex((section) => section.kind === kind)
+    : Number(sectionIndex);
+  if (!Number.isInteger(targetIndex) || targetIndex < 0) {
+    const err = new Error('invalid_section_index');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (targetIndex >= sections.length) {
+    if (sectionIndex !== null && sectionIndex !== undefined && sectionIndex !== '') {
+      const err = new Error('invalid_section_index');
+      err.statusCode = 400;
+      throw err;
+    }
+    sections.push({ kind, title: kind.toUpperCase(), passage_text: '', question_ids: [] });
+    targetIndex = sections.length - 1;
+  }
+  const target = sections[targetIndex];
+  if (target.kind !== kind) {
+    const err = new Error('section_kind_mismatch');
+    err.statusCode = 400;
+    throw err;
+  }
+  const existing = new Set(target.question_ids ?? []);
+  let added = 0;
+  for (const id of questionIds) {
+    if (existing.has(id)) continue;
+    target.question_ids.push(id);
+    existing.add(id);
+    added += 1;
+  }
+  const normalized = updateAssignmentSections(db, assignment, sections);
+  return { added, sections: normalized };
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let quoted = false;
+  const source = String(text ?? '').replace(/^\uFEFF/, '');
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    if (quoted) {
+      if (ch === '"' && source[i + 1] === '"') {
+        cell += '"';
+        i += 1;
+      } else if (ch === '"') {
+        quoted = false;
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === ',') {
+      row.push(cell);
+      cell = '';
+    } else if (ch === '\n') {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = '';
+    } else if (ch !== '\r') {
+      cell += ch;
+    }
+  }
+  row.push(cell);
+  rows.push(row);
+  return rows.filter((items) => items.some((item) => String(item).trim()));
+}
+
+function csvHeaderMap(row) {
+  return new Map(row.map((cell, index) => [String(cell ?? '').trim().toLowerCase(), index]));
+}
+
+function isStructuredCsv(text) {
+  const [header] = parseCsv(text);
+  if (!header) return false;
+  const map = csvHeaderMap(header);
+  return map.has('prompt') && map.has('optiona') && map.has('optionb') && map.has('answer');
+}
+
+function csvValue(row, headers, name) {
+  const index = headers.get(name.toLowerCase());
+  return index === undefined ? '' : String(row[index] ?? '').trim();
+}
+
+function parseAnswer(value, optionCount) {
+  const text = String(value ?? '').trim();
+  if (!text) return null;
+  const letter = text.match(/^[A-H]$/i);
+  if (letter) return letter[0].toUpperCase().charCodeAt(0) - 65;
+  const number = Number(text);
+  if (Number.isInteger(number)) return number - 1;
+  const parsed = Number.parseInt(text, 10);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= optionCount ? parsed - 1 : null;
+}
+
+function parseStructuredCsvQuestions(text) {
+  const rows = parseCsv(text);
+  if (rows.length < 2) return [];
+  const headers = csvHeaderMap(rows[0]);
+  return rows.slice(1).map((row, index) => {
+    const options = ['optiona', 'optionb', 'optionc', 'optiond', 'optione', 'optionf', 'optiong', 'optionh']
+      .map((name) => csvValue(row, headers, name))
+      .filter(Boolean);
+    const answerIndex = parseAnswer(csvValue(row, headers, 'answer'), options.length);
+    return normalizeBulkMcqItem({
+      prompt_text: csvValue(row, headers, 'prompt'),
+      options,
+      answer_index: answerIndex,
+      points: csvValue(row, headers, 'points') || 1,
+      topic: csvValue(row, headers, 'topic'),
+      tags: normalizeTags(csvValue(row, headers, 'tags').split(/[;,]/), []),
+    }, index);
+  });
+}
+
+async function parseLooseMcqQuestions(db, text, description, chat) {
+  const result = await chat(db, {
+    intent: readDoerIntent(db),
+    messages: [
+      {
+        role: 'system',
+        content: `You convert a teacher's raw multiple-choice questions into structured JSON. Return ONLY a JSON array. Each item: { prompt_text, options: [..2-8..], answer_index (0-based; null if the correct answer is not marked), topic (2-4 word subject label), tags (1-4 short labels) }. Infer topic and tags from the question content and this teacher description: ${String(description ?? '')}`,
+      },
+      { role: 'user', content: String(text ?? '').slice(0, 50000) },
+    ],
+    maxTokens: 8000,
+    temperature: 0.1,
+  });
+  return extractJsonArray(result?.choices?.[0]?.message?.content ?? '')
+    .map((item, index) => normalizeBulkMcqItem(item, index));
+}
+
+async function readBulkImportRequest(request) {
+  if (!request.isMultipart()) {
+    return {
+      fields: request.body ?? {},
+      text: String(request.body?.raw_text ?? '').trim(),
+      filename: '',
+      fileKind: '',
+    };
+  }
+  const fields = {};
+  let file = null;
+  for await (const part of request.parts()) {
+    if (part.file) {
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of part.file) {
+        size += chunk.length;
+        if (size > MAX_BULK_IMPORT_FILE_BYTES) {
+          part.file.resume();
+          const err = new Error('file_too_large');
+          err.statusCode = 413;
+          throw err;
+        }
+        chunks.push(chunk);
+      }
+      file = {
+        filename: part.filename || '',
+        mimeType: part.mimetype || '',
+        buffer: Buffer.concat(chunks),
+      };
+    } else {
+      fields[part.fieldname] = part.value;
+    }
+  }
+  if (!file) {
+    return { fields, text: String(fields.raw_text ?? '').trim(), filename: '', fileKind: '' };
+  }
+  const ext = path.extname(file.filename).toLowerCase();
+  if (ext === '.csv') {
+    return { fields, text: file.buffer.toString('utf8').replace(/^\uFEFF/, '').trim(), filename: file.filename, fileKind: 'csv' };
+  }
+  if (ext === '.docx' || file.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    return { fields, text: extractDocxText(file.buffer), filename: file.filename, fileKind: 'docx' };
+  }
+  const err = new Error('unsupported_file_type');
+  err.statusCode = 400;
+  throw err;
 }
 
 function insertOrGetAttempt(db, assignment, studentId) {
@@ -626,7 +882,7 @@ function loadReviewRows(db, assignment) {
   });
 }
 
-export async function registerTestRoutes(app, { db }) {
+export async function registerTestRoutes(app, { db, chat = callChat }) {
   app.get('/api/tests/questions',
     { preValidation: [app.requireTeacherSession] },
     async (request) => {
@@ -713,6 +969,99 @@ export async function registerTestRoutes(app, { db }) {
       const next = existing.is_archived === 1 ? 0 : 1;
       db.prepare('UPDATE test_questions SET is_archived = ?, updated_at = datetime(\'now\') WHERE id = ?').run(next, id);
       return { is_archived: next === 1 };
+    }
+  );
+
+  app.post('/api/tests/questions/bulk-import',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request, reply) => {
+      const input = await readBulkImportRequest(request);
+      const rawText = input.text;
+      if (!rawText) return reply.code(400).send({ error: 'raw_text_or_file_required' });
+      const kind = String(input.fields?.kind ?? 'mcq').trim();
+      if (kind !== 'mcq') return reply.code(400).send({ error: 'only_mcq_bulk_import_supported' });
+      const assignmentId = input.fields?.assignment_id ? requirePositiveInteger(input.fields.assignment_id, 'assignment_id') : null;
+      const sectionIndex = input.fields?.section_index === undefined || input.fields?.section_index === ''
+        ? null
+        : Number(input.fields.section_index);
+      if (sectionIndex !== null && (!Number.isInteger(sectionIndex) || sectionIndex < 0)) {
+        return reply.code(400).send({ error: 'invalid_section_index' });
+      }
+      const description = String(input.fields?.description ?? '');
+      const warnings = [];
+      const parsed = input.fileKind === 'csv' || isStructuredCsv(rawText)
+        ? parseStructuredCsvQuestions(rawText)
+        : await parseLooseMcqQuestions(db, rawText, description, chat);
+      if (!parsed.length) return reply.code(400).send({ error: 'no_questions_found' });
+
+      const createdIds = [];
+      db.exec('BEGIN');
+      try {
+        const insert = db.prepare(`
+          INSERT INTO test_questions
+            (kind, prompt_text, options_json, answer_index, model_answer, points, tag, topic, tags_json, origin_assignment_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        for (const item of parsed) {
+          const tagsJson = JSON.stringify(item.tags);
+          const result = insert.run(
+            'mcq',
+            item.promptText,
+            item.optionsJson,
+            item.answerIndex,
+            null,
+            item.points,
+            item.tags[0] ?? '',
+            item.topic,
+            tagsJson,
+            assignmentId
+          );
+          createdIds.push(result.lastInsertRowid);
+        }
+        let addedToQuiz = 0;
+        if (assignmentId) {
+          addedToQuiz = appendQuestionIdsToAssignment(db, assignmentId, createdIds, sectionIndex).added;
+        }
+        db.exec('COMMIT');
+        const created = createdIds.map((id) => teacherQuestion(loadQuestion(db, id)));
+        return reply.code(201).send({
+          created,
+          added_to_quiz: addedToQuiz,
+          needs_answer: created.filter((question) => question.answer_index === null).map((question) => question.id),
+          warnings,
+        });
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+    }
+  );
+
+  app.post('/api/tests/assignments/:id/append-questions',
+    { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
+    async (request) => {
+      const assignmentId = requirePositiveInteger(request.params.id, 'id');
+      const questionIds = Array.isArray(request.body?.question_ids)
+        ? request.body.question_ids.map((id) => requirePositiveInteger(id, 'question_id'))
+        : [];
+      if (!questionIds.length) {
+        const err = new Error('question_ids_required');
+        err.statusCode = 400;
+        throw err;
+      }
+      const sectionIndex = request.body?.section_index === undefined || request.body?.section_index === ''
+        ? null
+        : Number(request.body.section_index);
+      db.exec('BEGIN');
+      try {
+        const result = appendQuestionIdsToAssignment(db, assignmentId, questionIds, sectionIndex);
+        db.exec('COMMIT');
+        const assignment = ensureTeacherTestAssignment(db, assignmentId);
+        return { added: result.added, sections: result.sections, assignment };
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
     }
   );
 
