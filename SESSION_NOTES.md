@@ -257,3 +257,16 @@ Did:
 **Found:** Both were already registered — `apps.json` has `inkpad` (open runtime → https://inkpad.inkheron.app, opened directly by launcher_server.py line 76) and `server-dashboard` (Flask deploy dashboard on 5095), and both sit in the `launcher.html` APPS array as cards 09 and 10. Only cosmetic gaps remained.
 
 **Did:** `launcher.html` — added accent colours for `.card:nth-child(9)` (violet) and `(10)` (amber); fixed sidebar footer "8 tools" → "10 tools". Committed `83d9cb6`. No launcher restart needed (apps.json read live).
+
+## 2026-07-07 — Deploy dashboard: add InkPad (live) tab
+
+**Asked:** InkPad is not in the server dashboard, I cannot deploy any updates.
+
+**Root cause:** Two deployments of the InkHeron-Platform repo exist. The live site `inkpad.inkheron.app` is `/opt/inkheron-platform`, a systemd service `inkheron-wrapper` on port 3000. The dashboard only had an "EAP" tab, which deploys `/opt/eap-platform` — an older pm2 copy on port 3466 serving `eap.inkheron.app`. So every deploy hit the wrong (old) copy and the live site never updated.
+
+**Did:**
+- `deploy_server.py`: added `inkpad` server — rsync deploy (excludes .git/node_modules/data/.env), remote `/opt/inkheron-platform`, DB backup + `node src/db/migrate.js` on deploy, restart `systemctl restart inkheron-wrapper`, logs via `journalctl -u inkheron-wrapper`, health `inkpad.inkheron.app/healthz`. Made `inkpad` the default server. Added a `logs_cmd` override so systemd apps use journalctl instead of `pm2 logs`.
+- `dashboard.html`: added "InkPad" tab (default active), relabelled the pm2 copy "EAP (old)", added the label mapping, default `currentServer='inkpad'`.
+- Verified Python parses. Could not run a live health probe (sandbox blocks outbound HTTPS — both inkpad and eap return 000 here identically). No deploy triggered; that is the teacher's to click.
+
+Committed `fac26be`.
