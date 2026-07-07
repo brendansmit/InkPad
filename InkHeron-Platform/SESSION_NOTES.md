@@ -36,6 +36,12 @@ Entry format:
 - NOTE: another session is editing this working tree concurrently (assignments.html, assignments.js, nativePads.js, two test files). Staged only my hunk of nativePads.js via git apply --cached. Commit 2a6c36e. Suite 165/165 green in the shared working tree.
 - Not deployed yet; rides along with the pending test-greenpen merge decision.
 
+## 2026-07-07 — Checked mobile review deployment
+
+- Asked: check whether the mobile native-review UI fix has been deployed.
+- Did: fetched `https://inkpad.inkheron.app/assets/teacher/native-review.html` and confirmed the live HTML contains the mobile markers from commit `56d2a10`: `@media (max-width:760px)`, two-column tablet rail, `placeFloating`, `ontouchend`, larger button targets and scrollable rubric scale.
+- Verified: live static asset returned 200, protected `/teacher/native-review` returned 401 unauthenticated as expected, live asset `last-modified` was Tue, 07 Jul 2026 08:15:34 GMT.
+
 ## 2026-07-07 — Mobile native review UI
 
 - Asked: make `/teacher/native-review*` usable for grading and feedback on a phone or iPad.
@@ -379,37 +385,3 @@ Entry format:
 - Decisions: rubric context pulled across all `rubric_kind` values (not just 'internal') since it is only used as prompt context, not for scoring, so the richer picture triangulates better.
 - Open / next: student target tick-off endpoint, essay_type/supervision settings fields.
 - Gotchas hit: none.
-
-## 2026-07-03 — Sonnet: phase D3 hidden AI rubric estimate
-
-- Phase/Step worked: SONNET_HANDOFF.md phase D3, `estimateRubric` in `src/services/markerProfile.js`.
-- Built: reads `native_pads.plain_text` + `assignment_rubric_criteria`/`assignment_rubric_bands` grouped by `rubric_kind`; one Doer (haiku) call per rubric_kind scoring strictly against the given bands, explicitly told grammar/spelling/punctuation are not grading factors for L2 learners (CLAUDE.md §8.1); deterministic guard drops any score outside that criterion's band min/max regardless of checker availability; Checker (gemini flash) additionally drops estimates it judges out of range or ungrounded; delete-then-insert into `ai_grade_estimates` in a transaction, `teacher_score`/`delta` left NULL for `recordTeacherScores` to fill later. `recordTeacherScores` untouched. 8 tests (happy path across two rubric_kinds, re-run no duplicates, deterministic guard without checker, checker-flagged drop, checker-failure non-fatal, missing-rubric skip, empty-text skip, doer-failure writes nothing). Commit d12bc1b.
-- Decisions: already wired at submit per handoff (`src/routes/nativePads.js` ~line 1114), no route change needed for D3.
-- Open / next: phases C and D3 both done. Next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
-- Gotchas hit: none.
-
-## 2026-07-03 — Sonnet: phase C student profile summariser
-
-- Phase/Step worked: SONNET_HANDOFF.md phase C, `generateProfileSummary` in `src/services/profileSummarizer.js`.
-- Built: reads `student_literacy_issue_stats`, `student_literacy_evidence`, `native_feedback_items` targets, `score_snapshots`, and `aggregateStyleProfile` (styleMetrics.js) for one student; issue rates converted to per-100-words (never raw counts, per the normalization rule); one Doer call grounded in that evidence returns `writing_summary`/`voice_summary`/`targets` (voice_summary restricted to only what the stylometric numbers show); one Checker call verifies each of the three fields is supported, dropping to empty/fallback at confidence >= 0.8; upserts `student_writing_profiles`. Wired into `finish-marking` in `src/routes/nativePads.js` via the existing `runInBackground` helper. 6 tests (happy path, upsert idempotency, checker-flagged field dropped, checker-failure non-fatal, empty-evidence skip without a model call, doer-failure writes nothing). Commit 07e284c.
-- Decisions: "per-field" Checker verdict interpreted as the three top-level JSON keys, not per-target-item, matching the handoff's "drop to fallback for that field" language.
-- Open / next: feedback suggester seam + migration 026, student target tick-off endpoint, essay_type/supervision settings fields.
-- Gotchas hit: none.
-
-## 2026-07-04 — Fix: inkpad root showed the EAP landing after deploy
-
-- The deploy shipped the repo's public/index.html (the EAP portal landing) over inkpad.inkheron.app's root, which had been running an older page. Root cause: one public/ dir, two domains, a single static root route.
-- Fix (host-aware root in src/app.js, tested): requests with a host starting inkpad. get a rebuilt student/teacher chooser (new public/inkpad-home.html, matching the page signout expects); every other host keeps the EAP landing. Hot-deployed, verified live on both domains plus /teacher-login.
-- Future deploys are now safe for both portals from the same tree.
-
-## 2026-07-04 — Production deploy + live validation on the droplet
-
-- Deployed analysis-ai (committed tree only, via git archive + tar) to /opt/inkheron-platform (the systemd inkheron-wrapper app behind inkpad.inkheron.app, port 3000, Node 24). DB backed up first (inkheron.db.pre-analysis-202607041050). Migrations 019-026 applied cleanly on restart, live 200. Note: /opt/eap-platform (pm2, port 3466) is a SEPARATE older copy serving eap.inkheron.app; not updated this round.
-- Live validation on a ghost student (GHOST-VALIDATION class, ghost.validation, is_ghost=1 so invisible to stats): full pipeline with production models from Singapore. First run exposed two live bugs: (1) resolver picked gemini-3.1-flash-lite-IMAGE as checker; (2) gemini rubber-stamped 46/46 findings at 0.9-1.0 despite the calibrated prompt, leaving the contested pile empty.
-- Fixes (committed + hot-deployed): resolver penalizes modality variants (image/audio/video/vision/-vl-) unless asked; checker now ALWAYS flags the least-confident ~10% of batches >= 5 as 'least_confident' so they stay pending. Second run: checker = gemini-3.5-flash, 46 findings, 39 auto + 7 contested, 42 s and ~17k tokens per essay end to end. Estimates hidden (3 rows), suggester produced 3 strengths + 5 targets.
-- Validation artifact kept for teacher inspection: assignment "PIPELINE VALIDATION (ghost)" id 15, pad 55 on production. Older runs deleted.
-- Deferred deliberately: marker-profile payoff view (no delta data until a term of marking) and class-level dashboard (Opus job once real profiles exist).
-
-## 2026-07-04 — Green pen v3: student code explainers
-
-- Clicking a code chip in the right panel now both filters the marks to that code (others dim) and opens an explainer card: "WW = Wrong word", what it means in B1-C1 English and a Quick fix hint. All 20 codes covered in GP_CODE_INFO in nativeWrite.js. Fixed a latent key collision: symbol codes ^ // and the tick previously all normalized to the same CSS key; now caret/para/tick with their own colours. Browser-verified (AA/Adj chip shows the card, only "more clear" stays coloured). Commit dfc7793, suite 121/125 known 4.
