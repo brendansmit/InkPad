@@ -8,6 +8,7 @@
  */
 import { callChat } from './openRouter.js';
 import { verifyFindings } from './checker.js';
+import { buildCalibration } from './promptCalibration.js';
 
 const DOER_INTENT = 'anthropic claude haiku';
 
@@ -190,11 +191,14 @@ export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat 
 
     const findings = [];
     let modelId = '';
+    // Corrections from past marking sessions steer this run (learning loop).
+    const calibration = buildCalibration(db);
+    const systemPrompt = SYSTEM_PROMPT + calibration;
     for (const para of splitParagraphs(plainText)) {
       const result = await chat(db, {
         intent: DOER_INTENT,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: para.text },
         ],
         maxTokens: 4000,

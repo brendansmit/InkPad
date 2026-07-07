@@ -2059,7 +2059,17 @@ function loadImplementationScore(db, padId) {
         SET body = ?, resolved = ?, metadata_json = ?, updated_at = datetime('now')
         WHERE id = ?
       `).run(body, resolved, metadataJson, annotationId);
-      logTeacherEvent(db, existing.native_pad_id, request.session.user.id, 'annotation_updated', { annotation_id: annotationId });
+      // Record code changes with before/after so the calibration loop can learn
+      // which codes the analysis confuses for this teacher.
+      let recodeMeta = { annotation_id: annotationId };
+      if (previousKey) {
+        let newMeta = {};
+        try { newMeta = JSON.parse(metadataJson || '{}'); } catch { newMeta = {}; }
+        if (newMeta.code && newMeta.code !== previousKey.code) {
+          recodeMeta = { annotation_id: annotationId, code_from: previousKey.code, code_to: newMeta.code, quote: (existing.selected_text ?? '').slice(0, 120) };
+        }
+      }
+      logTeacherEvent(db, existing.native_pad_id, request.session.user.id, 'annotation_updated', recodeMeta);
       const row = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annotationId);
       const pad = loadTeacherNativePad(db, existing.native_pad_id);
       if (pad) {

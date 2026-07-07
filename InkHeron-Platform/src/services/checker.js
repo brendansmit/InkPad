@@ -16,6 +16,7 @@
  */
 import { callChat } from './openRouter.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
+import { buildCalibration } from './promptCalibration.js';
 
 const CHECKER_INTENT = 'google gemini flash';
 
@@ -85,7 +86,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
     const result = await chat(db, {
       intent: CHECKER_INTENT,
       messages: [
-        { role: 'system', content: CHECKER_SYSTEM_PROMPT },
+        { role: 'system', content: CHECKER_SYSTEM_PROMPT + buildCalibration(db) },
         { role: 'user', content: `TEXT:\n${padPlainText}\n\nFINDINGS:\n${listing}` },
       ],
       maxTokens: 4000,
