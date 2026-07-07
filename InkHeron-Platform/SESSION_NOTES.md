@@ -10,6 +10,13 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Codex handoff: bulk MCQ import + test portal / nav / settings brief
+
+- Asked: teacher out of usage; wants a complete paste-ready brief for Codex to build bulk MCQ import (paste + file) straight into a quiz, AI topic/tag on filing, question-bank filter by quiz/topic, per-question toggle + shift-range select + add-selected-to-quiz, a proper sections editor, a dedicated Tests dashboard button, merge duplicate Classes/Students nav, a curated Doer/Checker model picker in Settings (strong-cheap Chinese + cheaper Western), and reveal/copy for the grade-importer sync key.
+- Did: wrote InkHeron-Platform/CODEX_MCQ_HANDOFF.md — full self-contained build brief grounded in the real codebase (test_questions schema, tests.js endpoints/helpers, settings.js + settingsStore doer/checker intents, openRouter callChat/resolveModel, teacher/index nav, grade-importer sync_key). No app code changed this session.
+- Key facts surfaced: checker intent is hardcoded 'google gemini flash' in 3 files (checker.js, profileSummarizer.js, feedbackSuggester.js); doer intent is a stored setting; admin gradebook export key == grade-importer sync_key (current value in notes); next migration number is 032; DeepSeek has no V6 (latest V3.2, which 'deepseek chat v3' resolves to).
+- Flagged: tests.js/new-test.html/question-bank.html are under active concurrent development in this repo; Codex must pull latest and re-read before editing.
+
 ## 2026-07-07 — Audited TOEFL build, fixed the card, verified end-to-end
 
 - Audited Sonnet's toefl-estimate branch: routes all teacher-session + CSRF, wall test present (padRelease asserts no "toefl" in student feedback payload), demo/ghost excluded from anchors, checker can only blank, range kept ordered, migration 031 registered. Suite 176/176.
