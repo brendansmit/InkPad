@@ -71,6 +71,15 @@ Entry format:
 
 ---
 
+## 2026-07-07 — Test Portal part 2: section passages and section shuffle
+
+- Asked: "go check and do part 2" after the audit found `CODEX_TESTGP_HANDOFF.md` Part 2 missing.
+- Built: `settings_json.test.sections[]` now preserves optional `passage_text`; `/teacher/new-test` has a passage textarea for MCQ, SRQ and FRQ sections; `/native/test/:assignmentId` renders passage text above each section in a readable serif block; `/teacher/test-review` shows section passages in a collapsed details block.
+- Built: student take payload now shuffles question order within each non-FRQ section only when shuffle is true, using deterministic seed `(studentId * 104729) + sectionIndex`. Section order never changes; teacher review stays in authoring order; shuffle=false preserves authoring order.
+- Verified: `node --test test/tests.test.js` passed 8/8, including passage payload/no-answer-leak, stable reload order, different per-student section-question order and shuffle=false authoring order. No deploy.
+- Commit: `f227add` (`Add test section passages and section shuffle`).
+- Open / next: full suite still to run.
+
 ## 2026-07-07 — Test green-pen rewrites
 
 - Asked: on branch `test-greenpen` from `analysis-ai`, follow `CODEX_TESTGP_HANDOFF.md` exactly; do not deploy; never `git add -A`.
