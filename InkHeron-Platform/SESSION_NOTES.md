@@ -10,6 +10,13 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-08 - Test portal build plan scope agreed
+
+- Asked: turn the expanded test/exam discussion into a build plan and record accepted optional items by number.
+- Decisions: accepted resume rules, server-side timer authority, question navigation map, student flag for review, teacher pause whole test, accessibility fallback with color pulse instead of flickering flashing, import confidence labels, raw source viewer, bulk cleanup tools, printable backup and item-analysis export. Not selected for now: exam modes, per-section pacing hints and attempt versioning. Lockdown wording remains standing QA because CLAUDE.md already requires student copy checks.
+- Plan direction: build in phases: importer rebuild, real test builder, student exam shell, SRQ/FRQ writing surfaces, test-day monitor, teacher interventions and analytics.
+- Verification: planning only, no app code changed.
+
 ## 2026-07-07 — Audited Codex MCQ/import run: pass, awaiting deploy word
 
 - Audited 25c918e..075b54f against CODEX_MCQ_HANDOFF.md: all new routes (topics, bulk-import, append-questions) teacher-session gated with CSRF on mutations; answer_index/model_answer only in teacherQuestion payloads and the existing reveal_answers release gate; service edits are a uniform swap of the hardcoded checker intent to readCheckerIntent(db) for the model picker; migration 032 registered. Suite 181/181 on Node 24 at pinned 075b54f.
@@ -384,12 +391,3 @@ Entry format:
 - Fixed: the two review/feedback page tests in nativePads.test.js asserted the OLD page markup (pasteMode, revision-panel, Open rewrite, etc). Updated both to assert the redesigned pages' real structure. npm test under Node 24: 115 pass, only the 4 known baseline failures remain.
 - Verified in preview at 1440px and 1024px: full dashboard renders, anomaly on E6 (homework), spark bars render, Student version hides anomaly + provenance.
 - Decision: profile-page provenance and anomaly are teacher-only and hidden via a body class in student mode rather than a server variant, matching "renders the same data with teacher-only cards removed".
-
-## 2026-07-03 — Opus: student feedback view rebuilt from student-view
-- Built page 2: `public/native-feedback.html` rebuilt to the student-view mockup. Reads `GET /api/native/assignments/:assignmentId/feedback` (student session, assignment id from the URL path).
-  - Focus bar category chips (All / Spelling and words / Grammar / Punctuation) with live counts; clicking a chip dims the other categories (.mk.dim). Marks hover reveals category only, never the fix.
-  - Targets panel with per-target checkbox tick-off wired to `POST .../feedback-items/:id/toggle-check`; ticked targets strike through and update the "N of M targets done" ring in the focus bar. Checkboxes disabled unless the pad is green_pen_open.
-  - Strengths with explanations, try-now pills on targets, internal rubric score bars plus an "If this were the AP exam" AP bar for AP classes, and the fixed line that grammar marks are practice not the grade. Green pen CTA links to the rewrite pad when green pen is open.
-- Decision: the focus-bar progress ring counts targets ticked (the only student-driven state the backend tracks) rather than a per-mark fixed count, which no endpoint supports. Phrased as "N of M targets done".
-- Verified in preview at 1280px: Grammar filter shows 11 marks and dims 12, target tick-off persists server-side (2 to 3 done).
-- Next: profile dashboard + new writing-profile endpoint.
