@@ -43,7 +43,10 @@ Entry format:
 - Did: added isolated `src/routes/tests.js` plus route registration in `src/app.js`: question bank CRUD, test assignment creation, student start/take/answer/focus/submit/results, teacher review and SRQ scoring. FRQ submit calls the existing native pad routes so native submit semantics still own the pad lock and background work.
 - Verified: `node --test test/tests.test.js` passes 3/3, covering answer-data secrecy, deterministic shuffle, timer rejection, MCQ auto-scoring, focus events, release gating, teacher scoring, wrong-role denial and other-class denial.
 - Commit: `48364c5` (`Add test portal backend routes`).
-- Open / next: add plain HTML pages, allowed dashboard/assignment integrations, full suite. No deploy.
+- Did: added teacher pages for question bank, new test and test review, plus the student take-test page. `student-dashboard.html` now links tests to `/native/test/:assignmentId`; `teacher/assignments.html` links test cards to `/teacher/test-review` and exposes Question bank / New test. Added page-route shell tests.
+- Verified: `node --test test/tests.test.js` passes 4/4; student-facing test files contain no `AI` wording and no em/en dashes.
+- Commit: `48197e7` (`Add test portal pages`).
+- Open / next: run the full suite, fix any regressions, final log. No deploy.
 
 ## 2026-07-06 — Opus ROUND3 items 2 to 5: rubric tabs, feedback banks, layered marks, selection toolbar
 - Item 2 (4c32a20) rubric tabs: native-review.html cardRubric() now builds rubricTabs() — a scorable tab for every rubric_kind that has criteria (internal, secondary, exam), each labelled with its real name from settings.rubric_names, exam still gated on is_ap_lang. setScore looks up the per-kind endpoint (rubric-scores / secondary-rubric-scores / exam-rubric-scores). Verified in browser: all three tabs render, secondary and exam scores persist to their columns.
