@@ -10,6 +10,11 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-06 — Deploy sweep + Codex Test Portal handoff
+
+- Deployed everything committed since the round-3 deploy (10 commits from parallel sessions: re-run replaces prior AI marks via retractAiMarksForPad, anchored sidebar comments, neon chartreuse needs-you colour, reanalyze-all script, launcher/deploy-dashboard updates). Suite 152/152 before deploy, DB backed up (pre-deploy5), wrapper active, live 200.
+- Wrote CODEX_TESTPORTAL_HANDOFF.md: self-contained Test Portal MVP spec for Codex on a NEW branch test-portal off analysis-ai. Key decisions: a test IS an assignment (type 'test', structure in settings_json.test), bank in test_questions, attempts/responses/focus-events tables in migration 029, ONE FRQ max delivered through the existing native pad so the whole marking+AI pipeline applies untouched, MCQ auto-scored server-side, SRQ teacher-scored, results gated on the existing release-feedback mechanism, deterministic per-student MCQ shuffle, server-side timer enforcement, §5 pooling stays off. Hard guardrails: additive only, no edits to services/editor/pipeline, explicit staging, answer keys never reach students pre-release (test required), Fable reviews before merge/deploy.
+
 ## 2026-07-06 — New session: queued marking-room issues
 
 - Asked: fresh chat (old context 600k+); log three issues from the latest deployment.
