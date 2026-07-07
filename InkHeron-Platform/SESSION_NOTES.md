@@ -34,6 +34,14 @@ Entry format:
 
 ---
 
+## 2026-07-07 — Test Portal MVP schema checkpoint
+
+- Asked: build the Test Portal MVP on branch `test-portal` from `analysis-ai`, following `CLAUDE.md`, `TEST_PORTAL_SPEC.md` and `CODEX_TESTPORTAL_HANDOFF.md`.
+- Did: created migration `029_test_portal.sql` for `test_questions`, `test_attempts`, `test_responses` and `test_focus_events`; registered the new tables and migration file in `test/migration.test.js`.
+- Verified: Node 24 `npm test` command accidentally ran the full suite and stayed 152/152 green after the schema change.
+- Commit: `a2bc626` (`Add test portal schema`).
+- Open / next: implement isolated Test Portal routes, pages, integration links and endpoint tests. No deploy.
+
 ## 2026-07-06 — Opus ROUND3 items 2 to 5: rubric tabs, feedback banks, layered marks, selection toolbar
 - Item 2 (4c32a20) rubric tabs: native-review.html cardRubric() now builds rubricTabs() — a scorable tab for every rubric_kind that has criteria (internal, secondary, exam), each labelled with its real name from settings.rubric_names, exam still gated on is_ap_lang. setScore looks up the per-kind endpoint (rubric-scores / secondary-rubric-scores / exam-rubric-scores). Verified in browser: all three tabs render, secondary and exam scores persist to their columns.
 - Item 3 (269dcee) feedback bank switcher: strengths/targets card regains a "Feedback bank" select (each table plus "All tables"), persisting per pad via the applied-feedback-table PUT then reloading. assets.js feedbackOptionsForAssignment gained an 'all' scope that merges every configured table (dedupe by title); the PUT and review payload now accept 'all'. feedbackSuggester loads the pad's applied bank and passes its options in the evidence; Doer prompt now says to prefer bank items adapted to the essay, invent only when nothing fits. New test asserts the Doer prompt carries the chosen bank and switching (incl 'all') changes what is sent.
