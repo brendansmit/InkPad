@@ -10,6 +10,11 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Softened AP register prompt; TOEFL handoff written
+
+- Teacher feedback: the register guidance must not prescribe how the essay types should sound unless grounded in AP theory; phrase as tendencies ("this essay type usually leans toward..."). Rewrote the profileSummarizer Doer prompt: tendencies not rules, describe never prescribe, deviations are observations to think about, not faults (20f4c19).
+- TOEFL predictor will be built by Sonnet or Opus, not Fable: wrote SONNET_TOEFL_HANDOFF.md (25a4520) — branch toefl-estimate, migration 031 toefl_estimates + known_toefl_scores, Doer/Checker estimator modelled on profileSummarizer, teacher-only routes, profile-page card with disclaimer, hard wall test that no student payload ever contains "toefl". Fable audits and deploys after.
+
 ## 2026-07-07 — Genre-aware voice analysis for AP Lang
 
 - Asked: make the voice/writing analysis AP Lang aware — synthesis, rhetorical analysis and argument each demand a different voice; track more and convey more. Also plan (not build) a teacher-only TOEFL writing score predictor.
@@ -41,6 +46,13 @@ Entry format:
 - Retract only fires on a pad the teacher re-runs, so finished students stay untouched unless the assignment-wide reanalyze endpoint is used, which re-runs everyone.
 - NOTE: another session is editing this working tree concurrently (assignments.html, assignments.js, nativePads.js, two test files). Staged only my hunk of nativePads.js via git apply --cached. Commit 2a6c36e. Suite 165/165 green in the shared working tree.
 - Not deployed yet; rides along with the pending test-greenpen merge decision.
+
+## 2026-07-07 — Pared-down mobile student roster
+
+- Asked: on mobile, the student assignment roster needs a pared-down default, an expand toggle, a floating search bar and a floating top button.
+- Did: mobile roster cards now show only student, Submitted, score and actions by default; `Review essay` is the large primary full-width button, with `Profile` and `Unassign` as smaller paired buttons.
+- Did: added a sticky mobile `Show details` toggle for paste/exam details, a bottom floating student search and a floating `Top` button.
+- Verified: assignments inline script syntax OK; `test/assignments.test.js` passed 20/20 on Node 24. Not deployed yet.
 
 ## 2026-07-07 — Mobile assignment review flow
 
