@@ -40,6 +40,7 @@ export function renderNativeWriteView({
   passageText,
   passagePdf,
   greenpen = false,
+  testReturnUrl = '',
 }) {
   const locked = pad.state !== 'writing' && pad.state !== 'green_pen_open';
   const submitLabel = pad.state === 'green_pen_open' ? 'Resubmit' : 'Submit';
@@ -47,6 +48,7 @@ export function renderNativeWriteView({
   const submitDoneLabel = pad.state === 'green_pen_open' ? 'Resubmitted' : 'Submitted';
   // Once already submitted (locked), the button shows the done label and is greyed out.
   const submitButtonLabel = locked ? (pad.state === 'resubmitted' ? 'Resubmitted' : 'Submitted') : submitLabel;
+  const examMode = Boolean(testReturnUrl);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -88,7 +90,9 @@ export function renderNativeWriteView({
     .niw-select{border:1px solid #b8c2b9;border-radius:7px;min-height:34px;background:#fff;color:#17221b;font:inherit;font-weight:800;padding:0 8px;width:auto}
     .niw-zoom{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#657268}
     .niw-zoom input{width:116px}
+    .niw-exam-banner{min-height:42px;display:flex;align-items:center;gap:10px;padding:9px 18px;background:#fff7d6;border-bottom:1px solid #e6d28f;color:#5f4d15;font-size:13px;font-weight:800}
     .niw-shell{--reader-width:420px;--page-width:794px;--editor-zoom:1;--task-height:220px;height:calc(100vh - 58px);display:grid;grid-template-columns:minmax(260px,var(--reader-width)) 10px minmax(0,1fr)}
+    .niw-shell.exam-shell{height:calc(100vh - 100px)}
     .niw-passage{border-right:1px solid #d8d4c8;background:#f0eee7;overflow:hidden;padding:12px;display:grid;grid-template-rows:minmax(120px,var(--task-height)) 8px minmax(220px,1fr);gap:0;min-height:0}
     .niw-source-card{background:#fff;border:1px solid #d8d4c8;border-radius:8px;padding:16px;box-shadow:0 5px 18px rgba(31,42,36,.06)}
     .niw-source-card.task{min-height:0;overflow:auto}
@@ -205,7 +209,7 @@ export function renderNativeWriteView({
 </head>
 <body>
   <header class="niw-bar">
-    <a class="niw-back" href="/student">← Assignments</a>
+    <a class="niw-back" href="${escapeHtml(testReturnUrl || '/student')}">${examMode ? 'Back to test' : '← Assignments'}</a>
     <div class="niw-brand">InkPad</div>
     <div class="niw-title">${escapeHtml(title)}</div>
     <div class="niw-spacer"></div>
@@ -217,7 +221,8 @@ export function renderNativeWriteView({
     <button class="niw-btn" id="saveBtn" type="button" ${locked ? 'disabled' : ''}>Save</button>
     <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitButtonLabel)}</button>
   </header>
-  <main class="niw-shell${greenpen ? ' gp-shell' : ''}">
+  ${examMode ? '<div class="niw-exam-banner">The essay is autosaved as you write. You can go back to the questions without worrying about losing anything.</div>' : ''}
+  <main class="niw-shell${greenpen ? ' gp-shell' : ''}${examMode ? ' exam-shell' : ''}">
     <aside class="niw-passage">
       <section class="niw-source-card task">
         <div class="niw-source-head">

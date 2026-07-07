@@ -1232,6 +1232,17 @@ test('native write view renders without touching Etherpad', async () => {
   assert.match(response.body, /niw-glyph/);
   assert.match(response.body, /font-family:var\(--font\)/);
   assert.match(response.body, /type:'html'/);
+  assert.doesNotMatch(response.body, /The essay is autosaved as you write/);
+
+  const testContext = await app.inject({
+    method: 'GET',
+    url: `/native/write/${assignmentId}?return=/native/test/${assignmentId}`,
+    headers: { cookie: cookies },
+  });
+  assert.equal(testContext.statusCode, 200);
+  assert.match(testContext.body, /The essay is autosaved as you write/);
+  assert.match(testContext.body, /Back to test/);
+  assert.match(testContext.body, new RegExp(`href="/native/test/${assignmentId}"`));
 
   await app.close();
 });
