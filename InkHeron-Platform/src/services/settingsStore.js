@@ -73,6 +73,31 @@ export function writeCurrentSemester(db, value) {
   return readCurrentSemester(db);
 }
 
+
+// The Doer model family for all heavy AI extraction (literacy coder, rubric
+// estimate, rewrite judge, suggesters). A fuzzy intent, never an exact id
+// (CLAUDE.md §8). Default is DeepSeek: strong on Chinese-English transfer
+// errors, cheap, and it outperformed haiku on finding density in the live
+// smoke test. The Checker stays a DIFFERENT family (gemini flash).
+const DOER_INTENT_DEFAULT = 'deepseek chat v3';
+
+export function readDoerIntent(db) {
+  const value = (readRawSetting(db, 'ai_doer_intent') ?? '').trim();
+  return value || DOER_INTENT_DEFAULT;
+}
+
+export function writeDoerIntent(db, value) {
+  const intent = String(value ?? '').trim().slice(0, 120) || DOER_INTENT_DEFAULT;
+  db.prepare(`
+    INSERT INTO settings (key, value, updated_at)
+    VALUES ('ai_doer_intent', ?, datetime('now'))
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      updated_at = excluded.updated_at
+  `).run(intent);
+  return readDoerIntent(db);
+}
+
 export function writeSecretSettings(db, input) {
   const updates = Object.entries(input ?? {})
     .filter(([key]) => secretSettingKeys.includes(key));

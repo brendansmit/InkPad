@@ -361,3 +361,31 @@ test('key test endpoints report missing keys without network calls', async () =>
     await app.close();
   }
 });
+
+test('ai_doer_intent setting defaults to deepseek and steers every doer call', async () => {
+  const { buildApp } = await import('../src/app.js');
+  const { readDoerIntent, writeDoerIntent } = await import('../src/services/settingsStore.js');
+  const { runLiteracyAnalysis } = await import('../src/services/literacyCoder.js');
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const { openDatabase } = await import('../src/db/database.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-doer-'));
+  const db = openDatabase(path.join(dir, 'inkheron.db'));
+  const app = await buildApp({ db, logger: false });
+
+  assert.match(readDoerIntent(db), /deepseek/);
+  writeDoerIntent(db, 'moonshot kimi k2');
+  assert.equal(readDoerIntent(db), 'moonshot kimi k2');
+
+  db.prepare("INSERT INTO classes (name) VALUES ('X')").run();
+  db.prepare("INSERT INTO students (username, display_name, password_hash, class_id) VALUES ('s','S','h',1)").run();
+  db.prepare("INSERT INTO assignments (class_id, title, type, settings_json) VALUES (1,'E','essay','{}')").run();
+  db.prepare("INSERT INTO native_pads (student_id, assignment_id, state, document_json, plain_text, word_count) VALUES (1,1,'submitted','{}','They is playing.',3)").run();
+
+  let seen = '';
+  await runLiteracyAnalysis(db, { padId: 1 }, { chat: (d, { intent }) => { if (!seen) seen = intent; return Promise.resolve({ model: 'f', choices: [{ message: { content: '[]' } }] }); } });
+  assert.equal(seen, 'moonshot kimi k2');
+
+  await app.close();
+});

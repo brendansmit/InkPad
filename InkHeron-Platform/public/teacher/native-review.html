@@ -306,6 +306,14 @@ function openCodeChanger(ann, anchor){
     sel.appendChild(opt);
   }
   const save = el('button','btn sm'); save.textContent='Save';
+  const reject = el('button','btn sm'); reject.textContent='Reject mark'; reject.style.color='var(--maroon-500)';
+  reject.onclick = async ()=>{
+    if(!confirm('Remove this mark? It also leaves the student\'s error record.')) return;
+    const sug = ann.metadata && ann.metadata.suggestion_id;
+    if (sug) await api('/api/native/pads/'+padId+'/suggestions/'+sug+'/disagree', { method:'POST' });
+    else await api('/api/native/annotations/'+ann.id, { method:'DELETE' });
+    pop.remove(); toast('Mark removed'); await loadAll();
+  };
   const cancel = el('button','btn sm'); cancel.textContent='✕';
   save.onclick = async ()=>{
     const code = sel.value;
@@ -316,7 +324,7 @@ function openCodeChanger(ann, anchor){
   };
   cancel.onclick = ()=> pop.remove();
   const quoteEl = el('span','code-pop-quote'); quoteEl.textContent = '"'+(ann.selected_text||'').slice(0,40)+'"';
-  pop.append(quoteEl, sel, save, cancel);
+  pop.append(quoteEl, sel, save, reject, cancel);
   document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   pop.style.left = Math.min(window.innerWidth - pop.offsetWidth - 12, Math.max(8, r.left + window.scrollX)) + 'px';

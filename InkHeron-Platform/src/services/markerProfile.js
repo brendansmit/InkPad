@@ -7,9 +7,10 @@
  * this teacher marks relative to the model.
  */
 import { callChat } from './openRouter.js';
+import { readDoerIntent } from './settingsStore.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
 
-const DOER_INTENT = 'anthropic claude haiku';
+
 const CHECKER_INTENT = 'google gemini flash';
 
 function doerSystemPrompt(criteria) {
@@ -126,7 +127,7 @@ export async function estimateRubric(db, { padId } = {}, { chat = callChat } = {
     for (const [rubricKind, criteria] of rubricByKind) {
       const criteriaById = new Map(criteria.map((c) => [c.id, c]));
       const result = await chat(db, {
-        intent: DOER_INTENT,
+        intent: readDoerIntent(db),
         messages: [
           { role: 'system', content: doerSystemPrompt(criteria) },
           { role: 'user', content: pad.plain_text },

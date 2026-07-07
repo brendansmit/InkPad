@@ -8,10 +8,11 @@
  * accept/reject endpoints in nativePads.js). Nothing here auto-applies.
  */
 import { callChat } from './openRouter.js';
+import { readDoerIntent } from './settingsStore.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
 import { feedbackOptionsForAssignment } from '../feedback/assets.js';
 
-const DOER_INTENT = 'anthropic claude haiku';
+
 const CHECKER_INTENT = 'google gemini flash';
 const MAX_STRENGTHS = 3;
 const MAX_TARGETS = 5;
@@ -144,7 +145,7 @@ export async function suggestFeedbackItems(db, { padId } = {}, { chat = callChat
     };
 
     const result = await chat(db, {
-      intent: DOER_INTENT,
+      intent: readDoerIntent(db),
       messages: [
         { role: 'system', content: DOER_SYSTEM_PROMPT },
         { role: 'user', content: JSON.stringify(evidence) },

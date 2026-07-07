@@ -9,9 +9,10 @@
  * card themselves.
  */
 import { callChat } from './openRouter.js';
+import { readDoerIntent } from './settingsStore.js';
 import { aggregateStyleProfile } from './styleMetrics.js';
 
-const DOER_INTENT = 'anthropic claude haiku';
+
 const TOP_CODES_LIMIT = 5;
 
 const DOER_SYSTEM_PROMPT = `You write ONE short paragraph for a parent about their child's English writing progress, based only on the evidence given. The parent does not know teaching jargon or any code names from the evidence, so translate everything into plain warm English.
@@ -114,7 +115,7 @@ export async function generateReportSnippet(db, { studentId } = {}, { chat = cal
     const evidence = gatherEvidence(db, studentId);
 
     const result = await chat(db, {
-      intent: DOER_INTENT,
+      intent: readDoerIntent(db),
       messages: [
         { role: 'system', content: DOER_SYSTEM_PROMPT },
         { role: 'user', content: JSON.stringify(evidence) },

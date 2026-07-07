@@ -19,8 +19,9 @@
  * shows no non-cosmetic change, the rewrite cannot be meaningful.
  */
 import { callChat } from './openRouter.js';
+import { readDoerIntent } from './settingsStore.js';
 
-const JUDGE_INTENT = 'anthropic claude haiku';
+
 
 const JUDGE_SYSTEM_PROMPT = `You judge whether a student's rewrite acted on their teacher's feedback. You are given the ORIGINAL text, the REWRITE, and a numbered FEEDBACK list (literacy codes with the flagged quote, inline comments, and improvement targets).
 
@@ -140,7 +141,7 @@ export async function scoreRewrite(db, { rewritePadId } = {}, { chat = callChat 
         return `${i}. [target] ${it.title}: ${it.explanation}`;
       }).join('\n');
       const result = await chat(db, {
-        intent: JUDGE_INTENT,
+        intent: readDoerIntent(db),
         messages: [
           { role: 'system', content: JUDGE_SYSTEM_PROMPT },
           { role: 'user', content: `ORIGINAL:\n${original.plain_text}\n\nREWRITE:\n${rewrite.plain_text}\n\nFEEDBACK:\n${listing || '(none)'}` },

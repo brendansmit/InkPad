@@ -2087,6 +2087,13 @@ function loadImplementationScore(db, padId) {
       const existing = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annotationId);
       if (!existing) return reply.code(404).send({ error: 'annotation_not_found' });
       const pad = loadTeacherNativePad(db, existing.native_pad_id);
+      // If this mark came from an AI suggestion, record the rejection so the
+      // finding cannot come back on re-analysis and the calibration loop
+      // learns from it.
+      const linked = db.prepare('SELECT id FROM ai_literacy_suggestions WHERE annotation_id = ?').get(annotationId);
+      if (linked) {
+        db.prepare("UPDATE ai_literacy_suggestions SET status = 'rejected', annotation_id = NULL, resolved_at = datetime('now') WHERE id = ?").run(linked.id);
+      }
       const key = existing.type === 'literacy_code' ? normalizeLiteracyKey(existing) : null;
       db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotationId);
       if (pad && key) recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);

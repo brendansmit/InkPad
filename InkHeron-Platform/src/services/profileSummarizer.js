@@ -8,9 +8,10 @@
  * the AI can only describe patterns the numbers actually show.
  */
 import { callChat } from './openRouter.js';
+import { readDoerIntent } from './settingsStore.js';
 import { aggregateStyleProfile } from './styleMetrics.js';
 
-const DOER_INTENT = 'anthropic claude haiku';
+
 const CHECKER_INTENT = 'google gemini flash';
 const MAX_TARGETS = 4;
 
@@ -131,7 +132,7 @@ export async function generateProfileSummary(db, { studentId } = {}, { chat = ca
     };
 
     const result = await chat(db, {
-      intent: DOER_INTENT,
+      intent: readDoerIntent(db),
       messages: [
         { role: 'system', content: DOER_SYSTEM_PROMPT },
         { role: 'user', content: JSON.stringify(evidence) },

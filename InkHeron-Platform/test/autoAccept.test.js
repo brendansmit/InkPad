@@ -213,3 +213,23 @@ test('retractAiMarksForPad replaces a previous run instead of stacking, and reje
 
   await app.close();
 });
+
+test('rejecting a placed mark via DELETE cleans evidence and marks a linked suggestion rejected', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId, csrf, cookies, studentId } = await seed(db);
+
+  const suggestionId = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'Gra',
+    checker: { verbatim: true, confidence: 0.92, flag: null } });
+  autoPromoteSuggestions(db, padId);
+  const annId = db.prepare('SELECT annotation_id FROM ai_literacy_suggestions WHERE id = ?').get(suggestionId).annotation_id;
+
+  const res = await app.inject({ method: 'DELETE', url: `/api/native/annotations/${annId}`,
+    headers: { 'X-CSRF-Token': csrf, cookie: cookies } });
+  assert.equal(res.statusCode, 204);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM native_annotations WHERE id = ?').get(annId).n, 0);
+  assert.equal(db.prepare('SELECT status FROM ai_literacy_suggestions WHERE id = ?').get(suggestionId).status, 'rejected');
+  const stat = db.prepare("SELECT evidence_count FROM student_literacy_issue_stats WHERE student_id = ? AND code = 'Gra'").get(studentId);
+  assert.equal(stat?.evidence_count ?? 0, 0);
+
+  await app.close();
+});

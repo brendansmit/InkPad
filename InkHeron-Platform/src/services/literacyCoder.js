@@ -7,10 +7,11 @@
  * the teacher explicitly releases feedback.
  */
 import { callChat } from './openRouter.js';
+import { readDoerIntent } from './settingsStore.js';
 import { verifyFindings } from './checker.js';
 import { buildCalibration } from './promptCalibration.js';
 
-const DOER_INTENT = 'anthropic claude haiku';
+
 
 export const VALID_CODES = new Set([
   'Sp','Caps','P','^','Exp','Gra','Embed','AA/Adj',
@@ -196,7 +197,7 @@ export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat 
     const systemPrompt = SYSTEM_PROMPT + calibration;
     for (const para of splitParagraphs(plainText)) {
       const result = await chat(db, {
-        intent: DOER_INTENT,
+        intent: readDoerIntent(db),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: para.text },

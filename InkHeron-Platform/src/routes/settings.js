@@ -1,4 +1,4 @@
-import { readSecretSettings, writeSecretSettings, readAdminExportUrl, writeAdminExportUrl, readCurrentSemester, writeCurrentSemester } from '../services/settingsStore.js';
+import { readSecretSettings, writeSecretSettings, readAdminExportUrl, writeAdminExportUrl, readCurrentSemester, writeCurrentSemester, readDoerIntent, writeDoerIntent } from '../services/settingsStore.js';
 import { testOpenRouterKey, testServerChanKey } from '../services/keyTests.js';
 
 export async function registerSettingsRoutes(app, { db }) {
@@ -8,17 +8,19 @@ export async function registerSettingsRoutes(app, { db }) {
       settings: readSecretSettings(db),
       admin_export_url: readAdminExportUrl(db),
       current_semester: readCurrentSemester(db),
+      ai_doer_intent: readDoerIntent(db),
     })
   );
 
   app.patch('/api/settings',
     { preValidation: [app.requireTeacherSession, app.requireCsrfToken] },
     async (request) => {
-      const { admin_export_url, current_semester, ...secretInput } = request.body ?? {};
+      const { admin_export_url, current_semester, ai_doer_intent, ...secretInput } = request.body ?? {};
       const hasSecretInput = Object.keys(secretInput).length > 0;
       const hasUrlInput = typeof admin_export_url === 'string' && admin_export_url.trim().length > 0;
       const hasSemesterInput = typeof current_semester === 'string' && current_semester.trim().length > 0;
-      if (!hasSecretInput && !hasUrlInput && !hasSemesterInput) {
+      const hasDoerInput = typeof ai_doer_intent === 'string' && ai_doer_intent.trim().length > 0;
+      if (!hasSecretInput && !hasUrlInput && !hasSemesterInput && !hasDoerInput) {
         const err = new Error('settings_required');
         err.statusCode = 400;
         throw err;
@@ -26,7 +28,8 @@ export async function registerSettingsRoutes(app, { db }) {
       const settings = hasSecretInput ? writeSecretSettings(db, secretInput) : readSecretSettings(db);
       if (hasUrlInput) writeAdminExportUrl(db, admin_export_url);
       if (hasSemesterInput) writeCurrentSemester(db, current_semester);
-      return { settings, admin_export_url: readAdminExportUrl(db), current_semester: readCurrentSemester(db) };
+      if (hasDoerInput) writeDoerIntent(db, ai_doer_intent);
+      return { settings, admin_export_url: readAdminExportUrl(db), current_semester: readCurrentSemester(db), ai_doer_intent: readDoerIntent(db) };
     }
   );
 
