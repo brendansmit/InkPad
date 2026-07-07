@@ -17,6 +17,14 @@ Entry format:
 - Verified:
 ```
 
+## 2026-07-08 - Finished remaining test and exam list
+
+- Asked: go do the entire remaining list after the first exam-shell build slice.
+- Did: added import confidence labels, answer-source labels, source excerpts, raw source viewer endpoint, duplicate detection, question-bank cleanup tools, duplicate archiving, printable test backup PDF, item-analysis CSV export, answer-rate/time/revisit weakness flagging and teacher UI buttons for the exports.
+- Commits: c2f7812, 6b46696, 71deebb.
+- Verified: changed student-facing files have no em/en dash characters; question-bank, new-test and test-review inline scripts parse; `PATH=/Users/brendansmit/.nvm/versions/node/v24.18.0/bin:$PATH npm test` passed 185/185.
+- Notes: raw source viewer is a simple teacher alert for now, backed by a real endpoint and stored source text. Printable backup uses an internal minimal PDF generator so there is no new dependency.
+
 ## 2026-07-08 - Test and exam portal build run
 
 - Asked: turn the expanded test and exam requirements into a build plan, then keep building in committed checkpoints until session usage runs out.
