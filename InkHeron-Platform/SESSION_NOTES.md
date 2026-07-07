@@ -10,6 +10,11 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Audited Codex MCQ/import run: pass, awaiting deploy word
+
+- Audited 25c918e..075b54f against CODEX_MCQ_HANDOFF.md: all new routes (topics, bulk-import, append-questions) teacher-session gated with CSRF on mutations; answer_index/model_answer only in teacherQuestion payloads and the existing reveal_answers release gate; service edits are a uniform swap of the hardcoded checker intent to readCheckerIntent(db) for the model picker; migration 032 registered. Suite 181/181 on Node 24 at pinned 075b54f.
+- test-greenpen and analysis-ai pinned to 075b54f. Deploy archive built (/tmp/d4.tar.gz, src migrations public, 120 paths). NOT deployed: waiting for the teacher's explicit deploy word. Note 082ac44 touches grade-importer (separate app, not in the InkHeron archive).
+
 ## 2026-07-07 - Bulk MCQ import, test setup, nav, settings and grade-importer sync key
 
 - Asked: implement CODEX_MCQ_HANDOFF.md in Part A to G order, commit after each part, pull/re-read active files first, keep teacher mutation routes teacher+CSRF, avoid hardcoded OpenRouter ids, keep assets self-hosted and add section 9 tests.
