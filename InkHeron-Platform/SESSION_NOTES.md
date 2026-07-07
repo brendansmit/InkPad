@@ -17,6 +17,13 @@ Entry format:
 - Verified:
 ```
 
+## 2026-07-08 - Test and exam build deployed
+
+- Asked: commit everything relevant from the test and exam builds and deploy.
+- Did: refused to sweep unrelated dirty sibling projects or local `data/` into Git; committed the missing PDF parser dependency metadata as e211ff2; deployed the committed archive to the actual live PM2 cwd `/opt/eap-platform` after first discovering the older documented `/opt/inkheron-platform` path was not the running process.
+- Verified: `PATH=/Users/brendansmit/.nvm/versions/node/v24.18.0/bin:$PATH npm test` passed 185/185; live migration applied 029-034 on `/opt/eap-platform/data/inkheron.db`; PM2 `eap-platform` online on Node 24.18.0; `https://inkpad.inkheron.app/login`, `https://eap.inkheron.app/` and `https://inkpad.inkheron.app/healthz` returned 200.
+- Notes: live DB backup created at `/opt/eap-platform/data/inkheron.db.pre-exam-20260708023652`. Remaining local untracked `Admin/` and `data/` were not committed.
+
 ## 2026-07-08 - Finished remaining test and exam list
 
 - Asked: go do the entire remaining list after the first exam-shell build slice.
