@@ -188,6 +188,80 @@ function render(){
   wrap.appendChild(voiceInWordsCard());
   wrap.appendChild(scoresOverTimeCard());
   if (data.student.is_ap_lang) wrap.appendChild(apByTypeCard());
+  wrap.appendChild(toeflCard());
+}
+
+// TOEFL writing estimate. Teacher only: the whole card carries the
+// teacher-only class so it is hidden in student mode, and its data lives on
+// teacher-only routes. Directional signal, never a promise.
+function toeflCard(){
+  const card = el('div','card full teacher-only');
+  card.innerHTML = '<header><strong>TOEFL estimate (teacher only)</strong><span class="sub">directional signal from the evidence on this page · never shown to the student</span></header>';
+  const body = el('div','body'); body.id='toeflBody';
+  body.innerHTML = '<p class="sub">Loading…</p>';
+  card.appendChild(body);
+  loadToefl();
+  return card;
+}
+
+async function loadToefl(){
+  const body = document.getElementById('toeflBody');
+  if(!body) return;
+  let t = null;
+  try {
+    t = await fetch('/api/teacher/students/'+encodeURIComponent(currentStudentId)+'/toefl-estimate').then(r=>{ if(!r.ok) throw new Error('toefl '+r.status); return r.json(); });
+  } catch(e){
+    body.innerHTML = '<p class="sub">Could not load the TOEFL estimate.</p>';
+    return;
+  }
+  renderToefl(body, t);
+}
+
+function fmtBand(n){ return n==null?'—':Number(n).toFixed(1).replace(/\.0$/,''); }
+
+function renderToefl(body, t){
+  const latest = t.latest;
+  const parts = [];
+  if (latest && latest.scaled_low!=null && latest.scaled_high!=null){
+    const conf = latest.confidence!=null? Math.round(latest.confidence*100)+'% confidence' : 'confidence not set';
+    parts.push('<div class="vfind"><h4>Writing '+latest.scaled_low+'-'+latest.scaled_high+' (bands: Integrated ~'+fmtBand(latest.integrated_band)+', Discussion ~'+fmtBand(latest.discussion_band)+')</h4>'+
+      '<p class="sub">'+esc(conf)+' · estimated '+esc(String(latest.created_at||'').slice(0,10))+'</p>'+
+      (latest.rationale? '<p>'+esc(latest.rationale)+'</p>':'')+'</div>');
+  } else {
+    parts.push('<p class="sub">No estimate yet. Generate one from the essays on this page.</p>');
+  }
+  const scores = (t.known_scores||[]);
+  if (scores.length){
+    parts.push('<p class="sub" style="margin-top:8px">Real scores on record: '+scores.map(s=>esc(String(s.writing_score))+(s.noted_at?' ('+esc(s.noted_at)+')':'')).join(', ')+'</p>');
+  }
+  parts.push('<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">'+
+    '<button class="btn on" id="toeflGen">'+(latest?'Refresh estimate':'Generate estimate')+'</button>'+
+    '<span style="flex:1"></span>'+
+    '<input id="toeflScore" type="number" min="0" max="30" placeholder="0-30" style="width:80px;padding:6px 8px;border:1.5px solid var(--border-2);border-radius:var(--r-sm);font:inherit;background:var(--surface);color:var(--text)">'+
+    '<button class="btn" id="toeflSave">Record real score</button>'+
+    '</div>');
+  parts.push('<p class="legend" style="margin-top:10px">Estimate only. Not calibrated against ETS scoring. Use as a rough signal, not a prediction.</p>');
+  body.innerHTML = parts.join('');
+
+  document.getElementById('toeflGen').onclick = async ()=>{
+    const btn = document.getElementById('toeflGen'); btn.disabled=true; btn.textContent='Working…';
+    try {
+      const r = await fetch('/api/teacher/students/'+encodeURIComponent(currentStudentId)+'/toefl-estimate', { method:'POST', headers:{ 'X-CSRF-Token': csrf } });
+      if(r.status===422){ btn.disabled=false; btn.textContent='Generate estimate'; alert('Not enough marked essays yet. The student needs at least 2 essays with style data.'); return; }
+      if(!r.ok) throw new Error('gen '+r.status);
+      renderToefl(body, await r.json());
+    } catch(e){ btn.disabled=false; btn.textContent='Refresh estimate'; alert('Could not generate the estimate.'); }
+  };
+  document.getElementById('toeflSave').onclick = async ()=>{
+    const val = Number(document.getElementById('toeflScore').value);
+    if(!Number.isInteger(val) || val<0 || val>30){ alert('Enter a whole number from 0 to 30.'); return; }
+    try {
+      const r = await fetch('/api/teacher/students/'+encodeURIComponent(currentStudentId)+'/toefl-known-score', { method:'POST', headers:{ 'X-CSRF-Token': csrf, 'Content-Type':'application/json' }, body: JSON.stringify({ writing_score: val }) });
+      if(!r.ok) throw new Error('save '+r.status);
+      const saved = await r.json();
+      renderToefl(body, { latest: t.latest, history: t.history, known_scores: saved.known_scores });
+    } catch(e){ alert('Could not record the score.'); }
+  };
 }
 
 function pickAnomaly(){
