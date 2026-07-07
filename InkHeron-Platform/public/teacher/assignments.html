@@ -9,8 +9,8 @@
   <style>
     :root{--bg:#F7F6F2;--surface:#FFFFFF;--surface-2:#F1EFE9;--surface-3:#E8E6DF;--border:rgba(20,20,18,0.12);--border-2:rgba(20,20,18,0.22);--ink:#141412;--text:#1C1C1A;--text-2:#5C5B55;--text-3:#8C8B83;--green-50:#EAF3EC;--green-600:#246343;--green-700:#1B4A32;--maroon-50:#F6E9EB;--maroon-500:#8C2F3B;--blue-50:#E8F0F7;--blue-700:#1F5076;--amber-50:#FBF0DC;--amber-700:#8A5A12;--r-sm:10px;--r-md:14px;--font:'Inter',-apple-system,system-ui,sans-serif;--serif:'Source Serif 4',Georgia,serif;--mono:ui-monospace,'SF Mono',Menlo,monospace;--shadow-card:0 2px 14px rgba(20,20,18,0.05);--shadow-lift:0 10px 30px rgba(20,20,18,0.10);}
     *{box-sizing:border-box;}
-    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;}
-    .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:14px 26px;background:rgba(247,246,242,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
+    body{margin:0;font-family:var(--font);font-size:14px;line-height:1.55;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased;min-height:100vh;overflow-x:hidden;}
+    .appbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 26px;background:rgba(247,246,242,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);}
     .appbar .glyph{width:32px;height:32px;border-radius:10px;background:var(--green-600);color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:17px;font-weight:600;transform:rotate(-4deg);}
     .appbar .nm{font-family:var(--serif);font-size:17px;font-weight:600;}
     .appbar .sp{flex:1;}
@@ -27,6 +27,8 @@
     .btn.sm{min-height:32px;padding:0 12px;font-size:13px;}
     .btn:disabled{opacity:.5;cursor:default;transform:none!important;box-shadow:none!important;}
     /* ── List view ── */
+    .list-head{display:flex;align-items:center;gap:12px;}
+    .list-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;}
     .search-row{display:flex;gap:12px;align-items:center;margin:18px 0 12px;}
     .search-row input{flex:1;border:1.5px solid var(--border-2);border-radius:var(--r-sm);padding:10px 14px;font:inherit;font-size:14px;background:var(--surface);color:var(--text);}
     .search-row input:focus{outline:none;border-color:var(--green-600);}
@@ -77,6 +79,18 @@
     .pill.held{background:var(--amber-50);color:var(--amber-700);}
     .mono{font-family:var(--mono);font-size:12.5px;color:var(--text-2);}
     .empty{color:var(--text-3);font-size:13.5px;text-align:center;padding:28px;}
+    .student-cards{display:none;}
+    .student-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card);padding:14px;display:grid;gap:10px;}
+    .student-card .sc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+    .student-card .sc-name{font-weight:800;font-size:15px;line-height:1.25;}
+    .student-card .sc-user{display:block;color:var(--text-3);font-size:12.5px;font-weight:400;margin-top:2px;}
+    .student-card .sc-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .student-card .sc-field{background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:8px;min-width:0;}
+    .student-card .sc-label{display:block;color:var(--text-3);font-size:11px;font-weight:800;text-transform:uppercase;margin-bottom:3px;}
+    .student-card .sc-value{font-size:13px;color:var(--text);overflow-wrap:anywhere;}
+    .student-card .sc-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    .student-card .sc-actions .btn{width:100%;}
+    .student-card .sc-actions .sc-wide{grid-column:1/-1;}
     /* ── Edit view ── */
     .edit-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:22px 24px;box-shadow:var(--shadow-card);margin-bottom:14px;}
     .edit-card h3{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);margin:0 0 16px;padding-bottom:10px;border-bottom:1px solid var(--border);}
@@ -127,7 +141,50 @@
     .modal-student-row .sname{font-size:13.5px;}
     .modal-student-row .susr{color:var(--text-3);font-size:12px;}
     .modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
-    @media(max-width:760px){.container{padding:24px 18px 64px;}.controls{grid-template-columns:1fr;}.summary{grid-template-columns:repeat(2,minmax(110px,1fr));}.row2{grid-template-columns:1fr;}}
+    @media(max-width:760px){
+      body{font-size:15px;}
+      .appbar{padding:10px 12px;gap:10px;}
+      .appbar .sp{display:none;}
+      .appbar .nm{flex:1;}
+      .appbar .btn{min-height:42px;}
+      .container{padding:16px 12px 54px;}
+      h1{font-size:24px;}
+      .btn{min-height:44px;padding:0 12px;}
+      .btn.sm{min-height:42px;font-size:13px;}
+      .back-link,.back-btn{margin-bottom:14px;}
+      .list-head{align-items:stretch;flex-direction:column;gap:10px;}
+      .list-actions{margin-left:0;display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;}
+      .list-actions .btn{width:100%;}
+      .search-row{display:grid;grid-template-columns:1fr;gap:8px;margin:12px 0;}
+      .search-row select{max-width:none;width:100%;font-size:16px;}
+      .search-row input{font-size:16px;}
+      .asgn-card{align-items:stretch;flex-direction:column;padding:14px;gap:12px;}
+      .asgn-card .card-click{width:100%;align-items:flex-start;}
+      .asgn-card .card-title{white-space:normal;line-height:1.25;}
+      .asgn-card .card-meta{font-size:12.5px;line-height:1.35;}
+      .asgn-card .card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;}
+      .asgn-card .card-actions .btn{width:100%;}
+      .detail-header{align-items:stretch;flex-direction:column;}
+      .detail-header h2{font-size:20px;}
+      .detail-header .btn,.detail-header select,.detail-header .class-tag{width:100%;max-width:none!important;}
+      .controls{grid-template-columns:1fr;gap:10px;}
+      .controls select{font-size:16px;}
+      .summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+      .metric{padding:12px;}
+      .metric .n{font-size:22px;}
+      .table-wrap{display:none;}
+      .student-cards{display:grid;gap:10px;}
+      .student-card .sc-grid{grid-template-columns:1fr;}
+      .student-card .sc-actions{grid-template-columns:1fr 1fr;}
+      .row2{grid-template-columns:1fr;}
+      .edit-card{padding:18px 16px;}
+      .edit-footer,.modal-foot{display:grid;grid-template-columns:1fr;gap:8px;}
+      .edit-footer .btn,.modal-foot .btn{width:100%;}
+      .radio-group{display:grid;grid-template-columns:1fr;}
+      .radio-group .opt{border-radius:var(--r-sm)!important;margin-left:0!important;text-align:center;}
+      .modal-overlay{padding:16px 10px;}
+      .modal-box{padding:18px 16px;border-radius:14px;}
+    }
   </style>
 </head>
 <body>
@@ -142,12 +199,14 @@
 
     <!-- ── List view ── -->
     <div id="listView">
-      <div style="display:flex;align-items:center;gap:12px;">
+      <div class="list-head">
         <h1 id="listHeading">Assignments</h1>
-        <button class="btn sm" id="toggleArchiveBtn" type="button" style="margin-left:auto;">Show archived</button>
-        <a class="btn sm" href="/teacher/question-bank">Question bank</a>
-        <a class="btn sm" href="/teacher/new-test">New test</a>
-        <a class="btn p sm" href="/teacher/new-assignment">+ New assignment</a>
+        <div class="list-actions">
+          <button class="btn sm" id="toggleArchiveBtn" type="button">Show archived</button>
+          <a class="btn sm" href="/teacher/question-bank">Question bank</a>
+          <a class="btn sm" href="/teacher/new-test">New test</a>
+          <a class="btn p sm" href="/teacher/new-assignment">+ New assignment</a>
+        </div>
       </div>
       <div class="search-row">
         <input type="text" id="searchInput" placeholder="Search by title or class…" autocomplete="off">
@@ -211,6 +270,7 @@
           <tbody id="studentsBody"></tbody>
         </table>
       </div>
+      <div class="student-cards" id="studentCards"></div>
     </div>
 
     <!-- ── Edit view ── -->
@@ -784,6 +844,7 @@
         paste:document.getElementById('pasteFilter').value,
         sort:document.getElementById('sortSelect').value,
       });
+      renderLoadingDashboard();
 
       if(currentId==='all'){
         // Fetch all classes in parallel and merge
@@ -1132,6 +1193,7 @@
 
     function renderRows(rows){
       const body=document.getElementById('studentsBody');
+      const cards=document.getElementById('studentCards');
       if(!rows.length){renderEmpty('No students match these filters.');return;}
       body.innerHTML=rows.map(row=>`
         <tr>
@@ -1147,11 +1209,44 @@
       body.querySelectorAll('[data-unassign]').forEach(btn=>{
         btn.addEventListener('click',()=>unassignStudent(Number(btn.dataset.assignment),Number(btn.dataset.unassign),btn.dataset.name));
       });
+      cards.innerHTML=rows.map(row=>{
+        const assignmentId=row.assignment_id||currentId;
+        const submitted=row.submitted_at?formatDate(row.submitted_at):'-';
+        const paste=row.paste_flag?`${row.paste_count} event${row.paste_count===1?'':'s'}`:'-';
+        const score=row.score===null?'-':`${escapeHtml(String(row.score))} / ${escapeHtml(String(row.score_max))} (${row.grade_state==='released'?'released':'held'})`;
+        const exam=row.is_ap_lang?(row.exam_score===null?'-':`${escapeHtml(String(row.exam_score))} / ${escapeHtml(String(row.exam_score_max))}`):'-';
+        return `<article class="student-card">
+          <div class="sc-head">
+            <div><span class="sc-name">${escapeHtml(row.display_name)}</span><span class="sc-user">${escapeHtml(row.username)}</span></div>
+            <span class="pill ${escapeHtml(row.status)}">${statusLabel(row.status)}</span>
+          </div>
+          <div class="sc-grid">
+            <div class="sc-field"><span class="sc-label">Submitted</span><span class="sc-value">${escapeHtml(submitted)}</span></div>
+            <div class="sc-field"><span class="sc-label">Paste</span><span class="sc-value">${escapeHtml(paste)}</span></div>
+            <div class="sc-field"><span class="sc-label">Score</span><span class="sc-value">${score}</span></div>
+            <div class="sc-field"><span class="sc-label">Exam score</span><span class="sc-value">${exam}</span></div>
+          </div>
+          <div class="sc-actions">
+            ${row.review_url?`<a class="btn p sm" href="${escapeHtml(row.review_url)}">Review essay</a>`:''}
+            <a class="btn sm ${row.review_url?'':'sc-wide'}" href="/teacher/student-profile?student_id=${row.student_id}">Profile</a>
+            <button class="btn sm sc-wide" style="color:#8C2F3B;border-color:#8C2F3B;" data-unassign="${row.student_id}" data-assignment="${assignmentId}" data-name="${escapeHtml(row.display_name)}">Unassign</button>
+          </div>
+        </article>`;
+      }).join('');
+      cards.querySelectorAll('[data-unassign]').forEach(btn=>{
+        btn.addEventListener('click',()=>unassignStudent(Number(btn.dataset.assignment),Number(btn.dataset.unassign),btn.dataset.name));
+      });
     }
 
     function renderEmpty(msg){
       document.getElementById('summary').innerHTML='';
       document.getElementById('studentsBody').innerHTML=`<tr><td class="empty" colspan="8">${escapeHtml(msg)}</td></tr>`;
+      document.getElementById('studentCards').innerHTML=`<div class="empty">${escapeHtml(msg)}</div>`;
+    }
+    function renderLoadingDashboard(){
+      document.getElementById('summary').innerHTML='';
+      document.getElementById('studentsBody').innerHTML='<tr><td class="empty" colspan="8">Loading roster...</td></tr>';
+      document.getElementById('studentCards').innerHTML='<div class="empty">Loading roster...</div>';
     }
 
     // ── Utilities ──────────────────────────────────────────

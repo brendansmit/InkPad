@@ -36,6 +36,13 @@ Entry format:
 - NOTE: another session is editing this working tree concurrently (assignments.html, assignments.js, nativePads.js, two test files). Staged only my hunk of nativePads.js via git apply --cached. Commit 2a6c36e. Suite 165/165 green in the shared working tree.
 - Not deployed yet; rides along with the pending test-greenpen merge decision.
 
+## 2026-07-07 — Mobile assignment review flow
+
+- Asked: the assignment list and student essay list were still not mobile-friendly; the review page fix was too narrow.
+- Did: updated `public/teacher/assignments.html` so the assignment list header/actions stack on mobile, assignment cards expose usable full-width action buttons, the assignment detail controls stack and the student roster gets a dedicated mobile card view with prominent Review essay/Profile/Unassign actions.
+- Did: added a visible roster loading state so slow network/server restart does not look like a dead blank table.
+- Verified: assignments inline script syntax OK; `test/assignments.test.js` passed 20/20 on Node 24.
+
 ## 2026-07-07 — Checked mobile review deployment
 
 - Asked: check whether the mobile native-review UI fix has been deployed.
