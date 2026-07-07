@@ -10,6 +10,14 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-07 — Audited TOEFL build, fixed the card, verified end-to-end
+
+- Audited Sonnet's toefl-estimate branch: routes all teacher-session + CSRF, wall test present (padRelease asserts no "toefl" in student feedback payload), demo/ghost excluded from anchors, checker can only blank, range kept ordered, migration 031 registered. Suite 176/176.
+- Sonnet's worry about /api/students/:id/writing-profile was the known ugrep gotcha: the route exists (nativePads.js:2167) and the page boots fine.
+- Found and fixed one real bug (1681636): loadToefl() ran before the card was in the DOM, so getElementById returned null and the card hung on "Loading…" forever. Moved the call to after append.
+- Verified end-to-end on a local server (port 3474, fresh DB, seeded 2 submitted essays): card renders, Record real score works ("Real scores on record: 24"), Generate without an OpenRouter key fails gracefully (alert + button re-enabled). Live-model happy path untestable locally; teacher clicks Generate on production where the key exists.
+- test-greenpen and analysis-ai fast-forwarded to 1681636. NOT deployed: awaiting explicit go-ahead.
+
 ## 2026-07-07 — Built teacher-only TOEFL writing estimate (branch toefl-estimate)
 
 - Asked: build the TOEFL estimate per SONNET_TOEFL_HANDOFF.md exactly, off test-greenpen, keep the suite green, no deploy.
