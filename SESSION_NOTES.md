@@ -270,3 +270,19 @@ Did:
 - Verified Python parses. Could not run a live health probe (sandbox blocks outbound HTTPS — both inkpad and eap return 000 here identically). No deploy triggered; that is the teacher's to click.
 
 Committed `fac26be`.
+
+## 2026-07-07: AI control panel viability discussion
+
+**Asked:** Discuss whether a private mobile web dashboard on the existing droplet can run Codex or Claude Code jobs against selected projects, show logs and diffs, then allow phone approval for push and deploy.
+
+**Did:** Recommended treating the runner as an isolated project-level build worker rather than remote root access. Outlined a practical MVP with private auth, per-project config, job queue, SQLite history, per-job workspaces, Codex CLI execution under a restricted Unix user, dangerous-action gates, git diff review and explicit deploy approval.
+
+**Decision:** No code was started. Next step is to confirm the MVP stack and repository location before implementation.
+
+## 2026-07-07: admin.inkheron.app remote server control security
+
+**Asked:** How to encrypt and strengthen `admin.inkheron.app` so it can control only the sites on the DigitalOcean droplet while away from the main computer.
+
+**Did:** Recommended a narrow remote admin design: HTTPS-only, Cloudflare Access or equivalent identity gate, app-level admin auth, allowlisted server actions, no shell command box, CSRF protection, audit logging, rate limits and a restricted deploy runner user on the droplet.
+
+**Decision:** No code was started. Next step is explicit go-ahead to inspect the admin app and launcher dashboard before implementing.
