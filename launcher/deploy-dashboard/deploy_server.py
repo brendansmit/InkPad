@@ -7,6 +7,20 @@ SSH_KEY  = os.path.expanduser('~/.ssh/id_ed25519')
 SSH_HOST = 'root@167.172.71.219'
 
 SERVERS = {
+    'inkpad': {
+        # Live platform: inkpad.inkheron.app -> /opt/inkheron-platform,
+        # a systemd service (inkheron-wrapper), NOT pm2. Port 3000.
+        'pm2_name':    'inkheron-wrapper',
+        'local_repo':  os.path.expanduser('~/Documents/Claude/InkHeron-Platform'),
+        'remote_path': '/opt/inkheron-platform',
+        'deploy_mode': 'rsync',
+        'rsync_excludes': ['.git', 'node_modules', 'data', '.env'],
+        'npm_install': 'cp data/inkheron.db data/inkheron.db.pre-deploy-$(date +%Y%m%d%H%M%S) 2>/dev/null; npm install --omit=dev && INKHERON_DB_PATH=/opt/inkheron-platform/data/inkheron.db node src/db/migrate.js',
+        'npm_restart': 'systemctl restart inkheron-wrapper',
+        'logs_cmd':    'journalctl -u inkheron-wrapper -n 80 --no-pager',
+        'label':       'inkpad.inkheron.app',
+        'health_url':  'https://inkpad.inkheron.app/healthz',
+    },
     'speed-dating': {
         'pm2_name':    'speed-dating',
         'local_repo':  os.path.expanduser('~/Documents/Claude/speed-dating'),
@@ -52,8 +66,8 @@ SERVERS = {
 }
 
 def get_server():
-    key = request.args.get('server', 'eap-platform')
-    return SERVERS.get(key) or SERVERS['eap-platform']
+    key = request.args.get('server', 'inkpad')
+    return SERVERS.get(key) or SERVERS['inkpad']
 
 def ssh(cmd, timeout=20):
     result = subprocess.run(
@@ -180,7 +194,8 @@ def deploy():
 @app.route('/api/logs')
 def logs():
     srv = get_server()
-    out, _ = ssh(f"pm2 logs {srv['pm2_name']} --lines 60 --nostream --raw", timeout=15)
+    log_cmd = srv.get('logs_cmd', f"pm2 logs {srv['pm2_name']} --lines 60 --nostream --raw")
+    out, _ = ssh(log_cmd, timeout=15)
     return jsonify({'output': out or '(no logs)'})
 
 @app.route('/api/restart', methods=['POST'])
