@@ -358,6 +358,14 @@ Committed `fac26be`.
 
 **Verification:** `https://admin.inkheron.app/` redirects to the admin login, `/login` returns the InkHeron Admin login page, `/api/session` returns the admin API response, `/grades` returns the Grade Importer page and `/api/config` returns the grade importer config response.
 
+## 2026-07-08: Remove admin browser Basic Auth
+
+**Asked:** Remove the browser username/password popup from `admin.inkheron.app` because the admin site should only use its in-app login.
+
+**Did:** Removed nginx Basic Auth directives from the restored `admin.inkheron.app` server block and reloaded nginx. Backed up the prior config first at `/etc/nginx/sites-available/admin.inkheron.app.bak-20260708-no-basic-auth`.
+
+**Verification:** `https://admin.inkheron.app/login` returns HTTP 200 with no `WWW-Authenticate` header, and `/grades` still returns the Grade Importer page.
+
 ## 2026-07-08: AI control panel one-hour MVP discussion
 
 **Asked:** Whether the private AI coding dashboard can be up on a new droplet within an hour, using details from the prior remote server dashboard conversation.
@@ -373,3 +381,19 @@ Committed `fac26be`.
 **Did:** Added `ai-control/`, a Python standard-library web app with password login, SQLite job history, mobile UI, per-project JSON config, per-job git clones, configurable Codex command execution, test/build commands, logs, diff display, changed-file safety checks, approve-push and approve-deploy endpoints, nginx config, systemd unit and Ubuntu install script.
 
 **Verification:** Python syntax check passed with bytecode redirected to `/tmp`; project JSON files validate; ASCII scan is clean. Ran a local smoke test with a fake git repo and fake Codex command: job cloned, branched, edited `README.md`, ran test/build commands, produced logs/diff, reached `review`, then fake deploy reached `deployed`. Node was not available locally, so no JS syntax check was run.
+
+**Remote install:** Copied to the new droplet `165.22.242.91`, installed `/opt/ai-control`, enabled `ai-control.service`, generated credentials into `/etc/ai-control.env` and `/root/ai-control-credentials.txt`, configured nginx and certbot for `https://builder.inkheron.app`. Verified public `/health` returns 200, unauthenticated `/` redirects to `/login`, generated password logs in locally on the droplet and the authenticated homepage returns 200.
+
+## 2026-07-08: AI Control auth integration explanation
+
+**Asked:** Explain how to connect Codex, Claude Code and GitHub to the new builder dashboard so it can access existing projects and save its own work.
+
+**Did:** Explained the three required identities: dashboard login, AI CLI auth for the `ai-control` Unix user and GitHub write access via a machine user or per-repo deploy keys. Recommended using SSH GitHub URLs in `projects.json`, storing AI API keys in `/etc/ai-control.env`, running the CLIs as `ai-control` and saving AI work by pushing per-job branches.
+
+## 2026-07-08: AI Control setup UI
+
+**Asked:** Continue step by step, keep a UI to interact with and deploy each working slice.
+
+**Did:** Added an authenticated setup panel to the builder dashboard. It shows Git, Codex, Claude Code, GitHub SSH auth, API key presence, enabled projects and each selected project's repo, AI command, test/build and deploy status. Added `/api/setup` to expose safe status metadata and the service user's public GitHub key without exposing secrets.
+
+**Verification:** Python syntax check passed, frontend JS syntax check passed with bundled Node, shell installer syntax passed and ASCII scan is clean. Local `/api/setup` smoke test returned tool/GitHub/project status.

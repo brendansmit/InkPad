@@ -16,9 +16,22 @@
       <form method="post" action="/logout"><button class="ghost">Log out</button></form>
     </header>
 
+    <section class="panel setup-panel">
+      <div class="panel-head">
+        <h2>Setup</h2>
+        <button class="ghost" id="setup-refresh">Check</button>
+      </div>
+      <div id="setup-status" class="setup-grid"></div>
+      <details class="setup-details">
+        <summary>GitHub SSH key</summary>
+        <pre id="github-key" class="small"></pre>
+      </details>
+    </section>
+
     <section class="panel">
       <label for="project">Project</label>
       <select id="project"></select>
+      <div id="project-meta" class="project-meta"></div>
       <label for="task">Task</label>
       <textarea id="task" rows="6" placeholder="Fix the bug, add the feature or explain exactly what should change."></textarea>
       <button id="submit">Run AI Job</button>

@@ -45,6 +45,7 @@ h3 { font-size: .78rem; color: var(--muted); text-transform: uppercase; letter-s
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 16px;
+  margin-bottom: 16px;
 }
 
 label {
@@ -85,6 +86,69 @@ button:disabled { opacity: .45; cursor: default; }
 .danger { background: var(--red); }
 #submit { width: 100%; margin-top: 12px; }
 .hint { color: var(--muted); font-size: .85rem; margin-top: 10px; line-height: 1.4; }
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+.status-card {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+.status-card.ok { border-color: #a7ccb8; }
+.status-card.bad { border-color: #e2b4b4; }
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  font-weight: 800;
+  font-size: .86rem;
+}
+.status-row strong {
+  color: var(--muted);
+  font-size: .7rem;
+  white-space: nowrap;
+}
+.status-card.ok .status-row strong { color: var(--accent); }
+.status-card.bad .status-row strong { color: var(--red); }
+.status-card p {
+  color: var(--muted);
+  font-size: .78rem;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+.setup-details { margin-top: 10px; color: var(--muted); }
+.setup-details summary { cursor: pointer; font-weight: 800; font-size: .84rem; }
+.project-meta {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.project-meta div {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px;
+  min-width: 0;
+}
+.project-meta strong {
+  display: block;
+  color: var(--muted);
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-bottom: 4px;
+}
+.project-meta span {
+  display: block;
+  font-size: .82rem;
+  overflow-wrap: anywhere;
+}
 
 .split {
   display: grid;
@@ -182,4 +246,6 @@ pre.small { max-height: 160px; }
   .split { grid-template-columns: 1fr; }
   .detail { min-width: 0; }
   .actions { grid-template-columns: 1fr; }
+  .setup-grid { grid-template-columns: 1fr; }
+  .project-meta { grid-template-columns: 1fr 1fr; }
 }

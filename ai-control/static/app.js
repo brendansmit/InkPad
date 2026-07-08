@@ -1,5 +1,6 @@
 let selectedJob = null;
 let currentJob = null;
+let projectList = [];
 let pollTimer = null;
 
 const $ = id => document.getElementById(id);
@@ -25,9 +26,34 @@ function pillClass(status) {
   return "pill " + String(status || "").replaceAll("_", "_");
 }
 
+function statusItem(label, ok, detail) {
+  return `
+    <div class="status-card ${ok ? "ok" : "bad"}">
+      <div class="status-row">
+        <span>${escapeHtml(label)}</span>
+        <strong>${ok ? "OK" : "Needs setup"}</strong>
+      </div>
+      <p>${escapeHtml(detail || "")}</p>
+    </div>`;
+}
+
+async function loadSetup() {
+  const data = await api("/api/setup");
+  const projects = data.projects || [];
+  $("setup-status").innerHTML = [
+    statusItem("Git", data.tools.git.ok, data.tools.git.path || "Install git"),
+    statusItem("Codex", data.tools.codex.ok && data.env.openai, data.tools.codex.ok ? "OPENAI_API_KEY required" : "Install Codex CLI"),
+    statusItem("Claude Code", data.tools.claude.ok && data.env.anthropic, data.tools.claude.ok ? "ANTHROPIC_API_KEY required" : "Install Claude Code CLI"),
+    statusItem("GitHub", data.github.ssh_key && data.github.auth_ok, data.github.ssh_key ? (data.github.auth_ok ? "SSH auth works" : "Add this key to GitHub") : "Create SSH key for ai-control"),
+    statusItem("Projects", projects.some(p => !p.disabled), `${projects.filter(p => !p.disabled).length} enabled`)
+  ].join("");
+  $("github-key").textContent = data.github.ssh_public_key || "No public key found for the service user.";
+}
+
 async function loadProjects() {
   const data = await api("/api/projects");
-  const enabled = data.projects.filter(p => !p.disabled);
+  projectList = data.projects;
+  const enabled = projectList.filter(p => !p.disabled);
   $("project").innerHTML = enabled
     .map(p => `<option value="${p.id}">${p.name}</option>`)
     .join("");
@@ -35,6 +61,21 @@ async function loadProjects() {
     $("submit").disabled = true;
     $("task").placeholder = "No enabled projects. Edit config/projects.json on the server.";
   }
+  renderProjectMeta();
+}
+
+function renderProjectMeta() {
+  const project = projectList.find(p => p.id === $("project").value);
+  if (!project) {
+    $("project-meta").innerHTML = "";
+    return;
+  }
+  $("project-meta").innerHTML = `
+    <div><strong>Repo</strong><span>${escapeHtml(project.repo || "missing")}</span></div>
+    <div><strong>AI</strong><span>${escapeHtml(project.ai_command || "not configured")}</span></div>
+    <div><strong>Checks</strong><span>${project.has_tests ? "test" : "no test"} / ${project.has_build ? "build" : "no build"}</span></div>
+    <div><strong>Deploy</strong><span>${project.has_deploy ? "configured" : "missing"}</span></div>
+  `;
 }
 
 async function submitJob() {
@@ -132,6 +173,8 @@ function escapeHtml(value) {
 }
 
 $("submit").addEventListener("click", submitJob);
+$("project").addEventListener("change", renderProjectMeta);
+$("setup-refresh").addEventListener("click", loadSetup);
 $("refresh").addEventListener("click", () => {
   loadJobs();
   if (selectedJob) loadJob(selectedJob);
@@ -140,6 +183,7 @@ $("push").addEventListener("click", pushJob);
 $("deploy").addEventListener("click", deployJob);
 
 async function boot() {
+  await loadSetup();
   await loadProjects();
   await loadJobs();
   pollTimer = setInterval(() => {

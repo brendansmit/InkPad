@@ -55,6 +55,81 @@ def public_project(project_id, project):
         "branch": project.get("branch", "main"),
         "disabled": bool(project.get("disabled")),
         "description": project.get("description", ""),
+        "ai_command": command_label(project),
+        "has_deploy": bool(project.get("deploy_command")),
+        "has_tests": bool(project.get("test_command")),
+        "has_build": bool(project.get("build_command")),
+    }
+
+
+def command_label(project):
+    command = project.get("codex_command")
+    if not command:
+        command = load_config().get("default_codex_command")
+    if isinstance(command, list) and command:
+        return str(command[0])
+    if isinstance(command, str) and command.strip():
+        return command.strip().split()[0]
+    return "not configured"
+
+
+def run_probe(command, timeout=8):
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+        output = (result.stdout + result.stderr).strip()
+        return {
+            "ok": result.returncode == 0,
+            "code": result.returncode,
+            "output": output[-1000:],
+        }
+    except FileNotFoundError:
+        return {"ok": False, "code": 127, "output": "not installed"}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "code": 124, "output": "timed out"}
+    except Exception as exc:
+        return {"ok": False, "code": 1, "output": str(exc)}
+
+
+def tool_status(name):
+    probe = run_probe(["/usr/bin/env", "sh", "-lc", f"command -v {shlex.quote(name)}"], timeout=4)
+    if not probe["ok"]:
+        return {"ok": False, "path": "", "version": ""}
+    path = probe["output"].splitlines()[-1].strip()
+    version = run_probe([path, "--version"], timeout=6)
+    return {"ok": True, "path": path, "version": version.get("output", "")[:300]}
+
+
+def setup_status():
+    config = load_config()
+    projects = config.get("projects") or {}
+    public_key = Path.home() / ".ssh" / "id_ed25519.pub"
+    github_probe = run_probe(
+        ["ssh", "-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new", "git@github.com"],
+        timeout=10,
+    )
+    github_ok = github_probe["ok"] or "successfully authenticated" in github_probe.get("output", "").lower()
+    return {
+        "config_path": str(CONFIG_PATH),
+        "data_dir": str(DATA_DIR),
+        "workspace_dir": str(WORKSPACE_DIR),
+        "env": {
+            "openai": bool(os.environ.get("OPENAI_API_KEY")),
+            "anthropic": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        },
+        "tools": {
+            "git": tool_status("git"),
+            "node": tool_status("node"),
+            "npm": tool_status("npm"),
+            "codex": tool_status("codex"),
+            "claude": tool_status("claude"),
+        },
+        "github": {
+            "ssh_key": public_key.exists(),
+            "ssh_public_key": public_key.read_text(encoding="utf-8").strip() if public_key.exists() else "",
+            "auth_ok": github_ok,
+            "auth_output": github_probe.get("output", ""),
+        },
+        "projects": [public_project(pid, project) for pid, project in projects.items()],
     }
 
 
@@ -459,6 +534,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_static("index.html", "text/html")
         if path == "/api/projects":
             return self.api_projects()
+        if path == "/api/setup":
+            return self.api_setup()
         if path == "/api/jobs":
             return self.api_jobs()
         if path.startswith("/api/jobs/"):
@@ -516,6 +593,9 @@ class Handler(BaseHTTPRequestHandler):
         projects = load_config().get("projects") or {}
         visible = [public_project(pid, p) for pid, p in projects.items()]
         self.send_json({"projects": visible})
+
+    def api_setup(self):
+        self.send_json(setup_status())
 
     def api_jobs(self):
         rows = db_query("select * from jobs order by created_at desc limit 40")
