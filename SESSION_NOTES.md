@@ -344,3 +344,11 @@ Committed `fac26be`.
 **Did:** Confirmed that the normal Ubuntu 24.04 LTS Basic droplet at 6 dollars is the right choice under the stated 10 dollar cap, with Singapore as the preferred region and 2 GiB swap added after creation.
 
 **Decision:** No code was started.
+
+## 2026-07-08: DigitalOcean SSH key choice
+
+**Asked:** What to choose for SSH key during droplet creation.
+
+**Did:** Recommended using SSH key authentication instead of password login, preferably the existing local Ed25519 public key if available.
+
+**Decision:** No code was started.
