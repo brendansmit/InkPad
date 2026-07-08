@@ -1,44 +1,5 @@
 # Session Notes
 
-## 2026-06-23 — Grade Importer: % column not showing on existing assignments
-
-**Asked:** % column not appearing even on assignments that already had `score_total` set (30.0 and 25.0 confirmed in DB).
-
-**Root cause:** Flask caches Jinja2 templates in memory at startup. The Grade Importer server (PID 28307) was started before the `f913932` commit that added the % column feature. Every page load served the old cached template without `currentScoreTotal` references. No code bug — just a stale server process.
-
-**Fix:** Killed PID 28307, restarted server. New PID 33871. Template now contains 6 `currentScoreTotal` references. % column confirmed present in served HTML.
-
-**Note for future:** Any time HTML changes don't appear in the browser, restart the Flask server — it must be restarted to pick up template changes when `debug=False`.
-
----
-
-## 2026-06-24 — AP Lang Reference Dashboard: deployed to production
-
-**Asked:** Deploy the AP Lang dashboard to lang.inkheron.app on the existing DigitalOcean droplet (167.172.71.219).
-
-**Did:**
-- Changed port to 3002 to avoid conflict with speed-dating (port already on droplet).
-- Pushed repo to `git@github.com:brendansmit/LangDashboard.git`.
-- Added `lang` A record in DNS pointing to 167.172.71.219 (managed at Porkbun or DO).
-- On server: cloned to `/var/www/ap-lang-dashboard`, `npm install`, created `.env`, started with PM2 as `ap-lang`, nginx reverse proxy config, certbot SSL.
-- Live at https://lang.inkheron.app — admin at /admin.html.
-- Deploy pattern: `git push` then on server `git pull && npm install && pm2 restart ap-lang`.
-
----
-
-## 2026-06-24 — AP Lang Reference Dashboard: initial build
-
-**Asked:** Build a full Node/Express/SQLite document library app for AP Lang students, with a password-protected admin panel. Retrieved complete design system from the prior AP Lang session.
-
-**Did:**
-- Created `ap-lang-dashboard/` with `server.js`, `package.json`, `.env`, `.gitignore`, `public/index.html`, `public/admin.html`.
-- Server: Express + sqlite3 + multer + cookie-parser. `.html`-only uploads (20 MB cap) into `uploads/`. Cookie-based admin auth (`ADMIN_PASSWORD` env var). All 8 API routes implemented.
-- Student view: white sidebar (212px), brand mark, nav, card grid (3→2→1 col responsive), inline iframe document viewer modal with back button and "open in tab" link.
-- Admin view: login modal on load, Library table (toggle-hidden switch, rename, delete with confirm), Upload view (drag-drop zone + title field + progress bar + toasts).
-- Full design system: CSS variables, Inter font, outlined/primary/danger buttons, cards with hover, toggle switch, filter bar, kebab-ready structure, modals, toasts, dropzone, empty states.
-- Verified: server starts, `/api/docs` returns JSON, login works, uploaded test doc appeared as card, doc deleted cleanly. Committed 28f2a0b + .gitignore fix 858885f.
-
----
 
 ## 2026-06-24 — Server Dashboard: command runner + launcher cleanup
 
@@ -388,3 +349,27 @@ Committed `fac26be`.
 **Did:** Confirmed `admin.inkheron.app` resolves to the old droplet `167.172.71.219`, where nginx protects the admin app with Basic Auth realm `Grade Importer` and username `Admin`. Installed `apache2-utils` because `htpasswd` was missing, reset the `Admin` Basic Auth password to the user-provided value, validated nginx and reloaded it.
 
 **Verification:** `https://admin.inkheron.app` returns HTTP 200 with username `Admin` and the new password. Did not store the password value in notes.
+
+## 2026-07-08: Restore admin and grade importer routing
+
+**Asked:** Restore `admin.inkheron.app` so the grade importer is only part of the admin site, not the entire admin site.
+
+**Did:** Investigated the old droplet nginx and PM2 state. Found nginx was routing all of `admin.inkheron.app` to the grade importer on port `5051`, while the main `admin-platform` app was still online on port `3474`. Replaced the nginx site config so `/` and normal admin APIs route to `admin-platform`, `/grades` routes to the grade importer, grade-specific API paths route to the grade importer and `/api/sync` remains unauthenticated as before. Backed up the previous nginx config before replacing it, validated nginx and reloaded it.
+
+**Verification:** `https://admin.inkheron.app/` redirects to the admin login, `/login` returns the InkHeron Admin login page, `/api/session` returns the admin API response, `/grades` returns the Grade Importer page and `/api/config` returns the grade importer config response.
+
+## 2026-07-08: AI control panel one-hour MVP discussion
+
+**Asked:** Whether the private AI coding dashboard can be up on a new droplet within an hour, using details from the prior remote server dashboard conversation.
+
+**Did:** Pulled the relevant setup facts from notes: existing launcher/deploy dashboard pattern, Flask dashboard on port 5095, per-app configs in `deploy_server.py`, mixed `pm2` and `systemd`, InkPad live at `/opt/inkheron-platform`, and the need for tighter auth and scoped remote control. Recommended a very small MVP rather than the full safe architecture.
+
+**Decision:** No code started. User still needs to give explicit go-ahead before implementation.
+
+## 2026-07-08: AI Control MVP scaffold
+
+**Asked:** Go ahead and build the one-hour MVP for a private phone dashboard on the new `builder.inkheron.app` droplet.
+
+**Did:** Added `ai-control/`, a Python standard-library web app with password login, SQLite job history, mobile UI, per-project JSON config, per-job git clones, configurable Codex command execution, test/build commands, logs, diff display, changed-file safety checks, approve-push and approve-deploy endpoints, nginx config, systemd unit and Ubuntu install script.
+
+**Verification:** Python syntax check passed with bytecode redirected to `/tmp`; project JSON files validate; ASCII scan is clean. Ran a local smoke test with a fake git repo and fake Codex command: job cloned, branched, edited `README.md`, ran test/build commands, produced logs/diff, reached `review`, then fake deploy reached `deployed`. Node was not available locally, so no JS syntax check was run.
