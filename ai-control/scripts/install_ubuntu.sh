@@ -8,7 +8,7 @@ if ! id ai-control >/dev/null 2>&1; then
 fi
 
 mkdir -p "$APP_DIR"
-rsync -a --delete ./ "$APP_DIR"/
+cp -a . "$APP_DIR"/
 chown -R ai-control:ai-control "$APP_DIR"
 chmod 700 "$APP_DIR"
 
