@@ -362,3 +362,13 @@ Committed `fac26be`.
 **Verification:** Local droplet health returned OK, nginx Host-header check returned the Serve login page, PM2 showed `inkheron-serve` online, UFW active, nginx active. DNS still points `serve.inkheron.app` to old IP `167.172.71.219`; A record must be changed to `165.22.242.91`.
 
 **Decision:** Do not store the generated Serve password in notes.
+
+## 2026-07-08: Serve public hardening without Cloudflare
+
+**Asked:** Continue after DNS was changed and make `serve.inkheron.app` as strong as possible for free without Cloudflare or more spending, including a second secret phrase for dangerous actions.
+
+**Did:** Added a second action secret gate to the Serve app. Deploy and restart now require normal login, a 15 minute action unlock, then typed host confirmation. Added tests for the locked/unlocked action path and committed the Admin repo change as `a0e6fff Add serve action secret unlock`. Deployed the update to the droplet, rotated the app password and session secret, added nginx Basic Auth, issued a Let's Encrypt certificate, configured HTTPS redirect, nginx rate limiting, security headers, fail2ban jails, disabled the unused Cloudflare tunnel and kept the Node app bound to `127.0.0.1:3469`.
+
+**Verification:** DNS resolves `serve.inkheron.app` to `165.22.242.91`. Public HTTPS without Basic Auth returns `401`. Basic Auth reaches the app login. App login succeeds with the rotated password. Deploy/restart return `423` before action unlock, action unlock succeeds with the new secret, and typed host confirmation still blocks incorrect confirmations. UFW allows only SSH, HTTP and HTTPS. fail2ban is active with `sshd`, `nginx-http-auth`, `serve-nginx-auth` and `nginx-limit-req` jails. Cloudflared is inactive. HTTP redirects to HTTPS. Certbot live issuance succeeded, but the renewal dry run hung and was stopped cleanly.
+
+**Decision:** Do not use Cloudflare for `inkheron.app`. Use direct DNS to the droplet plus layered free controls: nginx Basic Auth, Serve app password, action secret, CSRF, typed confirmations, rate limiting, fail2ban and audit logs.
