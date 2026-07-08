@@ -336,3 +336,11 @@ Committed `fac26be`.
 **Did:** Provided a command checklist for Ubuntu server setup and Cloudflare Access configuration order.
 
 **Decision:** No code was started.
+
+## 2026-07-08: DigitalOcean droplet choice
+
+**Asked:** Whether to choose the normal Ubuntu DigitalOcean 6 dollar droplet.
+
+**Did:** Confirmed that the normal Ubuntu 24.04 LTS Basic droplet at 6 dollars is the right choice under the stated 10 dollar cap, with Singapore as the preferred region and 2 GiB swap added after creation.
+
+**Decision:** No code was started.
