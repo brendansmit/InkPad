@@ -320,3 +320,11 @@ Committed `fac26be`.
 **Verification:** Serve tests, Admin tests and syntax checks passed with bundled Node. Local browser checks verified login, the serve dashboard, mobile layout, no command runner, Admin link target and no console errors.
 
 **Commits:** Admin repo commits `f580182`, `21e17d8`, `91da628`. Not deployed publicly yet because `serve.inkheron.app` should be put behind Cloudflare Access or equivalent before exposure.
+
+## 2026-07-08: cheap server recommendation
+
+**Asked:** Best cheap capable server host and location at 10 dollars or less.
+
+**Did:** Recommended Singapore as the location for China/Asia use, with DigitalOcean Singapore as the easiest option because the current setup is already on DigitalOcean, and Hetzner Singapore as the value option if its current small plan is available under the cap. Warned that 1 GB RAM is tight and should use swap plus Cloudflare Access for `serve.inkheron.app`.
+
+**Decision:** No code was started.
