@@ -310,3 +310,13 @@ Committed `fac26be`.
 **Did:** Recommended a separate private repo only if the serve panel will be deployed independently on the droplet. For initial implementation, it can also start inside the existing workspace and be split later.
 
 **Decision:** No code was started. Preferred production direction is a private `inkheron-serve` repo, but it is not required before inspection.
+
+## 2026-07-08: serve.inkheron.app implementation
+
+**Asked:** Build the separate remote server control panel and link it from Admin.
+
+**Did:** Implemented a standalone `serve` app inside the Admin repo with password login, signed sessions, optional Cloudflare Access email allowlist, CSRF protection, typed host confirmation, audit logging, security headers and only allowlisted status/log/restart/deploy operations. Added a `Serve` button in Admin linking to `https://serve.inkheron.app`. Added deployment notes and corrected Admin's serve target to `/opt/admin-platform` with PM2 `admin-platform`.
+
+**Verification:** Serve tests, Admin tests and syntax checks passed with bundled Node. Local browser checks verified login, the serve dashboard, mobile layout, no command runner, Admin link target and no console errors.
+
+**Commits:** Admin repo commits `f580182`, `21e17d8`, `91da628`. Not deployed publicly yet because `serve.inkheron.app` should be put behind Cloudflare Access or equivalent before exposure.
