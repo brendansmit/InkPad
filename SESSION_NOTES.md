@@ -352,3 +352,13 @@ Committed `fac26be`.
 **Did:** Recommended using SSH key authentication instead of password login, preferably the existing local Ed25519 public key if available.
 
 **Decision:** No code was started.
+
+## 2026-07-08: new droplet setup
+
+**Asked:** Set up the new DigitalOcean droplet at `165.22.242.91`.
+
+**Did:** SSH verified. Updated Ubuntu 24.04.4, added 2 GiB swap, installed nginx, git, curl, UFW, Node 20.20.2 and PM2 7.0.3, enabled firewall for SSH/HTTP/HTTPS only, configured nginx for `serve.inkheron.app`, copied the Serve app to `/opt/admin-platform`, started `inkheron-serve` with PM2 on port 3469 and enabled PM2 startup.
+
+**Verification:** Local droplet health returned OK, nginx Host-header check returned the Serve login page, PM2 showed `inkheron-serve` online, UFW active, nginx active. DNS still points `serve.inkheron.app` to old IP `167.172.71.219`; A record must be changed to `165.22.242.91`.
+
+**Decision:** Do not store the generated Serve password in notes.
