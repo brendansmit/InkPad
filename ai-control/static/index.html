@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Control</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <div>
+        <p class="eyebrow">builder.inkheron.app</p>
+        <h1>AI Control</h1>
+      </div>
+      <form method="post" action="/logout"><button class="ghost">Log out</button></form>
+    </header>
+
+    <section class="panel">
+      <label for="project">Project</label>
+      <select id="project"></select>
+      <label for="task">Task</label>
+      <textarea id="task" rows="6" placeholder="Fix the bug, add the feature or explain exactly what should change."></textarea>
+      <button id="submit">Run AI Job</button>
+      <p class="hint">Codex runs in a temporary clone. Push and deploy need separate approval.</p>
+    </section>
+
+    <section class="split">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Jobs</h2>
+          <button class="ghost" id="refresh">Refresh</button>
+        </div>
+        <div id="jobs" class="jobs"></div>
+      </div>
+
+      <div class="panel detail">
+        <div class="panel-head">
+          <h2 id="detail-title">Select a job</h2>
+          <span id="detail-status" class="pill">idle</span>
+        </div>
+        <div id="warnings"></div>
+        <div class="actions">
+          <button id="push" class="secondary" disabled>Approve Push</button>
+          <button id="deploy" class="danger" disabled>Approve Deploy</button>
+        </div>
+        <h3>Changed Files</h3>
+        <pre id="files" class="small"></pre>
+        <h3>Logs</h3>
+        <pre id="logs"></pre>
+        <h3>Diff</h3>
+        <pre id="diff"></pre>
+      </div>
+    </section>
+  </main>
+  <script src="/static/app.js"></script>
+</body>
+</html>

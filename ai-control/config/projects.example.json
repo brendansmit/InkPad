@@ -1,0 +1,63 @@
+{
+  "default_codex_command": [
+    "codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "{prompt}"
+  ],
+  "projects": {
+    "inkpad": {
+      "name": "InkPad",
+      "description": "Live InkHeron platform. Configure repo before enabling.",
+      "disabled": true,
+      "repo": "git@github.com:YOUR_USER/InkHeron-Platform.git",
+      "branch": "main",
+      "install_command": "npm install",
+      "test_command": "npm test",
+      "build_command": "npm run build",
+      "deploy_command": "cd /opt/inkheron-platform && git pull && npm install --omit=dev && INKHERON_DB_PATH=/opt/inkheron-platform/data/inkheron.db node src/db/migrate.js && systemctl restart inkheron-wrapper",
+      "deploy_cwd": "/opt/inkheron-platform",
+      "allowed_paths": [
+        "src",
+        "public",
+        "package.json",
+        "package-lock.json",
+        "README.md"
+      ],
+      "blocked_paths": [
+        ".env",
+        ".env.*",
+        "data",
+        "*.sqlite",
+        "*.db",
+        "nginx",
+        "systemd"
+      ]
+    },
+    "speed-dating": {
+      "name": "Speed Dating",
+      "disabled": true,
+      "repo": "git@github.com:YOUR_USER/speed-dating.git",
+      "branch": "main",
+      "install_command": "npm install",
+      "test_command": "npm test",
+      "build_command": "npm run build",
+      "deploy_command": "cd /var/www/speed-dating && git pull && npm install --omit=dev && pm2 restart speed-dating",
+      "deploy_cwd": "/var/www/speed-dating",
+      "allowed_paths": [
+        "src",
+        "public",
+        "server.js",
+        "package.json",
+        "package-lock.json"
+      ],
+      "blocked_paths": [
+        ".env",
+        ".env.*",
+        "data",
+        "*.sqlite",
+        "*.db"
+      ]
+    }
+  }
+}
