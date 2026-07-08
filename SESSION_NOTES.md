@@ -328,3 +328,11 @@ Committed `fac26be`.
 **Did:** Recommended Singapore as the location for China/Asia use, with DigitalOcean Singapore as the easiest option because the current setup is already on DigitalOcean, and Hetzner Singapore as the value option if its current small plan is available under the cap. Warned that 1 GB RAM is tight and should use swap plus Cloudflare Access for `serve.inkheron.app`.
 
 **Decision:** No code was started.
+
+## 2026-07-08: server hardening add-ons
+
+**Asked:** How to add swap, nginx, PM2, UFW and Cloudflare Access.
+
+**Did:** Provided a command checklist for Ubuntu server setup and Cloudflare Access configuration order.
+
+**Decision:** No code was started.
