@@ -380,3 +380,11 @@ Committed `fac26be`.
 **Did:** Updated the nginx Basic Auth password for user `brendan`, updated the PM2 environment for `inkheron-serve` with the new Serve app password and action secret, rotated the session secret, saved PM2 and reloaded nginx.
 
 **Verification:** Confirmed public login works with the new Basic Auth and Serve app password. Confirmed the action unlock endpoint accepts the new action secret. Did not store the secret values in notes.
+
+## 2026-07-08: Admin Basic Auth reset
+
+**Asked:** Investigate why `admin.inkheron.app` was inaccessible and reset its Basic Auth password.
+
+**Did:** Confirmed `admin.inkheron.app` resolves to the old droplet `167.172.71.219`, where nginx protects the admin app with Basic Auth realm `Grade Importer` and username `Admin`. Installed `apache2-utils` because `htpasswd` was missing, reset the `Admin` Basic Auth password to the user-provided value, validated nginx and reloaded it.
+
+**Verification:** `https://admin.inkheron.app` returns HTTP 200 with username `Admin` and the new password. Did not store the password value in notes.
