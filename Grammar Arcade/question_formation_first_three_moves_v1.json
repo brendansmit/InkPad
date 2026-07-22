@@ -1,0 +1,2917 @@
+{
+  "packId": "question_formation_first_three_moves_v1",
+  "name": "Question Formation — First Three Moves",
+  "description": "90 age-appropriate items for the first three Question Formation moves.",
+  "targetStudents": "Chinese G12 EAL students; contexts are school-life, academic, debate, research, media, applications, clubs, and projects.",
+  "moves": [
+    {
+      "moveId": "ask_about_something_that_happened",
+      "studentLabel": "Ask about something that happened",
+      "eli5": "Use this when the action already happened.",
+      "quickRule": "Use did + simple verb.",
+      "exampleWrong": "Why did the team changed the plan?",
+      "exampleCorrect": "Why did the team change the plan?",
+      "chineseHint": "过去发生的动作，用 did + 动词原形。"
+    },
+    {
+      "moveId": "ask_what_where_how_is_or_was",
+      "studentLabel": "Ask what / where / how something is or was",
+      "eli5": "Use this when asking what something is, where something was, how something was, or why someone felt a certain way.",
+      "quickRule": "Put is / are / was / were before the subject.",
+      "exampleWrong": "What the problem was?",
+      "exampleCorrect": "What was the problem?",
+      "chineseHint": "is / are / was / were 要放在主语前面。"
+    },
+    {
+      "moveId": "doing_something_or_describing_something",
+      "studentLabel": "Doing something or describing something?",
+      "eli5": "First decide whether the question asks what someone did, or describes how someone/something was.",
+      "quickRule": "Actions use did/do/does. Feelings, locations, identity, and descriptions use is/are/was/were.",
+      "exampleWrong": "Why did the student worried?",
+      "exampleCorrect": "Why was the student worried?",
+      "chineseHint": "如果问动作，用 do / does / did。如果描述感受、位置、身份或情况，用 is / are / was / were。"
+    }
+  ],
+  "items": [
+    {
+      "id": "qf3_001",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "student_council",
+      "gameType": "case_board",
+      "caseTitle": "The Vanishing Budget",
+      "context": "The student council cancelled the charity sale after lunch.",
+      "task": "Ask why the council cancelled it.",
+      "correctAnswer": "Why did the student council cancel the charity sale?",
+      "acceptedAnswers": [
+        "Why did the student council cancel the charity sale?"
+      ],
+      "commonWrongAnswers": [
+        "Why the student council cancelled the charity sale?",
+        "Why did the student council cancelled the charity sale?",
+        "Why was the student council cancel the charity sale?"
+      ],
+      "choices": [
+        "Why did the student council cancel the charity sale?",
+        "Why the student council cancelled the charity sale?",
+        "Why did the student council cancelled the charity sale?",
+        "Why was the student council cancel the charity sale?"
+      ],
+      "feedback": "Use did + simple verb: did cancel, not did cancelled.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The council found a mistake in the budget.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_002",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "debate_team",
+      "gameType": "case_board",
+      "caseTitle": "The Changed Argument",
+      "context": "The debate captain changed the opening argument last night.",
+      "task": "Ask what the captain changed.",
+      "correctAnswer": "What did the debate captain change last night?",
+      "acceptedAnswers": [
+        "What did the debate captain change last night?"
+      ],
+      "commonWrongAnswers": [
+        "What the debate captain changed last night?",
+        "What did the debate captain changed last night?",
+        "What was the debate captain change last night?"
+      ],
+      "choices": [
+        "What did the debate captain change last night?",
+        "What the debate captain changed last night?",
+        "What did the debate captain changed last night?",
+        "What was the debate captain change last night?"
+      ],
+      "feedback": "Use did + simple verb: did change, not did changed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The original argument used weak evidence.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_003",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "science_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Sensor Problem",
+      "context": "The robotics team replaced the sensor before judging.",
+      "task": "Ask why the team replaced the sensor.",
+      "correctAnswer": "Why did the robotics team replace the sensor?",
+      "acceptedAnswers": [
+        "Why did the robotics team replace the sensor?"
+      ],
+      "commonWrongAnswers": [
+        "Why the robotics team replaced the sensor?",
+        "Why did the robotics team replaced the sensor?",
+        "Why was the robotics team replace the sensor?"
+      ],
+      "choices": [
+        "Why did the robotics team replace the sensor?",
+        "Why the robotics team replaced the sensor?",
+        "Why did the robotics team replaced the sensor?",
+        "Why was the robotics team replace the sensor?"
+      ],
+      "feedback": "Use did + simple verb: did replace, not did replaced.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The old sensor stopped reading the line.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_004",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "library",
+      "gameType": "case_board",
+      "caseTitle": "The Missing Display",
+      "context": "The librarian removed three books from the display.",
+      "task": "Ask which books she removed.",
+      "correctAnswer": "Which books did the librarian remove from the display?",
+      "acceptedAnswers": [
+        "Which books did the librarian remove from the display?"
+      ],
+      "commonWrongAnswers": [
+        "Which books the librarian removed from the display?",
+        "Which books did the librarian removed from the display?",
+        "Which books was the librarian remove from the display?"
+      ],
+      "choices": [
+        "Which books did the librarian remove from the display?",
+        "Which books the librarian removed from the display?",
+        "Which books did the librarian removed from the display?",
+        "Which books was the librarian remove from the display?"
+      ],
+      "feedback": "Use did + simple verb: did remove, not did removed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The books were in the wrong section.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_005",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "internship",
+      "gameType": "case_board",
+      "caseTitle": "The Unexpected Question",
+      "context": "The interviewer asked one unexpected question at the end.",
+      "task": "Ask what the interviewer asked.",
+      "correctAnswer": "What did the interviewer ask at the end?",
+      "acceptedAnswers": [
+        "What did the interviewer ask at the end?"
+      ],
+      "commonWrongAnswers": [
+        "What the interviewer asked at the end?",
+        "What did the interviewer asked at the end?",
+        "What was the interviewer ask at the end?"
+      ],
+      "choices": [
+        "What did the interviewer ask at the end?",
+        "What the interviewer asked at the end?",
+        "What did the interviewer asked at the end?",
+        "What was the interviewer ask at the end?"
+      ],
+      "feedback": "Use did + simple verb: did ask, not did asked.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The question tested how the student handles criticism.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_006",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "media_club",
+      "gameType": "case_board",
+      "caseTitle": "The Deleted Clip",
+      "context": "The media club deleted the final clip from the video.",
+      "task": "Ask why they deleted it.",
+      "correctAnswer": "Why did the media club delete the final clip?",
+      "acceptedAnswers": [
+        "Why did the media club delete the final clip?"
+      ],
+      "commonWrongAnswers": [
+        "Why the media club deleted the final clip?",
+        "Why did the media club deleted the final clip?",
+        "Why was the media club delete the final clip?"
+      ],
+      "choices": [
+        "Why did the media club delete the final clip?",
+        "Why the media club deleted the final clip?",
+        "Why did the media club deleted the final clip?",
+        "Why was the media club delete the final clip?"
+      ],
+      "feedback": "Use did + simple verb: did delete, not did deleted.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The clip included a student's private information.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_007",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "sports_team",
+      "gameType": "case_board",
+      "caseTitle": "The Lost Score Sheet",
+      "context": "The sports captain lost the score sheet before the final race.",
+      "task": "Ask when he lost it.",
+      "correctAnswer": "When did the sports captain lose the score sheet?",
+      "acceptedAnswers": [
+        "When did the sports captain lose the score sheet?"
+      ],
+      "commonWrongAnswers": [
+        "When the sports captain lost the score sheet?",
+        "When did the sports captain lost the score sheet?",
+        "When was the sports captain lose the score sheet?"
+      ],
+      "choices": [
+        "When did the sports captain lose the score sheet?",
+        "When the sports captain lost the score sheet?",
+        "When did the sports captain lost the score sheet?",
+        "When was the sports captain lose the score sheet?"
+      ],
+      "feedback": "Use did + simple verb: did lose, not did lost.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "He lost it while moving equipment.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_008",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "art_show",
+      "gameType": "case_board",
+      "caseTitle": "The Moved Exhibition",
+      "context": "The art club moved the exhibition to the music hall.",
+      "task": "Ask why they moved it.",
+      "correctAnswer": "Why did the art club move the exhibition?",
+      "acceptedAnswers": [
+        "Why did the art club move the exhibition?"
+      ],
+      "commonWrongAnswers": [
+        "Why the art club moved the exhibition?",
+        "Why did the art club moved the exhibition?",
+        "Why was the art club move the exhibition?"
+      ],
+      "choices": [
+        "Why did the art club move the exhibition?",
+        "Why the art club moved the exhibition?",
+        "Why did the art club moved the exhibition?",
+        "Why was the art club move the exhibition?"
+      ],
+      "feedback": "Use did + simple verb: did move, not did moved.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The original room was needed for an exam.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_009",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "application",
+      "gameType": "case_board",
+      "caseTitle": "The Essay Revision",
+      "context": "The counsellor suggested a different example for the personal statement.",
+      "task": "Ask what example the counsellor suggested.",
+      "correctAnswer": "What example did the counsellor suggest?",
+      "acceptedAnswers": [
+        "What example did the counsellor suggest?"
+      ],
+      "commonWrongAnswers": [
+        "What example the counsellor suggested?",
+        "What example did the counsellor suggested?",
+        "What example was the counsellor suggest?"
+      ],
+      "choices": [
+        "What example did the counsellor suggest?",
+        "What example the counsellor suggested?",
+        "What example did the counsellor suggested?",
+        "What example was the counsellor suggest?"
+      ],
+      "feedback": "Use did + simple verb: did suggest, not did suggested.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The new example showed reflection.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_010",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "group_project",
+      "gameType": "case_board",
+      "caseTitle": "The Slide Change",
+      "context": "The group leader changed the final slide before submission.",
+      "task": "Ask why the leader changed it.",
+      "correctAnswer": "Why did the group leader change the final slide?",
+      "acceptedAnswers": [
+        "Why did the group leader change the final slide?"
+      ],
+      "commonWrongAnswers": [
+        "Why the group leader changed the final slide?",
+        "Why did the group leader changed the final slide?",
+        "Why was the group leader change the final slide?"
+      ],
+      "choices": [
+        "Why did the group leader change the final slide?",
+        "Why the group leader changed the final slide?",
+        "Why did the group leader changed the final slide?",
+        "Why was the group leader change the final slide?"
+      ],
+      "feedback": "Use did + simple verb: did change, not did changed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The final slide repeated an earlier point.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_011",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "student_council",
+      "gameType": "case_board",
+      "caseTitle": "The Delayed Announcement",
+      "context": "After the principal changed the assembly schedule, the class monitor sent a new announcement.",
+      "task": "Ask what the class monitor sent.",
+      "correctAnswer": "What did the class monitor send after the schedule changed?",
+      "acceptedAnswers": [
+        "What did the class monitor send after the schedule changed?"
+      ],
+      "commonWrongAnswers": [
+        "What the class monitor sent after the schedule changed?",
+        "What did the class monitor sent after the schedule changed?",
+        "What was the class monitor send after the schedule changed?"
+      ],
+      "choices": [
+        "What did the class monitor send after the schedule changed?",
+        "What the class monitor sent after the schedule changed?",
+        "What did the class monitor sent after the schedule changed?",
+        "What was the class monitor send after the schedule changed?"
+      ],
+      "feedback": "Use did + simple verb: did send, not did sent.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The announcement moved the assembly to Friday.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_012",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "debate_team",
+      "gameType": "case_board",
+      "caseTitle": "The Source Problem",
+      "context": "The debate team removed a statistic after discovering that the source was unreliable.",
+      "task": "Ask why the team removed the statistic.",
+      "correctAnswer": "Why did the debate team remove the statistic?",
+      "acceptedAnswers": [
+        "Why did the debate team remove the statistic?"
+      ],
+      "commonWrongAnswers": [
+        "Why the debate team removed the statistic?",
+        "Why did the debate team removed the statistic?",
+        "Why was the debate team remove the statistic?"
+      ],
+      "choices": [
+        "Why did the debate team remove the statistic?",
+        "Why the debate team removed the statistic?",
+        "Why did the debate team removed the statistic?",
+        "Why was the debate team remove the statistic?"
+      ],
+      "feedback": "Use did + simple verb: did remove, not did removed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The statistic came from a sponsored article.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_013",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "research_project",
+      "gameType": "case_board",
+      "caseTitle": "The Survey Revision",
+      "context": "The research group rewrote its survey after the first interview produced vague answers.",
+      "task": "Ask what the group rewrote.",
+      "correctAnswer": "What did the research group rewrite after the first interview?",
+      "acceptedAnswers": [
+        "What did the research group rewrite after the first interview?"
+      ],
+      "commonWrongAnswers": [
+        "What the research group rewrote after the first interview?",
+        "What did the research group rewrote after the first interview?",
+        "What was the research group rewrite after the first interview?"
+      ],
+      "choices": [
+        "What did the research group rewrite after the first interview?",
+        "What the research group rewrote after the first interview?",
+        "What did the research group rewrote after the first interview?",
+        "What was the research group rewrite after the first interview?"
+      ],
+      "feedback": "Use did + simple verb: did rewrite, not did rewrote.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "They rewrote questions to ask for examples.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_014",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "media_literacy",
+      "gameType": "case_board",
+      "caseTitle": "The Viral Claim",
+      "context": "The media studies group checked the original post before sharing the news in class.",
+      "task": "Ask why they checked the original post.",
+      "correctAnswer": "Why did the media studies group check the original post?",
+      "acceptedAnswers": [
+        "Why did the media studies group check the original post?"
+      ],
+      "commonWrongAnswers": [
+        "Why the media studies group checked the original post?",
+        "Why did the media studies group checked the original post?",
+        "Why was the media studies group check the original post?"
+      ],
+      "choices": [
+        "Why did the media studies group check the original post?",
+        "Why the media studies group checked the original post?",
+        "Why did the media studies group checked the original post?",
+        "Why was the media studies group check the original post?"
+      ],
+      "feedback": "Use did + simple verb: did check, not did checked.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "They wanted to avoid spreading misinformation.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_015",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "university_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Alumni Invite",
+      "context": "The counsellor invited two alumni to speak at the university fair.",
+      "task": "Ask who the counsellor invited.",
+      "correctAnswer": "Who did the counsellor invite to speak at the university fair?",
+      "acceptedAnswers": [
+        "Who did the counsellor invite to speak at the university fair?"
+      ],
+      "commonWrongAnswers": [
+        "Who the counsellor invited to speak at the university fair?",
+        "Who did the counsellor invited to speak at the university fair?",
+        "Who was the counsellor invite to speak at the university fair?"
+      ],
+      "choices": [
+        "Who did the counsellor invite to speak at the university fair?",
+        "Who the counsellor invited to speak at the university fair?",
+        "Who did the counsellor invited to speak at the university fair?",
+        "Who was the counsellor invite to speak at the university fair?"
+      ],
+      "feedback": "Use did + simple verb: did invite, not did invited.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The alumni studied economics and media.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_016",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "science_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Changed Hypothesis",
+      "context": "The science group changed its hypothesis after the first trial failed.",
+      "task": "Ask why the group changed its hypothesis.",
+      "correctAnswer": "Why did the science group change its hypothesis?",
+      "acceptedAnswers": [
+        "Why did the science group change its hypothesis?"
+      ],
+      "commonWrongAnswers": [
+        "Why the science group changed its hypothesis?",
+        "Why did the science group changed its hypothesis?",
+        "Why was the science group change its hypothesis?"
+      ],
+      "choices": [
+        "Why did the science group change its hypothesis?",
+        "Why the science group changed its hypothesis?",
+        "Why did the science group changed its hypothesis?",
+        "Why was the science group change its hypothesis?"
+      ],
+      "feedback": "Use did + simple verb: did change, not did changed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The first trial challenged the original idea.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_017",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "school_event",
+      "gameType": "case_board",
+      "caseTitle": "The Cancelled Rehearsal",
+      "context": "The music teacher cancelled rehearsal because several performers were absent.",
+      "task": "Ask why the teacher cancelled rehearsal.",
+      "correctAnswer": "Why did the music teacher cancel rehearsal?",
+      "acceptedAnswers": [
+        "Why did the music teacher cancel rehearsal?"
+      ],
+      "commonWrongAnswers": [
+        "Why the music teacher cancelled rehearsal?",
+        "Why did the music teacher cancelled rehearsal?",
+        "Why was the music teacher cancel rehearsal?"
+      ],
+      "choices": [
+        "Why did the music teacher cancel rehearsal?",
+        "Why the music teacher cancelled rehearsal?",
+        "Why did the music teacher cancelled rehearsal?",
+        "Why was the music teacher cancel rehearsal?"
+      ],
+      "feedback": "Use did + simple verb: did cancel, not did cancelled.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "Half the performers were at a debate competition.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_018",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "application",
+      "gameType": "case_board",
+      "caseTitle": "The Portfolio Update",
+      "context": "The applicant added a reflection paragraph after receiving feedback.",
+      "task": "Ask what the applicant added.",
+      "correctAnswer": "What did the applicant add after receiving feedback?",
+      "acceptedAnswers": [
+        "What did the applicant add after receiving feedback?"
+      ],
+      "commonWrongAnswers": [
+        "What the applicant added after receiving feedback?",
+        "What did the applicant added after receiving feedback?",
+        "What was the applicant add after receiving feedback?"
+      ],
+      "choices": [
+        "What did the applicant add after receiving feedback?",
+        "What the applicant added after receiving feedback?",
+        "What did the applicant added after receiving feedback?",
+        "What was the applicant add after receiving feedback?"
+      ],
+      "feedback": "Use did + simple verb: did add, not did added.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The paragraph explained what the project taught her.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_019",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "club_conflict",
+      "gameType": "case_board",
+      "caseTitle": "The Rehearsal Problem",
+      "context": "The drama club changed the rehearsal schedule without telling the new members.",
+      "task": "Ask what the club changed.",
+      "correctAnswer": "What did the drama club change without telling the new members?",
+      "acceptedAnswers": [
+        "What did the drama club change without telling the new members?"
+      ],
+      "commonWrongAnswers": [
+        "What the drama club changed without telling the new members?",
+        "What did the drama club changed without telling the new members?",
+        "What was the drama club change without telling the new members?"
+      ],
+      "choices": [
+        "What did the drama club change without telling the new members?",
+        "What the drama club changed without telling the new members?",
+        "What did the drama club changed without telling the new members?",
+        "What was the drama club change without telling the new members?"
+      ],
+      "feedback": "Use did + simple verb: did change, not did changed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The rehearsal moved from Tuesday to Thursday.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_020",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "environment_campaign",
+      "gameType": "case_board",
+      "caseTitle": "The Waste Report",
+      "context": "The environmental club compared cafeteria waste before and after the campaign.",
+      "task": "Ask what the club compared.",
+      "correctAnswer": "What did the environmental club compare?",
+      "acceptedAnswers": [
+        "What did the environmental club compare?"
+      ],
+      "commonWrongAnswers": [
+        "What the environmental club compared?",
+        "What did the environmental club compared?",
+        "What was the environmental club compare?"
+      ],
+      "choices": [
+        "What did the environmental club compare?",
+        "What the environmental club compared?",
+        "What did the environmental club compared?",
+        "What was the environmental club compare?"
+      ],
+      "feedback": "Use did + simple verb: did compare, not did compared.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "They compared waste from two different weeks.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_021",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "research_ethics",
+      "gameType": "case_board",
+      "caseTitle": "The Consent Problem",
+      "context": "After participants complained that the survey felt intrusive, the research team removed two personal questions.",
+      "task": "Ask why the research team removed the questions.",
+      "correctAnswer": "Why did the research team remove two personal questions?",
+      "acceptedAnswers": [
+        "Why did the research team remove two personal questions?"
+      ],
+      "commonWrongAnswers": [
+        "Why the research team removed two personal questions?",
+        "Why did the research team removed two personal questions?",
+        "Why was the research team remove two personal questions?"
+      ],
+      "choices": [
+        "Why did the research team remove two personal questions?",
+        "Why the research team removed two personal questions?",
+        "Why did the research team removed two personal questions?",
+        "Why was the research team remove two personal questions?"
+      ],
+      "feedback": "Use did + simple verb: did remove, not did removed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The questions were not necessary for the research aim.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_022",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "argument_revision",
+      "gameType": "case_board",
+      "caseTitle": "The Weak Conclusion",
+      "context": "After the teacher said the conclusion only repeated the claim, the student rewrote the final paragraph.",
+      "task": "Ask why the student rewrote the paragraph.",
+      "correctAnswer": "Why did the student rewrite the final paragraph?",
+      "acceptedAnswers": [
+        "Why did the student rewrite the final paragraph?"
+      ],
+      "commonWrongAnswers": [
+        "Why the student rewrote the final paragraph?",
+        "Why did the student rewrote the final paragraph?",
+        "Why was the student rewrite the final paragraph?"
+      ],
+      "choices": [
+        "Why did the student rewrite the final paragraph?",
+        "Why the student rewrote the final paragraph?",
+        "Why did the student rewrote the final paragraph?",
+        "Why was the student rewrite the final paragraph?"
+      ],
+      "feedback": "Use did + simple verb: did rewrite, not did rewrote.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The conclusion needed to explain significance.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_023",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "mock_trial",
+      "gameType": "case_board",
+      "caseTitle": "The Changed Statement",
+      "context": "The witness changed her statement after seeing the security footage.",
+      "task": "Ask why the witness changed her statement.",
+      "correctAnswer": "Why did the witness change her statement after seeing the footage?",
+      "acceptedAnswers": [
+        "Why did the witness change her statement after seeing the footage?"
+      ],
+      "commonWrongAnswers": [
+        "Why the witness changed her statement after seeing the footage?",
+        "Why did the witness changed her statement after seeing the footage?",
+        "Why was the witness change her statement after seeing the footage?"
+      ],
+      "choices": [
+        "Why did the witness change her statement after seeing the footage?",
+        "Why the witness changed her statement after seeing the footage?",
+        "Why did the witness changed her statement after seeing the footage?",
+        "Why was the witness change her statement after seeing the footage?"
+      ],
+      "feedback": "Use did + simple verb: did change, not did changed.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The footage showed a different arrival time.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_024",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "academic_integrity",
+      "gameType": "case_board",
+      "caseTitle": "The Source Check",
+      "context": "The teacher rejected the source because the author's name and date were missing.",
+      "task": "Ask why the teacher rejected the source.",
+      "correctAnswer": "Why did the teacher reject the source?",
+      "acceptedAnswers": [
+        "Why did the teacher reject the source?"
+      ],
+      "commonWrongAnswers": [
+        "Why the teacher rejected the source?",
+        "Why did the teacher rejected the source?",
+        "Why was the teacher reject the source?"
+      ],
+      "choices": [
+        "Why did the teacher reject the source?",
+        "Why the teacher rejected the source?",
+        "Why did the teacher rejected the source?",
+        "Why was the teacher reject the source?"
+      ],
+      "feedback": "Use did + simple verb: did reject, not did rejected.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The source had no clear author or date.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_025",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "student_leadership",
+      "gameType": "case_board",
+      "caseTitle": "The Leadership Example",
+      "context": "The counsellor advised the applicant to replace a dramatic story with a more reflective example.",
+      "task": "Ask what the counsellor advised the applicant to replace.",
+      "correctAnswer": "What did the counsellor advise the applicant to replace?",
+      "acceptedAnswers": [
+        "What did the counsellor advise the applicant to replace?"
+      ],
+      "commonWrongAnswers": [
+        "What the counsellor advised the applicant to replace?",
+        "What did the counsellor advised the applicant to replace?",
+        "What was the counsellor advise the applicant to replace?"
+      ],
+      "choices": [
+        "What did the counsellor advise the applicant to replace?",
+        "What the counsellor advised the applicant to replace?",
+        "What did the counsellor advised the applicant to replace?",
+        "What was the counsellor advise the applicant to replace?"
+      ],
+      "feedback": "Use did + simple verb: did advise, not did advised.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The dramatic story did not show growth.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_026",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "podcast_project",
+      "gameType": "case_board",
+      "caseTitle": "The Rehearsed Answer",
+      "context": "The podcast host challenged the guest's answer because it sounded too rehearsed.",
+      "task": "Ask why the host challenged the answer.",
+      "correctAnswer": "Why did the podcast host challenge the guest's answer?",
+      "acceptedAnswers": [
+        "Why did the podcast host challenge the guest's answer?"
+      ],
+      "commonWrongAnswers": [
+        "Why the podcast host challenged the guest's answer?",
+        "Why did the podcast host challenged the guest's answer?",
+        "Why was the podcast host challenge the guest's answer?"
+      ],
+      "choices": [
+        "Why did the podcast host challenge the guest's answer?",
+        "Why the podcast host challenged the guest's answer?",
+        "Why did the podcast host challenged the guest's answer?",
+        "Why was the podcast host challenge the guest's answer?"
+      ],
+      "feedback": "Use did + simple verb: did challenge, not did challenged.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The host wanted a more personal response.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_027",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "policy_analysis",
+      "gameType": "case_board",
+      "caseTitle": "The Phone Policy",
+      "context": "The committee revised the phone policy after students complained about unclear rules.",
+      "task": "Ask what the committee revised.",
+      "correctAnswer": "What did the committee revise after students complained?",
+      "acceptedAnswers": [
+        "What did the committee revise after students complained?"
+      ],
+      "commonWrongAnswers": [
+        "What the committee revised after students complained?",
+        "What did the committee revised after students complained?",
+        "What was the committee revise after students complained?"
+      ],
+      "choices": [
+        "What did the committee revise after students complained?",
+        "What the committee revised after students complained?",
+        "What did the committee revised after students complained?",
+        "What was the committee revise after students complained?"
+      ],
+      "feedback": "Use did + simple verb: did revise, not did revised.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "They revised the rules about phone storage.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_028",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "science_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Reliability Concern",
+      "context": "The judges questioned the result because the experiment was only repeated twice.",
+      "task": "Ask why the judges questioned the result.",
+      "correctAnswer": "Why did the judges question the result?",
+      "acceptedAnswers": [
+        "Why did the judges question the result?"
+      ],
+      "commonWrongAnswers": [
+        "Why the judges questioned the result?",
+        "Why did the judges questioned the result?",
+        "Why was the judges question the result?"
+      ],
+      "choices": [
+        "Why did the judges question the result?",
+        "Why the judges questioned the result?",
+        "Why did the judges questioned the result?",
+        "Why was the judges question the result?"
+      ],
+      "feedback": "Use did + simple verb: did question, not did questioned.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The sample was too small to trust.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_029",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "public_speaking",
+      "gameType": "case_board",
+      "caseTitle": "The Paused Speech",
+      "context": "The speaker paused after noticing that the audience looked confused.",
+      "task": "Ask why the speaker paused.",
+      "correctAnswer": "Why did the speaker pause after noticing the audience looked confused?",
+      "acceptedAnswers": [
+        "Why did the speaker pause after noticing the audience looked confused?"
+      ],
+      "commonWrongAnswers": [
+        "Why the speaker paused after noticing the audience looked confused?",
+        "Why did the speaker paused after noticing the audience looked confused?",
+        "Why was the speaker pause after noticing the audience looked confused?"
+      ],
+      "choices": [
+        "Why did the speaker pause after noticing the audience looked confused?",
+        "Why the speaker paused after noticing the audience looked confused?",
+        "Why did the speaker paused after noticing the audience looked confused?",
+        "Why was the speaker pause after noticing the audience looked confused?"
+      ],
+      "feedback": "Use did + simple verb: did pause, not did paused.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "The speaker realised a key term had not been defined.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_030",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_about_something_that_happened",
+      "ruleId": "qf_past_action_did_simple_verb",
+      "theme": "media_literacy",
+      "gameType": "case_board",
+      "caseTitle": "The Edited Screenshot",
+      "context": "The group traced the viral rumour back to an edited screenshot.",
+      "task": "Ask how the group traced the rumour.",
+      "correctAnswer": "How did the group trace the viral rumour?",
+      "acceptedAnswers": [
+        "How did the group trace the viral rumour?"
+      ],
+      "commonWrongAnswers": [
+        "How the group traced the viral rumour?",
+        "How did the group traced the viral rumour?",
+        "How was the group trace the viral rumour?"
+      ],
+      "choices": [
+        "How did the group trace the viral rumour?",
+        "How the group traced the viral rumour?",
+        "How did the group traced the viral rumour?",
+        "How was the group trace the viral rumour?"
+      ],
+      "feedback": "Use did + simple verb: did trace, not did traced.",
+      "feedbackChinese": "过去发生的动作，用 did + 动词原形。",
+      "clueUnlocked": "They compared the screenshot with the official notice.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_031",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "science_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Robot Problem",
+      "context": "The robot stopped halfway through the demonstration.",
+      "task": "Ask what the problem was.",
+      "correctAnswer": "What was the problem with the robot?",
+      "acceptedAnswers": [
+        "What was the problem with the robot?"
+      ],
+      "commonWrongAnswers": [
+        "What the problem with the robot?",
+        "What did the problem with the robot?",
+        "What the problem with the robot?"
+      ],
+      "choices": [
+        "What was the problem with the robot?",
+        "What the problem with the robot?",
+        "What did the problem with the robot?",
+        "What the problem with the robot?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The motor overheated.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_032",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "library",
+      "gameType": "case_board",
+      "caseTitle": "The Room Change",
+      "context": "The reading club meeting was moved to another room.",
+      "task": "Ask where the meeting was.",
+      "correctAnswer": "Where was the reading club meeting?",
+      "acceptedAnswers": [
+        "Where was the reading club meeting?"
+      ],
+      "commonWrongAnswers": [
+        "Where the reading club meeting?",
+        "Where did the reading club meeting?",
+        "Where the reading club meeting?"
+      ],
+      "choices": [
+        "Where was the reading club meeting?",
+        "Where the reading club meeting?",
+        "Where did the reading club meeting?",
+        "Where the reading club meeting?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The meeting was in the small seminar room.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_033",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "debate_team",
+      "gameType": "case_board",
+      "caseTitle": "The Weak Claim",
+      "context": "The coach said the opening claim was unclear.",
+      "task": "Ask why the claim was unclear.",
+      "correctAnswer": "Why was the opening claim unclear?",
+      "acceptedAnswers": [
+        "Why was the opening claim unclear?"
+      ],
+      "commonWrongAnswers": [
+        "Why the opening claim unclear?",
+        "Why did the opening claim unclear?",
+        "Why the opening claim unclear?"
+      ],
+      "choices": [
+        "Why was the opening claim unclear?",
+        "Why the opening claim unclear?",
+        "Why did the opening claim unclear?",
+        "Why the opening claim unclear?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The claim did not state a clear position.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_034",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "student_council",
+      "gameType": "case_board",
+      "caseTitle": "The New Rule",
+      "context": "A new rule was posted in the student council group chat.",
+      "task": "Ask what the new rule was about.",
+      "correctAnswer": "What was the new rule about?",
+      "acceptedAnswers": [
+        "What was the new rule about?"
+      ],
+      "commonWrongAnswers": [
+        "What the new rule about?",
+        "What did the new rule about?",
+        "What the new rule about?"
+      ],
+      "choices": [
+        "What was the new rule about?",
+        "What the new rule about?",
+        "What did the new rule about?",
+        "What the new rule about?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The rule was about booking meeting rooms.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_035",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "school_event",
+      "gameType": "case_board",
+      "caseTitle": "The Cancelled Assembly",
+      "context": "The assembly was cancelled after the weather warning.",
+      "task": "Ask why the assembly was cancelled.",
+      "correctAnswer": "Why was the assembly cancelled?",
+      "acceptedAnswers": [
+        "Why was the assembly cancelled?"
+      ],
+      "commonWrongAnswers": [
+        "Why the assembly cancelled?",
+        "Why did the assembly cancelled?",
+        "Why the assembly cancelled?"
+      ],
+      "choices": [
+        "Why was the assembly cancelled?",
+        "Why the assembly cancelled?",
+        "Why did the assembly cancelled?",
+        "Why the assembly cancelled?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The school was worried about transport delays.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_036",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "application",
+      "gameType": "case_board",
+      "caseTitle": "The Strongest Example",
+      "context": "The counsellor said one example was stronger than the others.",
+      "task": "Ask which example was strongest.",
+      "correctAnswer": "Which example was the strongest?",
+      "acceptedAnswers": [
+        "Which example was the strongest?"
+      ],
+      "commonWrongAnswers": [
+        "Which example the strongest?",
+        "Which example did the strongest?",
+        "Which example the strongest?"
+      ],
+      "choices": [
+        "Which example was the strongest?",
+        "Which example the strongest?",
+        "Which example did the strongest?",
+        "Which example the strongest?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The strongest example showed responsibility under pressure.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_037",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "media_club",
+      "gameType": "case_board",
+      "caseTitle": "The Deleted Clip",
+      "context": "The deleted clip was too personal for the final video.",
+      "task": "Ask why the clip was too personal.",
+      "correctAnswer": "Why was the clip too personal?",
+      "acceptedAnswers": [
+        "Why was the clip too personal?"
+      ],
+      "commonWrongAnswers": [
+        "Why the clip too personal?",
+        "Why did the clip too personal?",
+        "Why the clip too personal?"
+      ],
+      "choices": [
+        "Why was the clip too personal?",
+        "Why the clip too personal?",
+        "Why did the clip too personal?",
+        "Why the clip too personal?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "It mentioned another student's family problem.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_038",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "internship",
+      "gameType": "case_board",
+      "caseTitle": "The Interview Room",
+      "context": "The mock interview was held in the conference room.",
+      "task": "Ask where the interview was held.",
+      "correctAnswer": "Where was the mock interview held?",
+      "acceptedAnswers": [
+        "Where was the mock interview held?"
+      ],
+      "commonWrongAnswers": [
+        "Where the mock interview held?",
+        "Where did the mock interview held?",
+        "Where the mock interview held?"
+      ],
+      "choices": [
+        "Where was the mock interview held?",
+        "Where the mock interview held?",
+        "Where did the mock interview held?",
+        "Where the mock interview held?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "It was held in the conference room.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_039",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "research_project",
+      "gameType": "case_board",
+      "caseTitle": "The Main Problem",
+      "context": "The survey question was too broad.",
+      "task": "Ask what the main problem was.",
+      "correctAnswer": "What was the main problem with the survey question?",
+      "acceptedAnswers": [
+        "What was the main problem with the survey question?"
+      ],
+      "commonWrongAnswers": [
+        "What the main problem with the survey question?",
+        "What did the main problem with the survey question?",
+        "What the main problem with the survey question?"
+      ],
+      "choices": [
+        "What was the main problem with the survey question?",
+        "What the main problem with the survey question?",
+        "What did the main problem with the survey question?",
+        "What the main problem with the survey question?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The question did not ask for a specific example.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_040",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "art_show",
+      "gameType": "case_board",
+      "caseTitle": "The Exhibition Theme",
+      "context": "The exhibition theme was identity and memory.",
+      "task": "Ask what the theme was.",
+      "correctAnswer": "What was the exhibition theme?",
+      "acceptedAnswers": [
+        "What was the exhibition theme?"
+      ],
+      "commonWrongAnswers": [
+        "What the exhibition theme?",
+        "What did the exhibition theme?",
+        "What the exhibition theme?"
+      ],
+      "choices": [
+        "What was the exhibition theme?",
+        "What the exhibition theme?",
+        "What did the exhibition theme?",
+        "What the exhibition theme?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The theme connected portraits with childhood objects.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_041",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "debate_team",
+      "gameType": "case_board",
+      "caseTitle": "The Inconsistent Evidence",
+      "context": "The teacher said one piece of evidence was inconsistent with the team's claim.",
+      "task": "Ask which evidence was inconsistent.",
+      "correctAnswer": "Which evidence was inconsistent with the team's claim?",
+      "acceptedAnswers": [
+        "Which evidence was inconsistent with the team's claim?"
+      ],
+      "commonWrongAnswers": [
+        "Which evidence inconsistent with the team's claim?",
+        "Which evidence did inconsistent with the team's claim?",
+        "Which evidence inconsistent with the team's claim?"
+      ],
+      "choices": [
+        "Which evidence was inconsistent with the team's claim?",
+        "Which evidence inconsistent with the team's claim?",
+        "Which evidence did inconsistent with the team's claim?",
+        "Which evidence inconsistent with the team's claim?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The statistic supported the opposite side.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_042",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "research_ethics",
+      "gameType": "case_board",
+      "caseTitle": "The Sensitive Question",
+      "context": "One survey question was inappropriate because it asked about family income.",
+      "task": "Ask why the question was inappropriate.",
+      "correctAnswer": "Why was the survey question inappropriate?",
+      "acceptedAnswers": [
+        "Why was the survey question inappropriate?"
+      ],
+      "commonWrongAnswers": [
+        "Why the survey question inappropriate?",
+        "Why did the survey question inappropriate?",
+        "Why the survey question inappropriate?"
+      ],
+      "choices": [
+        "Why was the survey question inappropriate?",
+        "Why the survey question inappropriate?",
+        "Why did the survey question inappropriate?",
+        "Why the survey question inappropriate?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The question was not needed for the research aim.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_043",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "university_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Useful Booth",
+      "context": "The media programme booth was more useful than the others.",
+      "task": "Ask why it was more useful.",
+      "correctAnswer": "Why was the media programme booth more useful than the others?",
+      "acceptedAnswers": [
+        "Why was the media programme booth more useful than the others?"
+      ],
+      "commonWrongAnswers": [
+        "Why the media programme booth more useful than the others?",
+        "Why did the media programme booth more useful than the others?",
+        "Why the media programme booth more useful than the others?"
+      ],
+      "choices": [
+        "Why was the media programme booth more useful than the others?",
+        "Why the media programme booth more useful than the others?",
+        "Why did the media programme booth more useful than the others?",
+        "Why the media programme booth more useful than the others?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The alumni gave specific advice about portfolios.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_044",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "group_project",
+      "gameType": "case_board",
+      "caseTitle": "The Unclear Role",
+      "context": "The teacher said each student's role was unclear in the final report.",
+      "task": "Ask whose role was unclear.",
+      "correctAnswer": "Whose role was unclear in the final report?",
+      "acceptedAnswers": [
+        "Whose role was unclear in the final report?"
+      ],
+      "commonWrongAnswers": [
+        "Whose role unclear in the final report?",
+        "Whose role did unclear in the final report?",
+        "Whose role unclear in the final report?"
+      ],
+      "choices": [
+        "Whose role was unclear in the final report?",
+        "Whose role unclear in the final report?",
+        "Whose role did unclear in the final report?",
+        "Whose role unclear in the final report?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The report did not explain who analysed the data.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_045",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "media_literacy",
+      "gameType": "case_board",
+      "caseTitle": "The Viral Source",
+      "context": "The original source of the claim was an edited screenshot.",
+      "task": "Ask what the original source was.",
+      "correctAnswer": "What was the original source of the claim?",
+      "acceptedAnswers": [
+        "What was the original source of the claim?"
+      ],
+      "commonWrongAnswers": [
+        "What the original source of the claim?",
+        "What did the original source of the claim?",
+        "What the original source of the claim?"
+      ],
+      "choices": [
+        "What was the original source of the claim?",
+        "What the original source of the claim?",
+        "What did the original source of the claim?",
+        "What the original source of the claim?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "It was not an official notice.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_046",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "school_policy",
+      "gameType": "case_board",
+      "caseTitle": "The Phone Rule",
+      "context": "The most controversial part of the policy was the rule about phone storage.",
+      "task": "Ask what the controversial part was.",
+      "correctAnswer": "What was the most controversial part of the policy?",
+      "acceptedAnswers": [
+        "What was the most controversial part of the policy?"
+      ],
+      "commonWrongAnswers": [
+        "What the most controversial part of the policy?",
+        "What did the most controversial part of the policy?",
+        "What the most controversial part of the policy?"
+      ],
+      "choices": [
+        "What was the most controversial part of the policy?",
+        "What the most controversial part of the policy?",
+        "What did the most controversial part of the policy?",
+        "What the most controversial part of the policy?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "Students disliked leaving phones outside the classroom.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_047",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "podcast_project",
+      "gameType": "case_board",
+      "caseTitle": "The Guest Answer",
+      "context": "The host thought the guest's answer was too rehearsed.",
+      "task": "Ask why the answer was too rehearsed.",
+      "correctAnswer": "Why was the guest's answer too rehearsed?",
+      "acceptedAnswers": [
+        "Why was the guest's answer too rehearsed?"
+      ],
+      "commonWrongAnswers": [
+        "Why the guest's answer too rehearsed?",
+        "Why did the guest's answer too rehearsed?",
+        "Why the guest's answer too rehearsed?"
+      ],
+      "choices": [
+        "Why was the guest's answer too rehearsed?",
+        "Why the guest's answer too rehearsed?",
+        "Why did the guest's answer too rehearsed?",
+        "Why the guest's answer too rehearsed?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "It sounded memorised rather than honest.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_048",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "library",
+      "gameType": "case_board",
+      "caseTitle": "The Blackout",
+      "context": "The library was closed early because the backup lights failed.",
+      "task": "Ask why the library was closed early.",
+      "correctAnswer": "Why was the library closed early?",
+      "acceptedAnswers": [
+        "Why was the library closed early?"
+      ],
+      "commonWrongAnswers": [
+        "Why the library closed early?",
+        "Why did the library closed early?",
+        "Why the library closed early?"
+      ],
+      "choices": [
+        "Why was the library closed early?",
+        "Why the library closed early?",
+        "Why did the library closed early?",
+        "Why the library closed early?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The backup lights failed again.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_049",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "application",
+      "gameType": "case_board",
+      "caseTitle": "The Generic Essay",
+      "context": "The personal statement was generic even though the activities were impressive.",
+      "task": "Ask why the statement was generic.",
+      "correctAnswer": "Why was the personal statement generic?",
+      "acceptedAnswers": [
+        "Why was the personal statement generic?"
+      ],
+      "commonWrongAnswers": [
+        "Why the personal statement generic?",
+        "Why did the personal statement generic?",
+        "Why the personal statement generic?"
+      ],
+      "choices": [
+        "Why was the personal statement generic?",
+        "Why the personal statement generic?",
+        "Why did the personal statement generic?",
+        "Why the personal statement generic?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "It listed achievements without reflection.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_050",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "public_speaking",
+      "gameType": "case_board",
+      "caseTitle": "The Confusing Slide",
+      "context": "The second slide was confusing because it had too many statistics.",
+      "task": "Ask why the slide was confusing.",
+      "correctAnswer": "Why was the second slide confusing?",
+      "acceptedAnswers": [
+        "Why was the second slide confusing?"
+      ],
+      "commonWrongAnswers": [
+        "Why the second slide confusing?",
+        "Why did the second slide confusing?",
+        "Why the second slide confusing?"
+      ],
+      "choices": [
+        "Why was the second slide confusing?",
+        "Why the second slide confusing?",
+        "Why did the second slide confusing?",
+        "Why the second slide confusing?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The audience could not find the main point.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_051",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "research_project",
+      "gameType": "case_board",
+      "caseTitle": "The Flawed Method",
+      "context": "The teacher said the method was unreliable because the sample size was too small.",
+      "task": "Ask why the method was unreliable.",
+      "correctAnswer": "Why was the method unreliable?",
+      "acceptedAnswers": [
+        "Why was the method unreliable?"
+      ],
+      "commonWrongAnswers": [
+        "Why the method unreliable?",
+        "Why did the method unreliable?",
+        "Why the method unreliable?"
+      ],
+      "choices": [
+        "Why was the method unreliable?",
+        "Why the method unreliable?",
+        "Why did the method unreliable?",
+        "Why the method unreliable?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "Only twelve students answered the survey.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_052",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "argument_revision",
+      "gameType": "case_board",
+      "caseTitle": "The Weak Conclusion",
+      "context": "The conclusion was weak because it repeated the claim without explaining significance.",
+      "task": "Ask why the conclusion was weak.",
+      "correctAnswer": "Why was the conclusion weak?",
+      "acceptedAnswers": [
+        "Why was the conclusion weak?"
+      ],
+      "commonWrongAnswers": [
+        "Why the conclusion weak?",
+        "Why did the conclusion weak?",
+        "Why the conclusion weak?"
+      ],
+      "choices": [
+        "Why was the conclusion weak?",
+        "Why the conclusion weak?",
+        "Why did the conclusion weak?",
+        "Why the conclusion weak?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "It did not explain why the argument mattered.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_053",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "mock_trial",
+      "gameType": "case_board",
+      "caseTitle": "The Witness Statement",
+      "context": "The witness statement was inconsistent with the security footage.",
+      "task": "Ask why the statement was inconsistent.",
+      "correctAnswer": "Why was the witness statement inconsistent with the security footage?",
+      "acceptedAnswers": [
+        "Why was the witness statement inconsistent with the security footage?"
+      ],
+      "commonWrongAnswers": [
+        "Why the witness statement inconsistent with the security footage?",
+        "Why did the witness statement inconsistent with the security footage?",
+        "Why the witness statement inconsistent with the security footage?"
+      ],
+      "choices": [
+        "Why was the witness statement inconsistent with the security footage?",
+        "Why the witness statement inconsistent with the security footage?",
+        "Why did the witness statement inconsistent with the security footage?",
+        "Why the witness statement inconsistent with the security footage?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The timing did not match the footage.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_054",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "academic_integrity",
+      "gameType": "case_board",
+      "caseTitle": "The Source Problem",
+      "context": "The website was unreliable because the author and publication date were missing.",
+      "task": "Ask why the website was unreliable.",
+      "correctAnswer": "Why was the website unreliable?",
+      "acceptedAnswers": [
+        "Why was the website unreliable?"
+      ],
+      "commonWrongAnswers": [
+        "Why the website unreliable?",
+        "Why did the website unreliable?",
+        "Why the website unreliable?"
+      ],
+      "choices": [
+        "Why was the website unreliable?",
+        "Why the website unreliable?",
+        "Why did the website unreliable?",
+        "Why the website unreliable?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The website hid key publication information.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_055",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "student_leadership",
+      "gameType": "case_board",
+      "caseTitle": "The Reflection Gap",
+      "context": "The leadership example was not convincing because it described events but not growth.",
+      "task": "Ask why the example was not convincing.",
+      "correctAnswer": "Why was the leadership example not convincing?",
+      "acceptedAnswers": [
+        "Why was the leadership example not convincing?"
+      ],
+      "commonWrongAnswers": [
+        "Why the leadership example not convincing?",
+        "Why did the leadership example not convincing?",
+        "Why the leadership example not convincing?"
+      ],
+      "choices": [
+        "Why was the leadership example not convincing?",
+        "Why the leadership example not convincing?",
+        "Why did the leadership example not convincing?",
+        "Why the leadership example not convincing?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The student never explained what they learned.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_056",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "science_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Judge's Concern",
+      "context": "The judge's main concern was whether the experiment could be repeated.",
+      "task": "Ask what the judge's main concern was.",
+      "correctAnswer": "What was the judge's main concern?",
+      "acceptedAnswers": [
+        "What was the judge's main concern?"
+      ],
+      "commonWrongAnswers": [
+        "What the judge's main concern?",
+        "What did the judge's main concern?",
+        "What the judge's main concern?"
+      ],
+      "choices": [
+        "What was the judge's main concern?",
+        "What the judge's main concern?",
+        "What did the judge's main concern?",
+        "What the judge's main concern?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The judge questioned repeatability.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_057",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "media_literacy",
+      "gameType": "case_board",
+      "caseTitle": "The Edited Screenshot",
+      "context": "The screenshot was suspicious because the font did not match the official notice.",
+      "task": "Ask why the screenshot was suspicious.",
+      "correctAnswer": "Why was the screenshot suspicious?",
+      "acceptedAnswers": [
+        "Why was the screenshot suspicious?"
+      ],
+      "commonWrongAnswers": [
+        "Why the screenshot suspicious?",
+        "Why did the screenshot suspicious?",
+        "Why the screenshot suspicious?"
+      ],
+      "choices": [
+        "Why was the screenshot suspicious?",
+        "Why the screenshot suspicious?",
+        "Why did the screenshot suspicious?",
+        "Why the screenshot suspicious?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The font did not match the official version.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_058",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "university_application",
+      "gameType": "case_board",
+      "caseTitle": "The Activity List",
+      "context": "The activity list was impressive but disconnected from the essay's main idea.",
+      "task": "Ask why the activity list was disconnected.",
+      "correctAnswer": "Why was the activity list disconnected from the essay's main idea?",
+      "acceptedAnswers": [
+        "Why was the activity list disconnected from the essay's main idea?"
+      ],
+      "commonWrongAnswers": [
+        "Why the activity list disconnected from the essay's main idea?",
+        "Why did the activity list disconnected from the essay's main idea?",
+        "Why the activity list disconnected from the essay's main idea?"
+      ],
+      "choices": [
+        "Why was the activity list disconnected from the essay's main idea?",
+        "Why the activity list disconnected from the essay's main idea?",
+        "Why did the activity list disconnected from the essay's main idea?",
+        "Why the activity list disconnected from the essay's main idea?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "The activities did not support the central story.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_059",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "peer_feedback",
+      "gameType": "case_board",
+      "caseTitle": "The Useful Comment",
+      "context": "The peer feedback was useful because it identified a missing link between evidence and claim.",
+      "task": "Ask why the feedback was useful.",
+      "correctAnswer": "Why was the peer feedback useful?",
+      "acceptedAnswers": [
+        "Why was the peer feedback useful?"
+      ],
+      "commonWrongAnswers": [
+        "Why the peer feedback useful?",
+        "Why did the peer feedback useful?",
+        "Why the peer feedback useful?"
+      ],
+      "choices": [
+        "Why was the peer feedback useful?",
+        "Why the peer feedback useful?",
+        "Why did the peer feedback useful?",
+        "Why the peer feedback useful?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "It showed where the reasoning jumped.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_060",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "ask_what_where_how_is_or_was",
+      "ruleId": "qf_is_are_was_were_order",
+      "theme": "policy_analysis",
+      "gameType": "case_board",
+      "caseTitle": "The Controversial Rule",
+      "context": "The rule about phone storage was controversial because students worried about privacy.",
+      "task": "Ask why the rule was controversial.",
+      "correctAnswer": "Why was the rule about phone storage controversial?",
+      "acceptedAnswers": [
+        "Why was the rule about phone storage controversial?"
+      ],
+      "commonWrongAnswers": [
+        "Why the rule about phone storage controversial?",
+        "Why did the rule about phone storage controversial?",
+        "Why the rule about phone storage controversial?"
+      ],
+      "choices": [
+        "Why was the rule about phone storage controversial?",
+        "Why the rule about phone storage controversial?",
+        "Why did the rule about phone storage controversial?",
+        "Why the rule about phone storage controversial?"
+      ],
+      "feedback": "Put is / are / was / were before the subject.",
+      "feedbackChinese": "is / are / was / were 要放在主语前面。",
+      "clueUnlocked": "Students worried their phones would be checked.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_061",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "interview",
+      "gameType": "case_board",
+      "caseTitle": "The Nervous Applicant",
+      "context": "The applicant was nervous before the interview.",
+      "task": "Ask why the applicant was nervous.",
+      "correctAnswer": "Why was the applicant nervous before the interview?",
+      "acceptedAnswers": [
+        "Why was the applicant nervous before the interview?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the applicant nervous before the interview?",
+        "Why the applicant nervous before the interview?",
+        "Why the applicant nervous before the interview?"
+      ],
+      "choices": [
+        "Why was the applicant nervous before the interview?",
+        "Why did the applicant nervous before the interview?",
+        "Why the applicant nervous before the interview?",
+        "Why the applicant nervous before the interview?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The applicant had not prepared examples.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_062",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "reading_club",
+      "gameType": "case_board",
+      "caseTitle": "The Repetitive Sessions",
+      "context": "The sessions felt repetitive after the first month.",
+      "task": "Ask why the sessions felt repetitive.",
+      "correctAnswer": "Why did the sessions feel repetitive?",
+      "acceptedAnswers": [
+        "Why did the sessions feel repetitive?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the sessions feel repetitive?",
+        "Why the sessions feel repetitive?",
+        "Why did the sessions feel repetitive?"
+      ],
+      "choices": [
+        "Why did the sessions feel repetitive?",
+        "Why was the sessions feel repetitive?",
+        "Why the sessions feel repetitive?",
+        "Why did the sessions feel repetitive?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "Every week used the same worksheet.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_063",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "public_speaking",
+      "gameType": "case_board",
+      "caseTitle": "The Worried Speaker",
+      "context": "The speaker was worried about the Q&A session.",
+      "task": "Ask why the speaker was worried.",
+      "correctAnswer": "Why was the speaker worried about the Q&A session?",
+      "acceptedAnswers": [
+        "Why was the speaker worried about the Q&A session?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the speaker worried about the Q&A session?",
+        "Why the speaker worried about the Q&A session?",
+        "Why the speaker worried about the Q&A session?"
+      ],
+      "choices": [
+        "Why was the speaker worried about the Q&A session?",
+        "Why did the speaker worried about the Q&A session?",
+        "Why the speaker worried about the Q&A session?",
+        "Why the speaker worried about the Q&A session?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "She expected difficult questions.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_064",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "debate_team",
+      "gameType": "case_board",
+      "caseTitle": "The Changed Strategy",
+      "context": "The team changed its strategy after losing the first round.",
+      "task": "Ask why the team changed its strategy.",
+      "correctAnswer": "Why did the team change its strategy?",
+      "acceptedAnswers": [
+        "Why did the team change its strategy?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the team change its strategy?",
+        "Why the team change its strategy?",
+        "Why did the team changed its strategy?"
+      ],
+      "choices": [
+        "Why did the team change its strategy?",
+        "Why was the team change its strategy?",
+        "Why the team change its strategy?",
+        "Why did the team changed its strategy?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "Their first strategy ignored the counterargument.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_065",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "school_event",
+      "gameType": "case_board",
+      "caseTitle": "The Important Meeting",
+      "context": "The meeting was important because it decided the final schedule.",
+      "task": "Ask why the meeting was important.",
+      "correctAnswer": "Why was the meeting important?",
+      "acceptedAnswers": [
+        "Why was the meeting important?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the meeting important?",
+        "Why the meeting important?",
+        "Why the meeting important?"
+      ],
+      "choices": [
+        "Why was the meeting important?",
+        "Why did the meeting important?",
+        "Why the meeting important?",
+        "Why the meeting important?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The final exam schedule was discussed.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_066",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "science_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Robot Stopped",
+      "context": "The robot stopped during the demonstration.",
+      "task": "Ask why the robot stopped.",
+      "correctAnswer": "Why did the robot stop during the demonstration?",
+      "acceptedAnswers": [
+        "Why did the robot stop during the demonstration?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the robot stop during the demonstration?",
+        "Why the robot stop during the demonstration?",
+        "Why did the robot stopped during the demonstration?"
+      ],
+      "choices": [
+        "Why did the robot stop during the demonstration?",
+        "Why was the robot stop during the demonstration?",
+        "Why the robot stop during the demonstration?",
+        "Why did the robot stopped during the demonstration?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "The battery connection came loose.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_067",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "application",
+      "gameType": "case_board",
+      "caseTitle": "The Essay Was Generic",
+      "context": "The essay was generic because it listed achievements without reflection.",
+      "task": "Ask why the essay was generic.",
+      "correctAnswer": "Why was the essay generic?",
+      "acceptedAnswers": [
+        "Why was the essay generic?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the essay generic?",
+        "Why the essay generic?",
+        "Why the essay generic?"
+      ],
+      "choices": [
+        "Why was the essay generic?",
+        "Why did the essay generic?",
+        "Why the essay generic?",
+        "Why the essay generic?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "It did not explain the student's growth.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_068",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "group_project",
+      "gameType": "case_board",
+      "caseTitle": "The Leader Deleted Slides",
+      "context": "The group leader deleted two slides before submission.",
+      "task": "Ask why the leader deleted them.",
+      "correctAnswer": "Why did the group leader delete two slides?",
+      "acceptedAnswers": [
+        "Why did the group leader delete two slides?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the group leader delete two slides?",
+        "Why the group leader delete two slides?",
+        "Why did the group leader deleted two slides?"
+      ],
+      "choices": [
+        "Why did the group leader delete two slides?",
+        "Why was the group leader delete two slides?",
+        "Why the group leader delete two slides?",
+        "Why did the group leader deleted two slides?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "The slides repeated earlier information.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_069",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "library",
+      "gameType": "case_board",
+      "caseTitle": "The Notice Was Confusing",
+      "context": "The library notice was confusing.",
+      "task": "Ask why the notice was confusing.",
+      "correctAnswer": "Why was the library notice confusing?",
+      "acceptedAnswers": [
+        "Why was the library notice confusing?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the library notice confusing?",
+        "Why the library notice confusing?",
+        "Why the library notice confusing?"
+      ],
+      "choices": [
+        "Why was the library notice confusing?",
+        "Why did the library notice confusing?",
+        "Why the library notice confusing?",
+        "Why the library notice confusing?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "It did not say which room changed.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_070",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 1,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "sports_team",
+      "gameType": "case_board",
+      "caseTitle": "The Captain Forgot",
+      "context": "The captain forgot the score sheet.",
+      "task": "Ask why the captain forgot it.",
+      "correctAnswer": "Why did the captain forget the score sheet?",
+      "acceptedAnswers": [
+        "Why did the captain forget the score sheet?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the captain forget the score sheet?",
+        "Why the captain forget the score sheet?",
+        "Why did the captain forgot the score sheet?"
+      ],
+      "choices": [
+        "Why did the captain forget the score sheet?",
+        "Why was the captain forget the score sheet?",
+        "Why the captain forget the score sheet?",
+        "Why did the captain forgot the score sheet?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "He was carrying too much equipment.",
+      "expectedTimeSeconds": 18
+    },
+    {
+      "id": "qf3_071",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "media_literacy",
+      "gameType": "case_board",
+      "caseTitle": "The Claim Became Popular",
+      "context": "The false claim became popular because it looked official.",
+      "task": "Ask why the claim became popular.",
+      "correctAnswer": "Why did the false claim become popular?",
+      "acceptedAnswers": [
+        "Why did the false claim become popular?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the false claim become popular?",
+        "Why the false claim become popular?",
+        "Why did the false claim became popular?"
+      ],
+      "choices": [
+        "Why did the false claim become popular?",
+        "Why was the false claim become popular?",
+        "Why the false claim become popular?",
+        "Why did the false claim became popular?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "The screenshot copied the school's colours.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_072",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "research_project",
+      "gameType": "case_board",
+      "caseTitle": "The Survey Was Intrusive",
+      "context": "Several students said the survey was intrusive.",
+      "task": "Ask why the survey was intrusive.",
+      "correctAnswer": "Why was the survey intrusive?",
+      "acceptedAnswers": [
+        "Why was the survey intrusive?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the survey intrusive?",
+        "Why the survey intrusive?",
+        "Why the survey intrusive?"
+      ],
+      "choices": [
+        "Why was the survey intrusive?",
+        "Why did the survey intrusive?",
+        "Why the survey intrusive?",
+        "Why the survey intrusive?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "It asked for personal family information.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_073",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "debate_team",
+      "gameType": "case_board",
+      "caseTitle": "The Evidence Supported the Other Side",
+      "context": "One statistic supported the opposite argument.",
+      "task": "Ask why the statistic supported the other side.",
+      "correctAnswer": "Why did the statistic support the other side?",
+      "acceptedAnswers": [
+        "Why did the statistic support the other side?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the statistic support the other side?",
+        "Why the statistic support the other side?",
+        "Why did the statistic supported the other side?"
+      ],
+      "choices": [
+        "Why did the statistic support the other side?",
+        "Why was the statistic support the other side?",
+        "Why the statistic support the other side?",
+        "Why did the statistic supported the other side?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "It measured a different group of students.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_074",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "university_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Booth Was Useful",
+      "context": "The university booth was useful because alumni answered specific questions.",
+      "task": "Ask why the booth was useful.",
+      "correctAnswer": "Why was the university booth useful?",
+      "acceptedAnswers": [
+        "Why was the university booth useful?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the university booth useful?",
+        "Why the university booth useful?",
+        "Why the university booth useful?"
+      ],
+      "choices": [
+        "Why was the university booth useful?",
+        "Why did the university booth useful?",
+        "Why the university booth useful?",
+        "Why the university booth useful?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The alumni explained portfolio requirements.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_075",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "environment_campaign",
+      "gameType": "case_board",
+      "caseTitle": "The Poster Compared Waste Data",
+      "context": "The poster compared cafeteria waste from two different weeks.",
+      "task": "Ask what the poster compared.",
+      "correctAnswer": "What did the poster compare?",
+      "acceptedAnswers": [
+        "What did the poster compare?"
+      ],
+      "commonWrongAnswers": [
+        "What was the poster compare?",
+        "What the poster compare?",
+        "What did the poster compared?"
+      ],
+      "choices": [
+        "What did the poster compare?",
+        "What was the poster compare?",
+        "What the poster compare?",
+        "What did the poster compared?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "It compared waste before and after the campaign.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_076",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "peer_feedback",
+      "gameType": "case_board",
+      "caseTitle": "The Comment Was Helpful",
+      "context": "The peer comment was helpful because it identified a gap in the reasoning.",
+      "task": "Ask why the comment was helpful.",
+      "correctAnswer": "Why was the peer comment helpful?",
+      "acceptedAnswers": [
+        "Why was the peer comment helpful?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the peer comment helpful?",
+        "Why the peer comment helpful?",
+        "Why the peer comment helpful?"
+      ],
+      "choices": [
+        "Why was the peer comment helpful?",
+        "Why did the peer comment helpful?",
+        "Why the peer comment helpful?",
+        "Why the peer comment helpful?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "It showed where the evidence did not support the claim.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_077",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "podcast_project",
+      "gameType": "case_board",
+      "caseTitle": "The Answer Sounded Rehearsed",
+      "context": "The guest's answer sounded rehearsed.",
+      "task": "Ask why the answer sounded rehearsed.",
+      "correctAnswer": "Why did the guest's answer sound rehearsed?",
+      "acceptedAnswers": [
+        "Why did the guest's answer sound rehearsed?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the guest's answer sound rehearsed?",
+        "Why the guest's answer sound rehearsed?",
+        "Why did the guest's answer sounded rehearsed?"
+      ],
+      "choices": [
+        "Why did the guest's answer sound rehearsed?",
+        "Why was the guest's answer sound rehearsed?",
+        "Why the guest's answer sound rehearsed?",
+        "Why did the guest's answer sounded rehearsed?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "The answer used memorised phrases.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_078",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "science_fair",
+      "gameType": "case_board",
+      "caseTitle": "The Result Was Unreliable",
+      "context": "The result was unreliable because the group only tested it twice.",
+      "task": "Ask why the result was unreliable.",
+      "correctAnswer": "Why was the result unreliable?",
+      "acceptedAnswers": [
+        "Why was the result unreliable?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the result unreliable?",
+        "Why the result unreliable?",
+        "Why the result unreliable?"
+      ],
+      "choices": [
+        "Why was the result unreliable?",
+        "Why did the result unreliable?",
+        "Why the result unreliable?",
+        "Why the result unreliable?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The experiment was not repeated enough.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_079",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "classroom_conflict",
+      "gameType": "case_board",
+      "caseTitle": "The Message Caused Confusion",
+      "context": "The monitor's message caused confusion because it did not mention the room number.",
+      "task": "Ask why the message caused confusion.",
+      "correctAnswer": "Why did the monitor's message cause confusion?",
+      "acceptedAnswers": [
+        "Why did the monitor's message cause confusion?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the monitor's message cause confusion?",
+        "Why the monitor's message cause confusion?",
+        "Why did the monitor's message caused confusion?"
+      ],
+      "choices": [
+        "Why did the monitor's message cause confusion?",
+        "Why was the monitor's message cause confusion?",
+        "Why the monitor's message cause confusion?",
+        "Why did the monitor's message caused confusion?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "Students went to different rooms.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_080",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 2,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "application",
+      "gameType": "case_board",
+      "caseTitle": "The Activity List Was Disconnected",
+      "context": "The activity list was disconnected from the essay's main idea.",
+      "task": "Ask why the activity list was disconnected.",
+      "correctAnswer": "Why was the activity list disconnected from the essay's main idea?",
+      "acceptedAnswers": [
+        "Why was the activity list disconnected from the essay's main idea?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the activity list disconnected from the essay's main idea?",
+        "Why the activity list disconnected from the essay's main idea?",
+        "Why the activity list disconnected from the essay's main idea?"
+      ],
+      "choices": [
+        "Why was the activity list disconnected from the essay's main idea?",
+        "Why did the activity list disconnected from the essay's main idea?",
+        "Why the activity list disconnected from the essay's main idea?",
+        "Why the activity list disconnected from the essay's main idea?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The activities did not support the central story.",
+      "expectedTimeSeconds": 28
+    },
+    {
+      "id": "qf3_081",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "argument_revision",
+      "gameType": "case_board",
+      "caseTitle": "The Conclusion Repeated the Claim",
+      "context": "The conclusion repeated the claim instead of explaining why the issue mattered.",
+      "task": "Ask why the conclusion repeated the claim.",
+      "correctAnswer": "Why did the conclusion repeat the claim?",
+      "acceptedAnswers": [
+        "Why did the conclusion repeat the claim?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the conclusion repeat the claim?",
+        "Why the conclusion repeat the claim?",
+        "Why did the conclusion repeated the claim?"
+      ],
+      "choices": [
+        "Why did the conclusion repeat the claim?",
+        "Why was the conclusion repeat the claim?",
+        "Why the conclusion repeat the claim?",
+        "Why did the conclusion repeated the claim?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "The writer had not explained significance.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_082",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "research_ethics",
+      "gameType": "case_board",
+      "caseTitle": "The Question Was Unnecessary",
+      "context": "The family-income question was unnecessary for the research aim.",
+      "task": "Ask why the question was unnecessary.",
+      "correctAnswer": "Why was the family-income question unnecessary?",
+      "acceptedAnswers": [
+        "Why was the family-income question unnecessary?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the family-income question unnecessary?",
+        "Why the family-income question unnecessary?",
+        "Why the family-income question unnecessary?"
+      ],
+      "choices": [
+        "Why was the family-income question unnecessary?",
+        "Why did the family-income question unnecessary?",
+        "Why the family-income question unnecessary?",
+        "Why the family-income question unnecessary?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The project was about study habits, not income.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_083",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "mock_trial",
+      "gameType": "case_board",
+      "caseTitle": "The Footage Contradicted the Statement",
+      "context": "The security footage contradicted the witness statement.",
+      "task": "Ask how the footage contradicted the statement.",
+      "correctAnswer": "How did the security footage contradict the witness statement?",
+      "acceptedAnswers": [
+        "How did the security footage contradict the witness statement?"
+      ],
+      "commonWrongAnswers": [
+        "How was the security footage contradict the witness statement?",
+        "How the security footage contradict the witness statement?",
+        "How did the security footage contradicted the witness statement?"
+      ],
+      "choices": [
+        "How did the security footage contradict the witness statement?",
+        "How was the security footage contradict the witness statement?",
+        "How the security footage contradict the witness statement?",
+        "How did the security footage contradicted the witness statement?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "The footage showed a different arrival time.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_084",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "academic_integrity",
+      "gameType": "case_board",
+      "caseTitle": "The Source Was Suspicious",
+      "context": "The website was suspicious because the author and publication date were hidden.",
+      "task": "Ask why the website was suspicious.",
+      "correctAnswer": "Why was the website suspicious?",
+      "acceptedAnswers": [
+        "Why was the website suspicious?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the website suspicious?",
+        "Why the website suspicious?",
+        "Why the website suspicious?"
+      ],
+      "choices": [
+        "Why was the website suspicious?",
+        "Why did the website suspicious?",
+        "Why the website suspicious?",
+        "Why the website suspicious?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "It hid the author and date.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_085",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "media_literacy",
+      "gameType": "case_board",
+      "caseTitle": "The Algorithm Shaped Attention",
+      "context": "The algorithm shaped what students saw online.",
+      "task": "Ask how the algorithm shaped attention.",
+      "correctAnswer": "How did the algorithm shape students' attention?",
+      "acceptedAnswers": [
+        "How did the algorithm shape students' attention?"
+      ],
+      "commonWrongAnswers": [
+        "How was the algorithm shape students' attention?",
+        "How the algorithm shape students' attention?",
+        "How did the algorithm shaped students' attention?"
+      ],
+      "choices": [
+        "How did the algorithm shape students' attention?",
+        "How was the algorithm shape students' attention?",
+        "How the algorithm shape students' attention?",
+        "How did the algorithm shaped students' attention?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "It pushed similar videos repeatedly.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_086",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "student_leadership",
+      "gameType": "case_board",
+      "caseTitle": "The Example Was Not Convincing",
+      "context": "The leadership example was not convincing because it described the event but not the student's growth.",
+      "task": "Ask why the example was not convincing.",
+      "correctAnswer": "Why was the leadership example not convincing?",
+      "acceptedAnswers": [
+        "Why was the leadership example not convincing?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the leadership example not convincing?",
+        "Why the leadership example not convincing?",
+        "Why the leadership example not convincing?"
+      ],
+      "choices": [
+        "Why was the leadership example not convincing?",
+        "Why did the leadership example not convincing?",
+        "Why the leadership example not convincing?",
+        "Why the leadership example not convincing?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The student did not explain what changed.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_087",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "policy_analysis",
+      "gameType": "case_board",
+      "caseTitle": "The Rule Created Privacy Concerns",
+      "context": "The phone-storage rule created privacy concerns among students.",
+      "task": "Ask why the rule created privacy concerns.",
+      "correctAnswer": "Why did the phone-storage rule create privacy concerns?",
+      "acceptedAnswers": [
+        "Why did the phone-storage rule create privacy concerns?"
+      ],
+      "commonWrongAnswers": [
+        "Why was the phone-storage rule create privacy concerns?",
+        "Why the phone-storage rule create privacy concerns?",
+        "Why did the phone-storage rule created privacy concerns?"
+      ],
+      "choices": [
+        "Why did the phone-storage rule create privacy concerns?",
+        "Why was the phone-storage rule create privacy concerns?",
+        "Why the phone-storage rule create privacy concerns?",
+        "Why did the phone-storage rule created privacy concerns?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "Students worried teachers might check their phones.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_088",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "research_project",
+      "gameType": "case_board",
+      "caseTitle": "The Data Cleaning Took Longer",
+      "context": "Cleaning the survey data took longer because several responses were duplicated.",
+      "task": "Ask why data cleaning took longer.",
+      "correctAnswer": "Why did cleaning the survey data take longer?",
+      "acceptedAnswers": [
+        "Why did cleaning the survey data take longer?"
+      ],
+      "commonWrongAnswers": [
+        "Why was cleaning the survey data take longer?",
+        "Why cleaning the survey data take longer?",
+        "Why did cleaning the survey data took longer?"
+      ],
+      "choices": [
+        "Why did cleaning the survey data take longer?",
+        "Why was cleaning the survey data take longer?",
+        "Why cleaning the survey data take longer?",
+        "Why did cleaning the survey data took longer?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "Several responses were duplicated.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_089",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "public_speaking",
+      "gameType": "case_board",
+      "caseTitle": "The Audience Was Confused",
+      "context": "The audience was confused because the speaker never defined the key term.",
+      "task": "Ask why the audience was confused.",
+      "correctAnswer": "Why was the audience confused?",
+      "acceptedAnswers": [
+        "Why was the audience confused?"
+      ],
+      "commonWrongAnswers": [
+        "Why did the audience confused?",
+        "Why the audience confused?",
+        "Why the audience confused?"
+      ],
+      "choices": [
+        "Why was the audience confused?",
+        "Why did the audience confused?",
+        "Why the audience confused?",
+        "Why the audience confused?"
+      ],
+      "feedback": "This describes how someone/something was, so use was before the subject.",
+      "feedbackChinese": "如果描述感受、位置、身份或情况，用 was。",
+      "clueUnlocked": "The key term was never defined.",
+      "expectedTimeSeconds": 40
+    },
+    {
+      "id": "qf3_090",
+      "module": "question_formation",
+      "pack": "question_formation_first_three_moves_v1",
+      "level": 3,
+      "moveId": "doing_something_or_describing_something",
+      "ruleId": "qf_do_does_did_vs_is_are_was_were",
+      "theme": "university_application",
+      "gameType": "case_board",
+      "caseTitle": "The Story Showed Growth",
+      "context": "The revised paragraph showed growth because the student explained what changed after failure.",
+      "task": "Ask how the paragraph showed growth.",
+      "correctAnswer": "How did the revised paragraph show growth?",
+      "acceptedAnswers": [
+        "How did the revised paragraph show growth?"
+      ],
+      "commonWrongAnswers": [
+        "How was the revised paragraph show growth?",
+        "How the revised paragraph show growth?",
+        "How did the revised paragraph showed growth?"
+      ],
+      "choices": [
+        "How did the revised paragraph show growth?",
+        "How was the revised paragraph show growth?",
+        "How the revised paragraph show growth?",
+        "How did the revised paragraph showed growth?"
+      ],
+      "feedback": "This asks about something someone/something did, so use did + simple verb.",
+      "feedbackChinese": "如果问动作，用 did + 动词原形。",
+      "clueUnlocked": "It explained what the student learned.",
+      "expectedTimeSeconds": 40
+    }
+  ]
+}

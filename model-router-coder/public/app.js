@@ -141,7 +141,7 @@ function watchJob(jobId) {
       const url = event.result?.downloadUrl || `/api/builds/${jobId}/download`;
       showFinished(event.result?.runId || jobId, url);
     }
-    if (event.type === "done" || event.type === "error") {
+    if ((event.type === "done" || event.type === "error") && event.jobId === jobId) {
       finished = true;
       pollBuildStatus(jobId);
       events.close();
@@ -265,6 +265,8 @@ function formatEvent(event) {
   const prefix = event.at ? event.at.slice(11, 19) : "--:--:--";
   if (event.type === "task:start") return `${prefix} start ${event.taskId} (${event.model})`;
   if (event.type === "task:done") return `${prefix} done ${event.taskId}`;
+  if (event.type === "done" && event.jobId) return `${prefix} build done`;
+  if (event.type === "done") return `${prefix} generation done`;
   if (event.type === "review:start") return `${prefix} review ${event.taskId} round ${event.round} (${event.reviewer})`;
   if (event.type === "review:done") return `${prefix} review ${event.taskId}: ${event.approved ? "approved" : `${event.issues} issues`}`;
   if (event.type === "review:failed") return `${prefix} review failed ${event.taskId}: ${event.error}`;

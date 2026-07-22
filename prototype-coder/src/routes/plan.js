@@ -32,8 +32,7 @@ router.post('/convert', async (req, res) => {
       model: convModel,
       messages: conversionMessages(prompt),
       temperature: 0.2,
-      max_tokens: 32000,
-      response_format: { type: 'json_object' }
+      max_tokens: 8000
     });
 
     const plan = extractJson(result.content);

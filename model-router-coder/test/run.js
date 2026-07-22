@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { modelFamily, pickCrossFamilyReviewer, sameModelFamily } from "../src/families.js";
 import { createExecutionBatches, estimatePlanCost, parseBuildPlan } from "../src/plan.js";
 import { executeBuildPlan, executeGenerationPlan, parseReviewJson } from "../src/executor.js";
@@ -218,6 +219,14 @@ test("prompt planner helpers enforce default models", () => {
 test("download fallback route format is stable", () => {
   const runId = "20260622-120000-example-app";
   assert.equal(`/api/runs/${encodeURIComponent(runId)}/download`, "/api/runs/20260622-120000-example-app/download");
+});
+
+test("active build download waits for package-ready event", async () => {
+  const app = await readFile(new URL("../public/app.js", import.meta.url), "utf8");
+  const server = await readFile(new URL("../server.js", import.meta.url), "utf8");
+  assert.match(app, /event\.type === "package:ready"/);
+  assert.match(app, /\(event\.type === "done" \|\| event\.type === "error"\) && event\.jobId === jobId/);
+  assert.match(server, /pushJobEvent\(job, \{ type: "package:ready", result: job\.result \}\)/);
 });
 
 test("README plan shape remains parseable", () => {
