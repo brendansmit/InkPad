@@ -10,6 +10,12 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-23 — GitHub backup and a safe GitHub-based deploy path
+
+- Backed up the whole parent Claude/ monorepo to the private GitHub repo brendansmit/InkPad (SSH, all 7 branches). data/*.db stays gitignored so no live data is in Git. Two gaps noted to the teacher: 6 nested git repos back up as pointers only, and Grammar Arcade/Gramm-Builder.zip (103 MB) exceeds GitHub's 100 MB limit and was ignored.
+- Branch reality: analysis-ai == test-greenpen (84bd382) is the clean complete production line (migrations 001-032, includes the TOEFL feature). toefl-estimate is NOT a release branch: it carries a whole-repo backup snapshot commit plus two unreviewed migrations 033/034. Deploy from analysis-ai only.
+- Added deploy/deploy.sh + deploy/DEPLOY.md on analysis-ai (pushed, 050c139). Deploy = back up db, fetch+reset a SEPARATE repo clone to origin/<branch>, rsync only src/migrations/public into /opt/inkheron-platform, npm ci --omit=dev if package.json changed, systemctl restart inkheron-wrapper (migrations self-apply on boot via openDatabase, additive only), curl /login. data/ is never synced or cleaned. One-time droplet setup (deploy key + clone) is in DEPLOY.md. Did NOT deploy (Fable-only).
+
 ## 2026-07-07 — Audited Codex MCQ/import run: pass, awaiting deploy word
 
 - Audited 25c918e..075b54f against CODEX_MCQ_HANDOFF.md: all new routes (topics, bulk-import, append-questions) teacher-session gated with CSRF on mutations; answer_index/model_answer only in teacherQuestion payloads and the existing reveal_answers release gate; service edits are a uniform swap of the hardcoded checker intent to readCheckerIntent(db) for the model picker; migration 032 registered. Suite 181/181 on Node 24 at pinned 075b54f.
