@@ -67,7 +67,8 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 .grpmark .q{flex:1;font-family:var(--serif);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .autonote{font-size:11px;color:var(--text-3);padding:2px 13px 11px}
 .cst{border:1px dashed var(--coral-500);border-radius:var(--r-sm);padding:9px 10px;background:var(--coral-50)}
-.cst .q{font-family:var(--serif);font-size:13.5px}
+.cst .q{font-family:var(--serif);font-size:13.5px;white-space:normal;line-height:1.5}
+.cst .q mark.ctx-hit{background:var(--amber-50);color:var(--maroon-500);font-weight:800;border-radius:3px;padding:0 1px}
 .cst .why{font-size:11px;color:var(--text-2);margin:3px 0 7px}
 .cst .acts{display:flex;gap:6px;flex-wrap:wrap}
 .sug{border:1px dashed var(--border-2);border-radius:var(--r-sm);padding:9px 10px;background:var(--bg)}
@@ -137,8 +138,9 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   .grpmark .q{flex-basis:100%;white-space:normal}
   .addrow textarea,.addrow input,.addrow select,.selbar select,.code-pop select,.popover textarea{font-size:16px}
   .addrow textarea{min-height:88px}
-  .scale{gap:4px;overflow-x:auto;padding-bottom:4px}
-  .pt{flex:0 0 36px;min-height:34px}
+  .scale{gap:7px;overflow-x:auto;padding-bottom:6px}
+  .pt{flex:0 0 50px;min-height:48px;font-size:15px;border-radius:9px}
+  .pt.half{flex:0 0 38px;min-height:48px}
   .selbar{left:8px;right:8px;width:auto;flex-wrap:wrap;justify-content:flex-start}
   .selbar .btn{flex:1 1 auto}
   .popover{left:8px;right:8px;width:auto;flex-wrap:wrap}
@@ -460,7 +462,7 @@ function cardNeedsYou(){
     const c = contested[0];
     let checker = {}; try { checker = JSON.parse(c.checker_json||'{}'); } catch(_){}
     const cst = el('div','cst');
-    cst.innerHTML = '<div class="q">"'+esc(c.quote)+'" <span class="count">'+esc(c.code)+'</span></div>'+
+    cst.innerHTML = '<div class="q">'+sentenceHtml(c.start_offset, c.end_offset, c.quote)+' <span class="count">'+esc(c.code)+'</span></div>'+
       '<div class="why">Checker unsure ('+(checker.confidence!=null?checker.confidence:'?')+')'+(checker.note?': '+esc(checker.note):'')+'</div>';
     const acts = el('div','acts');
     const keep = el('button','btn sm'); keep.textContent='✓ Keep '+c.code; keep.onclick=()=>resolveContested(c,'keep');
@@ -619,6 +621,26 @@ function cardRubric(){
 }
 
 function fmt(n){ return Number.isInteger(n)? String(n) : n.toFixed(1); }
+// Pull the whole sentence around a flagged span so the teacher gets context
+// without scrolling up to the essay. Returns the sentence split around the
+// flagged part for highlighting, or null if offsets are missing.
+function sentenceAround(s, e){
+  const text = (review.pad && review.pad.plain_text) || '';
+  if (s == null || e == null || !text) return null;
+  s = Math.max(0, Math.min(s, text.length));
+  e = Math.max(s, Math.min(e, text.length));
+  let start = s, end = e;
+  while (start > 0 && !/[.!?\n]/.test(text[start-1])) start--;
+  while (start < s && /\s/.test(text[start])) start++;
+  while (end < text.length && !/[.!?\n]/.test(text[end])) end++;
+  if (end < text.length) end++;
+  return { before: text.slice(start, s), quote: text.slice(s, e), after: text.slice(e, end).replace(/\s+$/,'') };
+}
+function sentenceHtml(s, e, fallbackQuote){
+  const ctx = sentenceAround(s, e);
+  if (!ctx || !ctx.quote) return '"'+esc(fallbackQuote||'')+'"';
+  return esc(ctx.before)+'<mark class="ctx-hit">'+esc(ctx.quote)+'</mark>'+esc(ctx.after);
+}
 function el(tag, cls){ const e=document.createElement(tag); if(cls) e.className=cls; return e; }
 function placeFloating(elm, left, top){
   const gap = 8;
@@ -730,7 +752,16 @@ function onSelectText(){
   const bar = document.getElementById('selBar');
   document.getElementById('selCode').style.display = 'none';
   bar.classList.add('open');
-  placeFloating(bar, rect.left, rect.bottom + 8);
+  // On touch devices the phone's own copy/paste bubble sits right on the
+  // selection, so drop our toolbar clearly ABOVE the selected text with extra
+  // clearance. On mouse devices keep it just below where the cursor left off.
+  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  if (coarse){
+    const barH = bar.offsetHeight || 52;
+    placeFloating(bar, rect.left, rect.top - barH - 16);
+  } else {
+    placeFloating(bar, rect.left, rect.bottom + 8);
+  }
 }
 function closeSelBar(){ document.getElementById('selBar').classList.remove('open'); document.getElementById('selCode').style.display='none'; }
 function closePop(){ document.getElementById('commentPop').classList.remove('open'); pendingSel=null; }
