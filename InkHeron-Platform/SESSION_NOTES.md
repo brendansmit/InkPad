@@ -10,6 +10,13 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-24 — Deployed the UI-only fixes to production
+
+- Teacher asked to deploy only the UI changes (not the spelling/marking change). Built branch deploy-ui = analysis-ai + the two UI commits (submit confirmed state, grading UI: full sentence + rubric targets + toolbar offset). Spelling change deliberately excluded. Suite 181/181 green.
+- Drift found: production /opt/inkheron-platform/src/views/nativeWrite.js carried an uncommitted testReturnUrl/exam-mode block (Back-to-test banner + link) that was never in the repo. Deploying the repo version blindly would have deleted that live feature. Fix: merged the submit-button change ONTO the live file (preserving exam mode), verified the diff was only my 5 changes, and committed that merged file back so the branch matches production.
+- Deploy method: SSH to root@167.172.71.219, backed up db to data/backups/inkheron.db.pre-uideploy-20260724-013428 and both files to .bak-20260724-013428, scp'd the two files in, chown inkheron, systemctl restart inkheron-wrapper, curl /login = 200. Deployed file hashes verified against intended. Only nativeWrite.js and native-review.html changed; no migrations, no marking change, data untouched. native-review.html on prod matched analysis-ai exactly before deploy.
+- Still NOT deployed: the British/American spelling change (branch mobile-grading-fixes). Repo drift beyond nativeWrite.js may exist; the GitHub deploy clone (/opt/inkheron-repo) is still not set up, so this was a targeted file deploy, not deploy.sh.
+
 ## 2026-07-23 — GitHub backup and a safe GitHub-based deploy path
 
 - Backed up the whole parent Claude/ monorepo to the private GitHub repo brendansmit/InkPad (SSH, all 7 branches). data/*.db stays gitignored so no live data is in Git. Two gaps noted to the teacher: 6 nested git repos back up as pointers only, and Grammar Arcade/Gramm-Builder.zip (103 MB) exceeds GitHub's 100 MB limit and was ignored.
