@@ -45,8 +45,12 @@ export function renderNativeWriteView({
   const submitLabel = pad.state === 'green_pen_open' ? 'Resubmit' : 'Submit';
   const submitConfirm = pad.state === 'green_pen_open' ? 'Resubmit this rewrite?' : 'Submit this writing?';
   const submitDoneLabel = pad.state === 'green_pen_open' ? 'Resubmitted' : 'Submitted';
-  // Once already submitted (locked), the button shows the done label and is greyed out.
-  const submitButtonLabel = locked ? (pad.state === 'resubmitted' ? 'Resubmitted' : 'Submitted') : submitLabel;
+  // Once already submitted (locked), the button shows the done label in a solid
+  // green confirmed state with a tick, never a greyed-out button.
+  const alreadySubmitted = locked;
+  const submitButtonLabel = locked
+    ? '✓ ' + (pad.state === 'resubmitted' ? 'Resubmitted' : 'Submitted')
+    : submitLabel;
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -85,6 +89,10 @@ export function renderNativeWriteView({
     .niw-btn.active{background:#dfe9df;border-color:#2f6f4e;color:#183d2a}
     .niw-btn.primary{background:#2f6f4e;color:#fff;border-color:#2f6f4e}
     .niw-btn:disabled{opacity:.5;cursor:not-allowed}
+    /* A submitted pad is a success state, not a dead button: stay solid green
+       with a tick so students are never left wondering if it went through. */
+    .niw-btn.submitted,.niw-btn.submitted:disabled{background:#2f6f4e;color:#fff;border-color:#2f6f4e;opacity:1;cursor:default}
+    .niw-stat.submitted{color:#2f6f4e;font-weight:800}
     .niw-select{border:1px solid #b8c2b9;border-radius:7px;min-height:34px;background:#fff;color:#17221b;font:inherit;font-weight:800;padding:0 8px;width:auto}
     .niw-zoom{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#657268}
     .niw-zoom input{width:116px}
@@ -210,12 +218,12 @@ export function renderNativeWriteView({
     <div class="niw-title">${escapeHtml(title)}</div>
     <div class="niw-spacer"></div>
     <div class="niw-stat" id="pastePolicy" hidden>Paste ${escapeHtml(policy?.paste_mode ?? 'log')}</div>
-    <div class="niw-stat" id="saveState">Saved</div>
+    <div class="niw-stat${alreadySubmitted ? ' submitted' : ''}" id="saveState">${alreadySubmitted ? 'Handed in' : 'Saved'}</div>
     <div class="niw-stat"><span id="wordCount">${pad.word_count}</span> words</div>
     <div class="niw-stat"><span id="charCount">0</span> chars</div>
     <div class="niw-stat"><span id="sentenceCount">0</span> sentences</div>
     <button class="niw-btn" id="saveBtn" type="button" ${locked ? 'disabled' : ''}>Save</button>
-    <button class="niw-btn primary" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitButtonLabel)}</button>
+    <button class="niw-btn primary${alreadySubmitted ? ' submitted' : ''}" id="submitBtn" type="button" ${locked ? 'disabled' : ''}>${escapeHtml(submitButtonLabel)}</button>
   </header>
   <main class="niw-shell${greenpen ? ' gp-shell' : ''}">
     <aside class="niw-passage">
@@ -796,9 +804,11 @@ export function renderNativeWriteView({
       if(response.ok){
         editor.setAttribute('contenteditable', 'false');
         submitBtn.disabled = true;
-        submitBtn.textContent = submitDoneLabel;
+        submitBtn.classList.add('submitted');
+        submitBtn.textContent = '✓ ' + submitDoneLabel;
         saveBtn.disabled = true;
-        saveState.textContent = submitDoneLabel;
+        saveState.textContent = 'Handed in';
+        saveState.classList.add('submitted');
       }else{
         saveState.textContent = 'Submit failed';
       }
