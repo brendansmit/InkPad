@@ -10,6 +10,14 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-24 — Five mobile grading/UX fixes (branch mobile-grading-fixes)
+
+- Off analysis-ai, not merged or deployed. Suite 186/186 green on Node 24.
+- Submit button (src/views/nativeWrite.js): a submitted pad now shows a solid green "✓ Submitted" state with a "Handed in" status, not a greyed-out disabled button. Applied both on submit success and on reload of an already-locked pad. Fixes students thinking it did not submit.
+- Grading UI (public/teacher/native-review.html), three fixes: (1) the "Needs you" card shows the whole sentence around the flagged span with the span highlighted (sentenceAround/sentenceHtml from review.pad.plain_text + offsets), so no scrolling to the essay for context; (2) rubric point/half buttons enlarged to 48px tall, half 38px wide, bigger gaps, on mobile only; (3) the selection toolbar is placed above the selection on coarse-pointer devices so it clears the phone's copy/paste bubble.
+- Literacy coder (src/services/literacyCoder.js): detectSpellingVariant counts unambiguous GB/US word pairs across the whole essay; spellingDirective injects a spelling-standard line into the marker prompt so a consistently British or American essay is not flagged as Sp for its own spellings, only deviations. Teacher chose "only flag deviations". Homographs (practice, program, check, story, tire, meter, license) excluded from detection.
+- Verified: full suite green, native-review inline JS syntax-checked. Mobile touch feel and look on the real phone still need the teacher's own check.
+
 ## 2026-07-23 — GitHub backup and a safe GitHub-based deploy path
 
 - Backed up the whole parent Claude/ monorepo to the private GitHub repo brendansmit/InkPad (SSH, all 7 branches). data/*.db stays gitignored so no live data is in Git. Two gaps noted to the teacher: 6 nested git repos back up as pointers only, and Grammar Arcade/Gramm-Builder.zip (103 MB) exceeds GitHub's 100 MB limit and was ignored.
