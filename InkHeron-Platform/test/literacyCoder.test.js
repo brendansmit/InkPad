@@ -7,6 +7,7 @@ import { buildApp } from '../src/app.js';
 import { openDatabase } from '../src/db/database.js';
 import {
   parseLiteracyResponse, findQuoteSpan, codeCategory, splitParagraphs, runLiteracyAnalysis,
+  detectSpellingVariant, spellingDirective,
 } from '../src/services/literacyCoder.js';
 import { verifyFindings } from '../src/services/checker.js';
 
@@ -203,4 +204,43 @@ test('checker always flags the least-confident ~10% of a real batch for review',
     { chat: () => Promise.resolve(chatResponse(JSON.stringify(allConfident))) });
   assert.ok(confident.every((f) => f.checker.flag !== 'least_confident'),
     'six 0.9s produce zero least_confident flags');
+});
+
+test('detectSpellingVariant reads a consistently British essay as british', () => {
+  const text = 'The colour of our neighbourhood theatre is a favourite. We organised the programme and recognised the behaviour.';
+  assert.equal(detectSpellingVariant(text), 'british');
+});
+
+test('detectSpellingVariant reads a consistently American essay as american', () => {
+  const text = 'The color of our neighborhood theater is a favorite. We organized the program and recognized the behavior.';
+  assert.equal(detectSpellingVariant(text), 'american');
+});
+
+test('detectSpellingVariant returns null when there is no clear signal', () => {
+  assert.equal(detectSpellingVariant('The dog ran across the field and jumped the fence.'), null);
+});
+
+test('spellingDirective tells the marker to accept the dominant variant and flag only deviations', () => {
+  const british = spellingDirective('british');
+  assert.match(british, /British/);
+  assert.match(british, /never flag them as Sp/);
+  assert.equal(spellingDirective(null), '');
+});
+
+test('runLiteracyAnalysis injects the detected spelling standard into the system prompt', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId } = await seedPad(tmpDb(), db);
+  db.prepare('UPDATE native_pads SET plain_text = ? WHERE id = ?')
+    .run('The colour of the theatre was a favourite. We organised and recognised the behaviour of our neighbours.', padId);
+
+  let seenSystem = '';
+  const chat = (_db, { messages }) => {
+    seenSystem = messages[0].content;
+    return Promise.resolve({ model: 'fake', choices: [{ message: { content: '[]' } }] });
+  };
+  await runLiteracyAnalysis(db, { padId }, { chat });
+  assert.match(seenSystem, /SPELLING STANDARD/);
+  assert.match(seenSystem, /British/);
+
+  await app.close();
 });
