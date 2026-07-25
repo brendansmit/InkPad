@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Deployed essay export downloads
+
+- Deployed commit `50b010b` to `/opt/inkheron-platform` after backing up the production database to `/opt/inkheron-platform/data/backups/inkheron.db.pre-essay-export-20260725T171657Z`. Installed production dependencies and restarted `inkheron-wrapper`; the service is active and `/login` returns 200. Verified the individual DOCX, assignment ZIP and compiled PDF routes are present and authentication-protected. The pre-deploy suite passed 184/184 tests. npm reported four high-severity dependency audit findings, which were not changed during this scoped deployment.
+
 Entry format:
 ```
 ## 2026-07-25 — Essay export downloads completed
