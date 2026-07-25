@@ -11,6 +11,8 @@ test('assignment page owns essay downloads and the review page does not', () => 
   const html = fs.readFileSync(path.join(process.cwd(), 'public/teacher/assignments.html'), 'utf8');
   const reviewHtml = fs.readFileSync(path.join(process.cwd(), 'public/teacher/native-review.html'), 'utf8');
   assert.match(html, /id="downloadEssaysBtn"/);
+  assert.match(html, /class="detail-title-row">\s*<h2 id="detailTitle"><\/h2>/);
+  assert.match(html, /class="detail-actions">\s*<select id="detailClassSel"/);
   assert.match(html, /Raw submission/);
   assert.match(html, /Commented and reviewed/);
   assert.match(html, /data-download-pad/);

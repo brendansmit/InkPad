@@ -49,9 +49,12 @@
     .empty-state{text-align:center;padding:60px 20px;color:var(--text-3);}
     .empty-state p{margin:8px 0 20px;font-size:15px;}
     /* ── Detail view ── */
-    .detail-header{display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
+    .detail-header{display:grid;gap:12px;margin-bottom:18px;}
+    .detail-title-row{display:flex;align-items:baseline;gap:16px;min-width:0;}
     .detail-header h2{font-family:var(--serif);font-size:21px;font-weight:600;margin:0;flex:1;min-width:0;}
     .detail-header .class-tag{color:var(--text-2);font-size:13px;white-space:nowrap;}
+    .detail-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    .detail-action-spacer{flex:1 1 16px;}
     .controls{display:grid;grid-template-columns:repeat(3,minmax(140px,1fr));gap:12px;align-items:end;margin-bottom:14px;}
     .toolbar{display:flex;justify-content:flex-end;gap:10px;margin-bottom:14px;}
     label{display:block;color:var(--text-2);font-size:12px;font-weight:700;margin:0 0 6px;text-transform:uppercase;}
@@ -173,9 +176,12 @@
       .asgn-card .card-meta{font-size:12.5px;line-height:1.35;}
       .asgn-card .card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;}
       .asgn-card .card-actions .btn{width:100%;}
-      .detail-header{align-items:stretch;flex-direction:column;}
+      .detail-header{gap:10px;}
+      .detail-title-row{display:grid;gap:6px;}
       .detail-header h2{font-size:20px;}
       .detail-header .btn,.detail-header select,.detail-header .class-tag{width:100%;max-width:none!important;}
+      .detail-actions{display:grid;grid-template-columns:1fr;gap:8px;}
+      .detail-action-spacer{display:none;}
       .controls{grid-template-columns:1fr;gap:10px;}
       .controls select{font-size:16px;}
       .summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
@@ -243,16 +249,21 @@
     <div id="detailView" style="display:none;">
       <button class="back-btn" id="backFromDetail">← All assignments</button>
       <div class="detail-header">
-        <h2 id="detailTitle"></h2>
-        <select id="detailClassSel" style="min-width:120px;max-width:200px;min-height:32px;padding:6px 10px;font-size:13px;"></select>
-        <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
-        <button class="btn sm" id="downloadEssaysBtn" type="button">Download essays</button>
-        <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
-        <button class="btn sm" id="exportAdminBtn" type="button">Export to gradebook</button>
-        <span id="feedbackState" class="class-tag" style="display:none"></span>
-        <button class="btn sm" id="releaseBtn" type="button" style="display:none">Release to class</button>
-        <button class="btn sm" id="archiveBtn" type="button">Archive</button>
-        <button class="btn sm" id="deleteBtn" type="button" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
+        <div class="detail-title-row">
+          <h2 id="detailTitle"></h2>
+          <span id="feedbackState" class="class-tag" style="display:none"></span>
+        </div>
+        <div class="detail-actions">
+          <select id="detailClassSel" style="min-width:120px;max-width:200px;min-height:32px;padding:6px 10px;font-size:13px;"></select>
+          <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
+          <button class="btn sm" id="downloadEssaysBtn" type="button">Download essays</button>
+          <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
+          <button class="btn sm" id="exportAdminBtn" type="button">Export to gradebook</button>
+          <button class="btn sm" id="releaseBtn" type="button" style="display:none">Release to class</button>
+          <span class="detail-action-spacer"></span>
+          <button class="btn sm" id="archiveBtn" type="button">Archive</button>
+          <button class="btn sm" id="deleteBtn" type="button" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
+        </div>
       </div>
       <div class="controls">
         <div>
