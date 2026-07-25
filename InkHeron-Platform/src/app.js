@@ -17,6 +17,7 @@ import { registerSettingsTestRoutes } from './routes/settingsTests.js';
 import { registerLibraryRoutes } from './routes/library.js';
 import { registerFeedbackAssetRoutes } from './routes/feedbackAssets.js';
 import { registerToeflRoutes } from './routes/toefl.js';
+import { registerEssayExportRoutes } from './routes/essayExports.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -113,6 +114,7 @@ export async function buildApp(options = {}) {
   await registerLibraryRoutes(app, { db, uploadsDir: libraryUploadsDir });
   await registerFeedbackAssetRoutes(app, { db });
   await registerNativePadRoutes(app, { db });
+  await registerEssayExportRoutes(app, { db });
   await registerNativeReanalyzeRoutes(app, { db });
   await registerClassInsightsRoutes(app, { db });
   await registerToeflRoutes(app, { db });

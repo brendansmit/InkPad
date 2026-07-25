@@ -10,6 +10,18 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-25 — Essay export backend checkpoint
+
+- Added teacher-only essay export services and routes for raw submit snapshots or reviewed copies. Supports individual DOCX, assignment ZIPs of DOCX files and compiled PDFs. Reviewed DOCX files carry true Word comments anchored to marked spans plus review summaries. Demo and ghost students are excluded. Added structural endpoint tests covering authorization, source-state separation, Word comment wiring, ZIP contents and PDF validity; 2/2 feature tests pass on Node 24.
+
+## 2026-07-25 — Compiled raw Personal Statement second drafts
+
+- Asked to extract the pre-review Personal Statements Second Draft essays and combine them into one Word document. Used the latest `reason = "submit"` revision for each active EAP student, excluding the Greenpen rewrite, archived assignments, demo/ghost users and one 17-word Audit Class test record. Compiled 39 essays and 23,285 source words into `Personal Statements Second Draft - Raw Submissions.docx` without commentary, annotations or corrections. Rendered and visually inspected all 70 pages, then verified the DOCX ZIP structure. The document contains student data and was deliberately not committed to Git.
+
+## 2026-07-25 — Confirmed read-only production database access
+
+- Asked whether Codex could access student essays on the droplet. Confirmed SSH access to `root@167.172.71.219` and opened `/opt/inkheron-platform/data/inkheron.db` with SQLite read-only mode. Verified the submissions and native writing tables exist without reading any student content or changing production.
+
 ## 2026-07-24 — Deployed the UI-only fixes to production
 
 - Teacher asked to deploy only the UI changes (not the spelling/marking change). Built branch deploy-ui = analysis-ai + the two UI commits (submit confirmed state, grading UI: full sentence + rubric targets + toolbar offset). Spelling change deliberately excluded. Suite 181/181 green.
