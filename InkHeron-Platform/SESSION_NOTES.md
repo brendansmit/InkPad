@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Fixed assignment header spacing
+
+- Reworked the assignment detail header so the title occupies a full-width row, feedback status aligns beside it and all actions sit in a separate wrapping toolbar with Archive and Delete grouped at the end. Mobile actions stack at full width. Browser QA passed at the supplied 2048 px screenshot width and at 390 px with no overflow or console errors; full suite passed 186/186. Committed as `d53e80a` and deployed only `public/teacher/assignments.html`. Production hash matched and the previous page is backed up as `/opt/inkheron-platform/public/teacher/assignments.html.bak-header-spacing-20260725T184710Z`.
+
 ## 2026-07-26 — Moved essay downloads to assignment-level selection
 
 - Removed downloads from the individual review page and added `Download essays` beside the assignment-level actions. The modal independently loads all essays for the selected assignment or grouped classes, supports per-student checkboxes, Select all, Clear, Raw or Reviewed state, single DOCX, selected DOCX ZIP and selected compiled PDF. Added selected-pad export routes with strict ID validation and real-student filtering. Browser QA passed with three students and no console errors; full Node 24 suite passed 186/186. Committed as `3a90630` and deployed only the two pages and two export backend files. Production service is active, deployed hashes match and backups use suffix `20260725T183156Z`.
