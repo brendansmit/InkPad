@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Moved essay downloads to assignment-level selection
+
+- Removed downloads from the individual review page and added `Download essays` beside the assignment-level actions. The modal independently loads all essays for the selected assignment or grouped classes, supports per-student checkboxes, Select all, Clear, Raw or Reviewed state, single DOCX, selected DOCX ZIP and selected compiled PDF. Added selected-pad export routes with strict ID validation and real-student filtering. Browser QA passed with three students and no console errors; full Node 24 suite passed 186/186. Committed as `3a90630` and deployed only the two pages and two export backend files. Production service is active, deployed hashes match and backups use suffix `20260725T183156Z`.
+
 ## 2026-07-26 — Diagnosed teacher login redirect failure
 
 - After the essay export deployment, a persisted student session caused `teacher-login.html` to redirect to `/teacher`, which correctly returned 403. Confirmed the service and database were healthy. Added a regression-tested fix so only teacher sessions bypass the teacher login form; focused authentication tests passed 10/10 and the preceding full suite passed 184/184. Committed the fix as `f37d195`, then deployed only `teacher-login.html` after explicit approval. Production returned 200 and the deployed hash matched; the previous page is backed up as `/opt/inkheron-platform/public/teacher-login.html.bak-login-fix-20260725T180511Z`.
