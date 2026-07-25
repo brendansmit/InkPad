@@ -12,6 +12,12 @@ function temporaryDatabasePath() {
   return path.join(dir, 'inkheron.db');
 }
 
+test('teacher login page does not redirect a student session into the teacher area', () => {
+  const html = fs.readFileSync(new URL('../public/teacher-login.html', import.meta.url), 'utf8');
+  assert.match(html, /data\.user\?\.type==='teacher'/);
+  assert.doesNotMatch(html, /if\(r\.ok\)\{ window\.location\.href='\/teacher'; return; \}/);
+});
+
 async function seedClassAndStudent(app, { password = 'correct horse', mustChange = false } = {}, { csrfToken = '', cookies = '' } = {}) {
   const classResponse = await app.inject({
     method: 'POST',

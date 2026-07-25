@@ -70,7 +70,10 @@
     async function checkSetup(){
       try{
         const r=await fetch('/api/me');
-        if(r.ok){ window.location.href='/teacher'; return; }
+        if(r.ok){
+          const data=await r.json();
+          if(data.user?.type==='teacher'){ window.location.href='/teacher'; return; }
+        }
         const setupCheck=await fetch('/api/setup/teacher',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:'probe'})});
         if(setupCheck.status===403){
           // teacher exists
