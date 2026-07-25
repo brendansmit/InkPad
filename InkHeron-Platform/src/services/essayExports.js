@@ -357,7 +357,7 @@ function addPdfEssay(doc, essay, state, first) {
 }
 
 export async function buildEssayPdf(essays, state) {
-  const doc = new PDFDocument({ size: 'LETTER', margins: { top: 72, right: 72, bottom: 72, left: 72 }, bufferPages: true, info: {
+  const doc = new PDFDocument({ size: 'LETTER', margins: { top: 72, right: 72, bottom: 72, left: 72 }, info: {
     Title: `${essays[0]?.assignmentTitle || 'Essay export'} - ${state}`,
     Author: 'InkHeron',
     Subject: state === 'raw' ? 'Raw submit snapshots' : 'Teacher-reviewed essays',
@@ -367,11 +367,6 @@ export async function buildEssayPdf(essays, state) {
   doc.moveDown(0.5).fillColor('#4D6675').font('Helvetica').fontSize(13)
     .text(`${state === 'raw' ? 'Raw submissions' : 'Reviewed essays'} | ${essays.length} students`, { align: 'center' });
   essays.forEach((essay) => addPdfEssay(doc, essay, state, false));
-  const range = doc.bufferedPageRange();
-  for (let index = 0; index < range.count; index += 1) {
-    doc.switchToPage(index);
-    doc.fillColor('#666666').font('Helvetica').fontSize(8).text(String(index + 1), 72, doc.page.height - 48, { width: doc.page.width - 144, align: 'right', lineBreak: false });
-  }
   doc.end();
   return result;
 }

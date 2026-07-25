@@ -10,6 +10,10 @@ decisions and outcomes, not narration.
 
 Entry format:
 ```
+## 2026-07-25 — Essay export downloads completed
+
+- Finished the teacher review download menu with two states (Raw submission and Commented and reviewed) and three formats (individual DOCX, class ZIP of DOCX files and compiled class PDF). Reviewed DOCX exports use true Word comments on highlighted spans and include strengths, targets and general comments. Reviewed PDFs use numbered inline markers plus a review summary. Visual QA passed for rendered DOCX and PDF samples. The in-app browser blocked localhost, so UI behaviour was verified through static page contracts, syntax checking and endpoint integration tests. Full Node 24 suite: 184/184 passing. Restored `pdfjs-dist` as an explicit dependency because npm exposed the existing PDF upload extractor's undeclared runtime dependency. Not deployed.
+
 ## 2026-07-25 — Essay export backend checkpoint
 
 - Added teacher-only essay export services and routes for raw submit snapshots or reviewed copies. Supports individual DOCX, assignment ZIPs of DOCX files and compiled PDFs. Reviewed DOCX files carry true Word comments anchored to marked spans plus review summaries. Demo and ghost students are excluded. Added structural endpoint tests covering authorization, source-state separation, Word comment wiring, ZIP contents and PDF validity; 2/2 feature tests pass on Node 24.

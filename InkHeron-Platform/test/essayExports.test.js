@@ -7,6 +7,18 @@ import AdmZip from 'adm-zip';
 import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
 
+test('teacher review page exposes all essay download formats and states', () => {
+  const html = fs.readFileSync(path.join(process.cwd(), 'public/teacher/native-review.html'), 'utf8');
+  assert.match(html, /Raw submission/);
+  assert.match(html, /Commented and reviewed/);
+  assert.match(html, /Individual DOCX/);
+  assert.match(html, /All essays - DOCX ZIP/);
+  assert.match(html, /All essays - compiled PDF/);
+  assert.match(html, /export\.docx\?state=/);
+  assert.match(html, /export\.zip\?state=/);
+  assert.match(html, /export\.pdf\?state=/);
+});
+
 function temporaryDatabasePath() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'inkheron-essay-export-'));
   return path.join(dir, 'inkheron.db');
