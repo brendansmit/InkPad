@@ -144,6 +144,12 @@
     .modal-student-row .sname{font-size:13.5px;}
     .modal-student-row .susr{color:var(--text-3);font-size:12px;}
     .modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+    .download-options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 16px;}
+    .download-list{max-height:360px;overflow:auto;border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 12px;}
+    .download-list .modal-student-row{padding:8px 2px;border-bottom:1px solid var(--border);}
+    .download-list .modal-student-row:last-child{border-bottom:0;}
+    .download-select-tools{display:flex;align-items:center;gap:8px;margin:0 0 8px;}
+    .download-select-tools .count{margin-left:auto;color:var(--text-2);font-size:12.5px;font-weight:700;}
     @media(max-width:760px){
       body{font-size:15px;}
       .appbar{padding:10px 12px;gap:10px;}
@@ -197,6 +203,7 @@
       .radio-group .opt{border-radius:var(--r-sm)!important;margin-left:0!important;text-align:center;}
       .modal-overlay{padding:16px 10px;}
       .modal-box{padding:18px 16px;border-radius:14px;}
+      .download-options{grid-template-columns:1fr;}
     }
   </style>
 </head>
@@ -239,6 +246,7 @@
         <h2 id="detailTitle"></h2>
         <select id="detailClassSel" style="min-width:120px;max-width:200px;min-height:32px;padding:6px 10px;font-size:13px;"></select>
         <button class="btn sm" id="editFromDetailBtn" type="button">Edit settings</button>
+        <button class="btn sm" id="downloadEssaysBtn" type="button">Download essays</button>
         <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
         <button class="btn sm" id="exportAdminBtn" type="button">Export to gradebook</button>
         <span id="feedbackState" class="class-tag" style="display:none"></span>
@@ -465,6 +473,36 @@
         </div>
       </div>
     </div>
+
+    <div class="modal-overlay" id="downloadModal" style="display:none;">
+      <div class="modal-box">
+        <div class="modal-head">
+          <h2>Download essays</h2>
+          <button class="btn sm" id="downloadCloseBtn" type="button" aria-label="Close">✕</button>
+        </div>
+        <p class="modal-desc">Choose the students, essay state and file format.</p>
+        <div class="download-options">
+          <div>
+            <label for="downloadState">Essay state</label>
+            <select id="downloadState">
+              <option value="raw">Raw submission</option>
+              <option value="reviewed">Commented and reviewed</option>
+            </select>
+          </div>
+        </div>
+        <div class="download-select-tools">
+          <button class="btn sm" id="downloadSelectAll" type="button">Select all</button>
+          <button class="btn sm" id="downloadSelectNone" type="button">Clear</button>
+          <span class="count" id="downloadSelectedCount">0 selected</span>
+        </div>
+        <div class="download-list" id="downloadEssayList"></div>
+        <div class="modal-foot">
+          <button class="btn" id="downloadCancelBtn" type="button">Cancel</button>
+          <button class="btn" id="downloadWordBtn" type="button" disabled>Download DOCX</button>
+          <button class="btn p" id="downloadPdfBtn" type="button" disabled>Compiled PDF</button>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -482,6 +520,7 @@
     let currentPassagePdfExists=false;
     let mobileDetailsOpen=false;
     let lastDashboardRows=[];
+    let downloadRows=[];
     const filterStateKey='inkheronAssignmentFilters';
     const initialType=new URLSearchParams(window.location.search).get('type');
     const assignmentTypeFilter=(initialType==='test'||initialType==='essay')?initialType:'';
@@ -713,6 +752,7 @@
       });
       document.getElementById('saveEditBtn').addEventListener('click',saveEdit);
       document.getElementById('eAddClassBtn').addEventListener('click',addClassToAssignment);
+      document.getElementById('downloadEssaysBtn').addEventListener('click',openDownloadModal);
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
       document.getElementById('exportAdminBtn').addEventListener('click',exportToAdmin);
       document.getElementById('releaseBtn').addEventListener('click',releaseFeedback);
@@ -766,6 +806,15 @@
       document.getElementById('studentModal').addEventListener('click',e=>{
         if(e.target===document.getElementById('studentModal')) closeStudentModal();
       });
+      document.getElementById('downloadCloseBtn').addEventListener('click',closeDownloadModal);
+      document.getElementById('downloadCancelBtn').addEventListener('click',closeDownloadModal);
+      document.getElementById('downloadSelectAll').addEventListener('click',()=>setAllDownloadSelections(true));
+      document.getElementById('downloadSelectNone').addEventListener('click',()=>setAllDownloadSelections(false));
+      document.getElementById('downloadWordBtn').addEventListener('click',()=>startEssayDownload('word'));
+      document.getElementById('downloadPdfBtn').addEventListener('click',()=>startEssayDownload('pdf'));
+      document.getElementById('downloadModal').addEventListener('click',e=>{
+        if(e.target===document.getElementById('downloadModal')) closeDownloadModal();
+      });
     }
 
     async function archiveAssignment(){
@@ -805,6 +854,81 @@
     function exportCsv(){
       if(currentId&&currentId!=='all') window.location.href=`/api/assignments/${currentId}/export.csv`;
       else if(currentId==='all'&&detailGroup.length) window.location.href=`/api/assignments/${detailGroup[0].id}/export.csv`;
+    }
+
+    async function openDownloadModal(){
+      const modal=document.getElementById('downloadModal');
+      const list=document.getElementById('downloadEssayList');
+      modal.style.display='flex';
+      list.innerHTML='<div class="empty">Loading essays...</div>';
+      downloadRows=[];
+      refreshDownloadActions();
+      const ids=currentId==='all'?detailGroup.map(a=>a.id):[currentId];
+      try{
+        const results=await Promise.all(ids.filter(Boolean).map(id=>
+          fetch(`/api/assignments/${id}/dashboard?status=all&paste=all&sort=name`).then(r=>r.ok?r.json():null)
+        ));
+        downloadRows=results.flatMap((data,index)=>(data?.students||[]).map(row=>({...row,assignment_id:ids[index]})))
+          .filter(row=>row.pad_id)
+          .sort((a,b)=>a.display_name.localeCompare(b.display_name,undefined,{sensitivity:'base'}));
+        renderDownloadRows();
+      }catch(_){
+        list.innerHTML='<div class="empty">Could not load essays.</div>';
+      }
+    }
+
+    function closeDownloadModal(){
+      document.getElementById('downloadModal').style.display='none';
+    }
+
+    function renderDownloadRows(){
+      const list=document.getElementById('downloadEssayList');
+      if(!downloadRows.length){
+        list.innerHTML='<div class="empty">No student essays are available.</div>';
+        refreshDownloadActions();
+        return;
+      }
+      list.innerHTML=downloadRows.map(row=>`<label class="modal-student-row">
+        <input type="checkbox" data-download-pad="${row.pad_id}" checked>
+        <span><span class="sname">${escapeHtml(row.display_name)}</span> <span class="susr">${escapeHtml(row.username)} · ${statusLabel(row.status)}</span></span>
+      </label>`).join('');
+      list.querySelectorAll('[data-download-pad]').forEach(box=>box.addEventListener('change',refreshDownloadActions));
+      refreshDownloadActions();
+    }
+
+    function selectedDownloadPadIds(){
+      return [...document.querySelectorAll('[data-download-pad]:checked')].map(box=>Number(box.dataset.downloadPad));
+    }
+
+    function setAllDownloadSelections(checked){
+      document.querySelectorAll('[data-download-pad]').forEach(box=>{ box.checked=checked; });
+      refreshDownloadActions();
+    }
+
+    function refreshDownloadActions(){
+      const count=selectedDownloadPadIds().length;
+      document.getElementById('downloadSelectedCount').textContent=`${count} selected`;
+      const word=document.getElementById('downloadWordBtn');
+      const pdf=document.getElementById('downloadPdfBtn');
+      word.disabled=count===0;
+      pdf.disabled=count===0;
+      word.textContent=count===1?'Download DOCX':`Download DOCX ZIP (${count})`;
+    }
+
+    function startEssayDownload(format){
+      const padIds=selectedDownloadPadIds();
+      if(!padIds.length) return;
+      const state=document.getElementById('downloadState').value;
+      let url;
+      if(format==='word'&&padIds.length===1){
+        url=`/api/native/pads/${padIds[0]}/export.docx?state=${encodeURIComponent(state)}`;
+      }else{
+        const extension=format==='pdf'?'pdf':'zip';
+        const query=new URLSearchParams({state,pad_ids:padIds.join(',')});
+        url=`/api/native/essays/export.${extension}?${query}`;
+      }
+      closeDownloadModal();
+      window.location.href=url;
     }
 
     let adminKeySet=null;

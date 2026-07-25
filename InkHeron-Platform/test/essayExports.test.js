@@ -7,16 +7,18 @@ import AdmZip from 'adm-zip';
 import { DatabaseSync } from 'node:sqlite';
 import { buildApp } from '../src/app.js';
 
-test('teacher review page exposes all essay download formats and states', () => {
-  const html = fs.readFileSync(path.join(process.cwd(), 'public/teacher/native-review.html'), 'utf8');
+test('assignment page owns essay downloads and the review page does not', () => {
+  const html = fs.readFileSync(path.join(process.cwd(), 'public/teacher/assignments.html'), 'utf8');
+  const reviewHtml = fs.readFileSync(path.join(process.cwd(), 'public/teacher/native-review.html'), 'utf8');
+  assert.match(html, /id="downloadEssaysBtn"/);
   assert.match(html, /Raw submission/);
   assert.match(html, /Commented and reviewed/);
-  assert.match(html, /Individual DOCX/);
-  assert.match(html, /All essays - DOCX ZIP/);
-  assert.match(html, /All essays - compiled PDF/);
+  assert.match(html, /data-download-pad/);
+  assert.match(html, /Download DOCX ZIP/);
+  assert.match(html, /Compiled PDF/);
   assert.match(html, /export\.docx\?state=/);
-  assert.match(html, /export\.zip\?state=/);
-  assert.match(html, /export\.pdf\?state=/);
+  assert.match(html, /export\.\$\{extension\}/);
+  assert.doesNotMatch(reviewHtml, /id="downloadBtn"/);
 });
 
 function temporaryDatabasePath() {
@@ -65,7 +67,23 @@ async function seed(app) {
     VALUES (?, 'target', 'Add detail', 'Give one concrete example.', 'teacher')
   `).run(padId);
   reviewDb.close();
-  return { teacherCookie, assignmentId: Number(assignment.lastInsertRowid), padId };
+  return { teacherCookie, csrf, classId, assignmentId: Number(assignment.lastInsertRowid), padId };
+}
+
+async function seedSecondEssay(app, seeded) {
+  await app.inject({ method: 'POST', url: '/api/students', headers: { cookie: seeded.teacherCookie, 'X-CSRF-Token': seeded.csrf }, payload: {
+    username: 'bob', display_name: 'Bob Li', password: 'correct horse', class_id: seeded.classId,
+  } });
+  const login = await app.inject({ method: 'POST', url: '/api/login', payload: { username: 'bob', password: 'correct horse' } });
+  const cookie = login.headers['set-cookie'];
+  const csrf = login.json().user.csrf_token;
+  const created = await app.inject({ method: 'GET', url: `/api/native/assignments/${seeded.assignmentId}/pad`, headers: { cookie } });
+  const padId = created.json().pad.id;
+  await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/save`, headers: { cookie, 'X-CSRF-Token': csrf }, payload: {
+    document: { type: 'doc', content: [] }, plain_text: 'Bob selected essay.', expected_version: 1,
+  } });
+  await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/submit`, headers: { cookie, 'X-CSRF-Token': csrf } });
+  return padId;
 }
 
 function docxXml(buffer, entry) {
@@ -122,5 +140,36 @@ test('teacher downloads a DOCX ZIP and compiled PDF for an assignment', async ()
   assert.match(pdf.headers['content-type'], /pdf/);
   assert.equal(pdf.rawPayload.subarray(0, 5).toString(), '%PDF-');
   assert.ok(pdf.rawPayload.length > 1000);
+  await app.close();
+});
+
+test('teacher downloads only the selected essays', async () => {
+  const app = await buildApp({ databasePath: temporaryDatabasePath(), logger: false });
+  const seeded = await seed(app);
+  const bobPadId = await seedSecondEssay(app, seeded);
+
+  const zipped = await app.inject({
+    method: 'GET',
+    url: `/api/native/essays/export.zip?state=raw&pad_ids=${bobPadId}`,
+    headers: { cookie: seeded.teacherCookie },
+  });
+  assert.equal(zipped.statusCode, 200);
+  const entries = new AdmZip(zipped.rawPayload).getEntries();
+  assert.equal(entries.length, 1);
+  assert.match(entries[0].entryName, /Bob Li - raw\.docx/);
+  assert.doesNotMatch(entries[0].entryName, /Alice Chen/);
+
+  const pdf = await app.inject({
+    method: 'GET',
+    url: `/api/native/essays/export.pdf?state=reviewed&pad_ids=${seeded.padId},${bobPadId}`,
+    headers: { cookie: seeded.teacherCookie },
+  });
+  assert.equal(pdf.statusCode, 200);
+  assert.equal(pdf.rawPayload.subarray(0, 5).toString(), '%PDF-');
+
+  const invalid = await app.inject({
+    method: 'GET', url: '/api/native/essays/export.zip?state=raw&pad_ids=2,nope', headers: { cookie: seeded.teacherCookie },
+  });
+  assert.equal(invalid.statusCode, 400);
   await app.close();
 });

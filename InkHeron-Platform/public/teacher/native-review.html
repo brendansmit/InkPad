@@ -20,11 +20,6 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 .btn.primary{background:var(--green-600);color:#fff;border-color:var(--green-600)}
 .btn.sm{min-height:30px;padding:0 10px;font-size:12px;border-radius:8px}
 .btn:disabled{opacity:.5;cursor:not-allowed}
-.download-menu{position:fixed;z-index:70;top:62px;right:22px;width:270px;display:none;gap:9px;padding:14px;background:var(--surface);border:1px solid var(--border-2);border-radius:var(--r-md);box-shadow:var(--shadow-lift)}
-.download-menu.open{display:grid}
-.download-menu label{font-size:12px;font-weight:800;color:var(--text-2)}
-.download-menu select{width:100%;min-height:40px;border:1.5px solid var(--border-2);border-radius:8px;padding:7px 9px;background:var(--surface);color:var(--text);font:inherit}
-.download-menu .btn{width:100%;justify-content:flex-start}
 .wrap{max-width:1400px;margin:0 auto;padding:16px 22px 60px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
 .paper{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-card);padding:38px 44px;min-height:78vh}
 .paper h2{font-family:var(--serif);font-size:21px;margin:0 0 2px}
@@ -153,7 +148,6 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   .code-pop{position:fixed;left:8px;right:8px;width:auto;flex-wrap:wrap}
   .code-pop-quote{max-width:100%;flex-basis:100%}
   .toast{left:10px;right:10px;bottom:12px;transform:none;text-align:center}
-  .download-menu{top:auto;right:10px;left:10px;bottom:10px;width:auto}
 }
 </style>
 </head>
@@ -168,20 +162,8 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   <button class="btn" id="reanalyzeBtn" title="Re-run the AI marking on this essay">Run AI review</button>
   <button class="btn" id="prevBtn">← Prev</button>
   <button class="btn" id="nextBtn">Next →</button>
-  <button class="btn" id="downloadBtn" aria-haspopup="true" aria-expanded="false">Download ▾</button>
   <button class="btn" id="sendFeedbackBtn" style="display:none">Send feedback</button>
   <button class="btn primary" id="finishBtn">Finish marking</button>
-</div>
-
-<div class="download-menu" id="downloadMenu" role="dialog" aria-label="Download essays">
-  <label for="downloadState">Essay state</label>
-  <select id="downloadState">
-    <option value="raw">Raw submission</option>
-    <option value="reviewed">Commented and reviewed</option>
-  </select>
-  <a class="btn" id="downloadIndividual" href="#">Individual DOCX</a>
-  <a class="btn" id="downloadZip" href="#">All essays - DOCX ZIP</a>
-  <a class="btn" id="downloadPdf" href="#">All essays - compiled PDF</a>
 </div>
 
 <div class="wrap" id="wrap">
@@ -214,27 +196,6 @@ let contested = [];
 let queue = [];
 let padId = null;
 let activeRubric = 'internal';
-
-function updateDownloadLinks(){
-  if (!review || !padId) return;
-  const state = document.getElementById('downloadState').value;
-  const assignmentId = review.assignment.id;
-  document.getElementById('downloadIndividual').href = '/api/native/pads/'+padId+'/export.docx?state='+state;
-  document.getElementById('downloadZip').href = '/api/native/assignments/'+assignmentId+'/export.zip?state='+state;
-  document.getElementById('downloadPdf').href = '/api/native/assignments/'+assignmentId+'/export.pdf?state='+state;
-}
-document.getElementById('downloadState').onchange = updateDownloadLinks;
-document.getElementById('downloadBtn').onclick = (event)=>{
-  event.stopPropagation();
-  const menu = document.getElementById('downloadMenu');
-  const open = menu.classList.toggle('open');
-  document.getElementById('downloadBtn').setAttribute('aria-expanded', open ? 'true' : 'false');
-};
-document.getElementById('downloadMenu').onclick = (event)=>event.stopPropagation();
-document.addEventListener('click', ()=>{
-  document.getElementById('downloadMenu').classList.remove('open');
-  document.getElementById('downloadBtn').setAttribute('aria-expanded', 'false');
-});
 
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
@@ -289,7 +250,6 @@ function renderTop(){
   document.getElementById('reanalyzeBtn').onclick = reanalyze;
   const back = document.getElementById('backBtn');
   if (back) back.href = a.id ? '/teacher/assignments?id=' + a.id : '/teacher/assignments';
-  updateDownloadLinks();
 }
 
 async function reanalyze(){

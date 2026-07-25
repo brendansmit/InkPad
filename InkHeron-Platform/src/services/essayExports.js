@@ -136,6 +136,17 @@ export function loadAssignmentEssaysForExport(db, assignmentId, state) {
   `).all(assignmentId).map((pad) => exportEssay(db, pad, state));
 }
 
+export function loadSelectedEssaysForExport(db, padIds, state) {
+  if (!padIds.length) return [];
+  const placeholders = padIds.map(() => '?').join(', ');
+  return db.prepare(`${PAD_SELECT}
+    WHERE np.id IN (${placeholders})
+      AND ${realStudentsWhere('s')}
+      AND length(trim(np.plain_text)) > 0
+    ORDER BY s.display_name COLLATE NOCASE ASC, np.id ASC
+  `).all(...padIds).map((pad) => exportEssay(db, pad, state));
+}
+
 function bodyParagraph(text) {
   return new Paragraph({
     spacing: { before: 0, after: 120, line: 264, lineRule: 'auto' },
