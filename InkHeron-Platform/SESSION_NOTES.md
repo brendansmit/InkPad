@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Diagnosed teacher login redirect failure
+
+- After the essay export deployment, a persisted student session caused `teacher-login.html` to redirect to `/teacher`, which correctly returned 403. Confirmed the service and database were healthy. Added a regression-tested fix so only teacher sessions bypass the teacher login form; focused authentication tests passed 10/10 and the preceding full suite passed 184/184. Committed the fix as `f37d195`, then deployed only `teacher-login.html` after explicit approval. Production returned 200 and the deployed hash matched; the previous page is backed up as `/opt/inkheron-platform/public/teacher-login.html.bak-login-fix-20260725T180511Z`.
+
 ## 2026-07-26 — Deployed essay export downloads
 
 - Deployed commit `50b010b` to `/opt/inkheron-platform` after backing up the production database to `/opt/inkheron-platform/data/backups/inkheron.db.pre-essay-export-20260725T171657Z`. Installed production dependencies and restarted `inkheron-wrapper`; the service is active and `/login` returns 200. Verified the individual DOCX, assignment ZIP and compiled PDF routes are present and authentication-protected. The pre-deploy suite passed 184/184 tests. npm reported four high-severity dependency audit findings, which were not changed during this scoped deployment.
