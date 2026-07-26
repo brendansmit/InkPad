@@ -15,7 +15,7 @@ test('review page loads independent essay data concurrently and caches the assig
 
 test('small review mutations update local state instead of reloading the essay payload', () => {
   const uses = html.match(/\bloadAll\b/g) || [];
-  assert.equal(uses.length, 4, 'only boot, AI reanalysis and finish marking may use the full reload');
+  assert.equal(uses.length, 5, 'only boot, AI reanalysis, finish marking and attention-error recovery may use the full reload');
   assert.match(html, /upsertAnnotation\(result\.annotation\)/, 'annotation responses should update the local review');
   assert.match(html, /tab\.data\.scores = result\.scores/, 'rubric responses should update the active rubric');
   assert.match(html, /addFeedbackItem\(result\.item\)/, 'feedback responses should update the local feedback list');
@@ -27,7 +27,8 @@ test('attention decisions update immediately and roll back if saving fails', () 
   const networkSave = handler.indexOf("await api('/api/native/pads/'");
   assert.ok(localUpdate !== -1 && networkSave !== -1 && localUpdate < networkSave, 'attention UI should update before waiting for the network');
   assert.match(handler, /pendingAttention\.has\(c\.id\)/, 'repeat clicks should be ignored while saving');
-  assert.match(handler, /review\.annotations = snapshot\.annotations/, 'failed saves should restore the previous marks');
+  assert.match(handler, /review\.suggestions\.push\(c\)/, 'failed saves should restore only the failed suggestion');
+  assert.doesNotMatch(handler, /snapshot\.annotations/, 'one failed save must not roll back other attention decisions');
   assert.match(handler, /Decision restored/, 'failed saves should explain the rollback');
 });
 

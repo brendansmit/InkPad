@@ -10,7 +10,7 @@ decisions and outcomes, not narration.
 
 ## 2026-07-26 — Optimistic Needs-your-attention checkpoint
 
-- Made contested literacy decisions update before the network save completes. Keep and change place a provisional mark immediately, reject removes the contested highlight immediately, repeat clicks are blocked and failed saves restore the exact previous annotations and suggestion queue. Added static ordering, rollback and JavaScript syntax tests; focused tests passed 4/4 on Node 24.
+- Made contested literacy decisions update before the network save completes. Keep and change place a provisional mark immediately, reject removes the contested highlight immediately, repeat clicks are blocked and failed saves restore only the affected suggestion before reconciling with the server. This targeted rollback avoids undoing a second rapid decision. Added static ordering, rollback and JavaScript syntax tests; focused tests passed 4/4 on Node 24.
 
 ## 2026-07-26 — Compact review payload checkpoint
 

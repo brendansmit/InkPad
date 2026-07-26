@@ -737,11 +737,6 @@ async function resolveContested(c, action){
   if (pendingAttention.has(c.id)) return;
   if (action==='change' && !confirm('Keep this mark? Change the code from the mark once it is placed.')) return;
   pendingAttention.add(c.id);
-  const snapshot = {
-    annotations: review.annotations.slice(),
-    suggestions: (review.suggestions || []).slice(),
-    contested: contested.slice(),
-  };
   const provisionalId = 'saving-'+c.id;
   if (action !== 'reject') upsertAnnotation({
     id: provisionalId,
@@ -765,12 +760,15 @@ async function resolveContested(c, action){
     if (result) renderLocal({ top:true, essay:true });
     toast('Decision saved');
   } catch(error){
-    review.annotations = snapshot.annotations;
-    review.suggestions = snapshot.suggestions;
-    contested = snapshot.contested;
+    removeAnnotation(provisionalId);
+    if (!(review.suggestions || []).some(item=>String(item.id)===String(c.id))) review.suggestions.push(c);
+    if (!contested.some(item=>String(item.id)===String(c.id))) contested.push(c);
+    review.suggestions.sort((a,b)=>a.start_offset-b.start_offset || a.id-b.id);
+    contested.sort((a,b)=>a.start_offset-b.start_offset || a.id-b.id);
     renderLocal({ top:true, essay:true });
     toast('Save failed. Decision restored.');
     console.error(error);
+    loadAll().catch(refreshError=>console.error(refreshError));
   } finally {
     pendingAttention.delete(c.id);
   }
