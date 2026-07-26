@@ -106,3 +106,9 @@ export function grammarCodePrompt() {
     .map((definition) => `${definition.code} = ${definition.definition}`)
     .join('\n');
 }
+
+export function aiCodePrompt() {
+  return AI_CODE_DEFINITIONS
+    .map((definition) => `${definition.code} = ${definition.definition ?? definition.label}`)
+    .join('\n');
+}

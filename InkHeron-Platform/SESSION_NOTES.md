@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Wired the reconciled taxonomy into grader and checker prompts
+
+- Replaced the grader's broad grammar prompt with the active 67-code registry plus supplemental literacy codes and required the most specific defensible label. The checker now sees the full codebook and each finding's exact definition, family and priority, judges both error presence and code fit and can return up to three validated alternative codes. Replaced legacy grammar labels in integration fixtures. Registry and literacy-coder tests pass 13/13 on Node 24.
+
 ## 2026-07-26 — Added the reconciled literacy-code registry
 
 - Added a central versioned registry containing all 67 adjudicated grammar definitions plus supplemental, manual and replaced legacy codes. New AI output excludes the reserve code and replaced broad codes while historical marks remain readable. The committed registry contains definitions only, with no student examples, identifiers or corpus counts. Registry validation tests pass 4/4 on Node 24.

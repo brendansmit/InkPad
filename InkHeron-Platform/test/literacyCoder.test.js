@@ -34,7 +34,7 @@ function fakeChat(db, { intent, messages }) {
   }
   if (user === PARA_1) {
     return Promise.resolve(chatResponse(JSON.stringify([
-      { sentence: PARA_1, quote: 'is', code: 'Gra' },
+      { sentence: PARA_1, quote: 'is', code: 'SV-AGREEMENT' },
       { sentence: PARA_1, quote: 'recieved', code: 'Sp' },
       { sentence: PARA_1, quote: 'recieved', code: 'Sp' }, // duplicate: must dedupe
       { sentence: PARA_1, quote: 'not in the text at all', code: 'WW' }, // unlocatable: must drop
@@ -42,7 +42,7 @@ function fakeChat(db, { intent, messages }) {
   }
   if (user === PARA_2) {
     return Promise.resolve(chatResponse(JSON.stringify([
-      { sentence: 'Because she was tired.', quote: 'Because she was tired.', code: 'inc' },
+      { sentence: 'Because she was tired.', quote: 'Because she was tired.', code: 'FRAGMENT-DEPENDENT' },
     ])));
   }
   return Promise.resolve(chatResponse('[]'));
@@ -101,19 +101,26 @@ test('splitParagraphs returns non-blank runs with absolute offsets', () => {
 
 test('verifyFindings drops nothing itself but marks non-verbatim findings', async () => {
   const findings = [
-    { start_offset: 5, end_offset: 7, quote: 'is', code: 'Gra' },
+    { start_offset: 5, end_offset: 7, quote: 'is', code: 'SV-AGREEMENT' },
     { start_offset: 0, end_offset: 4, quote: 'XXXX', code: 'Sp' },
   ];
+  let checkerPrompt = '';
   const out = await verifyFindings({}, { padPlainText: PARA_1, findings },
-    { chat: () => Promise.resolve(chatResponse('[{"index":0,"defensible":true,"confidence":0.8}]')) });
+    { chat: (_db, { messages }) => {
+      checkerPrompt = messages.map(({ content }) => content).join('\n');
+      return Promise.resolve(chatResponse('[{"index":0,"defensible":true,"confidence":0.8,"alternative_codes":["ARTICLE-MISSING","NOT-A-CODE","ARTICLE-MISSING"]}]'));
+    } });
   assert.equal(out[0].checker.verbatim, true);
   assert.equal(out[0].checker.confidence, 0.8);
+  assert.deepEqual(out[0].checker.alternatives, ['ARTICLE-MISSING']);
+  assert.match(checkerPrompt, /SV-AGREEMENT.*Subject/);
+  assert.match(checkerPrompt, /priority="core"/);
   assert.equal(out[1].checker.verbatim, false);
   assert.equal(out[1].checker.flag, 'not_verbatim');
 });
 
 test('verifyFindings survives a failing checker model', async () => {
-  const findings = [{ start_offset: 5, end_offset: 7, quote: 'is', code: 'Gra' }];
+  const findings = [{ start_offset: 5, end_offset: 7, quote: 'is', code: 'SV-AGREEMENT' }];
   const out = await verifyFindings({}, { padPlainText: PARA_1, findings },
     { chat: () => Promise.reject(new Error('no key')) });
   assert.equal(out[0].checker.verbatim, true);
@@ -138,7 +145,7 @@ test('runLiteracyAnalysis writes pending suggestions with correct absolute offse
     assert.equal(JSON.parse(row.checker_json).verbatim, true);
   }
   const codes = rows.map((r) => r.code);
-  assert.deepEqual(codes, ['Gra', 'Sp', 'inc']);
+  assert.deepEqual(codes, ['SV-AGREEMENT', 'Sp', 'FRAGMENT-DEPENDENT']);
   assert.equal(rows[2].category, 'grammar');
   assert.ok(rows[2].start_offset > PARA_1.length, 'second-paragraph offset is absolute, not paragraph-relative');
 

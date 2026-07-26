@@ -10,43 +10,21 @@ import { callChat } from './openRouter.js';
 import { readDoerIntent } from './settingsStore.js';
 import { verifyFindings } from './checker.js';
 import { buildCalibration } from './promptCalibration.js';
+import {
+  AI_CODES,
+  MANUAL_REVIEW_CODES,
+  aiCodePrompt,
+  literacyCodeCategory,
+  literacyCodeLabel,
+} from './literacyCodeRegistry.js';
 
-
-
-export const VALID_CODES = new Set([
-  'Sp','Caps','P','^','Exp','Gra','Embed','AA/Adj',
-  'STR','FOR','WO','WW','V','VT','del','inc','RO','Rep','✓','//',
-  'MT',
-]);
-
-// Codes that NEVER auto-apply, whatever the checker says. MT (a name, title
-// or saying translated literally from Chinese) needs the teacher's
-// judgement: only a human can tell whether an established English version
-// exists or the student's rendering is a fair choice.
-export const MANUAL_REVIEW_CODES = new Set(['MT']);
+export const VALID_CODES = AI_CODES;
+export { MANUAL_REVIEW_CODES };
 
 const SYSTEM_PROMPT = `You are a precise English literacy marker for second language learners. You find ERRORS in a student paragraph and label each with ONE code. These codes are practice feedback for the student, not grades, so completeness matters: flag EVERY genuine error, even small ones, even when a paragraph has many. A dense paragraph can easily have 10 or more findings.
 
 CODES:
-Sp     = spelling error ("recieved" → "received")
-Caps   = missing capital letter ("i went" → "I went")
-P      = punctuation missing/wrong (missing comma, apostrophe, hyphen in "so-called")
-^      = a needed word is missing ("She ready" → "She is ready")
-Exp    = awkward/unidiomatic expression that is not a clean grammar error
-Gra    = grammatical error: subject-verb agreement, wrong/missing article, wrong preposition
-Embed  = quotation embedded incorrectly (missing comma or quote marks)
-AA/Adj = wrong adjective form ("most easiest" → "easiest")
-STR    = sentence structure problem (clunky or ill-formed clause)
-FOR    = formatting problem (register, heading, layout)
-WO     = word order error ("To the store quickly went she")
-WW     = wrong word, real word used incorrectly ("borrow" for "borrowed")
-V      = missing or wrong verb formation ("They playing" → "They are playing")
-VT     = verb tense error ("Yesterday he runs" → "ran")
-del    = word should be deleted (redundant: "The dog, it barked")
-inc    = incomplete sentence / fragment ("Because she was tired.")
-RO     = run-on sentence (two clauses fused without punctuation)
-Rep    = redundant repetition of a word or idea just used
-MT     = mistranslated NAME or FIXED EXPRESSION only: a book/film/show title, a proper noun, a saying or an idiom rendered word-for-word from Chinese when an established English name or natural equivalent exists ("people mountain people sea" for a crowded scene; a novel referred to by a literal title instead of its published English title). MT is RARE: at most a few per essay. Ordinary Chinese-influenced grammar or sentence structure is NEVER MT; code those as Gra, STR, WO or Exp as usual.
+${aiCodePrompt()}
 
 RULES (follow exactly):
 1. Flag every genuine error. Never skip an error because you already flagged similar ones. But if a phrase is correct standard English, DO NOT flag it.
@@ -55,6 +33,7 @@ RULES (follow exactly):
 3. "quote" must be whole words only. Never select part of a word.
 4. "quote" is the SHORTEST span containing the error — usually one word; a short phrase only if the error spans multiple words.
 5. Pick exactly ONE code per finding.
+5b. Use the most specific defensible code. Never replace a precise code with a broad legacy label.
 6. "sentence" is the FULL verbatim sentence the quote sits in. Copy it exactly.
 7. Do not flag style, tone, or things you would merely prefer differently. Errors only.
 8. A paragraph with no errors returns []. That is a valid correct answer.
@@ -66,7 +45,7 @@ OUTPUT FORMAT — return ONLY a JSON array, nothing else:
 EXAMPLE:
 Paragraph: They is playing outside and she recieved the ball, the game was fun.
 Answer:
-[{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"is","code":"Gra"},{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"recieved","code":"Sp"}]`;
+[{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"is","code":"SV-AGREEMENT"},{"sentence":"They is playing outside and she recieved the ball, the game was fun.","quote":"recieved","code":"Sp"}]`;
 
 // Parse a JSON array, salvaging a truncated one (model hit max tokens) by
 // cutting back to the last complete object. Dense L2 paragraphs produce long
@@ -129,11 +108,7 @@ export function findQuoteSpan(paraText, sentence, quote) {
 }
 
 export function codeCategory(code) {
-  if (['Sp','Caps','^','WW','AA/Adj','Rep'].includes(code)) return 'surface';
-  if (['Gra','VT','V','WO','del','inc','RO','STR','Exp','MT'].includes(code)) return 'grammar';
-  if (['P','FOR','//','Embed'].includes(code)) return 'format';
-  if (code === '✓') return 'positive';
-  return 'other';
+  return literacyCodeCategory(code);
 }
 
 /**
@@ -164,15 +139,6 @@ export function codeCategory(code) {
  *            errors so a missing API key is a clean no-op (as in tests).
  * =======================================================================
  */
-const CODE_LABELS = {
-  Sp: 'Spelling', Caps: 'Capital letter', P: 'Punctuation', '^': 'Missing word',
-  Exp: 'Expression', Gra: 'Grammar', Embed: 'Quotation embedding', 'AA/Adj': 'Adjective form',
-  STR: 'Sentence structure', FOR: 'Formatting', WO: 'Word order', WW: 'Wrong word',
-  V: 'Verb formation', VT: 'Verb tense', del: 'Delete word', inc: 'Incomplete sentence',
-  RO: 'Run-on sentence', Rep: 'Repetition', '✓': 'Good work', '//': 'New paragraph',
-  MT: 'Mistranslated name or saying',
-};
-
 // Non-blank runs of lines with their absolute start offset into plain_text.
 export function splitParagraphs(text) {
   const paragraphs = [];
@@ -218,7 +184,7 @@ export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat 
           quote: plainText.slice(start, end),
           code: item.code,
           category: codeCategory(item.code),
-          label: CODE_LABELS[item.code] ?? item.code,
+          label: literacyCodeLabel(item.code),
         });
       }
     }

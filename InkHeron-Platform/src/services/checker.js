@@ -18,13 +18,18 @@ import { callChat } from './openRouter.js';
 import { parseJsonArraySalvage } from './literacyCoder.js';
 import { buildCalibration } from './promptCalibration.js';
 import { readCheckerIntent } from './settingsStore.js';
+import { AI_CODES, aiCodePrompt, getLiteracyCode } from './literacyCodeRegistry.js';
 
 const CHECKER_SYSTEM_PROMPT = `You are a strict verifier of literacy error findings made by another model on a student paragraph. You NEVER add findings and NEVER rewrite anything. Each numbered finding shows the code, the quoted span and the FULL SENTENCE it sits in. For each one, judge only:
-- "defensible": is the labelled error genuinely present at the quoted span, read inside its sentence? A correct standard English phrase flagged as an error is NOT defensible. Neither is natural everyday usage: if fluent speakers write or say the sentence exactly that way (informal register, sentence-initial And/But, stranded prepositions, singular they, common colloquial phrasing), mark it NOT defensible even if a style guide would object. Read the whole sentence aloud in your head; if it sounds like normal English, the finding is wrong. Check each finding independently; do not assume the other model is right.
+- "defensible": is the labelled error genuinely present at the quoted span and does the proposed code match the exact error? A real error with the wrong code is NOT defensible. A correct standard English phrase flagged as an error is NOT defensible. Neither is natural everyday usage: if fluent speakers write or say the sentence exactly that way (informal register, sentence-initial And/But, stranded prepositions, singular they, common colloquial phrasing), mark it NOT defensible even if a style guide would object. Read the whole sentence aloud in your head. Check each finding independently and do not assume the other model is right.
 - "confidence": 0 to 1, how sure you are of your defensible judgement. Calibrate honestly: 0.9+ means you re-read the span and are certain; use 0.5-0.7 when the error is arguable, the code seems wrong for the error, or the span is ambiguous. Your verdicts gate whether findings auto-apply, so a lazy default of high confidence defeats the entire check. In a typical batch some findings deserve doubt; if you mark every finding above 0.9, you are almost certainly not checking.
+- "alternative_codes": up to three better code ids from the codebook when the proposed code may be wrong or your confidence is 0.6 or lower. Otherwise return an empty array.
+
+CODEBOOK:
+${aiCodePrompt()}
 
 Return ONLY a JSON array, one object per finding, same order:
-[{"index": 0, "defensible": true, "confidence": 0.9}]`;
+[{"index": 0, "defensible": true, "confidence": 0.9, "alternative_codes": []}]`;
 
 function parseCheckerResponse(raw) {
   raw = String(raw ?? '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/```json|```/g, '');
@@ -39,6 +44,9 @@ function parseCheckerResponse(raw) {
     byIndex.set(it.index, {
       defensible: typeof it.defensible === 'boolean' ? it.defensible : null,
       confidence: typeof it.confidence === 'number' ? Math.max(0, Math.min(1, it.confidence)) : null,
+      alternatives: Array.isArray(it.alternative_codes)
+        ? [...new Set(it.alternative_codes.filter((code) => typeof code === 'string' && AI_CODES.has(code)))].slice(0, 3)
+        : [],
     });
   }
   return byIndex;
@@ -80,8 +88,10 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
 
   let verdicts = null;
   try {
-    const listing = toJudge.map((f, i) =>
-      `${i}. code=${f.code} quote="${f.quote}" sentence="${sentenceAround(padPlainText, f.start_offset, f.end_offset)}"`).join('\n');
+    const listing = toJudge.map((f, i) => {
+      const definition = getLiteracyCode(f.code);
+      return `${i}. code=${f.code} label=${JSON.stringify(definition?.label ?? f.label ?? f.code)} family=${JSON.stringify(definition?.family ?? 'Unknown')} priority=${JSON.stringify(definition?.priority ?? 'unknown')} definition=${JSON.stringify(definition?.definition ?? definition?.label ?? f.label ?? f.code)} quote=${JSON.stringify(f.quote)} sentence=${JSON.stringify(sentenceAround(padPlainText, f.start_offset, f.end_offset))}`;
+    }).join('\n');
     const result = await chat(db, {
       intent: readCheckerIntent(db),
       messages: [
@@ -103,6 +113,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
       return;
     }
     finding.checker.confidence = v.confidence;
+    finding.checker.alternatives = v.alternatives;
     if (v.defensible === false) finding.checker.flag = 'code_questioned';
   });
 
