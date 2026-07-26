@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Optimistic Needs-your-attention checkpoint
+
+- Made contested literacy decisions update before the network save completes. Keep and change place a provisional mark immediately, reject removes the contested highlight immediately, repeat clicks are blocked and failed saves restore the exact previous annotations and suggestion queue. Added static ordering, rollback and JavaScript syntax tests; focused tests passed 4/4 on Node 24.
+
 ## 2026-07-26 — Compact review payload checkpoint
 
 - Added an opt-in compact form of the teacher review response and switched the marking page to it. It omits unused full-text revision history, comparison data, student profile and feedback options while preserving the existing full API contract. On local seeded data the response fell from 2,446 bytes to 1,054 bytes and route time fell from 6.43 ms to 1.99 ms. Integration and full-suite tests passed on Node 24. Localhost browser QA was blocked by the browser security policy, so verification used API injection, JavaScript parsing and direct payload measurement.
@@ -388,14 +392,3 @@ Entry format:
 - Verified: `node --test test/assignments.test.js` — 15/15 pass (2 new tests: rubric totals releasing on finish-marking, AP Lang exam column gating). Browser-verified on a scratch DB via the `inkheron-verify` preview server (port 3473, `INKHERON_DB_PATH` pointed at a scratchpad file, not the real `data/inkheron.db`): seeded an AP Lang class + G9 class, scored one AP student's internal (4/5) and exam (4/6) rubrics and finished marking, left a second AP student unscored, scored and finished-marked a G9 student (1/2, no exam rubric). Dashboard and CSV both rendered correctly: scored rows show "N / M" with a Released pill, unscored rows show "-", exam score column populates only for the AP Lang assignment and shows "-" for G9.
 - Open / next: items 2-4 from SONNET_HANDOFF_2.md (tone pass, admin gradebook export, AI-mention audit) still pending.
 - Gotchas hit: the shared "inkheron" launch.json config (port 3472) was in use by another chat session; added a separate `inkheron-verify` config (port 3473) pointing at its own scratch `INKHERON_DB_PATH` rather than touching the shared config or the real teacher database. Commit `f9ae0d6`.
-
-## 2026-07-05 — Round-3 review and production deploy
-
-- Reviewed all six round-3 commits. Spot checks pass: contested quota now only among findings the checker rated below 0.9 (a batch of all-0.9s contests nothing); every loaded rubric kind renders a scorable tab; feedback-bank switcher restored and the suggester prompt carries the chosen bank with "prefer the bank, invent only when nothing fits"; layered marks (word errors nested inside structure errors) in Doer prompt and all three renderers with tests; selection toolbar (Comment / Mark error) replaces the auto comment popover so highlight-to-copy works and the teacher can tag missed errors with any code.
-- Suite 151/151 green. Deployed full tree to /opt/inkheron-platform (DB backed up pre-round3), wrapper active, both domains 200.
-
-## 2026-07-05 — Batch default everywhere + per-student Send feedback
-
-- Teacher confirmed nothing has been released yet, so the server-side fallback for assignments without a feedback_release field is now ALSO 'batch' (assignments.js): everything holds until released, old and new alike.
-- Per-student release: migration 028 adds native_pads.feedback_released_at; POST /api/native/pads/:padId/release-feedback (teacher, CSRF, only for marked/green_pen_open/resubmitted pads) opens feedback for that one student; the gate (isBatchFeedbackHeld + the student feedback endpoint) honours the pad-level stamp over the class hold. Review page: "Send feedback" button beside Finish marking, shown only on batch assignments still held, flips to "Feedback sent" once used.
-- Test updates for the default flip (three seeds now opt into immediate; default test asserts batch). Suite 145/145 green. Deployed, migration 028 applied, wrapper active.

@@ -196,6 +196,7 @@ let contested = [];
 let queue = [];
 let padId = null;
 let activeRubric = 'internal';
+const pendingAttention = new Set();
 const QUEUE_CACHE_MS = 5 * 60 * 1000;
 
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -733,13 +734,46 @@ async function disagreeMark(ann){
   toast('Mark retracted'); renderLocal({ top:true, essay:true });
 }
 async function resolveContested(c, action){
-  let result = null;
-  if (action==='keep') result = await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' });
-  else if (action==='reject') await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/disagree', { method:'POST' });
-  else if (action==='change'){ if(!confirm('Keep this mark? Change the code from the mark once it is placed.')) return; result = await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' }); }
-  if (result && result.annotation) upsertAnnotation(result.annotation);
+  if (pendingAttention.has(c.id)) return;
+  if (action==='change' && !confirm('Keep this mark? Change the code from the mark once it is placed.')) return;
+  pendingAttention.add(c.id);
+  const snapshot = {
+    annotations: review.annotations.slice(),
+    suggestions: (review.suggestions || []).slice(),
+    contested: contested.slice(),
+  };
+  const provisionalId = 'saving-'+c.id;
+  if (action !== 'reject') upsertAnnotation({
+    id: provisionalId,
+    type: 'literacy_code',
+    start_offset: c.start_offset,
+    end_offset: c.end_offset,
+    selected_text: c.quote,
+    body: '',
+    document_version: c.document_version,
+    metadata: { code:c.code, category:c.category, label:c.label||c.code, source:'saving', suggestion_id:c.id },
+  });
   resolveLiteracySuggestion(c.id);
-  toast('Decision saved'); renderLocal({ top:true, essay:true });
+  renderLocal({ top:true, essay:true });
+  toast('Saving decision…');
+  try {
+    let result = null;
+    if (action==='keep' || action==='change') result = await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' });
+    else await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/disagree', { method:'POST' });
+    removeAnnotation(provisionalId);
+    if (result && result.annotation) upsertAnnotation(result.annotation);
+    if (result) renderLocal({ top:true, essay:true });
+    toast('Decision saved');
+  } catch(error){
+    review.annotations = snapshot.annotations;
+    review.suggestions = snapshot.suggestions;
+    contested = snapshot.contested;
+    renderLocal({ top:true, essay:true });
+    toast('Save failed. Decision restored.');
+    console.error(error);
+  } finally {
+    pendingAttention.delete(c.id);
+  }
 }
 async function acceptSuggestion(sug){
   const result = await api('/api/native/pads/'+padId+'/feedback-suggestions/'+sug.id+'/accept', { method:'POST' });

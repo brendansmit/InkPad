@@ -21,6 +21,16 @@ test('small review mutations update local state instead of reloading the essay p
   assert.match(html, /addFeedbackItem\(result\.item\)/, 'feedback responses should update the local feedback list');
 });
 
+test('attention decisions update immediately and roll back if saving fails', () => {
+  const handler = html.match(/async function resolveContested\(c, action\)\{([\s\S]*?)\n\}\nasync function acceptSuggestion/)?.[1] || '';
+  const localUpdate = handler.indexOf('resolveLiteracySuggestion(c.id)');
+  const networkSave = handler.indexOf("await api('/api/native/pads/'");
+  assert.ok(localUpdate !== -1 && networkSave !== -1 && localUpdate < networkSave, 'attention UI should update before waiting for the network');
+  assert.match(handler, /pendingAttention\.has\(c\.id\)/, 'repeat clicks should be ignored while saving');
+  assert.match(handler, /review\.annotations = snapshot\.annotations/, 'failed saves should restore the previous marks');
+  assert.match(handler, /Decision restored/, 'failed saves should explain the rollback');
+});
+
 test('review page inline JavaScript parses', () => {
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] || '';
   assert.doesNotThrow(() => new Function(script));

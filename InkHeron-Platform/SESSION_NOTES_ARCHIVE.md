@@ -2,6 +2,8 @@
 
 ## Archived 2026-07-26 — Entries from 2026-07-03 to 2026-07-05
 
+- 2026-07-05: Reviewed and deployed the six round-3 commits covering contested marks, rubrics, feedback banks, layered marks and the selection toolbar.
+- 2026-07-05: Made batch feedback the server fallback and added per-student feedback release.
 - 2026-07-05: Batch feedback release became the default for new assignments.
 - 2026-07-05: Round-2 review cleared four baseline failures and deployed migrations and UI work.
 - 2026-07-04: Round-2 handoffs covered dashboard scores, prompt tone, gradebook export, class insights, release gating, semester tags and parent report snippets.
