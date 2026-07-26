@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Repaired and monitored Ubuntu maintenance updates
+
+- Diagnosed the custom nightly updater's repeated status 125 failure: GNU `timeout` rejected the invalid duration `3h45m`, so the wrapper had never run updates after installation. Replaced it with a valid 45-minute ceiling, five-minute package lock wait, `dpkg --configure -a` recovery, low CPU and idle disk priority plus a 55-minute systemd limit. Added `--with-new-pkgs` so kernel metapackages can bring required dependencies without allowing removals. Backed up the live updater and database, then monitored two successful passes while InkHeron remained active and `/login` returned 200. All packages are current, `dpkg` is clean, the retry marker is absent and no units are failed. Kernel 6.8.0-136 is installed; the droplet still runs 6.8.0-124 until a separately approved planned reboot. Repair commits: `b902734` and `39614f0`.
+
 ## 2026-07-26 — Fixed assignment header spacing
 
 - Reworked the assignment detail header so the title occupies a full-width row, feedback status aligns beside it and all actions sit in a separate wrapping toolbar with Archive and Delete grouped at the end. Mobile actions stack at full width. Browser QA passed at the supplied 2048 px screenshot width and at 390 px with no overflow or console errors; full suite passed 186/186. Committed as `d53e80a` and deployed only `public/teacher/assignments.html`. Production hash matched and the previous page is backed up as `/opt/inkheron-platform/public/teacher/assignments.html.bak-header-spacing-20260725T184710Z`.
