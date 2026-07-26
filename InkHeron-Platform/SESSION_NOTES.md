@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Applied the 40% uncertainty review boundary
+
+- Replaced the old 75% auto-accept threshold and forced lowest-10% quota with the teacher's explicit rule: checker confidence of 0.60 or lower, meaning at least 40% uncertainty, is flagged `uncertain` and stays in Needs your attention; 0.61 and above may auto-apply if defensible, verbatim and otherwise unflagged. Tier 3 codes are not manually gated. Focused checker and auto-accept tests pass 19/19 on Node 24.
+
 ## 2026-07-26 — Wired the reconciled taxonomy into grader and checker prompts
 
 - Replaced the grader's broad grammar prompt with the active 67-code registry plus supplemental literacy codes and required the most specific defensible label. The checker now sees the full codebook and each finding's exact definition, family and priority, judges both error presence and code fit and can return up to three validated alternative codes. Replaced legacy grammar labels in integration fixtures. Registry and literacy-coder tests pass 13/13 on Node 24.

@@ -83,6 +83,22 @@ test('confident findings auto-promote to marks, contested ones stay pending', as
   await app.close();
 });
 
+test('40% uncertainty is the inclusive manual-review boundary', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId } = await seed(db);
+
+  const boundaryId = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'SV-AGREEMENT',
+    checker: { verbatim: true, confidence: 0.6, flag: null } });
+  const aboveId = insertSuggestion(db, padId, { quote: 'playing', start: 8, end: 15, code: 'VERB-PARALLEL',
+    checker: { verbatim: true, confidence: 0.61, flag: null } });
+
+  assert.equal(autoPromoteSuggestions(db, padId).promoted, 1);
+  assert.equal(db.prepare('SELECT status FROM ai_literacy_suggestions WHERE id = ?').get(boundaryId).status, 'pending');
+  assert.equal(db.prepare('SELECT status FROM ai_literacy_suggestions WHERE id = ?').get(aboveId).status, 'accepted');
+
+  await app.close();
+});
+
 test('two overlapping findings both auto-promote and both appear in the review payload', async () => {
   const db = openDatabase(tmpDb());
   const { app, padId, csrf, cookies } = await seed(db);

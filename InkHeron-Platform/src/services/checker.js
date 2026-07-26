@@ -114,28 +114,11 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
     }
     finding.checker.confidence = v.confidence;
     finding.checker.alternatives = v.alternatives;
-    if (v.defensible === false) finding.checker.flag = 'code_questioned';
-  });
-
-  // Structural calibration: prompt-level pleading does not stop checker
-  // models rubber-stamping everything at 0.9+ (seen live with gemini flash:
-  // 46/46 findings, zero contested). So on any real batch the lowest-
-  // confidence ~10% are flagged for the teacher, BUT only among findings the
-  // checker actually doubted (confidence < 0.9). Making the teacher re-review
-  // things the checker was 90%+ sure of wastes their time; if the checker
-  // rated everything >= 0.9 we flag nothing extra and trust the genuine flags
-  // (code_questioned, not_verbatim, MT manual review) to carry the contest.
-  if (verdicts) {
-    const judged = toJudge.filter((f) => f.checker.flag === null && typeof f.checker.confidence === 'number');
-    if (judged.length >= 5) {
-      const quota = Math.ceil(judged.length * 0.1);
-      judged
-        .filter((f) => f.checker.confidence < 0.9)
-        .sort((a, b) => a.checker.confidence - b.checker.confidence)
-        .slice(0, quota)
-        .forEach((f) => { f.checker.flag = 'least_confident'; });
+    if (v.defensible !== true) finding.checker.flag = 'code_questioned';
+    if (finding.checker.flag === null && typeof v.confidence === 'number' && v.confidence <= 0.6) {
+      finding.checker.flag = 'uncertain';
     }
-  }
+  });
 
   return withVerbatim;
 }

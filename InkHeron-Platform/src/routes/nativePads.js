@@ -1315,7 +1315,9 @@ function applyDueDateLock(db, pad, assignment) {
 // models agree on at high confidence becomes a real mark without a teacher
 // click. Contested findings stay pending. The teacher can disagree with any
 // auto-applied mark, which retracts it from feedback and the profile data.
-export const AUTO_ACCEPT_CONFIDENCE = 0.75;
+// A checker confidence of 0.60 means 40% uncertainty. The teacher chose that
+// as the inclusive boundary for manual review, so only scores above it apply.
+export const AUTO_ACCEPT_CONFIDENCE = 0.6;
 
 // A fresh analysis run must REPLACE the previous run, not stack on it.
 // runLiteracyAnalysis clears pending suggestions itself, but marks that were
@@ -1377,7 +1379,7 @@ export function autoPromoteSuggestions(db, padId) {
     let checker = {};
     try { checker = JSON.parse(suggestion.checker_json ?? '{}'); } catch { checker = {}; }
     const confident = checker.verbatim === true && checker.flag == null
-      && typeof checker.confidence === 'number' && checker.confidence >= AUTO_ACCEPT_CONFIDENCE;
+      && typeof checker.confidence === 'number' && checker.confidence > AUTO_ACCEPT_CONFIDENCE;
     if (!confident) continue;
     const metadata = normalizeMetadata({
       code: suggestion.code,
