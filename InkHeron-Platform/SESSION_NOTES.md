@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Switched the default Doer to Kimi K3
+
+- Changed the backend Doer default and teacher settings fallback to the exact OpenRouter model id `moonshotai/kimi-k3`, added Kimi K3 as the first Doer option and retained the different-family checker guard. Updated the model-flow test and verified it passes on the required Node 24 runtime. A saved production setting still needs an explicit update during deployment.
+
 ## 2026-07-26 — Planned reconciled literacy taxonomy implementation
 
 - Inspected the final Kimi K3-adjudicated files: 67 codebook entries, 1,471 confirmed examples, 225 review candidates and 203 exclusions. The confirmed corpus contains 1,376 kept labels, 90 recodes, one split annotation and four added missed errors; review candidates contain 164 demotions, 60 retained candidates and one added missed review item. All confirmed and review codes exist in the codebook, IDs are unique across both sets and 65 codes have confirmed examples. Prepared a staged implementation plan covering a central registry, backward-compatible storage, prompt/checker upgrades, hierarchical review UI, student/profile/export updates, grouped evaluation, shadow mode and controlled rollout. No grading code changed.

@@ -76,11 +76,10 @@ export function writeCurrentSemester(db, value) {
 
 
 // The Doer model family for all heavy AI extraction (literacy coder, rubric
-// estimate, rewrite judge, suggesters). A fuzzy intent, never an exact id
-// (CLAUDE.md §8). Default is DeepSeek: strong on Chinese-English transfer
-// errors, cheap, and it outperformed haiku on finding density in the live
-// smoke test. The Checker stays a DIFFERENT family.
-const DOER_INTENT_DEFAULT = 'deepseek chat v3';
+// estimate, rewrite judge, suggesters). Kimi K3 is deliberately pinned to its
+// OpenRouter model id so the selected default cannot resolve to an older Kimi
+// generation. The Checker stays a DIFFERENT family.
+const DOER_INTENT_DEFAULT = 'moonshotai/kimi-k3';
 const CHECKER_INTENT_DEFAULT = 'google gemini flash';
 
 export function readDoerIntent(db) {

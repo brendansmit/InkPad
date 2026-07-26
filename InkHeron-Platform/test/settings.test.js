@@ -362,7 +362,7 @@ test('key test endpoints report missing keys without network calls', async () =>
   }
 });
 
-test('ai_doer_intent setting defaults to deepseek and steers every doer call', async () => {
+test('ai_doer_intent defaults to Kimi K3 and steers every doer call', async () => {
   const { buildApp } = await import('../src/app.js');
   const { readDoerIntent, writeDoerIntent } = await import('../src/services/settingsStore.js');
   const { runLiteracyAnalysis } = await import('../src/services/literacyCoder.js');
@@ -374,7 +374,7 @@ test('ai_doer_intent setting defaults to deepseek and steers every doer call', a
   const db = openDatabase(path.join(dir, 'inkheron.db'));
   const app = await buildApp({ db, logger: false });
 
-  assert.match(readDoerIntent(db), /deepseek/);
+  assert.equal(readDoerIntent(db), 'moonshotai/kimi-k3');
   writeDoerIntent(db, 'moonshot kimi k2');
   assert.equal(readDoerIntent(db), 'moonshot kimi k2');
 

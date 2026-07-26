@@ -131,6 +131,7 @@
   <script>
     let csrfToken='';
     const doerOptions=[
+      ['moonshotai/kimi-k3','Moonshot Kimi K3'],
       ['deepseek chat v3','DeepSeek Chat V3'],
       ['deepseek reasoner','DeepSeek Reasoner'],
       ['qwen 2.5 72b instruct','Qwen 2.5 72B Instruct'],
@@ -162,7 +163,7 @@
       renderState('adminExportKeyState', data.settings.admin_export_key, false);
       document.getElementById('adminExportUrl').value=data.admin_export_url||'';
       document.getElementById('currentSemester').value=data.current_semester||'S1';
-      document.getElementById('aiDoerIntent').value=data.ai_doer_intent||'deepseek chat v3';
+      document.getElementById('aiDoerIntent').value=data.ai_doer_intent||'moonshotai/kimi-k3';
       document.getElementById('aiCheckerIntent').value=data.ai_checker_intent||'google gemini flash';
       syncCheckerOptions();
     }
@@ -235,7 +236,7 @@
       renderState('adminExportKeyState', data.settings.admin_export_key, false);
       document.getElementById('adminExportUrl').value=data.admin_export_url||'';
       document.getElementById('currentSemester').value=data.current_semester||'S1';
-      document.getElementById('aiDoerIntent').value=data.ai_doer_intent||'deepseek chat v3';
+      document.getElementById('aiDoerIntent').value=data.ai_doer_intent||'moonshotai/kimi-k3';
       document.getElementById('aiCheckerIntent').value=data.ai_checker_intent||'google gemini flash';
       syncCheckerOptions();
       showMessage('Settings saved.', false);
