@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Added the reconciled literacy-code registry
+
+- Added a central versioned registry containing all 67 adjudicated grammar definitions plus supplemental, manual and replaced legacy codes. New AI output excludes the reserve code and replaced broad codes while historical marks remain readable. The committed registry contains definitions only, with no student examples, identifiers or corpus counts. Registry validation tests pass 4/4 on Node 24.
+
 ## 2026-07-26 — Switched the default Doer to Kimi K3
 
 - Changed the backend Doer default and teacher settings fallback to the exact OpenRouter model id `moonshotai/kimi-k3`, added Kimi K3 as the first Doer option and retained the different-family checker guard. Updated the model-flow test and verified it passes on the required Node 24 runtime. A saved production setting still needs an explicit update during deployment.
@@ -378,21 +382,3 @@ Entry format:
 - Verified: new test `student-facing feedback and marks never reveal AI as the source` in `test/nativePads.test.js` — seeds an AI-sourced feedback item and an auto-promoted literacy annotation, drives a pad through submit → finish-marking → green-pen, and asserts the student's `/feedback` and `/toggle-check` JSON bodies contain no `"source"`/`ai_auto`/`ai_accepted`/`suggestion_id` anywhere, while confirming the teacher's `/feedback-items` view still reports `source: 'ai'`. `node --test test/nativePads.test.js` — 17/17 pass. Full suite `node --test "test/*.test.js"` — 130/134 pass, same 4 pre-existing baseline failures as before this change (unrelated: EAP library admin 401 check, login password_hash exposure, classes/students CRUD, roster page content).
 - Open / next: all four items from SONNET_HANDOFF_2.md are now done and committed. Items 5-7 (batch feedback release, semester tags, report snippet endpoint) remain out of scope unless asked. Also still open: the pre-existing gap noted in item 3's entry, that `fetchDashboardRows`/the CSV export do not exclude demo/ghost students from the teacher dashboard (not introduced this session, not in scope here).
 - Gotchas hit: none. Commit `72696fc`.
-
-## 2026-07-05 — SONNET_HANDOFF_2 item 3: one-click export to admin gradebook
-
-- Phase/Step worked: SONNET_HANDOFF_2.md item 3.
-- Built: new `src/services/adminExport.js` (`exportAssignmentToAdmin`) and `POST /api/assignments/:id/export-to-admin` in `src/routes/assignments.js`. Reads grade-importer's `GET /api/sync?since=0` once (this is also the auth check, since `/api/sync` is the only key-gated route in that app), matches the assignment by name+class and students by normalized display name, mints a new assignment id (max existing id + 1) and a new student id (grade-importer's own `PREFIX-SUFFIX` scheme from class name + display name) for anything unmatched, then `POST /api/sync` once with the combined `{students, assignments, scores}` payload. Rows are filtered to `is_demo = 0 AND is_ghost = 0` and to students with a non-null score before export. Settings screen gained two new fields: `admin_export_url` (plain text, own read/write helpers in `settingsStore.js`, defaults to `https://admin.inkheron.app`) and `admin_export_key` (masked secret, reusing the existing `secretSettingKeys` pattern, no test-connection button since grade-importer has no lightweight test endpoint).
-- Decisions: read grade-importer's `app.py`/`database.py` source directly rather than guessing its API, to avoid colliding assignment/student ids in its own space (confirmed `apply_sync_data` does `ON CONFLICT(id) DO UPDATE`, so a guessed id can silently overwrite an unrelated row). Export payload carries only `english_name`/`class_filter`/`score` fields, no mention of AI, marking method, or InkHeron internals. Errors from the upstream app (401, network failure, non-2xx) are caught and returned as a friendly 400/502 JSON response, never thrown to a 500.
-- Verified: `node --test test/assignments.test.js` — 17/17 pass, including 2 new tests (payload excludes ghost/demo/unscored students and any AI-related wording; upstream 401 surfaces as a friendly error). Full suite `node --test "test/*.test.js"` — 129/133 pass; the 4 failures (`app.test.js` EAP library admin 401 check, `auth.test.js` password_hash exposure, `identity.test.js` classes/students CRUD, `identity.test.js` roster page content) are pre-existing baseline failures unrelated to any file touched here — none of them exercise settings, assignments export, or adminExport.js.
-- Open / next: item 4 (AI-mention audit on student-facing surfaces) still pending. Noted a pre-existing gap (not introduced here, not in scope for this handoff): `fetchDashboardRows`/the CSV export from item 1 do not filter out demo/ghost students from the teacher dashboard view — worth a separate task later.
-- Gotchas hit: `node --test test/` (bare directory) fails with `MODULE_NOT_FOUND`; use `node --test "test/*.test.js"` instead. Commit `defd94f`.
-
-## 2026-07-05 — SONNET_HANDOFF_2 item 2: conversational tone pass on feedback prompts
-
-- Phase/Step worked: SONNET_HANDOFF_2.md item 2.
-- Built: replaced the "Copy rules" line in both `feedbackSuggester.js` DOER_SYSTEM_PROMPT and `profileSummarizer.js` DOER_SYSTEM_PROMPT with an instruction to write like a friendly teacher talking directly to the student (use "you", contractions, short sentences, low C1), plus the exact stiff/wanted example pair from the handoff. Kept the no em/en dash, no Oxford comma, metric-only rules and the 3-6 word title-length constraint. Did not touch literacy CODE labels or the CHECKER prompts (checker only verifies support, not tone).
-- Decisions: applied the identical wording to both services rather than writing two different tone instructions, since the handoff specified "same tone instruction" for profileSummarizer's writing_summary/voice_summary/targets.
-- Verified: `node --test test/feedbackSuggester.test.js test/profileSummarizer.test.js` — 15/15 pass. No test hardcodes the prompt text, and these are AI prompt strings that only affect live model output, so not independently browser-verifiable without a real OpenRouter key.
-- Open / next: items 3-4 (admin gradebook export, AI-mention audit) still pending.
-- Gotchas hit: none. Commit `cf19da5`.
