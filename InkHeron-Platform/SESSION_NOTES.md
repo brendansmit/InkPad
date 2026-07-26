@@ -10,7 +10,7 @@ decisions and outcomes, not narration.
 
 ## 2026-07-27 — Added installable InkHeron PWA
 
-- Added a standalone manifest, Apple home-screen metadata, crisp 180/192/512 px icons, a root-scoped service worker, a generic offline screen and an online/offline status banner across every static screen plus the native writer. The worker caches only an explicit public asset allowlist; authenticated HTML, essays, exports, uploads and all API traffic remain network-only. Browser QA confirmed metadata and the phone offline screen with no console errors. Full suite passes 205/205 and focused PWA tests pass 4/4. Deployment still pending.
+- Added a standalone manifest, Apple home-screen metadata, crisp 180/192/512 px icons, a root-scoped service worker, a generic offline screen and an online/offline status banner across every static screen plus the native writer. The worker caches only an explicit public asset allowlist; authenticated HTML, essays, exports, uploads and all API traffic remain network-only. Browser QA confirmed metadata and the phone offline screen with no console errors. Full suite passes 205/205 and focused PWA tests pass 4/4. Committed and deployed as `9edf683`; exact production hashes match, public login/manifest/service-worker/offline/icon endpoints return 200, Nginx and InkHeron are active and warning logs are empty. Database and changed-code backups are `inkheron.db.pre-pwa-9edf683` and `code.pre-pwa-9edf683.tar.gz`; the prior Nginx site is backed up outside `sites-enabled`.
 
 ## 2026-07-27 — Checked phone home-screen support
 
