@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Compact review payload checkpoint
+
+- Added an opt-in compact form of the teacher review response and switched the marking page to it. It omits unused full-text revision history, comparison data, student profile and feedback options while preserving the existing full API contract. On local seeded data the response fell from 2,446 bytes to 1,054 bytes and route time fell from 6.43 ms to 1.99 ms. Integration and full-suite tests passed on Node 24. Localhost browser QA was blocked by the browser security policy, so verification used API injection, JavaScript parsing and direct payload measurement.
+
 ## 2026-07-26 — Review mutation performance checkpoint
 
 - Replaced full review reloads after minor marking actions with local updates from the mutation responses. Changing or removing codes, adding or editing comments, resolving literacy suggestions, accepting or rejecting feedback suggestions, adding or removing feedback items, switching feedback banks and scoring rubric criteria now use one save request and redraw only affected UI. Preserved rail scroll position, added saving states to code changes and kept the cached queue accurate after finishing an essay. Static interaction and JavaScript syntax tests passed 7/7 on Node 24.
@@ -394,59 +398,3 @@ Entry format:
 - Teacher confirmed nothing has been released yet, so the server-side fallback for assignments without a feedback_release field is now ALSO 'batch' (assignments.js): everything holds until released, old and new alike.
 - Per-student release: migration 028 adds native_pads.feedback_released_at; POST /api/native/pads/:padId/release-feedback (teacher, CSRF, only for marked/green_pen_open/resubmitted pads) opens feedback for that one student; the gate (isBatchFeedbackHeld + the student feedback endpoint) honours the pad-level stamp over the class hold. Review page: "Send feedback" button beside Finish marking, shown only on batch assignments still held, flips to "Feedback sent" once used.
 - Test updates for the default flip (three seeds now opt into immediate; default test asserts batch). Suite 145/145 green. Deployed, migration 028 applied, wrapper active.
-
-## 2026-07-05 — Batch release is now the default for new assignments
-
-- Teacher decision: "all at once" is the default feedback release mode. Flipped the new-assignment form default (the form always sends an explicit value, so the server-side immediate fallback still grandfathers old assignments; nothing in flight changes behaviour). Deployed (static page only, no restart needed).
-
-## 2026-07-05 — Round-2 review, baseline failures cleared, production deploy
-
-- Reviewed all 22 round-2 commits (Sonnet items 1-7, Opus items 1-7, plus Sonnet's unrequested but sound nativeReanalyze.js: teacher-triggered AI re-run for pads submitted before the pipeline existed; teacher+CSRF, verified). Contract points hold: adminExport filters is_demo/is_ghost and ships names+numbers only, classInsights uses realStudentsWhere everywhere, release gating covers both feedback and green pen.
-- Cleared the 4 "known baseline failures" for good. Three were stale tests asserting pre-redesign behaviour (must_change_password now defaults true for teacher-created students; roster page heading changed; EAP admin page title changed after its rewrite). The fourth was a REAL gap the test was right about: /library/admin served the admin page unauthenticated; route now requires a teacher session. Suite: 144/144 green, first time.
-- Deployed the full committed tree to /opt/inkheron-platform (DB backed up as inkheron.db.pre-round2-*). Migration 027 applied, wrapper active, inkpad/eap live 200, class-insights correctly 401 without a session.
-- State: everything requested through round 2 is live in production.
-
-## 2026-07-04 — Teacher feedback round 2: diagnosed dashboard bug, wrote round-2 handoffs
-
-- Diagnosed the "finish marking changes nothing" report: rubric clicks DO save (PUT rubric-scores per click) and finish-marking DOES set state, but fetchDashboardRows in assignments.js never joins native_rubric_scores and publicDashboardRow still maps legacy statuses, so the dashboard and CSV cannot show any of it. Fix specced precisely in SONNET_HANDOFF_2.md item 1.
-- SONNET_HANDOFF_2.md: dashboard scores fix, conversational low-C1 tone pass on feedbackSuggester + profileSummarizer prompts, one-click export to admin.inkheron.app gradebook (read ../grade-importer code for the real API; payload = names and numbers only, never AI wording), student-facing AI-mention audit.
-- OPUS_HANDOFF_2.md (run after Sonnet): back button on native-review, teacher dashboard navigation to student profiles, NEW class-insights page + /api/classes/:classId/insights endpoint (recurring codes by students-affected, class err/100 trend, fix rate, rubric averages, marker-profile deltas only where teacher_score exists and >= 10 samples), assignment dashboard score column + Export to gradebook button.
-- Deploys stay with Fable (handoffs forbid the models from touching the droplet).
-- Teacher picked three extras, added to the same handoffs (items 5-7 in each): batch feedback release (settings feedback_release immediate/batch, migration 027 feedback_released_at, release-feedback endpoint gating student feedback AND green pen), semester tags S1/S2 (tag + filter only, no purge ever, batch archive later via the existing archive toggle), and a parent report snippet (reportSnippet.js Doer service + profile-page modal, 60-100 warm plain words, never stored, never mentions AI).
-
-## 2026-07-04 — Accuracy layer, MT code, click-to-change
-
-- False-positive accuracy layer: Doer rule 1b (judge by how the sentence reads; natural informal usage is not an error) and the Checker now receives the FULL SENTENCE per finding (new sentenceAround helper) with an explicit instruction that natural everyday phrasing is NOT defensible even if a style guide objects.
-- New code MT = direct translation from Chinese (word-for-word calque of a saying/idiom/structure). In VALID_CODES, prompt, labels, category grammar, gp colour teal, student explainer. MANUAL_REVIEW_CODES gate in autoPromoteSuggestions: MT NEVER auto-applies, it always lands in the Needs-you pile regardless of checker confidence.
-- Click-to-change: clicking any placed literacy mark on the review page opens a popover (quote + 21-code select) that PATCHes /api/native/annotations/:id with merged metadata; evidence re-sync and old-code stat recompute were already in the endpoint. Browser-verified on the seeded dev server: changed "goes" Gra to MT, label/category updated, ai_auto source preserved, MT group appears in Auto-marked rail.
-- Suite 129 tests, 125 pass, known 4. Commit 5fdbac4. Hot-deployed all five changed files to /opt/inkheron-platform, wrapper active, 200.
-- Teacher correction, same day: MT was too broad. Narrowed to mistranslated NAMES and FIXED EXPRESSIONS only (book/film/show titles, proper nouns, sayings, idioms rendered literally when an established English version or natural equivalent exists), explicitly RARE (a few per essay at most). Chinese-influenced grammar/structure stays Gra/STR/WO/Exp, never MT. Prompt, labels ("Mistranslated name or saying"), student explainer and review-page code list updated; redeployed.
-
-## 2026-07-03 — Cache heavy PDF.js assets to harden PDF loading on flaky networks
-- Reported: passage PDFs failed to load on school computers (both Safari and Chrome), then worked ~10 hours later elsewhere. Both browsers failing rules out a browser code bug; the client render path works fine locally. Pattern points to the school network, not the code.
-- Finding: static assets were served `cache-control: public, max-age=0`, so the 1.24 MB PDF.js worker was revalidated over the network on every pad load. On a slow or filtered school network that per-load fetch of a big file can intermittently fail, then succeed later. Filenames are not hashed, so they were never cached.
-- Fix (src/app.js): `cacheControl:false` on the /assets and /static registrations plus a `setHeaders` that sets `max-age=31536000, immutable` for vendored heavy assets (`/static/pdfjs/`, fonts) and `max-age=0, must-revalidate` for everything else. So the worker downloads once and is then immune to network flakiness, while app HTML/CSS/JS still revalidates so deploys land immediately. Verified headers per asset; app+assignments tests green apart from the known EAP baseline failure.
-- Note: best-supported hypothesis, not a confirmed root cause. If it recurs on the school computers, still need the Console error and Network status of passage-pdf + the two .mjs files. The earlier >1 MB upload bodyLimit fix and the nginx client_max_body_size heads-up still stand.
-
-## 2026-07-03 — Opus: fix assignment start/due dates staying locked
-- Reported: an assignment stays locked even after its start date and time has passed.
-- Root cause: the create and edit forms sent the raw `datetime-local` value (the teacher's LOCAL wall clock, no timezone, e.g. `2026-07-05T14:00`) and it was stored verbatim. Every server gate compares against `new Date().toISOString()` (UTC) with a plain string comparison (`opens_at > now` in nativePads.js:1201 and deriveStatus in assignments.js). A Hangzhou (UTC+8) start of 14:00 is 06:00 UTC, but the naive string "14:00" string-compares as greater than the UTC "06:00", so the pad stays `not_open_yet` for the full 8-hour offset. The client's own `parseServerDate` already assumed stored dates were UTC, so the create/edit path was the odd one out.
-- Fix: convert the datetime-local value local -> UTC ISO before sending, in both send sites — `public/teacher/new-assignment.html` (create) and `public/teacher/assignments.html` (edit), via a small `localToIso(v)=new Date(v).toISOString()`. Stored values are now unambiguous UTC ISO, matching every server comparison and parseServerDate.
-- Verified end to end against the real student open gate (`GET /api/native/assignments/:id/pad`): old naive-local past start -> 403 not_open_yet (the bug); same start stored as UTC ISO past -> 200 open; future start -> 403. No server logic changed.
-- Open / next: EXISTING assignments already saved on the droplet still hold naive-local strings and stay wrong. They need either a one-time migration (treat stored naive dates as UTC+8 -> subtract 8h, append Z) or the teacher re-entering the start/due time once on each. Flagged to the user.
-
-## 2026-07-03 — Opus: profile dashboard + writing-profile endpoint
-- Built the new backend read model `GET /api/students/:studentId/writing-profile` (teacher session) in nativePads.js: headline err/100 first vs last, per-essay strip with essay_type/supervision provenance and per-pad `detectStyleAnomaly` flags, recurring-code per-100 series with resolved counts and trend, `aggregateStyleProfile` vs a real-student class median (via realStudents helper, excludes demo/ghost), and score history grouped by rubric_kind and essay_type. Route added.
-- Built page 3: new `public/teacher/student-profile.html` from the profile-dashboard mockup, plus a `/teacher/student-profile` route in app.js. EAP + AP-per-type tabs (locked under 2 essays), anomaly banner, headline stats, essay strip with provenance badges and flagged borders, recurring-errors bars, voice fingerprint vs class median with click explainer, voice-in-words findings with an evidence quote, scores-over-time spark and AP-by-type cards. The "Student version" button hides the anomaly banner and provenance strips client-side (both teacher-only per the handoff); the endpoint itself returns the full teacher payload.
-- Fixed: the two review/feedback page tests in nativePads.test.js asserted the OLD page markup (pasteMode, revision-panel, Open rewrite, etc). Updated both to assert the redesigned pages' real structure. npm test under Node 24: 115 pass, only the 4 known baseline failures remain.
-- Verified in preview at 1440px and 1024px: full dashboard renders, anomaly on E6 (homework), spark bars render, Student version hides anomaly + provenance.
-- Decision: profile-page provenance and anomaly are teacher-only and hidden via a body class in student mode rather than a server variant, matching "renders the same data with teacher-only cards removed".
-
-## 2026-07-03 — Opus: student feedback view rebuilt from student-view
-- Built page 2: `public/native-feedback.html` rebuilt to the student-view mockup. Reads `GET /api/native/assignments/:assignmentId/feedback` (student session, assignment id from the URL path).
-  - Focus bar category chips (All / Spelling and words / Grammar / Punctuation) with live counts; clicking a chip dims the other categories (.mk.dim). Marks hover reveals category only, never the fix.
-  - Targets panel with per-target checkbox tick-off wired to `POST .../feedback-items/:id/toggle-check`; ticked targets strike through and update the "N of M targets done" ring in the focus bar. Checkboxes disabled unless the pad is green_pen_open.
-  - Strengths with explanations, try-now pills on targets, internal rubric score bars plus an "If this were the AP exam" AP bar for AP classes, and the fixed line that grammar marks are practice not the grade. Green pen CTA links to the rewrite pad when green pen is open.
-- Decision: the focus-bar progress ring counts targets ticked (the only student-driven state the backend tracks) rather than a per-mark fixed count, which no endpoint supports. Phrased as "N of M targets done".
-- Verified in preview at 1280px: Grammar filter shows 11 marks and dims 12, target tick-off persists server-side (2 to 3 done).
-- Next: profile dashboard + new writing-profile endpoint.

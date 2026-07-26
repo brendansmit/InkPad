@@ -456,6 +456,19 @@ test('teacher can review native pad, add comments and change live paste policy',
   assert.equal(review.json().assignment.essay_type, 'other');
   assert.equal(review.json().assignment.supervision, 'in_class');
 
+  const compactReview = await app.inject({
+    method: 'GET',
+    url: `/api/native/pads/${padId}/review?compact=1`,
+    headers: { cookie: teacherCookies },
+  });
+  assert.equal(compactReview.statusCode, 200);
+  assert.equal(compactReview.json().pad.plain_text, 'Sentence one. Sentence two.');
+  assert.equal(compactReview.json().annotations.length, 4);
+  assert.equal(compactReview.json().revisions, undefined);
+  assert.equal(compactReview.json().comparison, undefined);
+  assert.equal(compactReview.json().student_profile, undefined);
+  assert.equal(compactReview.json().feedback_options, undefined);
+
   await app.close();
 });
 

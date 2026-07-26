@@ -2080,6 +2080,7 @@ function loadImplementationScore(db, padId) {
       const padId = requirePositiveInteger(request.params.padId, 'padId');
       const pad = loadTeacherNativePad(db, padId);
       if (!pad) return reply.code(404).send({ error: 'pad_not_found' });
+      const compact = request.query?.compact === '1';
       const policy = ensurePolicy(db, padId, parseSettings(pad.settings_json));
       const annotations = db.prepare(`
         SELECT *
@@ -2093,7 +2094,7 @@ function loadImplementationScore(db, padId) {
         WHERE native_pad_id = ?
         ORDER BY at ASC, id ASC
       `).all(padId);
-      const revisions = db.prepare(`
+      const revisions = compact ? [] : db.prepare(`
         SELECT id, reason, plain_text, word_count, document_version, created_at
         FROM native_pad_revisions
         WHERE native_pad_id = ?
@@ -2125,11 +2126,8 @@ function loadImplementationScore(db, padId) {
         pad_feedback_released_at: pad.feedback_released_at ?? null,
         class: { id: pad.class_id, name: pad.class_name, is_ap_lang: isApLang },
         student: { id: pad.student_id, display_name: pad.student_name, username: pad.student_username },
-        policy: publicPolicy(policy),
         annotations,
         paste_events: pasteEvents,
-        revisions,
-        comparison: comparisonForRevisions(revisions),
         rubric: {
           name: rubricNames[0] || 'Rubric 1',
           criteria: rubric.criteria,
@@ -2145,7 +2143,6 @@ function loadImplementationScore(db, padId) {
           criteria: examRubric.criteria,
           scores: loadRubricScores(db, padId, 'exam'),
         },
-        student_profile: loadStudentWritingProfile(db, pad.student_id),
         feedback: loadFeedbackItems(db, padId),
         suggestions: db.prepare(`
           SELECT id, document_version, start_offset, end_offset, quote, code, category, label, model, checker_json, status, created_at
@@ -2155,7 +2152,13 @@ function loadImplementationScore(db, padId) {
         `).all(padId),
         feedback_tables: feedbackTables.map((t) => ({ id: t.id, title: t.title })),
         applied_feedback_table: appliedTable,
-        feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
+        ...(compact ? {} : {
+          policy: publicPolicy(policy),
+          revisions,
+          comparison: comparisonForRevisions(revisions),
+          student_profile: loadStudentWritingProfile(db, pad.student_id),
+          feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
+        }),
         // Green-pen verdict: present when this pad IS a rewrite that has been
         // scored, so the teacher reviewing a resubmit sees what was acted on.
         implementation_score: loadImplementationScore(db, padId),

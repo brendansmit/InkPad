@@ -1,5 +1,16 @@
 # SESSION_NOTES_ARCHIVE.md — InkHeron Platform
 
+## Archived 2026-07-26 — Entries from 2026-07-03 to 2026-07-05
+
+- 2026-07-05: Batch feedback release became the default for new assignments.
+- 2026-07-05: Round-2 review cleared four baseline failures and deployed migrations and UI work.
+- 2026-07-04: Round-2 handoffs covered dashboard scores, prompt tone, gradebook export, class insights, release gating, semester tags and parent report snippets.
+- 2026-07-04: Added the false-positive accuracy layer, MT literacy code and click-to-change marks, then narrowed MT to mistranslated names and fixed expressions.
+- 2026-07-03: Cached heavy PDF.js and font assets for unreliable school networks.
+- 2026-07-03: Fixed assignment datetime-local values by converting them to UTC ISO before saving.
+- 2026-07-03: Added the teacher student-profile dashboard and writing-profile endpoint.
+- 2026-07-03: Rebuilt student feedback with category filters, target tick-off, strengths, rubrics and green-pen navigation.
+
 ## 2026-07-03 — Sonnet: essay_type/supervision settings fields
 
 - Phase/Step worked: SONNET_HANDOFF.md "New settings fields — essay type and supervision".

@@ -8,6 +8,7 @@ const html = fs.readFileSync(path.join(process.cwd(), 'public/teacher/native-rev
 test('review page loads independent essay data concurrently and caches the assignment queue', () => {
   const loadAll = html.match(/async function loadAll\(\)\{([\s\S]*?)\n\}/)?.[1] || '';
   assert.match(loadAll, /Promise\.all\(\[/, 'review and feedback suggestions should share one network round trip');
+  assert.match(loadAll, /review\?compact=1/, 'the marking page should not download revision history and profile data it does not render');
   assert.match(loadAll, /sessionStorage\.getItem\(cacheKey\)/, 'essay navigation should reuse the assignment queue');
   assert.match(loadAll, /cacheQueue\(\)/, 'the first dashboard response should populate the queue cache');
 });

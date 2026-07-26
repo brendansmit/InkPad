@@ -227,7 +227,7 @@ async function boot(){
 
 async function loadAll(){
   const [nextReview, suggestionResult] = await Promise.all([
-    api('/api/native/pads/'+padId+'/review'),
+    api('/api/native/pads/'+padId+'/review?compact=1'),
     api('/api/native/pads/'+padId+'/feedback-suggestions?status=pending')
   ]);
   review = nextReview;
