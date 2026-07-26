@@ -8,9 +8,14 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Audited expanded literacy-code workbook
+
+- Inspected and visually verified all three sheets in `Codex_Literacy_Code_Dataset_Standalone.xlsx` without modifying it. The workbook contains 1,893 annotations from 39 students, 1,833 confirmed labels, 60 review candidates and a consistent 66-code taxonomy. All dataset codes exist in the codebook, codebook occurrence/student counts reconcile exactly, IDs and exact annotations are unique and only 46 approximate sentence numbers are blank. Recommended a phased rollout using Tier 1 and Tier 2 codes first, hierarchical UI, exact-code checker validation, grouped holdout evaluation and legacy-code preservation rather than a one-step 66-code replacement.
+
 ## 2026-07-26 — Optimistic Needs-your-attention checkpoint
 
 - Made contested literacy decisions update before the network save completes. Keep and change place a provisional mark immediately, reject removes the contested highlight immediately, repeat clicks are blocked and failed saves restore only the affected suggestion before reconciling with the server. This targeted rollback avoids undoing a second rapid decision. Added static ordering, rollback and JavaScript syntax tests; focused tests passed 4/4 on Node 24.
+- Full suite passed. Deployed static page commits `f21b2e9` and `843d59c` without restarting the service, after backing up the live file as `.bak-attention-843d59c`. Production hash matches, the wrapper stayed active and the internal login health check returned 200 in 8 ms. Production browser navigation timed out, so the deployed page was verified by hash, static behavior contracts and the full integration suite.
 
 ## 2026-07-26 — Compact review payload checkpoint
 
