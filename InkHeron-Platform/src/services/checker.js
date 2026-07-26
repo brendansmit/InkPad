@@ -87,6 +87,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
   if (toJudge.length === 0) return withVerbatim;
 
   let verdicts = null;
+  let checkerModel = '';
   try {
     const listing = toJudge.map((f, i) => {
       const definition = getLiteracyCode(f.code);
@@ -101,6 +102,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
       maxTokens: 4000,
       temperature: 0,
     });
+    checkerModel = result?.model ?? '';
     verdicts = parseCheckerResponse(result?.choices?.[0]?.message?.content);
   } catch (error) {
     console.warn('[checker] unavailable:', error?.message ?? error);
@@ -114,6 +116,7 @@ export async function verifyFindings(db, { padPlainText = '', findings = [] } = 
     }
     finding.checker.confidence = v.confidence;
     finding.checker.alternatives = v.alternatives;
+    finding.checker.model = checkerModel;
     if (v.defensible !== true) finding.checker.flag = 'code_questioned';
     if (finding.checker.flag === null && typeof v.confidence === 'number' && v.confidence <= 0.6) {
       finding.checker.flag = 'uncertain';

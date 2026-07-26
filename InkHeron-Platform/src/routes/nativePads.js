@@ -16,8 +16,10 @@ import {
   ALL_CODE_DEFINITIONS,
   ALL_CODES as LITERACY_CODES,
   getLiteracyCode,
+  LITERACY_TAXONOMY_VERSION,
   literacyCodeCategory,
   literacyCodeLabel,
+  withLiteracyTaxonomy,
 } from '../services/literacyCodeRegistry.js';
 
 // Fire-and-forget an async analysis seam without blocking the HTTP response.
@@ -657,7 +659,7 @@ function studentSafeFeedback(feedback) {
 }
 
 function studentSafeAnnotation(annotation) {
-  const { source, suggestion_id, ...metadata } = annotation.metadata || {};
+  const { source, suggestion_id, analysis_model, checker_model, ...metadata } = annotation.metadata || {};
   if (annotation.type === 'literacy_code' && metadata.code) {
     const definition = getLiteracyCode(metadata.code);
     if (definition) {
@@ -1382,6 +1384,8 @@ export function autoPromoteSuggestions(db, padId) {
   const pad = db.prepare('SELECT id, student_id, assignment_id FROM native_pads WHERE id = ?').get(padId);
   if (!pad) return { promoted: 0 };
   const pending = db.prepare("SELECT * FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'pending'").all(padId);
+  const shadowMode = ['1', 'true', 'yes'].includes(String(process.env.INKHERON_LITERACY_SHADOW_MODE || '').toLowerCase());
+  if (shadowMode) return { promoted: 0, shadowed: pending.length };
   const rejectedKeys = new Set(db.prepare(
     "SELECT code, quote FROM ai_literacy_suggestions WHERE native_pad_id = ? AND status = 'rejected'"
   ).all(padId).map((r) => `${r.code} ${r.quote}`));
@@ -1403,6 +1407,9 @@ export function autoPromoteSuggestions(db, padId) {
       label: suggestion.label || suggestion.code,
       source: 'ai_auto',
       suggestion_id: suggestion.id,
+      taxonomy_version: LITERACY_TAXONOMY_VERSION,
+      analysis_model: suggestion.model || '',
+      checker_model: checker.model || '',
     });
     const annResult = db.prepare(`
       INSERT INTO native_annotations (
@@ -1502,13 +1509,14 @@ function normalizeAnnotationInput(body, pad) {
     error.statusCode = 400;
     throw error;
   }
+  const metadata = type === 'literacy_code' ? withLiteracyTaxonomy(body?.metadata) : body?.metadata;
   return {
     type,
     start: type === 'general_comment' ? null : start,
     end: type === 'general_comment' ? null : end,
     selectedText: normalizePlainText(body?.selected_text).slice(0, 2000),
     body: normalizeComment(body?.body),
-    metadataJson: normalizeMetadata(body?.metadata),
+    metadataJson: normalizeMetadata(metadata),
     documentVersion: Number.isInteger(Number(body?.document_version)) ? Number(body.document_version) : Number(pad.version ?? 1),
   };
 }
@@ -2254,7 +2262,9 @@ function loadImplementationScore(db, padId) {
       if (!existing) return reply.code(404).send({ error: 'annotation_not_found' });
       const body = request.body?.body !== undefined ? normalizeComment(request.body.body) : existing.body;
       const resolved = request.body?.resolved !== undefined ? (request.body.resolved ? 1 : 0) : existing.resolved;
-      const metadataJson = request.body?.metadata !== undefined ? normalizeMetadata(request.body.metadata) : existing.metadata_json;
+      const metadataJson = request.body?.metadata !== undefined
+        ? normalizeMetadata(existing.type === 'literacy_code' ? withLiteracyTaxonomy(request.body.metadata) : request.body.metadata)
+        : existing.metadata_json;
       const previousKey = existing.type === 'literacy_code' ? normalizeLiteracyKey(existing) : null;
       db.prepare(`
         UPDATE native_annotations
@@ -2431,6 +2441,11 @@ function loadImplementationScore(db, padId) {
         label: literacyCodeLabel(acceptedCode),
         source: 'ai_accepted',
         suggestion_id: suggestion.id,
+        taxonomy_version: LITERACY_TAXONOMY_VERSION,
+        analysis_model: suggestion.model || '',
+        checker_model: (() => {
+          try { return JSON.parse(suggestion.checker_json || '{}').model || ''; } catch { return ''; }
+        })(),
       });
       const annResult = db.prepare(`
         INSERT INTO native_annotations (

@@ -54,7 +54,7 @@ test('confident findings auto-promote to marks, contested ones stay pending', as
   const { app, padId, studentId } = await seed(db);
 
   const confidentId = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'Gra',
-    checker: { verbatim: true, confidence: 0.92, flag: null } });
+    checker: { verbatim: true, confidence: 0.92, flag: null, model: 'fake/checker' } });
   insertSuggestion(db, padId, { quote: 'recieved', start: 36, end: 44, code: 'Sp',
     checker: { verbatim: true, confidence: 0.55, flag: null } });
   insertSuggestion(db, padId, { quote: 'playing', start: 8, end: 15, code: 'WW',
@@ -70,6 +70,9 @@ test('confident findings auto-promote to marks, contested ones stay pending', as
   assert.equal(annotation.type, 'literacy_code');
   assert.equal(annotation.teacher_id, null, 'auto marks carry no teacher id');
   assert.match(annotation.metadata_json, /ai_auto/);
+  assert.match(annotation.metadata_json, /2026-07-26/);
+  assert.match(annotation.metadata_json, /fake\/doer/);
+  assert.match(annotation.metadata_json, /fake\/checker/);
 
   // Profile evidence and stats updated.
   const evidence = db.prepare('SELECT * FROM student_literacy_evidence WHERE annotation_id = ?').get(promoted.annotation_id);
@@ -97,6 +100,25 @@ test('40% uncertainty is the inclusive manual-review boundary', async () => {
   assert.equal(db.prepare('SELECT status FROM ai_literacy_suggestions WHERE id = ?').get(aboveId).status, 'accepted');
 
   await app.close();
+});
+
+test('shadow mode records suggestions without auto-promoting marks', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, padId } = await seed(db);
+  const previous = process.env.INKHERON_LITERACY_SHADOW_MODE;
+  process.env.INKHERON_LITERACY_SHADOW_MODE = 'true';
+  try {
+    const id = insertSuggestion(db, padId, { quote: 'is', start: 5, end: 7, code: 'SV-AGREEMENT',
+      checker: { verbatim: true, confidence: 0.99, flag: null } });
+    const result = autoPromoteSuggestions(db, padId);
+    assert.deepEqual(result, { promoted: 0, shadowed: 1 });
+    assert.equal(db.prepare('SELECT status FROM ai_literacy_suggestions WHERE id = ?').get(id).status, 'pending');
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ?').get(padId).n, 0);
+  } finally {
+    if (previous === undefined) delete process.env.INKHERON_LITERACY_SHADOW_MODE;
+    else process.env.INKHERON_LITERACY_SHADOW_MODE = previous;
+    await app.close();
+  }
 });
 
 test('two overlapping findings both auto-promote and both appear in the review payload', async () => {

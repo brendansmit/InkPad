@@ -16,6 +16,7 @@ import {
   aiCodePrompt,
   literacyCodeCategory,
   literacyCodeLabel,
+  LITERACY_TAXONOMY_VERSION,
 } from './literacyCodeRegistry.js';
 
 export const VALID_CODES = AI_CODES;
@@ -212,7 +213,7 @@ export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat 
       clear.run(padId);
       for (const f of surviving) {
         insert.run(padId, pad.version, f.start_offset, f.end_offset, f.quote,
-          f.code, f.category, f.label, modelId, JSON.stringify(f.checker));
+          f.code, f.category, f.label, modelId, JSON.stringify({ ...f.checker, taxonomy_version: LITERACY_TAXONOMY_VERSION }));
       }
       db.exec('COMMIT');
     } catch (error) {

@@ -142,7 +142,10 @@ test('runLiteracyAnalysis writes pending suggestions with correct absolute offse
     assert.equal(row.document_version, 3);
     assert.equal(PAD_TEXT.slice(row.start_offset, row.end_offset), row.quote, 'quote matches pad slice exactly');
     assert.equal(row.model, 'fake/doer-model');
-    assert.equal(JSON.parse(row.checker_json).verbatim, true);
+    const checker = JSON.parse(row.checker_json);
+    assert.equal(checker.verbatim, true);
+    assert.equal(checker.model, 'fake/checker-model');
+    assert.equal(checker.taxonomy_version, '2026-07-26');
   }
   const codes = rows.map((r) => r.code);
   assert.deepEqual(codes, ['SV-AGREEMENT', 'Sp', 'FRAGMENT-DEPENDENT']);

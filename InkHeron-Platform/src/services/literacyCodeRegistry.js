@@ -100,6 +100,12 @@ export function literacyCodeCategory(code) {
   return getLiteracyCode(code)?.category ?? 'other';
 }
 
+export function withLiteracyTaxonomy(metadata = {}) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return metadata;
+  if (!ALL_CODES.has(metadata.code)) return metadata;
+  return { ...metadata, taxonomy_version: LITERACY_TAXONOMY_VERSION };
+}
+
 export function grammarCodePrompt() {
   return GRAMMAR_CODE_DEFINITIONS
     .filter((definition) => definition.aiEnabled)

@@ -7,6 +7,7 @@ import {
   LITERACY_TAXONOMY_VERSION,
   getLiteracyCode,
   grammarCodePrompt,
+  withLiteracyTaxonomy,
 } from '../src/services/literacyCodeRegistry.js';
 
 test('reconciled grammar registry contains 67 complete unique definitions', () => {
@@ -20,6 +21,11 @@ test('reconciled grammar registry contains 67 complete unique definitions', () =
     }
     assert.equal(definition.category, 'grammar');
   }
+});
+
+test('current registry codes receive a taxonomy version without rewriting unknown historical codes', () => {
+  assert.equal(withLiteracyTaxonomy({ code: 'SV-AGREEMENT' }).taxonomy_version, '2026-07-26');
+  assert.deepEqual(withLiteracyTaxonomy({ code: 'CUSTOM-OLD' }), { code: 'CUSTOM-OLD' });
 });
 
 test('reserve code is retained for teachers but excluded from AI output', () => {

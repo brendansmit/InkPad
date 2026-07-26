@@ -124,6 +124,8 @@ test('teacher can load the codebook and accept an AI suggestion with a corrected
   assert.equal(accept.statusCode, 201);
   assert.equal(accept.json().annotation.type, 'literacy_code');
   assert.equal(accept.json().annotation.metadata.code, 'PRESENT-3S-MISSING');
+  assert.equal(accept.json().annotation.metadata.taxonomy_version, '2026-07-26');
+  assert.equal(accept.json().annotation.metadata.analysis_model, 'test-model');
 
   // Now it is a real annotation and the profile has evidence.
   const after = await app.inject({ method: 'GET', url: `/api/native/pads/${padId}/review`, headers: { cookie: t.cookies } });
