@@ -40,6 +40,12 @@ test('literacy picker is searchable, grouped and supports checker alternatives',
   assert.match(html, /body:action==='change'\?\{code:acceptedCode\}:\{\}/, 'choosing an alternative should persist that code directly');
 });
 
+test('literacy review controls retain touch-sized mobile layouts', () => {
+  assert.match(html, /@media \(hover:none\) and \(pointer:coarse\)\{[\s\S]*?\.appbar \.btn\{min-height:44px\}[\s\S]*?\.code-choice\{min-height:48px\}/, 'touch devices should enlarge toolbar and literacy choices even in iPad landscape');
+  assert.match(html, /@media \(max-width:480px\)\{[\s\S]*?\.appbar\{display:grid/, 'narrow phones should use the compact toolbar grid');
+  assert.match(html, /\.code-choice\{grid-template-columns:1fr;gap:3px;min-height:52px\}/, 'long literacy codes should stack cleanly on phones');
+});
+
 test('review page inline JavaScript parses', () => {
   const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] || '';
   assert.doesNotThrow(() => new Function(script));

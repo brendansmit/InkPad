@@ -149,7 +149,7 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   .card{border-radius:12px}
   .body{padding:12px;gap:10px}
   .btn{min-height:44px;padding:0 12px}
-  .btn.sm{min-height:40px;padding:0 10px;font-size:12.5px}
+  .btn.sm{min-height:44px;padding:0 10px;font-size:12.5px}
   .grp,.cst,.sug,.fb{padding:10px}
   .grpmark{align-items:flex-start;flex-wrap:wrap}
   .grpmark .q{flex-basis:100%;white-space:normal}
@@ -164,9 +164,29 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   .popover textarea{width:100%;min-height:96px}
   .code-pop{position:fixed;left:8px;right:8px;width:auto;flex-wrap:wrap}
   .code-pop-quote{max-width:100%;flex-basis:100%}
-  .code-choice{grid-template-columns:minmax(110px,.7fr) minmax(0,1fr)}
+  .code-choice{grid-template-columns:minmax(110px,.7fr) minmax(0,1fr);min-height:44px}
   .code-choice small{display:none}
   .toast{left:10px;right:10px;bottom:12px;transform:none;text-align:center}
+}
+@media (hover:none) and (pointer:coarse){
+  .btn,.btn.sm{min-height:44px}
+  .appbar .btn{min-height:44px}
+  .code-choice{min-height:48px}
+}
+@media (max-width:480px){
+  .appbar{display:grid;grid-template-columns:120px minmax(0,1fr) auto auto}
+  .glyph{display:none}
+  #backBtn{grid-column:1;grid-row:1}
+  .who{grid-column:2/-1;grid-row:1;max-width:100%}
+  .crumb{grid-column:1/4;grid-row:2;order:initial;width:auto}
+  .nextprev{grid-column:4;grid-row:2;order:initial;justify-self:end}
+  #reanalyzeBtn{grid-column:1/3;grid-row:3}
+  #prevBtn{grid-column:3;grid-row:3}
+  #nextBtn{grid-column:4;grid-row:3}
+  #finishBtn{grid-column:1/-1;grid-row:4}
+  #sendFeedbackBtn{grid-column:1/-1;grid-row:5}
+  .code-choice{grid-template-columns:1fr;gap:3px;min-height:52px}
+  .code-choice code{line-height:1.25}
 }
 </style>
 </head>

@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Fixed literacy review mobile controls
+
+- Added 44 px minimum touch targets across touch devices, 48 px literacy rows on iPad and 52 px stacked code rows on narrow phones. Reworked the 480 px toolbar into a compact grid, reducing its 375 px viewport height from 201 px to 138 px. Exact renders at iPad mini portrait/landscape and 390/375 px iPhones have no horizontal overflow or undersized controls; review tests pass 25/25.
+
 ## 2026-07-26 — Checked literacy review UI at iPad mini and iPhone sizes
 
 - Rendered the exact current review-page CSS and new literacy controls at 744×1133, 1133×744, 390×844 and 375×667. No horizontal overflow; the picker, search, long code names, Needs you context, alternatives and decision buttons remain visible. Found two mobile usability issues to fix separately: picker rows are only 32 px tall and iPad landscape uses 30–36 px desktop touch targets; the 375 px header also grows to 201 px. Targeted native-review tests pass 24/24 on bundled Node 24. No product code changed.
@@ -391,8 +395,3 @@ Entry format:
 - Verified: `node --test test/assignments.test.js test/settings.test.js` — 31/31 pass, including new tests `semester tag defaults from current_semester, filters, and leaves untagged assignments under all` and `current_semester defaults to S1 and can be updated, ignoring invalid values`. Full suite `node --test "test/*.test.js"` — 136/140, same 4 pre-existing baseline failures as item 5 (EAP library admin 401, login password_hash exposure, classes/students CRUD, roster page content). Also browser-verified live via `inkheron-verify`: settings page shows/saves the semester select and persists to the settings table; new-assignment page prefills the select from the saved teacher default (S2 after changing it); created one assignment with no explicit semester (defaulted to S2) and one with an explicit override (S1); the assignments-list semester filter correctly narrowed the list to just the S1-tagged one.
 - Open / next: item 7 (report snippet endpoint) still pending. No batch-archive-by-semester bulk action was built — spec says to reuse the EXISTING per-assignment archive toggle, now that the list can be filtered by semester first.
 - Gotchas hit: `preview_click`/`preview_fill` on select/submit-button elements silently failed to trigger the underlying DOM events a couple of times during verification (no network request fired); dispatching the `change`/`submit` events directly via `preview_eval` reliably worked and confirmed the real app behaviour was correct — a preview-tooling quirk, not an app bug. Commit `927cc13`.
-
-## 2026-07-05 — Opus HANDOFF_2 item 1: back button on the marking page
-- Added a compact "← Assignments" link at the far left of the native-review.html top bar. On load it points to /teacher/assignments?id=<assignment id> (from the review payload), falling back to /teacher/assignments before the payload arrives.
-- Verified in preview at 1024px: link resolves to ?id=2 for the seeded pad and the top bar stays on one row with all controls visible.
-- Note: this commit also carries the "Run AI review" button added in the previous session (it was left uncommitted then because native-review.html was being co-edited; the file's uncommitted diff is now all mine).
