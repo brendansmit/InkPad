@@ -72,7 +72,7 @@ timeout --signal=TERM --kill-after=5m "$UPDATE_TIMEOUT" ionice -c 3 nice -n 15 b
   export DEBIAN_FRONTEND=noninteractive
   dpkg --configure -a
   apt-get -o DPkg::Lock::Timeout=300 update
-  apt-get -y -o DPkg::Lock::Timeout=300 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
+  apt-get -y --with-new-pkgs -o DPkg::Lock::Timeout=300 -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade
   apt-get -y -o DPkg::Lock::Timeout=300 autoremove
   apt-get clean
 ' >> "$LOG_FILE" 2>&1
