@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Deployed reconciled literacy grading and Kimi K3
+
+- Full Node 24 suite exited 0 after updating two stale cross-feature model expectations. Pushed `deploy-ui` through `14b4eaa`, confirmed every production target matched the prior `843d59c` baseline, backed up the database and replaced runtime files under `data/backups/literacy-14b4eaa-20260726T1322Z`, then deployed the 67-code registry, prompts, 40% uncertainty gate, searchable picker, student/green-pen/export consumers and audit safeguards. Explicitly saved `ai_doer_intent=moonshotai/kimi-k3`; production OpenRouter resolved the exact same id. All 12 deployed hashes match, the wrapper remains active at about 58 MB, internal and public login return 200, the teacher-only codebook returns 401 without a session and post-restart warning logs are empty.
+
 ## 2026-07-26 — Updated cross-feature tests for the Kimi default
 
 - Full-suite verification exposed two stale test assumptions: bulk question import still expected DeepSeek and the model-settings test selected a Moonshot checker, now correctly rejected because Kimi K3 is the Moonshot Doer. Updated both expectations; focused tests pass 3/3.
