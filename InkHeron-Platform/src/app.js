@@ -96,6 +96,24 @@ export async function buildApp(options = {}) {
     service: 'inkheron-wrapper',
   }));
 
+  app.get('/manifest.webmanifest', async (_request, reply) => {
+    reply.type('application/manifest+json').header('Cache-Control', 'public, max-age=0, must-revalidate');
+    return reply.sendFile('manifest.webmanifest', publicDir);
+  });
+
+  app.get('/sw.js', async (_request, reply) => {
+    reply
+      .type('application/javascript; charset=utf-8')
+      .header('Cache-Control', 'no-cache')
+      .header('Service-Worker-Allowed', '/');
+    return reply.sendFile('sw.js', publicDir);
+  });
+
+  app.get('/offline', async (_request, reply) => {
+    reply.type('text/html; charset=utf-8').header('Cache-Control', 'public, max-age=0, must-revalidate');
+    return reply.sendFile('offline.html', publicDir);
+  });
+
   app.setErrorHandler(async (error, _request, reply) => {
     if (error.validation) {
       return reply.code(400).send({ error: 'validation_error', message: error.message });

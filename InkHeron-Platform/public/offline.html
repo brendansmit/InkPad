@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#246343">
+  <title>InkHeron - Offline</title>
+  <link rel="icon" href="/assets/InkHeron%20Logo.png">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    body{min-height:100vh;display:grid;place-items:center;padding:24px}
+    main{width:min(100%,420px);padding:30px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--shadow-card)}
+    img{width:64px;height:64px}
+    h1{margin:18px 0 8px;font-family:var(--serif);font-size:28px}
+    p{margin:0;color:var(--text-2);line-height:1.55}
+    button{min-height:44px;margin-top:22px;padding:0 18px;border:0;border-radius:var(--r-sm);background:var(--green-600);color:#fff;font:800 14px var(--font);cursor:pointer}
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/assets/InkHeron%20Logo.png" alt="">
+    <h1>You are offline</h1>
+    <p>Reconnect to the internet, then try again. Essays and marking data are never stored in InkHeron's offline cache.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </main>
+</body>
+</html>
