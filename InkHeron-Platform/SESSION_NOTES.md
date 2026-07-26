@@ -10,7 +10,7 @@ decisions and outcomes, not narration.
 
 ## 2026-07-26 — Fixed literacy review mobile controls
 
-- Added 44 px minimum touch targets across touch devices, 48 px literacy rows on iPad and 52 px stacked code rows on narrow phones. Reworked the 480 px toolbar into a compact grid, reducing its 375 px viewport height from 201 px to 138 px. Exact renders at iPad mini portrait/landscape and 390/375 px iPhones have no horizontal overflow or undersized controls; review tests pass 25/25.
+- Added 44 px minimum touch targets across touch devices, 48 px literacy rows on iPad and 52 px stacked code rows on narrow phones. Reworked the 480 px toolbar into a compact grid, reducing its 375 px viewport height from 201 px to 138 px. Exact renders at iPad mini portrait/landscape and 390/375 px iPhones have no horizontal overflow or undersized controls; review tests pass 25/25. Committed as `f0faf85`, pushed `deploy-ui` and deployed only `public/teacher/native-review.html`; production hash `3015cf6` matches, the service is active, login returns 200, warning logs are empty and the prior page is backed up as `native-review.html.bak-mobile-touch-20260726T1428Z`.
 
 ## 2026-07-26 — Checked literacy review UI at iPad mini and iPhone sizes
 
