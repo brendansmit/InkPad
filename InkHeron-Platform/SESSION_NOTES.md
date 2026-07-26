@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Review mutation performance checkpoint
+
+- Replaced full review reloads after minor marking actions with local updates from the mutation responses. Changing or removing codes, adding or editing comments, resolving literacy suggestions, accepting or rejecting feedback suggestions, adding or removing feedback items, switching feedback banks and scoring rubric criteria now use one save request and redraw only affected UI. Preserved rail scroll position, added saving states to code changes and kept the cached queue accurate after finishing an essay. Static interaction and JavaScript syntax tests passed 7/7 on Node 24.
+
 ## 2026-07-26 — Review loading performance checkpoint
 
 - Reduced initial review loading from three serial data requests to two concurrent review requests followed by the assignment queue only when it is not already cached. The queue is cached per assignment in session storage for five minutes so moving between essays avoids downloading the same class dashboard repeatedly. Added a static performance contract test. Focused tests passed on Node 24; the system Node 20 cannot run the existing `node:sqlite` tests.

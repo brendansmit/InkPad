@@ -209,6 +209,12 @@ async function api(path, opts={}){
   return r.json();
 }
 function isDone(status){ return status === 'marked' || status === 'resubmitted'; }
+function queueCacheKey(){ return review && review.assignment ? 'review-queue-'+review.assignment.id : ''; }
+function cacheQueue(){
+  const key = queueCacheKey();
+  if (!key) return;
+  try { sessionStorage.setItem(key, JSON.stringify({ savedAt:Date.now(), students:queue })); } catch(_){}
+}
 
 async function boot(){
   padId = new URLSearchParams(location.search).get('pad_id');
@@ -227,7 +233,7 @@ async function loadAll(){
   review = nextReview;
   fbSuggestions = suggestionResult.suggestions || [];
   contested = (review.suggestions || []).filter(s => s.status === 'pending');
-  const cacheKey = 'review-queue-'+review.assignment.id;
+  const cacheKey = queueCacheKey();
   let cached = null;
   try {
     cached = JSON.parse(sessionStorage.getItem(cacheKey));
@@ -237,13 +243,41 @@ async function loadAll(){
   else {
     try {
       queue = (await api('/api/assignments/'+review.assignment.id+'/dashboard?sort=name')).students || [];
-      sessionStorage.setItem(cacheKey, JSON.stringify({ savedAt:Date.now(), students:queue }));
+      cacheQueue();
     } catch(_){ queue = []; }
   }
   render();
 }
 
 function render(){ renderTop(); renderEssay(); renderRail(); }
+
+function renderLocal({ top=false, essay=false, rail=true }={}){
+  const railEl = document.getElementById('rail');
+  const railTop = railEl ? railEl.scrollTop : 0;
+  if (top) renderTop();
+  if (essay) renderEssay();
+  if (rail){ renderRail(); document.getElementById('rail').scrollTop = railTop; }
+}
+function upsertAnnotation(annotation){
+  const index = review.annotations.findIndex(item => String(item.id) === String(annotation.id));
+  if (index === -1) review.annotations.push(annotation);
+  else review.annotations[index] = annotation;
+}
+function removeAnnotation(annotationId){
+  review.annotations = review.annotations.filter(item => String(item.id) !== String(annotationId));
+}
+function resolveLiteracySuggestion(suggestionId){
+  contested = contested.filter(item => String(item.id) !== String(suggestionId));
+  review.suggestions = (review.suggestions || []).filter(item => String(item.id) !== String(suggestionId));
+}
+function addFeedbackItem(item){
+  const key = item.kind === 'strength' ? 'strengths' : 'targets';
+  review.feedback[key].push(item);
+}
+function removeFeedbackItem(item){
+  const key = item.kind === 'strength' ? 'strengths' : 'targets';
+  review.feedback[key] = review.feedback[key].filter(existing => String(existing.id) !== String(item.id));
+}
 
 function renderTop(){
   const s = review.student, pad = review.pad, a = review.assignment;
@@ -370,18 +404,23 @@ function openCodeChanger(ann, anchor){
   const reject = el('button','btn sm'); reject.textContent='Reject mark'; reject.style.color='var(--maroon-500)';
   reject.onclick = async ()=>{
     if(!confirm('Remove this mark? It also leaves the student\'s error record.')) return;
+    reject.disabled = true; reject.textContent = 'Removing…';
     const sug = ann.metadata && ann.metadata.suggestion_id;
     if (sug) await api('/api/native/pads/'+padId+'/suggestions/'+sug+'/disagree', { method:'POST' });
     else await api('/api/native/annotations/'+ann.id, { method:'DELETE' });
-    pop.remove(); toast('Mark removed'); await loadAll();
+    removeAnnotation(ann.id);
+    if (sug) resolveLiteracySuggestion(sug);
+    pop.remove(); toast('Mark removed'); renderLocal({ top:true, essay:true });
   };
   const cancel = el('button','btn sm'); cancel.textContent='✕';
   save.onclick = async ()=>{
+    save.disabled = true; save.textContent = 'Saving…';
     const code = sel.value;
     const label = (ALL_CODES.find(c=>c[0]===code)||[code,code])[1];
-    await api('/api/native/annotations/'+ann.id, { method:'PATCH',
+    const result = await api('/api/native/annotations/'+ann.id, { method:'PATCH',
       body:{ metadata: Object.assign({}, ann.metadata, { code, category: CODE_CAT(code), label }) } });
-    pop.remove(); toast('Code changed to '+code); await loadAll();
+    upsertAnnotation(result.annotation);
+    pop.remove(); toast('Code changed to '+code); renderLocal({ essay:true });
   };
   cancel.onclick = ()=> pop.remove();
   const quoteEl = el('span','code-pop-quote'); quoteEl.textContent = '"'+(ann.selected_text||'').slice(0,40)+'"';
@@ -518,12 +557,14 @@ function cardComments(){
       if (next == null) return;
       const trimmed = next.trim();
       if (!trimmed){ toast('Comment cannot be empty'); return; }
-      await api('/api/native/annotations/'+ann.id, { method:'PATCH', body:{ body: trimmed } });
-      toast('Comment updated'); await loadAll();
+      const result = await api('/api/native/annotations/'+ann.id, { method:'PATCH', body:{ body: trimmed } });
+      upsertAnnotation(result.annotation);
+      toast('Comment updated'); renderLocal({ essay:true });
     };
     const del = el('button','btn sm'); del.textContent='✕ Delete'; del.onclick=async ()=>{
       await api('/api/native/annotations/'+ann.id, { method:'DELETE' });
-      toast('Comment deleted'); await loadAll();
+      removeAnnotation(ann.id);
+      toast('Comment deleted'); renderLocal({ essay:true });
     };
     acts.append(find, edit, del); div.appendChild(acts);
     body.appendChild(div);
@@ -547,7 +588,13 @@ function cardStrengthsTargets(){
     const sel = document.createElement('select');
     for (const t of tables){ const o=document.createElement('option'); o.value=t.id; o.textContent=t.title; if(t.id===review.applied_feedback_table) o.selected=true; sel.appendChild(o); }
     const allOpt = document.createElement('option'); allOpt.value='all'; allOpt.textContent='All tables'; if(review.applied_feedback_table==='all') allOpt.selected=true; sel.appendChild(allOpt);
-    sel.onchange = async ()=>{ await api('/api/native/pads/'+padId+'/applied-feedback-table', { method:'PUT', body:{ table: sel.value } }); toast('Feedback bank set'); await loadAll(); };
+    sel.onchange = async ()=>{
+      sel.disabled = true;
+      const result = await api('/api/native/pads/'+padId+'/applied-feedback-table', { method:'PUT', body:{ table: sel.value } });
+      review.applied_feedback_table = result.applied_feedback_table;
+      review.feedback_options = result.feedback_options;
+      toast('Feedback bank set'); renderLocal();
+    };
     pick.append(lbl, sel); body.appendChild(pick);
   }
   for (const sug of fbSuggestions){
@@ -682,38 +729,54 @@ async function disagreeMark(ann){
   const sug = ann.metadata && ann.metadata.suggestion_id;
   if (!sug){ toast('This mark has no AI record to retract'); return; }
   await api('/api/native/pads/'+padId+'/suggestions/'+sug+'/disagree', { method:'POST' });
-  toast('Mark retracted'); await loadAll();
+  removeAnnotation(ann.id); resolveLiteracySuggestion(sug);
+  toast('Mark retracted'); renderLocal({ top:true, essay:true });
 }
 async function resolveContested(c, action){
-  if (action==='keep') await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' });
+  let result = null;
+  if (action==='keep') result = await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' });
   else if (action==='reject') await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/disagree', { method:'POST' });
-  else if (action==='change'){ if(!confirm('Keep this mark? Change the code from the mark once it is placed.')) return; await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' }); }
-  toast('Decision saved'); await loadAll();
+  else if (action==='change'){ if(!confirm('Keep this mark? Change the code from the mark once it is placed.')) return; result = await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' }); }
+  if (result && result.annotation) upsertAnnotation(result.annotation);
+  resolveLiteracySuggestion(c.id);
+  toast('Decision saved'); renderLocal({ top:true, essay:true });
 }
-async function acceptSuggestion(sug){ await api('/api/native/pads/'+padId+'/feedback-suggestions/'+sug.id+'/accept', { method:'POST' }); toast('Added'); await loadAll(); }
-async function rejectSuggestion(sug){ await api('/api/native/pads/'+padId+'/feedback-suggestions/'+sug.id+'/reject', { method:'POST' }); toast('Rejected'); await loadAll(); }
+async function acceptSuggestion(sug){
+  const result = await api('/api/native/pads/'+padId+'/feedback-suggestions/'+sug.id+'/accept', { method:'POST' });
+  addFeedbackItem(result.item); fbSuggestions = fbSuggestions.filter(item=>String(item.id)!==String(sug.id));
+  toast('Added'); renderLocal();
+}
+async function rejectSuggestion(sug){
+  await api('/api/native/pads/'+padId+'/feedback-suggestions/'+sug.id+'/reject', { method:'POST' });
+  fbSuggestions = fbSuggestions.filter(item=>String(item.id)!==String(sug.id));
+  toast('Rejected'); renderLocal();
+}
 async function editSuggestion(sug){
   const title = prompt('Edit title', sug.title); if(title==null) return;
-  await api('/api/native/pads/'+padId+'/feedback-items', { method:'POST', body:{ kind:sug.kind, title, explanation:sug.explanation, try_now_prompt:sug.try_now_prompt, source:'ai' } });
+  const result = await api('/api/native/pads/'+padId+'/feedback-items', { method:'POST', body:{ kind:sug.kind, title, explanation:sug.explanation, try_now_prompt:sug.try_now_prompt, source:'ai' } });
   await api('/api/native/pads/'+padId+'/feedback-suggestions/'+sug.id+'/reject', { method:'POST' });
-  toast('Saved'); await loadAll();
+  addFeedbackItem(result.item); fbSuggestions = fbSuggestions.filter(item=>String(item.id)!==String(sug.id));
+  toast('Saved'); renderLocal();
 }
 async function addFeedback(){
   const kind = document.getElementById('fbKind').value;
   const title = document.getElementById('fbTitle').value.trim();
   const explanation = document.getElementById('fbExpl').value.trim();
   if (!title){ toast('Title needed'); return; }
-  await api('/api/native/pads/'+padId+'/feedback-items', { method:'POST', body:{ kind, title, explanation } });
-  toast('Added'); await loadAll();
+  const result = await api('/api/native/pads/'+padId+'/feedback-items', { method:'POST', body:{ kind, title, explanation } });
+  addFeedbackItem(result.item);
+  toast('Added'); renderLocal();
 }
-async function deleteFeedback(item){ await api('/api/native/pads/'+padId+'/feedback-items/'+item.id, { method:'DELETE' }); toast('Removed'); await loadAll(); }
+async function deleteFeedback(item){
+  await api('/api/native/pads/'+padId+'/feedback-items/'+item.id, { method:'DELETE' });
+  removeFeedbackItem(item); toast('Removed'); renderLocal();
+}
 async function setScore(criterionId, value){
   const tab = rubricTabs().find(t=>t.kind===activeRubric);
   const endpoint = tab ? tab.endpoint : 'rubric-scores';
-  await api('/api/native/pads/'+padId+'/'+endpoint, { method:'PUT', body:{ scores:[{ criterion_id:criterionId, selected_score:value }] } });
-  review = await api('/api/native/pads/'+padId+'/review');
-  contested = (review.suggestions||[]).filter(s=>s.status==='pending');
-  renderRail();
+  const result = await api('/api/native/pads/'+padId+'/'+endpoint, { method:'PUT', body:{ scores:[{ criterion_id:criterionId, selected_score:value }] } });
+  if (tab) tab.data.scores = result.scores;
+  renderLocal();
 }
 // Per-student early release: only meaningful on batch assignments that are
 // marked but not yet released to the class.
@@ -745,6 +808,9 @@ function renderSendFeedback(){
 
 async function finishMarking(){
   await api('/api/native/pads/'+padId+'/finish-marking', { method:'POST' });
+  const current = queue.find(q=>String(q.pad_id)===String(padId));
+  if (current) current.status = 'marked';
+  cacheQueue();
   toast('Marked. Score held until you release to the class.');
   const withPad = queue.filter(q=>q.pad_id);
   const idx = withPad.findIndex(q=>String(q.pad_id)===String(padId));
@@ -811,10 +877,11 @@ document.getElementById('selCode').onchange = async ()=>{
   const label = (ALL_CODES.find(c=>c[0]===code)||[code,code])[1];
   const sel = pendingSel;
   closeSelBar();
-  await api('/api/native/pads/'+padId+'/annotations', { method:'POST', body:{
+  const result = await api('/api/native/pads/'+padId+'/annotations', { method:'POST', body:{
     type:'literacy_code', start_offset:sel.start, end_offset:sel.end, selected_text:sel.text,
     metadata:{ code, category:CODE_CAT(code), label, source:'teacher' }, document_version:review.pad.version } });
-  toast('Marked '+code); await loadAll();
+  upsertAnnotation(result.annotation);
+  toast('Marked '+code); renderLocal({ top:true, essay:true });
 };
 // The essay DOM carries hidden tooltip labels (<span class="tip">) inside
 // every mark, so counting characters with Range.toString() drifts right by
@@ -835,8 +902,9 @@ document.getElementById('commentSave').onclick = async ()=>{
   if (!pendingSel) return;
   const body = document.getElementById('commentText').value.trim();
   if (!body){ toast('Write a comment'); return; }
-  await api('/api/native/pads/'+padId+'/annotations', { method:'POST', body:{ type:'inline_comment', body, start_offset:pendingSel.start, end_offset:pendingSel.end, selected_text:pendingSel.text, document_version:review.pad.version } });
-  closePop(); toast('Comment saved'); await loadAll();
+  const result = await api('/api/native/pads/'+padId+'/annotations', { method:'POST', body:{ type:'inline_comment', body, start_offset:pendingSel.start, end_offset:pendingSel.end, selected_text:pendingSel.text, document_version:review.pad.version } });
+  upsertAnnotation(result.annotation);
+  closePop(); toast('Comment saved'); renderLocal({ essay:true });
 };
 document.addEventListener('mousedown', (e)=>{
   const pop=document.getElementById('commentPop'); if(pop.classList.contains('open') && !pop.contains(e.target)) closePop();
