@@ -1102,7 +1102,7 @@ export function renderNativeWriteView({
         const counts = {};
         for(const mark of gpMarks){
           const key = gpCodeKey(mark.code);
-          counts[key] = counts[key] || { code: mark.code, label: mark.label || mark.code, total: 0, left: 0 };
+          counts[key] = counts[key] || { code: mark.code, label: mark.label || mark.code, explanation: mark.explanation || '', selfCheck: mark.self_check || '', total: 0, left: 0 };
           counts[key].total++;
           if(mark.found) counts[key].left++;
         }
@@ -1122,8 +1122,8 @@ export function renderNativeWriteView({
         }
         html += '</div>';
         if(gpFilter){
-          const info = GP_CODE_INFO[gpFilter];
           const count = counts[gpFilter];
+          const info = GP_CODE_INFO[gpFilter] || (count && count.explanation ? { name:count.label, what:count.explanation, hint:count.selfCheck } : null);
           if(info){
             html += '<div class="gp-explainer" style="border-color:' + gpSwatchColor(gpFilter) + '">'
               + '<span class="gp-title"><span class="gp-swatch" style="background:' + gpSwatchColor(gpFilter) + '"></span>'

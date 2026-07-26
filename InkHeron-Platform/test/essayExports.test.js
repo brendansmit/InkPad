@@ -65,6 +65,10 @@ async function seed(app) {
     VALUES (?, 1, 'inline_comment', 0, 8, 'Reviewed', 'Use a more specific opening.', '{}', 0, 2)
   `).run(padId);
   reviewDb.prepare(`
+    INSERT INTO native_annotations (native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, resolved, document_version)
+    VALUES (?, 1, 'literacy_code', 9, 16, 'current', '', '{"code":"WORD-CLASS","category":"grammar"}', 0, 2)
+  `).run(padId);
+  reviewDb.prepare(`
     INSERT INTO native_feedback_items (native_pad_id, kind, title, explanation, source)
     VALUES (?, 'target', 'Add detail', 'Give one concrete example.', 'teacher')
   `).run(padId);
@@ -116,6 +120,7 @@ test('teacher downloads raw and reviewed individual DOCX files', async () => {
   assert.match(visibleText(reviewedZip.readAsText('word/document.xml')), /Reviewed current sentence/);
   assert.match(reviewedZip.readAsText('word/document.xml'), /commentRangeStart/);
   assert.match(reviewedZip.readAsText('word/comments.xml'), /Use a more specific opening/);
+  assert.match(reviewedZip.readAsText('word/comments.xml'), /WORD-CLASS: Wrong word form or part of speech/);
   assert.match(reviewedZip.readAsText('word/document.xml'), /Review summary/);
   assert.match(reviewedZip.readAsText('word/document.xml'), /Add detail/);
 

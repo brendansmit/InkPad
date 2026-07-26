@@ -1074,7 +1074,7 @@ test('student-facing feedback and marks never reveal AI as the source', async ()
   raw.prepare(`
     INSERT INTO ai_literacy_suggestions
       (native_pad_id, document_version, start_offset, end_offset, quote, code, category, label, model, checker_json, status)
-    VALUES (?, 1, 5, 7, 'is', 'Gra', 'grammar', 'Grammar', 'fake/doer', ?, 'pending')
+    VALUES (?, 1, 5, 7, 'is', 'SV-AGREEMENT', 'grammar', 'Subject–verb agreement: singular/plural mismatch', 'fake/doer', ?, 'pending')
   `).run(padId, JSON.stringify({ verbatim: true, confidence: 0.9, flag: null }));
   const promoteResult = autoPromoteSuggestions(raw, padId);
   raw.close();
@@ -1102,7 +1102,10 @@ test('student-facing feedback and marks never reveal AI as the source', async ()
   });
   assert.equal(feedback.statusCode, 200);
   const feedbackBody = feedback.json();
-  assert.equal(feedbackBody.annotations.find((a) => a.type === 'literacy_code').metadata.code, 'Gra');
+  const studentMark = feedbackBody.annotations.find((a) => a.type === 'literacy_code');
+  assert.equal(studentMark.metadata.code, 'SV-AGREEMENT');
+  assert.match(studentMark.metadata.explanation, /subject and finite verb/i);
+  assert.match(studentMark.metadata.self_check, /subject/i);
   assert.equal(feedbackBody.feedback.targets[0].title, 'Watch your verb agreement');
   assert.doesNotMatch(JSON.stringify(feedbackBody), /"source"|ai_auto|ai_accepted|suggestion_id/);
 

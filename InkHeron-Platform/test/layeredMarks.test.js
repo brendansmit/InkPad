@@ -22,6 +22,9 @@ test('student feedback renderer uses segment rendering for overlapping marks', (
   assert.doesNotMatch(html, /if\s*\(\s*sp\.s\s*>=\s*last\s*\)/, 'must not keep only non-overlapping spans');
   assert.match(html, /covering\s*=\s*spans\.filter/, 'segments carry all covering marks');
   assert.match(html, /stack-outer/);
+  assert.match(html, /function cardLiteracy\(\)/);
+  assert.match(html, /metadata\.self_check/);
+  assert.match(html, /m\.code\+' = '/, 'mark tooltips should name the specific code, not only its broad category');
 });
 
 test('literacy coder prompt tells the model to report overlapping errors', () => {

@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Updated student feedback, green pen and export consumers
+
+- Student feedback now names each specific code, explains it and shows the adjudicated self-check; the server enriches student-safe annotations without storing extra metadata. Green pen uses the same definitions and self-checks for all new codes while retaining the historical fallback explanations. Fixed the rewrite scorer to read `metadata.code` instead of the empty annotation body and include the code label in its judge prompt. Reviewed DOCX/PDF exports now fall back to the central label registry. Student-facing, green-pen, scorer, export and overlap tests pass.
+
 ## 2026-07-26 — Added searchable literacy picker and attention alternatives
 
 - Added a cached teacher-only codebook endpoint and replaced the 21-item native dropdown with a searchable modal grouped by grammar family, including all 67 specific codes and clearly separated legacy and manual codes. Uncertain attention cards show the specific label, uncertainty percentage and checker alternatives; choosing an alternative persists that code directly while preserving the optimistic response and rollback. Backend and UI contract tests pass 11/11. Browser QA was attempted through the required browser skill, but localhost remained blocked by the browser client security policy.

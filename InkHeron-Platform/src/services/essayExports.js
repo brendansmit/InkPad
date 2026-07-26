@@ -15,6 +15,7 @@ import {
 } from 'docx';
 import PDFDocument from 'pdfkit';
 import { realStudentsWhere } from '../db/realStudents.js';
+import { literacyCodeLabel } from './literacyCodeRegistry.js';
 
 const EXPORT_STATES = new Set(['raw', 'reviewed']);
 const BODY_FONT = 'Calibri';
@@ -47,7 +48,7 @@ function annotationLabel(row) {
   const metadata = parseJson(row.metadata_json);
   if (row.type === 'literacy_code') {
     const code = metadata.code ? `${metadata.code}: ` : '';
-    return `${code}${metadata.label || metadata.category || row.body || 'Literacy mark'}`;
+    return `${code}${metadata.label || literacyCodeLabel(metadata.code) || metadata.category || row.body || 'Literacy mark'}`;
   }
   if (row.type === 'inline_comment') return row.body || 'Inline comment';
   if (row.type === 'highlight') return row.body || 'Highlighted by teacher';

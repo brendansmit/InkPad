@@ -15,6 +15,7 @@ import { generateReportSnippet } from '../services/reportSnippet.js';
 import {
   ALL_CODE_DEFINITIONS,
   ALL_CODES as LITERACY_CODES,
+  getLiteracyCode,
   literacyCodeCategory,
   literacyCodeLabel,
 } from '../services/literacyCodeRegistry.js';
@@ -657,6 +658,15 @@ function studentSafeFeedback(feedback) {
 
 function studentSafeAnnotation(annotation) {
   const { source, suggestion_id, ...metadata } = annotation.metadata || {};
+  if (annotation.type === 'literacy_code' && metadata.code) {
+    const definition = getLiteracyCode(metadata.code);
+    if (definition) {
+      metadata.label = metadata.label || definition.label;
+      metadata.family = definition.family;
+      metadata.explanation = definition.definition || definition.label;
+      metadata.self_check = definition.selfCheck || '';
+    }
+  }
   return { ...annotation, metadata };
 }
 
@@ -2545,7 +2555,7 @@ function loadImplementationScore(db, padId) {
   );
 
   // Green-pen context for a rewrite pad: the original's marks and feedback,
-  // category-only (never the fix), rendered inside the student's editor.
+  // including the code definition and self-check but never the correction.
   app.get('/api/native/pads/:padId/greenpen-context',
     { preValidation: [app.requireStudentSession] },
     async (request, reply) => {
@@ -2565,12 +2575,16 @@ function loadImplementationScore(db, padId) {
       `).all(original.id).map((row) => {
         let meta = {};
         try { meta = JSON.parse(row.metadata_json || '{}'); } catch { meta = {}; }
+        const definition = getLiteracyCode(meta.code || row.body || '');
         return {
           id: row.id,
           quote: row.selected_text ?? '',
           code: meta.code || row.body || '',
           category: meta.category || 'other',
           label: meta.label || meta.code || row.body || '',
+          family: definition?.family || '',
+          explanation: definition?.definition || '',
+          self_check: definition?.selfCheck || '',
           context_before: text.slice(Math.max(0, (row.start_offset ?? 0) - 24), row.start_offset ?? 0),
           context_after: text.slice(row.end_offset ?? 0, (row.end_offset ?? 0) + 24),
         };

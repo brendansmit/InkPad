@@ -20,6 +20,7 @@
  */
 import { callChat } from './openRouter.js';
 import { readDoerIntent } from './settingsStore.js';
+import { literacyCodeLabel } from './literacyCodeRegistry.js';
 
 
 
@@ -109,7 +110,7 @@ export async function scoreRewrite(db, { rewritePadId } = {}, { chat = callChat 
     if (!original) return { status: 'skipped' };
 
     const annotations = db.prepare(`
-      SELECT id, type, selected_text, body FROM native_annotations
+      SELECT id, type, selected_text, body, metadata_json FROM native_annotations
       WHERE native_pad_id = ? AND type IN ('literacy_code', 'inline_comment')
       ORDER BY start_offset
     `).all(original.id);
@@ -120,11 +121,16 @@ export async function scoreRewrite(db, { rewritePadId } = {}, { chat = callChat 
 
     // Feedback items in one numbered list for the judge.
     const items = [
-      ...annotations.map((a) => ({
-        kind: a.type, id: a.id, code: a.type === 'literacy_code' ? a.body : null,
-        quote: a.selected_text, comment: a.type === 'inline_comment' ? a.body : null,
-        span_unchanged: spanStillPresent(rewrite.plain_text, a.selected_text),
-      })),
+      ...annotations.map((a) => {
+        let metadata = {};
+        try { metadata = JSON.parse(a.metadata_json || '{}'); } catch { metadata = {}; }
+        const code = a.type === 'literacy_code' ? (metadata.code || a.body || '') : null;
+        return {
+          kind: a.type, id: a.id, code, label: code ? literacyCodeLabel(code) : null,
+          quote: a.selected_text, comment: a.type === 'inline_comment' ? a.body : null,
+          span_unchanged: spanStillPresent(rewrite.plain_text, a.selected_text),
+        };
+      }),
       ...targets.map((t) => ({
         kind: 'target', id: t.id, title: t.title, explanation: t.explanation, span_unchanged: null,
       })),
@@ -136,7 +142,7 @@ export async function scoreRewrite(db, { rewritePadId } = {}, { chat = callChat 
     let modelId = '';
     if (items.length > 0 || rewrite.plain_text) {
       const listing = items.map((it, i) => {
-        if (it.kind === 'literacy_code') return `${i}. [code ${it.code}] flagged text: "${it.quote}"`;
+        if (it.kind === 'literacy_code') return `${i}. [code ${it.code}: ${it.label}] flagged text: "${it.quote}"`;
         if (it.kind === 'inline_comment') return `${i}. [comment] on "${it.quote}": ${it.comment}`;
         return `${i}. [target] ${it.title}: ${it.explanation}`;
       }).join('\n');

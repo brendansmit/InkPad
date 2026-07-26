@@ -39,7 +39,7 @@ async function seed(db) {
   `).run(studentId, a1.json().assignment.id, ORIGINAL).lastInsertRowid;
   db.prepare(`
     INSERT INTO native_annotations (native_pad_id, type, start_offset, end_offset, selected_text, body, metadata_json)
-    VALUES (?, 'literacy_code', 5, 7, 'is', '', '{"code":"Gra","category":"grammar","label":"Grammar"}')
+    VALUES (?, 'literacy_code', 5, 7, 'is', '', '{"code":"SV-AGREEMENT","category":"grammar","label":"Subject–verb agreement: singular/plural mismatch"}')
   `).run(originalId);
   db.prepare(`
     INSERT INTO native_annotations (native_pad_id, type, start_offset, end_offset, selected_text, body)
@@ -72,6 +72,9 @@ test('greenpen-context returns category-only marks, feedback and comments for th
   assert.equal(ctx.marks.length, 1);
   assert.equal(ctx.marks[0].quote, 'is');
   assert.equal(ctx.marks[0].category, 'grammar');
+  assert.equal(ctx.marks[0].code, 'SV-AGREEMENT');
+  assert.match(ctx.marks[0].explanation, /subject and finite verb/i);
+  assert.match(ctx.marks[0].self_check, /subject/i);
   assert.equal(ctx.marks[0].context_before, 'They ');
   assert.ok(ctx.marks[0].context_after.startsWith(' playing'));
   assert.equal(ctx.feedback.targets.length, 1);
@@ -98,6 +101,7 @@ test('write view for a rewrite pad includes the green pen panel and engine', asy
   assert.match(page.body, /gpCard/);
   assert.match(page.body, /greenpen-context/);
   assert.match(page.body, /const GREENPEN = true/);
+  assert.match(page.body, /count\.explanation/);
 
   // A normal (non-rewrite) assignment write view has no green pen panel.
   const otherAssignment = db.prepare('SELECT assignment_id FROM native_pads WHERE rewrite_of_pad_id IS NULL LIMIT 1').get().assignment_id;

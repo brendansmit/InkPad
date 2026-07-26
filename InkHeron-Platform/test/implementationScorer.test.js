@@ -52,8 +52,8 @@ async function seedPads(db, { rewriteText }) {
   `).run(studentId, assignmentId, ORIGINAL).lastInsertRowid;
 
   db.prepare(`
-    INSERT INTO native_annotations (native_pad_id, type, start_offset, end_offset, selected_text, body)
-    VALUES (?, 'literacy_code', 5, 7, 'is', 'Gra')
+    INSERT INTO native_annotations (native_pad_id, type, start_offset, end_offset, selected_text, body, metadata_json)
+    VALUES (?, 'literacy_code', 5, 7, 'is', '', '{"code":"SV-AGREEMENT","category":"grammar","label":"Subject–verb agreement: singular/plural mismatch"}')
   `).run(originalId);
   db.prepare(`
     INSERT INTO native_annotations (native_pad_id, type, start_offset, end_offset, selected_text, body)
@@ -96,9 +96,14 @@ test('scoreRewrite upserts a verdict merging diff evidence with the AI judgement
   const db = openDatabase(tmpDb());
   const { app, originalId, rewriteId, studentId } = await seedPads(db, { rewriteText: GOOD_REWRITE });
 
+  let judgePrompt = '';
   const result = await scoreRewrite(db, { rewritePadId: rewriteId },
-    { chat: () => Promise.resolve(judgeResponse({ addressed: [true, true, true], meaningful: true })) });
+    { chat: (_db, { messages }) => {
+      judgePrompt = messages.at(-1).content;
+      return Promise.resolve(judgeResponse({ addressed: [true, true, true], meaningful: true }));
+    } });
   assert.equal(result.status, 'ok');
+  assert.match(judgePrompt, /SV-AGREEMENT: Subject/);
 
   const row = db.prepare('SELECT * FROM implementation_scores WHERE rewrite_pad_id = ?').get(rewriteId);
   assert.equal(row.original_pad_id, originalId);
@@ -108,6 +113,7 @@ test('scoreRewrite upserts a verdict merging diff evidence with the AI judgement
   assert.ok(row.cosmetic_ratio < 0.5);
   const verdict = JSON.parse(row.addressed_json);
   assert.equal(verdict.codes.length, 1);
+  assert.equal(verdict.codes[0].code, 'SV-AGREEMENT');
   assert.equal(verdict.codes[0].addressed, true, 'flagged "is" changed and AI agrees');
   assert.equal(verdict.targets.length, 1);
   assert.equal(verdict.targets[0].addressed, true);
