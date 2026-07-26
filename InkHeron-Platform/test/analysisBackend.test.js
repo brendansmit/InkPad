@@ -94,7 +94,7 @@ test('teacher can add structured strengths and targets, visible in review and st
   await app.close();
 });
 
-test('accepting an AI literacy suggestion promotes it to a mark and feeds the profile', async () => {
+test('teacher can load the codebook and accept an AI suggestion with a corrected code', async () => {
   const dbPath = tmpDb();
   const app = await buildApp({ databasePath: dbPath, logger: false });
   const { t, studentId, padId } = await seed(app);
@@ -103,7 +103,7 @@ test('accepting an AI literacy suggestion promotes it to a mark and feeds the pr
   const db = new DatabaseSync(dbPath);
   db.prepare(`
     INSERT INTO ai_literacy_suggestions (native_pad_id, document_version, start_offset, end_offset, quote, code, category, label, model, status)
-    VALUES (?, 1, 0, 3, 'is', 'Gra', 'grammar', 'Subject-verb agreement', 'test-model', 'pending')
+    VALUES (?, 1, 0, 3, 'is', 'SV-AGREEMENT', 'grammar', 'Subject-verb agreement', 'test-model', 'pending')
   `).run(padId);
   const suggestionId = db.prepare('SELECT id FROM ai_literacy_suggestions WHERE native_pad_id = ?').get(padId).id;
   db.close();
@@ -113,17 +113,24 @@ test('accepting an AI literacy suggestion promotes it to a mark and feeds the pr
   assert.equal(before.json().annotations.length, 0);
   assert.equal(before.json().suggestions.length, 1);
 
+  const codebook = await app.inject({ method: 'GET', url: '/api/native/literacy-codes', headers: { cookie: t.cookies } });
+  assert.equal(codebook.statusCode, 200);
+  assert.equal(codebook.json().codes.length, 88);
+  assert.ok(codebook.json().codes.some((code) => code.code === 'ARTICLE-MISSING' && code.family === 'Articles'));
+
   const accept = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/suggestions/${suggestionId}/accept`,
+    payload: { code: 'PRESENT-3S-MISSING' },
     headers: { 'X-CSRF-Token': t.csrf, cookie: t.cookies } });
   assert.equal(accept.statusCode, 201);
   assert.equal(accept.json().annotation.type, 'literacy_code');
+  assert.equal(accept.json().annotation.metadata.code, 'PRESENT-3S-MISSING');
 
   // Now it is a real annotation and the profile has evidence.
   const after = await app.inject({ method: 'GET', url: `/api/native/pads/${padId}/review`, headers: { cookie: t.cookies } });
   assert.equal(after.json().annotations.length, 1);
   assert.equal(after.json().suggestions.length, 0);
   const profile = await app.inject({ method: 'GET', url: `/api/native/students/${studentId}/profile`, headers: { cookie: t.cookies } });
-  assert.ok(profile.json().profile.literacy_issues.some((issue) => issue.code === 'Gra'));
+  assert.ok(profile.json().profile.literacy_issues.some((issue) => issue.code === 'PRESENT-3S-MISSING'));
 
   // Accepting again is a conflict.
   const again = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/suggestions/${suggestionId}/accept`,

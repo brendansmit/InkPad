@@ -22,7 +22,7 @@ test('small review mutations update local state instead of reloading the essay p
 });
 
 test('attention decisions update immediately and roll back if saving fails', () => {
-  const handler = html.match(/async function resolveContested\(c, action\)\{([\s\S]*?)\n\}\nasync function acceptSuggestion/)?.[1] || '';
+  const handler = html.match(/async function resolveContested\(c, action, acceptedCode=c\.code\)\{([\s\S]*?)\n\}\nasync function acceptSuggestion/)?.[1] || '';
   const localUpdate = handler.indexOf('resolveLiteracySuggestion(c.id)');
   const networkSave = handler.indexOf("await api('/api/native/pads/'");
   assert.ok(localUpdate !== -1 && networkSave !== -1 && localUpdate < networkSave, 'attention UI should update before waiting for the network');
@@ -30,6 +30,14 @@ test('attention decisions update immediately and roll back if saving fails', () 
   assert.match(handler, /review\.suggestions\.push\(c\)/, 'failed saves should restore only the failed suggestion');
   assert.doesNotMatch(handler, /snapshot\.annotations/, 'one failed save must not roll back other attention decisions');
   assert.match(handler, /Decision restored/, 'failed saves should explain the rollback');
+});
+
+test('literacy picker is searchable, grouped and supports checker alternatives', () => {
+  assert.match(html, /api\('\/api\/native\/literacy-codes'\)/, 'the full registry should load once through the cached codebook endpoint');
+  assert.match(html, /id="codeSearch"[^>]+type="search"/, 'the picker needs a search field');
+  assert.match(html, /function pickerFamily\(definition\)/, 'code choices should be grouped by grammar family');
+  assert.match(html, /checker\.alternatives/, 'attention cards should expose checker alternatives');
+  assert.match(html, /body:action==='change'\?\{code:acceptedCode\}:\{\}/, 'choosing an alternative should persist that code directly');
 });
 
 test('review page inline JavaScript parses', () => {

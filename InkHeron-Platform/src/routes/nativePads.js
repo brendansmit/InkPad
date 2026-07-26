@@ -12,6 +12,12 @@ import { realStudentsWhere } from '../db/realStudents.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
 import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
 import { generateReportSnippet } from '../services/reportSnippet.js';
+import {
+  ALL_CODE_DEFINITIONS,
+  ALL_CODES as LITERACY_CODES,
+  literacyCodeCategory,
+  literacyCodeLabel,
+} from '../services/literacyCodeRegistry.js';
 
 // Fire-and-forget an async analysis seam without blocking the HTTP response.
 // A missing OpenRouter key or a stub is a clean no-op; errors are logged only.
@@ -1498,6 +1504,17 @@ function normalizeAnnotationInput(body, pad) {
 }
 
 export async function registerNativePadRoutes(app, { db }) {
+  app.get('/api/native/literacy-codes',
+    { preValidation: [app.requireTeacherSession] },
+    async (_request, reply) => {
+      reply.header('Cache-Control', 'private, max-age=3600');
+      return {
+        version: '2026-07-26',
+        codes: ALL_CODE_DEFINITIONS,
+      };
+    }
+  );
+
   app.get('/api/native/assignments/:id/pad',
     { preValidation: [app.requireStudentSession] },
     async (request, reply) => {
@@ -2390,12 +2407,18 @@ function loadImplementationScore(db, padId) {
       if (!suggestion) return reply.code(404).send({ error: 'suggestion_not_found' });
       if (suggestion.status !== 'pending') return reply.code(409).send({ error: 'already_resolved' });
 
+      const requestedCode = typeof request.body?.code === 'string' ? request.body.code.trim() : '';
+      if (requestedCode && !LITERACY_CODES.has(requestedCode)) {
+        return reply.code(400).send({ error: 'invalid_literacy_code' });
+      }
+      const acceptedCode = requestedCode || suggestion.code;
+
       // Promote the suggestion into a real literacy_code annotation so it
       // becomes visible feedback and feeds the student profile.
       const metadata = normalizeMetadata({
-        code: suggestion.code,
-        category: suggestion.category,
-        label: suggestion.label || suggestion.code,
+        code: acceptedCode,
+        category: literacyCodeCategory(acceptedCode),
+        label: literacyCodeLabel(acceptedCode),
         source: 'ai_accepted',
         suggestion_id: suggestion.id,
       });
@@ -2410,7 +2433,11 @@ function loadImplementationScore(db, padId) {
       const annotationRow = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(annResult.lastInsertRowid);
       syncLiteracyEvidence(db, pad, annotationRow);
       db.prepare("UPDATE ai_literacy_suggestions SET status = 'accepted', annotation_id = ?, resolved_at = datetime('now') WHERE id = ?").run(annotationRow.id, suggestionId);
-      logTeacherEvent(db, padId, request.session.user.id, 'suggestion_accepted', { suggestion_id: suggestionId, code: suggestion.code });
+      logTeacherEvent(db, padId, request.session.user.id, 'suggestion_accepted', {
+        suggestion_id: suggestionId,
+        suggested_code: suggestion.code,
+        accepted_code: acceptedCode,
+      });
       return reply.code(201).send({ annotation: publicAnnotation(annotationRow) });
     }
   );

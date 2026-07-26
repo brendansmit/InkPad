@@ -46,6 +46,23 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 .code-pop{position:absolute;z-index:90;display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border-2);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow-lift)}
 .code-pop-quote{font-family:var(--serif);font-size:12.5px;color:var(--text-2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .code-pop select{border:1.5px solid var(--border-2);border-radius:8px;padding:5px 7px;font:inherit;font-size:12.5px;background:var(--surface)}
+.code-choose{max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.code-picker{width:min(720px,calc(100vw - 24px));max-height:min(760px,calc(100vh - 24px));padding:0;border:1px solid var(--border-2);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lift)}
+.code-picker::backdrop{background:rgba(24,28,25,.42);backdrop-filter:blur(2px)}
+.code-picker-box{display:grid;grid-template-rows:auto auto minmax(160px,1fr) auto;max-height:min(760px,calc(100vh - 24px))}
+.code-picker-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border)}
+.code-picker-head strong{flex:1;font-family:var(--serif);font-size:18px}
+.code-search{margin:12px 16px 6px;width:calc(100% - 32px);border:1.5px solid var(--border-2);border-radius:9px;padding:9px 11px;font:inherit;background:var(--surface);color:var(--text)}
+.code-options{overflow:auto;padding:6px 16px 14px;display:grid;gap:12px}
+.code-family{display:grid;gap:5px}
+.code-family h3{margin:0;color:var(--text-3);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.code-choice{display:grid;grid-template-columns:minmax(130px,.55fr) minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;padding:8px 10px;text-align:left;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);cursor:pointer}
+.code-choice:hover,.code-choice.current{border-color:var(--green-600);background:var(--green-50)}
+.code-choice code{font-family:var(--mono);font-size:11px;font-weight:800;color:var(--maroon-500);overflow-wrap:anywhere}
+.code-choice span{font-size:12.5px}
+.code-choice small{font-size:10px;color:var(--text-3)}
+.code-picker-foot{padding:10px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end}
+.code-alternatives{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 7px}
 .mk:hover .tip{display:block}
 .rail{position:sticky;top:64px;display:grid;gap:10px;max-height:calc(100vh - 80px);overflow:auto;padding-bottom:4px;min-width:0}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--shadow-card)}
@@ -136,7 +153,7 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   .grp,.cst,.sug,.fb{padding:10px}
   .grpmark{align-items:flex-start;flex-wrap:wrap}
   .grpmark .q{flex-basis:100%;white-space:normal}
-  .addrow textarea,.addrow input,.addrow select,.selbar select,.code-pop select,.popover textarea{font-size:16px}
+  .addrow textarea,.addrow input,.addrow select,.code-pop select,.popover textarea,.code-search{font-size:16px}
   .addrow textarea{min-height:88px}
   .scale{gap:7px;overflow-x:auto;padding-bottom:6px}
   .pt{flex:0 0 50px;min-height:48px;font-size:15px;border-radius:9px}
@@ -147,6 +164,8 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   .popover textarea{width:100%;min-height:96px}
   .code-pop{position:fixed;left:8px;right:8px;width:auto;flex-wrap:wrap}
   .code-pop-quote{max-width:100%;flex-basis:100%}
+  .code-choice{grid-template-columns:minmax(110px,.7fr) minmax(0,1fr)}
+  .code-choice small{display:none}
   .toast{left:10px;right:10px;bottom:12px;transform:none;text-align:center}
 }
 </style>
@@ -182,8 +201,15 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 <div class="selbar" id="selBar">
   <button class="btn sm" id="selComment">Comment</button>
   <button class="btn sm" id="selMark">Mark error ▾</button>
-  <select id="selCode" style="display:none"></select>
 </div>
+<dialog class="code-picker" id="codePicker">
+  <div class="code-picker-box">
+    <div class="code-picker-head"><strong id="codePickerTitle">Choose literacy code</strong><button class="btn sm" id="codePickerClose" type="button">Close</button></div>
+    <input class="code-search" id="codeSearch" type="search" placeholder="Search code, label or grammar family" autocomplete="off">
+    <div class="code-options" id="codeOptions"></div>
+    <div class="code-picker-foot"><button class="btn sm" id="codePickerCancel" type="button">Cancel</button></div>
+  </div>
+</dialog>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -198,6 +224,7 @@ let padId = null;
 let activeRubric = 'internal';
 const pendingAttention = new Set();
 const QUEUE_CACHE_MS = 5 * 60 * 1000;
+const CODEBOOK_CACHE_KEY = 'literacy-codebook-2026-07-26';
 
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
@@ -229,7 +256,8 @@ async function boot(){
 async function loadAll(){
   const [nextReview, suggestionResult] = await Promise.all([
     api('/api/native/pads/'+padId+'/review?compact=1'),
-    api('/api/native/pads/'+padId+'/feedback-suggestions?status=pending')
+    api('/api/native/pads/'+padId+'/feedback-suggestions?status=pending'),
+    loadCodeDefinitions()
   ]);
   review = nextReview;
   fbSuggestions = suggestionResult.suggestions || [];
@@ -382,25 +410,83 @@ function renderEssay(){
   };
 }
 
-const ALL_CODES = [['Sp','Spelling'],['Caps','Capital letter'],['P','Punctuation'],['^','Missing word'],['Exp','Expression'],['Gra','Grammar'],['Embed','Quotation embedding'],['AA/Adj','Adjective form'],['STR','Sentence structure'],['FOR','Formatting'],['WO','Word order'],['WW','Wrong word'],['V','Verb formation'],['VT','Verb tense'],['del','Delete word'],['inc','Incomplete sentence'],['RO','Run-on sentence'],['Rep','Repetition'],['MT','Mistranslated name or saying'],['✓','Good work'],['//','New paragraph']];
-const CODE_CAT = (code)=>{
-  if (['Sp','Caps','^','WW','AA/Adj','Rep'].includes(code)) return 'surface';
-  if (['Gra','VT','V','WO','del','inc','RO','STR','Exp','MT'].includes(code)) return 'grammar';
-  if (['P','FOR','//','Embed'].includes(code)) return 'format';
-  if (code === '✓') return 'positive';
-  return 'other';
-};
+const FALLBACK_CODES = [['Sp','Spelling','Spelling','surface'],['Caps','Capital letter','Capitalisation','surface'],['P','Punctuation','Punctuation','format'],['Exp','Expression','Expression','surface'],['Embed','Quotation embedding','Punctuation','format'],['FOR','Formatting','Formatting','format'],['WW','Wrong word','Word choice','surface'],['Rep','Repetition','Expression','surface'],['✓','Good work','Teacher marks','positive'],['//','New paragraph','Teacher marks','format']]
+  .map(([code,label,family,category])=>({code,label,searchLabel:label,family,category,priority:'fallback',source:'fallback'}));
+let codeDefinitions = FALLBACK_CODES;
+
+function setCodeDefinitions(codes){
+  if (!Array.isArray(codes) || !codes.length) return;
+  codeDefinitions = codes;
+}
+async function loadCodeDefinitions(){
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(CODEBOOK_CACHE_KEY));
+    if (cached && Array.isArray(cached.codes)) setCodeDefinitions(cached.codes);
+  } catch(_){}
+  try {
+    const payload = await api('/api/native/literacy-codes');
+    setCodeDefinitions(payload.codes);
+    try { sessionStorage.setItem(CODEBOOK_CACHE_KEY, JSON.stringify(payload)); } catch(_){}
+  } catch(error){
+    if (codeDefinitions === FALLBACK_CODES) console.warn('Literacy codebook unavailable', error);
+  }
+}
+function codeDefinition(code){ return codeDefinitions.find(item=>item.code===code) || {code,label:code,family:'Other',category:'other'}; }
+const CODE_CAT = (code)=>codeDefinition(code).category||'other';
+const CODE_LABEL = (code)=>codeDefinition(code).label||code;
+
+let codePickerCallback = null;
+let codePickerCurrent = '';
+function pickerFamily(definition){
+  if (definition.source === 'legacy') return 'Legacy codes';
+  if (definition.source === 'manual') return 'Teacher marks';
+  return definition.family || 'Other';
+}
+function renderCodePicker(){
+  const query = document.getElementById('codeSearch').value.trim().toLowerCase();
+  const visible = codeDefinitions.filter(definition=>{
+    const haystack = [definition.code,definition.label,definition.searchLabel,definition.family,definition.definition].join(' ').toLowerCase();
+    return !query || haystack.includes(query);
+  });
+  const groups = new Map();
+  visible.forEach(definition=>{
+    const family = pickerFamily(definition);
+    if (!groups.has(family)) groups.set(family, []);
+    groups.get(family).push(definition);
+  });
+  const host = document.getElementById('codeOptions'); host.innerHTML='';
+  if (!visible.length){ const empty=el('div','autonote'); empty.textContent='No matching literacy codes.'; host.appendChild(empty); return; }
+  [...groups.entries()].sort(([a],[b])=>a.localeCompare(b)).forEach(([family,definitions])=>{
+    const section=el('section','code-family'); const heading=document.createElement('h3'); heading.textContent=family; section.appendChild(heading);
+    definitions.forEach(definition=>{
+      const button=el('button','code-choice'+(definition.code===codePickerCurrent?' current':'')); button.type='button';
+      button.innerHTML='<code>'+esc(definition.code)+'</code><span>'+esc(definition.label)+'</span><small>'+esc(definition.priority||'')+'</small>';
+      button.title=definition.definition||definition.label;
+      button.onclick=()=>{ const callback=codePickerCallback; closeCodePicker(); if(callback) callback(definition.code); };
+      section.appendChild(button);
+    });
+    host.appendChild(section);
+  });
+}
+function openCodePicker({ currentCode='', title='Choose literacy code', onChoose }={}){
+  codePickerCallback=onChoose; codePickerCurrent=currentCode;
+  document.getElementById('codePickerTitle').textContent=title;
+  const search=document.getElementById('codeSearch'); search.value=''; renderCodePicker();
+  const dialog=document.getElementById('codePicker'); dialog.showModal(); setTimeout(()=>search.focus(),0);
+}
+function closeCodePicker(){ const dialog=document.getElementById('codePicker'); if(dialog.open) dialog.close(); codePickerCallback=null; }
+document.getElementById('codeSearch').oninput=renderCodePicker;
+document.getElementById('codePickerClose').onclick=closeCodePicker;
+document.getElementById('codePickerCancel').onclick=closeCodePicker;
 
 function openCodeChanger(ann, anchor){
   document.querySelectorAll('.code-pop').forEach(p=>p.remove());
   const pop = el('div','code-pop');
-  const sel = document.createElement('select');
-  for (const [code,label] of ALL_CODES){
-    const opt = document.createElement('option');
-    opt.value = code; opt.textContent = code+' · '+label;
-    if (code === (ann.metadata && ann.metadata.code)) opt.selected = true;
-    sel.appendChild(opt);
-  }
+  let selectedCode = ann.metadata && ann.metadata.code;
+  const choose = el('button','btn sm code-choose');
+  const refreshChoice=()=>{ choose.textContent=selectedCode+' · '+CODE_LABEL(selectedCode); };
+  refreshChoice();
+  choose.onclick=()=>openCodePicker({ currentCode:selectedCode, title:'Change literacy code', onChoose:(code)=>{ selectedCode=code; refreshChoice(); } });
   const save = el('button','btn sm'); save.textContent='Save';
   const reject = el('button','btn sm'); reject.textContent='Reject mark'; reject.style.color='var(--maroon-500)';
   reject.onclick = async ()=>{
@@ -416,8 +502,8 @@ function openCodeChanger(ann, anchor){
   const cancel = el('button','btn sm'); cancel.textContent='✕';
   save.onclick = async ()=>{
     save.disabled = true; save.textContent = 'Saving…';
-    const code = sel.value;
-    const label = (ALL_CODES.find(c=>c[0]===code)||[code,code])[1];
+    const code = selectedCode;
+    const label = CODE_LABEL(code);
     const result = await api('/api/native/annotations/'+ann.id, { method:'PATCH',
       body:{ metadata: Object.assign({}, ann.metadata, { code, category: CODE_CAT(code), label }) } });
     upsertAnnotation(result.annotation);
@@ -425,7 +511,7 @@ function openCodeChanger(ann, anchor){
   };
   cancel.onclick = ()=> pop.remove();
   const quoteEl = el('span','code-pop-quote'); quoteEl.textContent = '"'+(ann.selected_text||'').slice(0,40)+'"';
-  pop.append(quoteEl, sel, save, reject, cancel);
+  pop.append(quoteEl, choose, save, reject, cancel);
   document.body.appendChild(pop);
   const r = anchor.getBoundingClientRect();
   if (window.matchMedia('(max-width: 760px)').matches){
@@ -504,7 +590,7 @@ function cardAutoMarked(){
     body.append(row, marks);
   }
   card.appendChild(body);
-  const note = el('div','autonote'); note.textContent = 'Both models agreed on these at 75%+ confidence, so they are already live marks. Click a group to walk its spans in the text; disagree on any one to retract it.';
+  const note = el('div','autonote'); note.textContent = 'Both models agreed on these with less than 40% uncertainty, so they are already live marks. Click a group to walk its spans in the text; disagree on any one to retract it.';
   card.appendChild(note);
   return card;
 }
@@ -518,12 +604,23 @@ function cardNeedsYou(){
   else {
     const c = contested[0];
     let checker = {}; try { checker = JSON.parse(c.checker_json||'{}'); } catch(_){}
+    const definition = codeDefinition(c.code);
+    const uncertainty = typeof checker.confidence === 'number' ? Math.round((1-checker.confidence)*100)+'% uncertainty' : 'confidence unavailable';
     const cst = el('div','cst');
     cst.innerHTML = '<div class="q">'+sentenceHtml(c.start_offset, c.end_offset, c.quote)+' <span class="count">'+esc(c.code)+'</span></div>'+
-      '<div class="why">Checker unsure ('+(checker.confidence!=null?checker.confidence:'?')+')'+(checker.note?': '+esc(checker.note):'')+'</div>';
+      '<div class="why">'+esc(definition.label)+' · '+esc(uncertainty)+(checker.note?': '+esc(checker.note):'')+'</div>';
+    const alternatives = (checker.alternatives||[]).map(codeDefinition).filter(item=>item&&item.code!==c.code);
+    if (alternatives.length){
+      const altWrap=el('div','code-alternatives');
+      alternatives.forEach(alternative=>{
+        const alt=el('button','btn sm'); alt.textContent='Use '+alternative.code; alt.title=alternative.label;
+        alt.onclick=()=>resolveContested(c,'change',alternative.code); altWrap.appendChild(alt);
+      });
+      cst.appendChild(altWrap);
+    }
     const acts = el('div','acts');
     const keep = el('button','btn sm'); keep.textContent='✓ Keep '+c.code; keep.onclick=()=>resolveContested(c,'keep');
-    const change = el('button','btn sm'); change.textContent='Change code'; change.onclick=()=>resolveContested(c,'change');
+    const change = el('button','btn sm'); change.textContent='Change code'; change.onclick=()=>openCodePicker({ currentCode:c.code, title:'Choose the correct code', onChoose:(code)=>resolveContested(c,'change',code) });
     const no = el('button','btn sm'); no.textContent='✕ Not an error'; no.onclick=()=>resolveContested(c,'reject');
     acts.append(keep,change,no); cst.appendChild(acts); body.appendChild(cst);
     if (contested.length>1){ const more=el('div','autonote'); more.style.padding='0'; more.textContent='+ '+(contested.length-1)+' more after this one'; body.appendChild(more); }
@@ -733,9 +830,8 @@ async function disagreeMark(ann){
   removeAnnotation(ann.id); resolveLiteracySuggestion(sug);
   toast('Mark retracted'); renderLocal({ top:true, essay:true });
 }
-async function resolveContested(c, action){
+async function resolveContested(c, action, acceptedCode=c.code){
   if (pendingAttention.has(c.id)) return;
-  if (action==='change' && !confirm('Keep this mark? Change the code from the mark once it is placed.')) return;
   pendingAttention.add(c.id);
   const provisionalId = 'saving-'+c.id;
   if (action !== 'reject') upsertAnnotation({
@@ -746,14 +842,14 @@ async function resolveContested(c, action){
     selected_text: c.quote,
     body: '',
     document_version: c.document_version,
-    metadata: { code:c.code, category:c.category, label:c.label||c.code, source:'saving', suggestion_id:c.id },
+    metadata: { code:acceptedCode, category:CODE_CAT(acceptedCode), label:CODE_LABEL(acceptedCode), source:'saving', suggestion_id:c.id },
   });
   resolveLiteracySuggestion(c.id);
   renderLocal({ top:true, essay:true });
   toast('Saving decision…');
   try {
     let result = null;
-    if (action==='keep' || action==='change') result = await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST' });
+    if (action==='keep' || action==='change') result = await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/accept', { method:'POST', body:action==='change'?{code:acceptedCode}:{} });
     else await api('/api/native/pads/'+padId+'/suggestions/'+c.id+'/disagree', { method:'POST' });
     removeAnnotation(provisionalId);
     if (result && result.annotation) upsertAnnotation(result.annotation);
@@ -865,7 +961,6 @@ function onSelectText(){
   pendingSel = offsets;
   const rect = range.getBoundingClientRect();
   const bar = document.getElementById('selBar');
-  document.getElementById('selCode').style.display = 'none';
   bar.classList.add('open');
   // On touch devices the phone's own copy/paste bubble sits right on the
   // selection, so drop our toolbar clearly ABOVE the selected text with extra
@@ -878,7 +973,7 @@ function onSelectText(){
     placeFloating(bar, rect.left, rect.bottom + 8);
   }
 }
-function closeSelBar(){ document.getElementById('selBar').classList.remove('open'); document.getElementById('selCode').style.display='none'; }
+function closeSelBar(){ document.getElementById('selBar').classList.remove('open'); }
 function closePop(){ document.getElementById('commentPop').classList.remove('open'); pendingSel=null; }
 // Toolbar: Comment opens the existing comment popover for the stored selection.
 document.getElementById('selComment').onmousedown = (e)=>{ e.preventDefault(); };
@@ -891,30 +986,24 @@ document.getElementById('selComment').onclick = ()=>{
   placeFloating(pop, parseFloat(bar.style.left) || 8, parseFloat(bar.style.top) || 8);
   const ta = document.getElementById('commentText'); ta.value=''; ta.focus();
 };
-// Mark error reveals a code dropdown; picking a code tags the selection as a
-// literacy_code annotation (source teacher) for a mistake the marking missed.
+// Mark error opens the searchable, family-grouped code picker and tags the
+// selection as a literacy_code annotation (source teacher).
 document.getElementById('selMark').onmousedown = (e)=>{ e.preventDefault(); };
 document.getElementById('selMark').onclick = ()=>{
-  const codeSel = document.getElementById('selCode');
-  if (!codeSel.options.length){
-    codeSel.appendChild(new Option('Pick a code…', ''));
-    for (const [code,label] of ALL_CODES) codeSel.appendChild(new Option(code+' · '+label, code));
-  }
-  codeSel.value = '';
-  codeSel.style.display = codeSel.style.display==='none' ? '' : 'none';
-};
-document.getElementById('selCode').onchange = async ()=>{
-  const code = document.getElementById('selCode').value;
-  if (!code || !pendingSel) return;
-  const label = (ALL_CODES.find(c=>c[0]===code)||[code,code])[1];
-  const sel = pendingSel;
+  if (!pendingSel) return;
   closeSelBar();
+  openCodePicker({ title:'Mark selected text', onChoose:markPendingSelection });
+};
+async function markPendingSelection(code){
+  if (!code || !pendingSel) return;
+  const label = CODE_LABEL(code);
+  const sel = pendingSel;
   const result = await api('/api/native/pads/'+padId+'/annotations', { method:'POST', body:{
     type:'literacy_code', start_offset:sel.start, end_offset:sel.end, selected_text:sel.text,
     metadata:{ code, category:CODE_CAT(code), label, source:'teacher' }, document_version:review.pad.version } });
   upsertAnnotation(result.annotation);
   toast('Marked '+code); renderLocal({ top:true, essay:true });
-};
+}
 // The essay DOM carries hidden tooltip labels (<span class="tip">) inside
 // every mark, so counting characters with Range.toString() drifts right by
 // each tip before the selection and the comment lands on the wrong text.
@@ -948,9 +1037,6 @@ document.addEventListener('mousedown', (e)=>{
 document.addEventListener('selectionchange', ()=>{
   const bar=document.getElementById('selBar');
   if(!bar.classList.contains('open')) return;
-  // Keep the bar while the teacher is picking a code (opening the native
-  // select can collapse the text selection).
-  if(document.getElementById('selCode').style.display !== 'none') return;
   const sel=window.getSelection();
   if(!sel || sel.isCollapsed) closeSelBar();
 });

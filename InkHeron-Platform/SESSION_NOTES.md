@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Added searchable literacy picker and attention alternatives
+
+- Added a cached teacher-only codebook endpoint and replaced the 21-item native dropdown with a searchable modal grouped by grammar family, including all 67 specific codes and clearly separated legacy and manual codes. Uncertain attention cards show the specific label, uncertainty percentage and checker alternatives; choosing an alternative persists that code directly while preserving the optimistic response and rollback. Backend and UI contract tests pass 11/11. Browser QA was attempted through the required browser skill, but localhost remained blocked by the browser client security policy.
+
 ## 2026-07-26 — Applied the 40% uncertainty review boundary
 
 - Replaced the old 75% auto-accept threshold and forced lowest-10% quota with the teacher's explicit rule: checker confidence of 0.60 or lower, meaning at least 40% uncertainty, is flagged `uncertain` and stays in Needs your attention; 0.61 and above may auto-apply if defensible, verbatim and otherwise unflagged. Tier 3 codes are not manually gated. Focused checker and auto-accept tests pass 19/19 on Node 24.
