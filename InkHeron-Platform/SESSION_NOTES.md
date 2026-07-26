@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Checked literacy review UI at iPad mini and iPhone sizes
+
+- Rendered the exact current review-page CSS and new literacy controls at 744×1133, 1133×744, 390×844 and 375×667. No horizontal overflow; the picker, search, long code names, Needs you context, alternatives and decision buttons remain visible. Found two mobile usability issues to fix separately: picker rows are only 32 px tall and iPad landscape uses 30–36 px desktop touch targets; the 375 px header also grows to 201 px. Targeted native-review tests pass 24/24 on bundled Node 24. No product code changed.
+
 ## 2026-07-26 — Deployed reconciled literacy grading and Kimi K3
 
 - Full Node 24 suite exited 0 after updating two stale cross-feature model expectations. Pushed `deploy-ui` through `14b4eaa`, confirmed every production target matched the prior `843d59c` baseline, backed up the database and replaced runtime files under `data/backups/literacy-14b4eaa-20260726T1322Z`, then deployed the 67-code registry, prompts, 40% uncertainty gate, searchable picker, student/green-pen/export consumers and audit safeguards. Explicitly saved `ai_doer_intent=moonshotai/kimi-k3`; production OpenRouter resolved the exact same id. All 12 deployed hashes match, the wrapper remains active at about 58 MB, internal and public login return 200, the teacher-only codebook returns 401 without a session and post-restart warning logs are empty.
