@@ -11,6 +11,7 @@ decisions and outcomes, not narration.
 ## 2026-07-26 — Compact review payload checkpoint
 
 - Added an opt-in compact form of the teacher review response and switched the marking page to it. It omits unused full-text revision history, comparison data, student profile and feedback options while preserving the existing full API contract. On local seeded data the response fell from 2,446 bytes to 1,054 bytes and route time fell from 6.43 ms to 1.99 ms. Integration and full-suite tests passed on Node 24. Localhost browser QA was blocked by the browser security policy, so verification used API injection, JavaScript parsing and direct payload measurement.
+- Deployed commits `5ea8c16`, `0a1d6b4` and `d653eea` to production after backing up both runtime files with suffix `.bak-performance-d653eea`. Production hashes match, the wrapper is active, public and internal health checks return 200, unauthenticated compact review correctly returns 401 and the post-restart error journal is empty.
 
 ## 2026-07-26 — Review mutation performance checkpoint
 
