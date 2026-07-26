@@ -196,6 +196,7 @@ let contested = [];
 let queue = [];
 let padId = null;
 let activeRubric = 'internal';
+const QUEUE_CACHE_MS = 5 * 60 * 1000;
 
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1800); }
@@ -219,10 +220,26 @@ async function boot(){
 }
 
 async function loadAll(){
-  review = await api('/api/native/pads/'+padId+'/review');
-  fbSuggestions = (await api('/api/native/pads/'+padId+'/feedback-suggestions?status=pending')).suggestions || [];
+  const [nextReview, suggestionResult] = await Promise.all([
+    api('/api/native/pads/'+padId+'/review'),
+    api('/api/native/pads/'+padId+'/feedback-suggestions?status=pending')
+  ]);
+  review = nextReview;
+  fbSuggestions = suggestionResult.suggestions || [];
   contested = (review.suggestions || []).filter(s => s.status === 'pending');
-  try { queue = (await api('/api/assignments/'+review.assignment.id+'/dashboard?sort=name')).students || []; } catch(_){ queue = []; }
+  const cacheKey = 'review-queue-'+review.assignment.id;
+  let cached = null;
+  try {
+    cached = JSON.parse(sessionStorage.getItem(cacheKey));
+    if (!cached || Date.now() - cached.savedAt > QUEUE_CACHE_MS || !Array.isArray(cached.students)) cached = null;
+  } catch(_){ cached = null; }
+  if (cached) queue = cached.students;
+  else {
+    try {
+      queue = (await api('/api/assignments/'+review.assignment.id+'/dashboard?sort=name')).students || [];
+      sessionStorage.setItem(cacheKey, JSON.stringify({ savedAt:Date.now(), students:queue }));
+    } catch(_){ queue = []; }
+  }
   render();
 }
 

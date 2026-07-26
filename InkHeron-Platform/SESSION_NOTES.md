@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Review loading performance checkpoint
+
+- Reduced initial review loading from three serial data requests to two concurrent review requests followed by the assignment queue only when it is not already cached. The queue is cached per assignment in session storage for five minutes so moving between essays avoids downloading the same class dashboard repeatedly. Added a static performance contract test. Focused tests passed on Node 24; the system Node 20 cannot run the existing `node:sqlite` tests.
+
 ## 2026-07-26 — Repaired and monitored Ubuntu maintenance updates
 
 - Diagnosed the custom nightly updater's repeated status 125 failure: GNU `timeout` rejected the invalid duration `3h45m`, so the wrapper had never run updates after installation. Replaced it with a valid 45-minute ceiling, five-minute package lock wait, `dpkg --configure -a` recovery, low CPU and idle disk priority plus a 55-minute systemd limit. Added `--with-new-pkgs` so kernel metapackages can bring required dependencies without allowing removals. Backed up the live updater and database, then monitored two successful passes while InkHeron remained active and `/login` returned 200. All packages are current, `dpkg` is clean, the retry marker is absent and no units are failed. Kernel 6.8.0-136 is installed; the droplet still runs 6.8.0-124 until a separately approved planned reboot. Repair commits: `b902734` and `39614f0`.
