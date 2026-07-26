@@ -8,6 +8,10 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-26 — Updated cross-feature tests for the Kimi default
+
+- Full-suite verification exposed two stale test assumptions: bulk question import still expected DeepSeek and the model-settings test selected a Moonshot checker, now correctly rejected because Kimi K3 is the Moonshot Doer. Updated both expectations; focused tests pass 3/3.
+
 ## 2026-07-26 — Added literacy evaluation and shadow rollout safeguards
 
 - Added a JSON/JSONL evaluator that reports coverage, exact-code recall, code-selection accuracy and grammar-family breakdowns with a deterministic student-level holdout. Added opt-in `INKHERON_LITERACY_SHADOW_MODE` so analysis can record suggestions without placing marks. New suggestions and annotations record taxonomy version plus exact Doer and Checker model ids; student responses strip model metadata. Focused evaluation, registry, coder and auto-accept tests pass 28/28.

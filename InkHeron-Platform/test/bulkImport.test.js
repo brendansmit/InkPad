@@ -159,7 +159,7 @@ test('loose text import uses injected chat and flags missing answers without inv
     },
   });
   assert.equal(res.statusCode, 201);
-  assert.equal(seenIntent, 'deepseek chat v3');
+  assert.equal(seenIntent, 'moonshotai/kimi-k3');
   const json = res.json();
   assert.equal(json.created.length, 1);
   assert.equal(json.created[0].answer_index, null);

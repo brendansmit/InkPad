@@ -39,11 +39,11 @@ test('settings persist checker intent and reject same-family checker', async () 
     method: 'PATCH',
     url: '/api/settings',
     headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf },
-    payload: { ai_checker_intent: 'moonshot kimi' },
+    payload: { ai_checker_intent: 'openai gpt mini' },
   });
   assert.equal(patch.statusCode, 200);
-  assert.equal(patch.json().ai_checker_intent, 'moonshot kimi');
-  assert.equal(readCheckerIntent(db), 'moonshot kimi');
+  assert.equal(patch.json().ai_checker_intent, 'openai gpt mini');
+  assert.equal(readCheckerIntent(db), 'openai gpt mini');
 
   const get = await app.inject({
     method: 'GET',
@@ -51,7 +51,7 @@ test('settings persist checker intent and reject same-family checker', async () 
     headers: { cookie: teacher.cookies },
   });
   assert.equal(get.statusCode, 200);
-  assert.equal(get.json().ai_checker_intent, 'moonshot kimi');
+  assert.equal(get.json().ai_checker_intent, 'openai gpt mini');
 
   const rejected = await app.inject({
     method: 'PATCH',
