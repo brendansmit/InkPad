@@ -2,6 +2,7 @@
 
 ## Archived 2026-07-26 — Entries from 2026-07-03 to 2026-07-05
 
+- 2026-07-05: Fixed assignment dashboard internal and exam score totals, CSV fields and released/held status rendering, with focused and browser tests.
 - 2026-07-05: Reviewed and deployed the six round-3 commits covering contested marks, rubrics, feedback banks, layered marks and the selection toolbar.
 - 2026-07-05: Made batch feedback the server fallback and added per-student feedback release.
 - 2026-07-05: Batch feedback release became the default for new assignments.
