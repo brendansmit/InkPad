@@ -388,4 +388,8 @@ Entry format:
 ## 2026-07-28 — Personal family recipe database planning
 - Asked whether a personal family recipe database with typed recipe import, photo extraction, ingredients, instructions and prominent time and temperature is quick and feasible.
 - Confirmed a lean MVP is straightforward. Planned capture by typing, paste or photo, structured extraction with human review, a recipe page with prominent time, temperature and servings, ingredient checklists, numbered instructions, search, tags and favourites.
+- Added requirements: ingredient quantities must scale to quarter, half, double and other practical batch sizes while leaving temperature and qualitative amounts sensible.
+- Volume-to-weight conversion must use ingredient-specific densities and preparation states, with approximate conversions labelled rather than implying false precision.
+- Ingestion must normalize inconsistent typed layouts, printed cookbook pages and handwritten inherited recipes. OCR should use recipe context to resolve uncertain words, retain the original image and show low-confidence fields for review.
+- Every recipe must preserve its original language and support an English or Afrikaans view. Translation must use culinary terminology, keep measurements stable and allow corrections to be saved.
 - Decision needed before implementation: private single-device app or shared family web app.
