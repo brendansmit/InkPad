@@ -393,7 +393,7 @@ Entry format:
 - Ingestion must normalize inconsistent typed layouts, printed cookbook pages and handwritten inherited recipes. OCR should use recipe context to resolve uncertain words, retain the original image and show low-confidence fields for review.
 - Every recipe must preserve its original language and support an English or Afrikaans view. Translation must use culinary terminology, keep measurements stable and allow corrections to be saved.
 - Hard product rule: display only the recipe and its factual fields. No generated hints, tips, teaching, substitutions, commentary, encouragement, warnings or assistant narrative unless that wording is part of the source recipe.
-- OpenRouter primary model choice: `google/gemini-3.5-flash-lite` for multimodal ingestion, structured output and English-Afrikaans translation at $0.30/M input tokens and $2.50/M output tokens as checked on 2026-07-28. Do not use a moving `latest` alias.
+- Corrected OpenRouter choice after comparing Chinese vision models: default to `qwen/qwen3.7-plus`, currently $0.32/M input and $1.28/M output, with image input, strong structured-output reliability and Qwen-family Afrikaans support. Keep the model configurable and validate it against real handwritten English and Afrikaans recipes before locking it. Do not use a moving `latest` alias.
 - The OpenRouter key must live in the droplet environment only. It must never be committed to Git or exposed to the browser.
 - `git@github.com:brendansmit/SmitRecipes.git` is the deployment source of truth. Each approved working update must be committed, logged and pushed for droplet deployment.
 - Decision needed before implementation: private single-device app or shared family web app.
