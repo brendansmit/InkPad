@@ -392,4 +392,5 @@ Entry format:
 - Volume-to-weight conversion must use ingredient-specific densities and preparation states, with approximate conversions labelled rather than implying false precision.
 - Ingestion must normalize inconsistent typed layouts, printed cookbook pages and handwritten inherited recipes. OCR should use recipe context to resolve uncertain words, retain the original image and show low-confidence fields for review.
 - Every recipe must preserve its original language and support an English or Afrikaans view. Translation must use culinary terminology, keep measurements stable and allow corrections to be saved.
+- Hard product rule: display only the recipe and its factual fields. No generated hints, tips, teaching, substitutions, commentary, encouragement, warnings or assistant narrative unless that wording is part of the source recipe.
 - Decision needed before implementation: private single-device app or shared family web app.
