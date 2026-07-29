@@ -8,6 +8,29 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-29 — Swept the function-word "Wrong word" marks platform-wide
+
+Asked: sweep the remaining bogus function-word marks (teacher said yes).
+
+Done:
+- Retracted 46 annotations across 17 students: 23 originals plus the 23 copies
+  seeded onto their green-pen rewrite pads, removed by the cascade rather than
+  by hand. Words: your, on, he, about, by, there, though, if, into, which, with,
+  than, for, did, hers. Zero marks now match the guard, zero orphan copies.
+- The sweep imports the app's OWN `isBareFunctionWordFlag` and
+  `deleteAnnotationCascade` (helper exported for this) so the sweep and the coder
+  guard cannot drift apart, and one transaction covers the lot.
+- Decision, changed mid-task: the 18 AI suggestions behind these marks went back
+  to 'pending', NOT 'rejected'. Rejecting would have vetoed them permanently and
+  a few are arguable (do/make confusion coded on "did", than/then on "than"), so
+  the teacher gets to look. Pending is also exactly what the new guard does with
+  these findings, so live behaviour and historical data now agree.
+- DB backed up (inkheron.db.pre-fwsweep-20260729-192448). Post-check: no orphan
+  evidence rows, no issue stat disagreeing with its evidence count, no suggestion
+  pointing at a deleted annotation, service active, /login 200, warning log empty.
+- This was also the first real-data exercise of the cascade fix: 23 root deletions
+  took exactly 23 copies with them.
+
 ## 2026-07-29 — Retracting a mark now clears its copy on the rewrite
 
 Feedback: I reported the orphan-copy defect as "worth fixing properly, but I did
