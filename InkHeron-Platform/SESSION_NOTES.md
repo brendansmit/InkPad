@@ -8,6 +8,42 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-29 — Bogus "Wrong word" on function words: retracted and blocked
+
+Asked: "go tackle 5" (item 5 of the agreed plan, both halves).
+
+Done:
+- Coder no longer auto-applies a word-choice code (WW, WORD-CLASS) when the flagged
+  text is a single bare function word. `isBareFunctionWordFlag` in nativePads.js,
+  checked inside `autoPromoteSuggestions`. These findings stay PENDING for the
+  teacher, they are not deleted, matching CLAUDE.md 8.1 on contested findings.
+  New test/functionWordFlag.test.js, 3 tests. Full suite 221/221 on Node 24.
+- Retracted Cathy's two bogus WW marks on "of" in production (pad 47, annotations
+  2100 and 2135). Mirrored the disagree endpoint: deleted the annotation and its
+  evidence row, recomputed the profile stat, set suggestions 2298/2339 to
+  'rejected' so a re-analysis cannot bring them back. Her WW count went 9 to 7.
+- Follow-up found by checking after: the green-pen rewrite pad is SEEDED WITH
+  COPIES of the teacher's marks (pad 59, annotations 2513/2543, carrying
+  `source_annotation_id`). Those copies are what the student actually sees while
+  rewriting, so retracting only the original left the reported problem on screen.
+  Deleted both. Student 9 now has zero "of" marks anywhere.
+- DB backed up first (data/backups/inkheron.db.pre-ofretract-20260729-181523).
+  Deployed nativePads.js only; prod hash matched baseline before the copy, matched
+  the repo after, /login 200.
+
+Decisions:
+- Rationale for the guard: a wrong-word code asserts the student picked the wrong
+  VOCABULARY item, which cannot be said of a lone preposition, article or pronoun.
+  If one of those is genuinely wrong the taxonomy has a dedicated code (PREP-WRONG,
+  PREP-TIME-PLACE). So WW on "of" is a miscoding, not a find.
+
+Open / flagged to the teacher, NOT actioned (not authorised):
+- 48 live marks across 17 students would have been blocked by the new guard:
+  though 6, on 6, for 4, into 4, by 4, your 4, if/there/hers/than/which/with/he/
+  did/about 2 each. Only Cathy's were retracted. Say the word to sweep the rest.
+- Any mark seeded onto a rewrite pad keeps a copy even after the source is
+  retracted. A general retraction should follow `source_annotation_id`.
+
 ## 2026-07-29 — Green-pen rewrite: mark clearing, target scores, profile firewall
 
 - Reported bug: a student saw "of" flagged as an error everywhere in her rewrite. Root cause was two layers. The AI literacy coder had auto-applied two "Wrong word" marks on the ordinary preposition "of" in her original essay, and the rewrite editor re-anchored marks on only 6 characters of matching context, so a two-character quote re-attached to any later "of the" she typed. A mark she had already fixed kept reappearing somewhere else.
