@@ -998,18 +998,42 @@ export function renderNativeWriteView({
       function contextScore(nodeText, index, mark){
         const preceding = nodeText.slice(Math.max(0, index - 24), index);
         const following = nodeText.slice(index + mark.quote.length, index + mark.quote.length + 24);
-        let score = 0;
-        const before = mark.context_before || '';
-        for(let i = 1; i <= Math.min(before.length, preceding.length); i++){
-          if(before[before.length - i] === preceding[preceding.length - i]) score++;
+        let before = 0;
+        const wanted = mark.context_before || '';
+        for(let i = 1; i <= Math.min(wanted.length, preceding.length); i++){
+          if(wanted[wanted.length - i] === preceding[preceding.length - i]) before++;
           else break;
         }
-        const after = mark.context_after || '';
-        for(let i = 0; i < Math.min(after.length, following.length); i++){
-          if(after[i] === following[i]) score++;
+        let after = 0;
+        const trailing = mark.context_after || '';
+        for(let i = 0; i < Math.min(trailing.length, following.length); i++){
+          if(trailing[i] === following[i]) after++;
           else break;
         }
-        return score;
+        return { before, after, total: before + after };
+      }
+      // How much surrounding evidence a mark needs before it re-attaches to
+      // a piece of text. The quote itself is part of the proof, so a long
+      // distinctive quote needs little context while a short one needs a lot.
+      // Without this a two-character quote like "of" re-attaches to any later
+      // "of the" the student types, so a mark they had ALREADY FIXED pops back
+      // up somewhere else and looks like a fresh error (student report,
+      // 2026-07-29). A short quote must also agree on BOTH sides: one long
+      // matching neighbour can otherwise cover the whole budget by itself and
+      // the mark hops to a different sentence that happens to end the same way.
+      const GP_EVIDENCE_BUDGET = 16;
+      const GP_SHORT_QUOTE = 4;
+      const GP_SHORT_SIDE = 6;
+      function gpAnchorAccepted(mark, best){
+        if(!best) return false;
+        const beforeLen = (mark.context_before || '').length;
+        const afterLen = (mark.context_after || '').length;
+        const needed = Math.min(beforeLen + afterLen, Math.max(0, GP_EVIDENCE_BUDGET - (mark.quote || '').length));
+        if(best.total < needed) return false;
+        if((mark.quote || '').length >= GP_SHORT_QUOTE) return true;
+        if(best.before < Math.min(beforeLen, GP_SHORT_SIDE)) return false;
+        if(best.after < Math.min(afterLen, GP_SHORT_SIDE)) return false;
+        return true;
       }
       function gpRecheck(){
         const caret = document.activeElement === editor ? caretPlainOffset() : null;
@@ -1033,7 +1057,7 @@ export function renderNativeWriteView({
                 !(wordish(node.data[idx + mark.quote.length]) && /[\\w']$/.test(mark.quote));
               if(boundaryOk){
                 const score = contextScore(node.data, idx, mark);
-                if(!best || score > best.score) best = { node, idx, score };
+                if(!best || score.total > best.total) best = { node, idx, before: score.before, after: score.after, total: score.total };
               }
               idx += 1;
             }
@@ -1043,9 +1067,7 @@ export function renderNativeWriteView({
           // sentence to make it correct; any change in the surrounding
           // context clears the mark rather than nagging a fixed sentence.
           // (The implementation scorer still judges honestly on resubmit.)
-          const available = (mark.context_before || '').length + (mark.context_after || '').length;
-          const needed = Math.min(6, available);
-          if(best && best.score >= needed){
+          if(gpAnchorAccepted(mark, best)){
             try{
               const range = document.createRange();
               range.setStart(best.node, best.idx);
