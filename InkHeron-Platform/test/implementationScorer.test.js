@@ -196,3 +196,93 @@ test('review endpoint surfaces the implementation score on a scored rewrite', as
 
   await app.close();
 });
+
+// Item order inside scoreRewrite: literacy codes, then inline comments, then
+// targets. The seed has one of each, so the target is index 2.
+function scoredResponse(items, { meaningful = true } = {}) {
+  return {
+    model: 'fake/judge-model',
+    choices: [{ message: { content: JSON.stringify({
+      items, meaningful, summary: 'Judged.',
+    }) } }],
+  };
+}
+
+function storedVerdict(db, rewriteId) {
+  return JSON.parse(db.prepare('SELECT addressed_json FROM implementation_scores WHERE rewrite_pad_id = ?')
+    .get(rewriteId).addressed_json);
+}
+
+test('each target carries a 0 to 10 score for how well it was addressed', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, rewriteId } = await seedPads(db, { rewriteText: GOOD_REWRITE });
+
+  await scoreRewrite(db, { rewritePadId: rewriteId }, {
+    chat: () => Promise.resolve(scoredResponse([
+      { index: 0, addressed: true, score: 9, note: 'verb fixed' },
+      { index: 1, addressed: true, score: 6, note: 'partly reworded' },
+      { index: 2, addressed: true, score: 7, note: 'less repetition' },
+    ])),
+  });
+
+  const verdict = storedVerdict(db, rewriteId);
+  assert.equal(verdict.targets[0].score, 7);
+  assert.equal(verdict.codes[0].score, 9);
+  assert.equal(verdict.inline_comments[0].score, 6);
+
+  const login = await app.inject({ method: 'POST', url: '/api/teacher/login',
+    payload: { username: 'teacher', password: 'teacherpass123' } });
+  const review = await app.inject({ method: 'GET', url: `/api/native/pads/${rewriteId}/review`,
+    headers: { cookie: login.headers['set-cookie'] } });
+  const impl = review.json().implementation_score;
+  assert.equal(impl.targets.length, 1);
+  assert.equal(impl.targets[0].score, 7);
+  assert.equal(impl.targets[0].title, 'Vary your vocabulary');
+  assert.equal(impl.targets[0].addressed, true);
+  assert.equal(impl.targets[0].note, 'less repetition');
+
+  await app.close();
+});
+
+test('scores are clamped to whole numbers in 0 to 10, and stay null when unrated', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, rewriteId } = await seedPads(db, { rewriteText: GOOD_REWRITE });
+
+  await scoreRewrite(db, { rewritePadId: rewriteId }, {
+    chat: () => Promise.resolve(scoredResponse([
+      { index: 0, addressed: true, score: 14 },
+      { index: 1, addressed: true, score: 7.6 },
+      { index: 2, addressed: true },
+    ])),
+  });
+
+  const verdict = storedVerdict(db, rewriteId);
+  assert.equal(verdict.codes[0].score, 10, 'clamped down to the top of the range');
+  assert.equal(verdict.inline_comments[0].score, 8, 'rounded to a whole number');
+  assert.equal(verdict.targets[0].score, null, 'unrated stays null rather than inventing a number');
+
+  const login = await app.inject({ method: 'POST', url: '/api/teacher/login',
+    payload: { username: 'teacher', password: 'teacherpass123' } });
+  const review = await app.inject({ method: 'GET', url: `/api/native/pads/${rewriteId}/review`,
+    headers: { cookie: login.headers['set-cookie'] } });
+  assert.equal(review.json().implementation_score.targets[0].score, null);
+
+  await app.close();
+});
+
+test('an untouched flagged span scores zero however well the model rates it', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, rewriteId } = await seedPads(db, { rewriteText: ORIGINAL });
+
+  await scoreRewrite(db, { rewritePadId: rewriteId }, {
+    chat: () => Promise.resolve(scoredResponse([
+      { index: 0, addressed: true, score: 10, note: 'claims it is fixed' },
+    ])),
+  });
+
+  const verdict = storedVerdict(db, rewriteId);
+  assert.equal(verdict.codes[0].addressed, false);
+  assert.equal(verdict.codes[0].score, 0, 'text that never changed cannot score');
+
+  await app.close();
+});

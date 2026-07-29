@@ -28,12 +28,21 @@ const JUDGE_SYSTEM_PROMPT = `You judge whether a student's rewrite acted on thei
 
 For each feedback item decide "addressed": did the student genuinely fix or act on it in the rewrite? Fixing the quoted error counts. Deleting the sentence containing it counts. Leaving it unchanged or making an equivalent error does not.
 
+Also rate each item "score", a whole number from 0 to 10, for HOW WELL it was addressed. 0 means ignored entirely. 5 means a partial or shallow attempt that leaves the problem half standing. 10 means fully and skilfully addressed. Be strict: an edit that changes the words without fixing the underlying problem scores low. For a target, which is an improvement goal rather than a single error, judge how well the WHOLE rewrite meets that goal, not whether one sentence changed.
+
 Also decide overall:
 - "meaningful": true only if the rewrite shows real revision work (reworded ideas, fixed errors, restructured sentences), false if it is essentially the same text with trivial edits.
 - "summary": one or two plain sentences for the teacher describing what the student did and did not act on. No em dashes, no en dashes, no Oxford commas.
 
 Return ONLY JSON:
-{"items":[{"index":0,"addressed":true,"note":"<very short reason>"}],"meaningful":true,"summary":"..."}`;
+{"items":[{"index":0,"addressed":true,"score":8,"note":"<very short reason>"}],"meaningful":true,"summary":"..."}`;
+
+// Whole number 0 to 10, or null when the model did not rate the item.
+function clampScore(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return Math.max(0, Math.min(10, Math.round(n)));
+}
 
 export function tokenize(text, { normalize = false } = {}) {
   let t = String(text ?? '');
@@ -167,15 +176,18 @@ export async function scoreRewrite(db, { rewritePadId } = {}, { chat = callChat 
       // Span-anchored items need both layers: the AI says addressed AND the
       // flagged text actually changed. Targets have no span; the AI decides.
       const addressed = it.span_unchanged === null ? aiAddressed : (aiAddressed && !it.span_unchanged);
-      return { ...it, addressed, ai_note: ai?.note ?? '' };
+      // Deterministic evidence outranks the model: text that never changed
+      // cannot have been addressed to any degree.
+      const score = it.span_unchanged === true ? 0 : clampScore(ai?.score);
+      return { ...it, addressed, score, ai_note: ai?.note ?? '' };
     });
 
     const codes = judged.filter((it) => it.kind === 'literacy_code')
-      .map((it) => ({ id: it.id, code: it.code, quote: it.quote, addressed: it.addressed, note: it.ai_note }));
+      .map((it) => ({ id: it.id, code: it.code, quote: it.quote, addressed: it.addressed, score: it.score, note: it.ai_note }));
     const comments = judged.filter((it) => it.kind === 'inline_comment')
-      .map((it) => ({ id: it.id, quote: it.quote, comment: it.comment, addressed: it.addressed, note: it.ai_note }));
+      .map((it) => ({ id: it.id, quote: it.quote, comment: it.comment, addressed: it.addressed, score: it.score, note: it.ai_note }));
     const targetVerdicts = judged.filter((it) => it.kind === 'target')
-      .map((it) => ({ id: it.id, title: it.title, addressed: it.addressed, note: it.ai_note }));
+      .map((it) => ({ id: it.id, title: it.title, addressed: it.addressed, score: it.score, note: it.ai_note }));
 
     const meaningful = judgement?.meaningful === true && diff.has_substantive_change ? 1 : 0;
     const addressedJson = JSON.stringify({

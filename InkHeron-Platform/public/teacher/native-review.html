@@ -582,6 +582,24 @@ function cardImplementation(){
   const line = el('div'); line.style.fontSize='12.5px'; line.innerHTML = bits.join(' &middot; ');
   body.appendChild(line);
   if (s.summary){ const p = el('div'); p.style.cssText='font-size:12px;color:var(--text-2);margin-top:6px'; p.textContent = s.summary; body.appendChild(p); }
+  // Per target, how well the rewrite met that goal out of 10.
+  if (Array.isArray(s.targets) && s.targets.length){
+    const list = el('div'); list.style.cssText='margin-top:10px;display:flex;flex-direction:column;gap:6px';
+    s.targets.forEach(function(t){
+      const row = el('div');
+      row.style.cssText='display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.45';
+      const rated = t.score !== null && t.score !== undefined;
+      const tone = !rated ? 'var(--text-2)' : (t.score >= 7 ? 'var(--green-700)' : (t.score >= 4 ? '#8a6d1f' : 'var(--maroon-500)'));
+      const pill = el('span');
+      pill.style.cssText='flex:0 0 auto;min-width:38px;text-align:center;font-weight:800;border-radius:999px;padding:1px 7px;font-size:11.5px;color:#fff;background:'+tone;
+      pill.textContent = rated ? (t.score + '/10') : '--';
+      const txt = el('span');
+      txt.textContent = t.title + (t.note ? ' (' + t.note + ')' : '');
+      row.appendChild(pill); row.appendChild(txt);
+      list.appendChild(row);
+    });
+    body.appendChild(list);
+  }
   if (s.original_pad_id){
     const a = el('a'); a.className='btn sm'; a.style.marginTop='8px'; a.href='/teacher/native-review?pad_id='+s.original_pad_id; a.textContent='Open original';
     body.appendChild(a);

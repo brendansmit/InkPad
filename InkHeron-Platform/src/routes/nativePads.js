@@ -2123,6 +2123,17 @@ function loadImplementationScore(db, padId) {
     codes_total: codes.length,
     targets_addressed: targets.filter((t) => t.addressed).length,
     targets_total: targets.length,
+    // Per target: how well the rewrite met that goal, 0 to 10.
+    targets: targets.map((t) => ({
+      id: t.id,
+      title: t.title ?? '',
+      addressed: Boolean(t.addressed),
+      // Unrated must stay null: a 0 here would read as "target ignored".
+      score: t.score === null || t.score === undefined || !Number.isFinite(Number(t.score))
+        ? null
+        : Number(t.score),
+      note: t.note ?? '',
+    })),
     inline_comments_addressed: Number(addressed.inline_comments_addressed ?? 0),
     inline_comments_total: Number(addressed.inline_comments_total ?? 0),
     created_at: row.created_at,
