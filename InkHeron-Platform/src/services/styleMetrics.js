@@ -170,8 +170,13 @@ export function computeStyleMetrics(text) {
  */
 export function recordStyleMetrics(db, { padId } = {}) {
   try {
-    const pad = db.prepare('SELECT id, student_id, assignment_id, plain_text FROM native_pads WHERE id = ?').get(padId);
+    const pad = db.prepare(
+      'SELECT id, student_id, assignment_id, plain_text, rewrite_of_pad_id FROM native_pads WHERE id = ?'
+    ).get(padId);
     if (!pad || !pad.plain_text || !/\w/.test(pad.plain_text)) return { status: 'skipped' };
+    // Green-pen rewrites are corrected work, not a sample of unaided writing,
+    // so they never join the fingerprint the profile and TOEFL estimate read.
+    if (pad.rewrite_of_pad_id) return { status: 'skipped', reason: 'rewrite' };
     const metrics = computeStyleMetrics(pad.plain_text);
     const essayType = db.prepare(
       "SELECT COALESCE(json_extract(settings_json, '$.essay_type'), 'other') AS t FROM assignments WHERE id = ?"

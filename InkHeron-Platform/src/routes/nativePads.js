@@ -303,8 +303,21 @@ function recomputeStudentLiteracyStat(db, studentId, code, category, label) {
   );
 }
 
+// A green-pen rewrite is not evidence of how the student writes unaided: they
+// have the marked original in front of them and have looked up how to fix each
+// error. Marks are still made ON the rewrite so the teacher can see it, they
+// just never aggregate into the long-term literacy profile (teacher decision,
+// 2026-07-29). Same reasoning excludes rewrites from the stylometric
+// fingerprint in styleMetrics.js.
+function isRewritePad(db, pad) {
+  if (pad.rewrite_of_pad_id !== undefined) return Boolean(pad.rewrite_of_pad_id);
+  const row = db.prepare('SELECT rewrite_of_pad_id FROM native_pads WHERE id = ?').get(pad.id);
+  return Boolean(row?.rewrite_of_pad_id);
+}
+
 function syncLiteracyEvidence(db, pad, annotationRow) {
   if (annotationRow.type !== 'literacy_code') return;
+  if (isRewritePad(db, pad)) return;
   ensureStudentWritingProfile(db, pad.student_id);
   const key = normalizeLiteracyKey(annotationRow);
   db.prepare(`
@@ -1633,7 +1646,12 @@ export async function registerNativePadRoutes(app, { db }) {
       runInBackground('style-metrics', () => recordStyleMetrics(db, { padId }));
       runInBackground('grade-estimate', () => estimateRubric(db, { padId }));
       runInBackground('feedback-suggestions', () => suggestFeedbackItems(db, { padId }));
-      if (nextState === 'resubmitted' && updated.rewrite_of_pad_id) {
+      // Any submit of a rewrite pad gets judged against the original feedback.
+      // Keyed off the rewrite link, NOT the state: green-pen rewrites are now a
+      // separate assignment whose pads start in 'writing' and submit to
+      // 'submitted', so gating on 'resubmitted' silently never fired and no
+      // rewrite was ever scored. Legacy in-place pads still land here too.
+      if (updated.rewrite_of_pad_id) {
         runInBackground('implementation', () => scoreRewrite(db, { rewritePadId: padId }));
       }
 
