@@ -1,5 +1,26 @@
 # SESSION_NOTES_ARCHIVE.md — InkHeron Platform
 
+## 2026-07-06 — Opus ROUND3 items 2 to 5: rubric tabs, feedback banks, layered marks, selection toolbar
+- Item 2 (4c32a20) rubric tabs: native-review.html cardRubric() now builds rubricTabs() — a scorable tab for every rubric_kind that has criteria (internal, secondary, exam), each labelled with its real name from settings.rubric_names, exam still gated on is_ap_lang. setScore looks up the per-kind endpoint (rubric-scores / secondary-rubric-scores / exam-rubric-scores). Verified in browser: all three tabs render, secondary and exam scores persist to their columns.
+- Item 3 (269dcee) feedback bank switcher: strengths/targets card regains a "Feedback bank" select (each table plus "All tables"), persisting per pad via the applied-feedback-table PUT then reloading. assets.js feedbackOptionsForAssignment gained an 'all' scope that merges every configured table (dedupe by title); the PUT and review payload now accept 'all'. feedbackSuggester loads the pad's applied bank and passes its options in the evidence; Doer prompt now says to prefer bank items adapted to the essay, invent only when nothing fits. New test asserts the Doer prompt carries the chosen bank and switching (incl 'all') changes what is sent.
+- Item 4 (19e1e85) layered marks: literacyCoder Doer prompt rule 9 (errors can overlap, report BOTH the clause and each word finding). native-review.html and native-feedback.html renderEssay replaced the non-overlapping "sp.s >= lastEnd" filter with segment rendering: split at every mark boundary, each segment carries ALL covering marks, widest = outer underline, narrowest = inner word mark with a faint wash and lowered underline, hover lists all labels, click opens the innermost code changer. nativeWrite.js green-pen wraps the widest quote first so word marks nest inside clause marks (surroundContents needs contiguous text). Tests: two overlapping findings both auto-promote and both appear nested in the review payload; static guards on both renderers, the prompt and the green-pen order. Verified in browser both teacher and student views.
+- Item 5 (30d432d) selection toolbar: selecting text now shows a small toolbar near the selection on mouseup WITHOUT touching selection or focus (Cmd/Ctrl+C keeps working). [Comment] opens the existing comment popover; [Mark error v] reveals a code dropdown (ALL_CODES) and POSTs a literacy_code annotation at the selection offsets with metadata source 'teacher', landing in Auto-marked groups and profile evidence. Toolbar closes on outside click or selection collapse. Verified in browser: select, Mark error, Gra lands as a 4th auto-mark.
+- Item 1 was already committed last session (f3aed59); left as-is.
+- Suite: 151 tests, 0 failures on Node 24 (the old "known 4" stay fixed). Did NOT deploy per handoff.
+- Gotchas: git root is the parent Claude/ dir, staged explicit InkHeron paths only. Verify DB seeded via scratchpad seed.mjs into the inkheron-verify launch DB path; local node is 20 but tests and the app need node:sqlite from v24.
+
+## 2026-07-06 — Opus ROUND3 item 1: contested pile only flags real doubt
+- src/services/checker.js: the forced least-confident ~10% quota now selects only among findings the checker rated confidence < 0.9. If every judged finding is >= 0.9, nothing extra is flagged, so the teacher stops re-reviewing marks the checker was already sure of. Genuine flags (code_questioned, not_verbatim, MT manual review) are untouched. Quota size still ceil(judged * 0.1), tiny batches (< 5) still exempt.
+- test/literacyCoder.test.js: existing test still asserts the lone 0.8 in a batch of 0.9s is flagged; added an assertion that a batch of six 0.9s produces zero least_confident flags. literacyCoder suite 9/9.
+
+## 2026-07-06 — Fix semester filter squeezing out the search box
+
+- Phase/Step worked: bug report from a screenshot of the assignments list search row.
+- Built: `.search-row select` in `assignments.html` had no explicit width, so it inherited the page-wide `select{width:100%}` rule as its flex-basis (`flex:0 1 auto` resolves basis from `width` when set to `auto`). With the search input at `flex:1` (basis 0), nearly all the row's space landed on the select instead of the input, so the semester dropdown filled almost the whole row and the search box collapsed to a sliver. Fixed by giving `.search-row select` `flex:0 0 auto;width:auto;max-width:170px`, so it shrink-wraps to its content and the input's `flex:1` can claim the remaining space as intended.
+- Decisions: capped at 170px rather than removing width entirely, so the dropdown stays a fixed, predictable size next to the now-dominant search box.
+- Open / next: none.
+- Gotchas hit: could not browser-verify this one — the Chrome extension (claude-in-chrome) and computer-use were both disconnected this session, so I verified via the flexbox sizing math and CSS specificity/cascade instead of a live screenshot. Worth a quick manual look next time you're in the app. Commit `256dab8`.
+
 ## Archived 2026-07-26 — Entries from 2026-07-03 to 2026-07-05
 
 - 2026-07-05: Fixed assignment dashboard internal and exam score totals, CSV fields and released/held status rendering, with focused and browser tests.
