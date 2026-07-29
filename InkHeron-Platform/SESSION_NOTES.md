@@ -8,6 +8,16 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-29 — Green-pen rewrite: mark clearing, target scores, profile firewall
+
+- Reported bug: a student saw "of" flagged as an error everywhere in her rewrite. Root cause was two layers. The AI literacy coder had auto-applied two "Wrong word" marks on the ordinary preposition "of" in her original essay, and the rewrite editor re-anchored marks on only 6 characters of matching context, so a two-character quote re-attached to any later "of the" she typed. A mark she had already fixed kept reappearing somewhere else.
+- Fix 1: re-anchor evidence now scales inversely with quote length, and a short quote must agree on both sides so one long matching neighbour cannot carry the decision alone. New test lifts the decision functions out of the template literal in nativeWrite.js and drives them directly.
+- Fix 2: the implementation scorer never ran, ever. It was gated on state `resubmitted`, but green-pen rewrites are a separate assignment whose pads start in `writing` and submit to `submitted`. `implementation_scores` had zero rows in production. Now keyed off the rewrite link instead.
+- Fix 3: the judge returns a 0 to 10 score per feedback item for how well it was addressed, not just yes or no. Targets are judged against the whole rewrite. Deterministic evidence still wins: an untouched span scores zero whatever the model says, and an unrated item stays null rather than showing 0, which would read as ignored. Teacher review card lists each target with a colour coded score.
+- Fix 4 (teacher decision): a rewrite is corrected work done with the marked original in hand, so it must not describe how the student writes unaided. Rewrite pads no longer feed `student_literacy_evidence`, the issue stats or the stylometric fingerprint. Marks are still made on the pad for the teacher, and grammar analysis still runs on submit. Caught in time: all 49 rewrite pads were still in `writing`, so no rewrite data had reached any profile and no cleanup was needed.
+- Suite 218/218 green on Node 24. Verified the target-score card in a browser on desktop and mobile against a seeded throwaway database. Deployed five files after confirming production matched the repo baseline byte for byte, backups stamped `20260729-173622`, service active, /login 200, logs clean.
+- NOT done, deliberately out of scope: retracting the two bogus "of" marks on Cathy's original essay (annotations 2100 and 2135), and stopping the coder auto-promoting a bare function word as a wrong-word error. Both still outstanding.
+
 ## 2026-07-27 — Added installable InkHeron PWA
 
 - Added a standalone manifest, Apple home-screen metadata, crisp 180/192/512 px icons, a root-scoped service worker, a generic offline screen and an online/offline status banner across every static screen plus the native writer. The worker caches only an explicit public asset allowlist; authenticated HTML, essays, exports, uploads and all API traffic remain network-only. Browser QA confirmed metadata and the phone offline screen with no console errors. Full suite passes 205/205 and focused PWA tests pass 4/4. Committed and deployed as `9edf683`; exact production hashes match, public login/manifest/service-worker/offline/icon endpoints return 200, Nginx and InkHeron are active and warning logs are empty. Database and changed-code backups are `inkheron.db.pre-pwa-9edf683` and `code.pre-pwa-9edf683.tar.gz`; the prior Nginx site is backed up outside `sites-enabled`.
@@ -353,47 +363,3 @@ Entry format:
 - Decisions: capped at 170px rather than removing width entirely, so the dropdown stays a fixed, predictable size next to the now-dominant search box.
 - Open / next: none.
 - Gotchas hit: could not browser-verify this one — the Chrome extension (claude-in-chrome) and computer-use were both disconnected this session, so I verified via the flexbox sizing math and CSS specificity/cascade instead of a live screenshot. Worth a quick manual look next time you're in the app. Commit `256dab8`.
-
-## 2026-07-05 — Opus HANDOFF_2 item 5: student-facing AI-mention audit
-- Audited every surface I touched plus the broader student-facing set (native-feedback.html, student-dashboard.html, login/change-password, nativeWrite.js green-pen panel, and the student-version of student-profile.html) for "AI", "model", "checker", "machine", "auto-mark", model names and OpenRouter. No student-visible machine-marking language found.
-- Only near-hits: "sentence machinery" (a writing-craft metaphor for subordination in a teacher-side tooltip) and gpTimer/gpRecheck (green-pen timer variable names). Neither implies machine marking. No change needed.
-- The Report snippet button and the anomaly/provenance cards are teacher-only and hide in the profile's "Student version"; the class-insights page is teacher-only with no student variant. Sonnet's item-4 audit already stripped AI-origin markers from the feedback and marks payloads; this pass confirms my new/changed pages did not reintroduce any.
-- No commit for this item (verification only); logged here per the definition of done.
-
-## 2026-07-05 — Opus HANDOFF_2 item 7: report snippet UI
-- student-profile.html: added a teacher-only "Report snippet" button in the top bar that opens a modal. The modal POSTs /api/students/:id/report-snippet (Sonnet's endpoint), shows a loading line while generating, then puts the returned paragraph in an editable textarea. Copy button (clipboard, with execCommand fallback) and Regenerate button. A missing key or any failure shows the endpoint's friendly message instead of the paragraph. Nothing is stored; the teacher edits client-side. The button carries the teacher-only class so it disappears in "Student version".
-- Captured the CSRF token in boot() (was not stored before) for the POST.
-- Verified in preview: button opens the modal, calls the endpoint, and with no local OpenRouter key shows "Add an OpenRouter API key in settings before generating report snippets." in the sub line with Copy/Regenerate/Close all present; modal closes; button hidden in student version.
-
-## 2026-07-05 — Opus HANDOFF_2 item 6: batch release UI on the detail header
-- assignments.html detail header: for assignments whose settings_json.feedback_release === 'batch', a "Feedback: held" chip plus a "Release to class" button appear. The button confirms ("Release feedback to all marked students?") then POSTs /api/assignments/:id/release-feedback for every unreleased batch assignment in the detail group, toasts the result and flips the chip to "Feedback released <time>". Immediate-mode assignments (the default) show no control.
-- The other item-6 pieces were already delivered by the concurrent Sonnet session and verified present: new-assignment.html has the Feedback release select (Immediate/Batch) and the Semester select (prefilled from current_semester), and the assignments list has the semester filter (All/S1/S2) wired into the query and saved filter state.
-- Verified in preview: temporarily flagged assignment 2 as batch, saw "Feedback: held" + Release button, released it (server stamped feedback_released_at, chip switched to "Feedback released ...", button hid), then restored the assignment to immediate mode and confirmed the control disappears.
-
-## 2026-07-05 — Opus HANDOFF_2 item 4: export to gradebook button
-- assignments.html detail header: added "Export to gradebook" next to the existing "Export CSV" (kept). It calls POST /api/assignments/:id/export-to-admin and toasts the result ("Exported N scores" or the endpoint's friendly error). The button is disabled with a hint title ("Set an admin export key in Settings first") when the key is not configured, probed via /api/settings admin_export_key.is_set on detail open.
-- The score column ("12 / 15" with Released/Held pill), AP exam-score column, and status pills (marked/green_pen_open/resubmitted) were already delivered by Sonnet's dashboard fix; verified they render (Chen Yuxi shows 10.5 / 15 Released, exam 4 / 6, Green pen).
-- Verified in preview at 1440px: button present and disabled with hint (no key set locally), CSV button intact, scores and Profile link render in the row.
-
-## 2026-07-05 — Opus HANDOFF_2 item 2: teacher dashboard navigation
-- public/teacher/index.html: added an "Analysis" section with two tiles. "Student profiles" has a class picker that loads students from /api/students?class_id and links each to /teacher/student-profile?student_id. "Class insights" lists one link per class to /teacher/class-insights?class_id. Both driven by /api/classes and /api/students, empties handled.
-- public/teacher/assignments.html: added a "Profile" link next to Review in each student dashboard row, to /teacher/student-profile?student_id=<id>, so marking flows into the profile in one click.
-- Verified in preview: dashboard picker lists AP Lang G9 + Repro Class, student links resolve to the right ids, class-insights links resolve; dashboard row exposes student_id so the Profile link renders.
-- Note: item 4's score/exam columns and status pills were already present (Sonnet dashboard fix); only the export button remains for item 4.
-
-## 2026-07-05 — Opus HANDOFF_2 item 3: class insights page + endpoint
-- New endpoint `GET /api/classes/:classId/insights` (teacher session) in an isolated route module `src/routes/classInsights.js` (kept out of the co-edited nativePads.js). Every aggregate excludes demo/ghost via realStudentsWhere. Returns: recurring codes with students-affected and class rate per 100 words (sorted by students affected), class err/100 trend by essay index, green-pen fix rate from implementation_scores addressed_json, average internal rubric total per assignment over time, marker profile (mean delta per rubric_kind+criterion from ai_grade_estimates WHERE teacher_score IS NOT NULL, gated to render only at >= 10 scored deltas), and per-student mini rows.
-- New page `public/teacher/class-insights.html` + route `/teacher/class-insights` in app.js. Follows student-profile.html design language: headline sentences ("1 of 5 students have open Grammar issues"), stat strip, recurring-error meters (category coloured), err and rubric sparks, green-pen and marker cards with friendly empties, and a students table linking to each profile. Class switcher in the top bar.
-- Verified in preview at 1440px and 1024px against the seeded AP Lang class; a sparse class (Repro, 1 student, no marks) returns empties with no NaN. Marker profile shows "collects as you mark" (0 deltas), green-pen shows its empty message.
-## 2026-07-28 — Personal family recipe database planning
-- Asked whether a personal family recipe database with typed recipe import, photo extraction, ingredients, instructions and prominent time and temperature is quick and feasible.
-- Confirmed a lean MVP is straightforward. Planned capture by typing, paste or photo, structured extraction with human review, a recipe page with prominent time, temperature and servings, ingredient checklists, numbered instructions, search, tags and favourites.
-- Added requirements: ingredient quantities must scale to quarter, half, double and other practical batch sizes while leaving temperature and qualitative amounts sensible.
-- Volume-to-weight conversion must use ingredient-specific densities and preparation states, with approximate conversions labelled rather than implying false precision.
-- Ingestion must normalize inconsistent typed layouts, printed cookbook pages and handwritten inherited recipes. OCR should use recipe context to resolve uncertain words, retain the original image and show low-confidence fields for review.
-- Every recipe must preserve its original language and support an English or Afrikaans view. Translation must use culinary terminology, keep measurements stable and allow corrections to be saved.
-- Hard product rule: display only the recipe and its factual fields. No generated hints, tips, teaching, substitutions, commentary, encouragement, warnings or assistant narrative unless that wording is part of the source recipe.
-- Corrected OpenRouter choice after comparing Chinese vision models: default to `qwen/qwen3.7-plus`, currently $0.32/M input and $1.28/M output, with image input, strong structured-output reliability and Qwen-family Afrikaans support. Keep the model configurable and validate it against real handwritten English and Afrikaans recipes before locking it. Do not use a moving `latest` alias.
-- The OpenRouter key must live in the droplet environment only. It must never be committed to Git or exposed to the browser.
-- `git@github.com:brendansmit/SmitRecipes.git` is the deployment source of truth. Each approved working update must be committed, logged and pushed for droplet deployment.
-- Decision needed before implementation: private single-device app or shared family web app.
