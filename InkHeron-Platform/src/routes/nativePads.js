@@ -303,6 +303,37 @@ function recomputeStudentLiteracyStat(db, studentId, code, category, label) {
   );
 }
 
+/**
+ * Delete an annotation AND every reference copy of it.
+ *
+ * When a green-pen rewrite pad is created it is seeded with copies of the
+ * teacher's marks, each stamped with `source_annotation_id` pointing back at
+ * the original. The copy is a VIEW of the original, not a finding in its own
+ * right, and it is the copy the student actually looks at while rewriting. So
+ * deleting only the original leaves the retracted mark on the student's screen:
+ * a teacher who disagreed with a mark would watch it stay put. Every retraction
+ * path must go through here (real student report, 2026-07-29).
+ *
+ * Copies made before rewrites were firewalled out of the profile may still own
+ * an evidence row, so each deleted copy gets its stat recomputed too.
+ */
+function deleteAnnotationCascade(db, annotationId) {
+  const copies = db.prepare(`
+    SELECT a.id, a.type, a.metadata_json, p.student_id
+    FROM native_annotations a JOIN native_pads p ON p.id = a.native_pad_id
+    WHERE json_extract(a.metadata_json, '$.source_annotation_id') = ?
+  `).all(annotationId);
+  for (const copy of copies) {
+    db.prepare('DELETE FROM native_annotations WHERE id = ?').run(copy.id);
+    if (copy.type === 'literacy_code') {
+      const key = normalizeLiteracyKey(copy);
+      recomputeStudentLiteracyStat(db, copy.student_id, key.code, key.category, key.label);
+    }
+  }
+  db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotationId);
+  return { copies: copies.length };
+}
+
 // A green-pen rewrite is not evidence of how the student writes unaided: they
 // have the marked original in front of them and have looked up how to fix each
 // error. Marks are still made ON the rewrite so the teacher can see it, they
@@ -1368,7 +1399,7 @@ export function retractAiMarksForPad(db, padId) {
     const annotation = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(suggestion.annotation_id);
     if (annotation) {
       const key = normalizeLiteracyKey(annotation);
-      db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotation.id);
+      deleteAnnotationCascade(db, annotation.id);
       recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);
       retracted += 1;
     }
@@ -2375,7 +2406,7 @@ function loadImplementationScore(db, padId) {
         db.prepare("UPDATE ai_literacy_suggestions SET status = 'rejected', annotation_id = NULL, resolved_at = datetime('now') WHERE id = ?").run(linked.id);
       }
       const key = existing.type === 'literacy_code' ? normalizeLiteracyKey(existing) : null;
-      db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotationId);
+      deleteAnnotationCascade(db, annotationId);
       if (pad && key) recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);
       logTeacherEvent(db, existing.native_pad_id, request.session.user.id, 'annotation_deleted', { annotation_id: annotationId, type: existing.type });
       return reply.code(204).send();
@@ -2569,7 +2600,7 @@ function loadImplementationScore(db, padId) {
         const annotation = db.prepare('SELECT * FROM native_annotations WHERE id = ?').get(suggestion.annotation_id);
         if (annotation) {
           const key = normalizeLiteracyKey(annotation);
-          db.prepare('DELETE FROM native_annotations WHERE id = ?').run(annotation.id);
+          deleteAnnotationCascade(db, annotation.id);
           recomputeStudentLiteracyStat(db, pad.student_id, key.code, key.category, key.label);
         }
       }
