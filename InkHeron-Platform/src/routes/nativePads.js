@@ -317,7 +317,7 @@ function recomputeStudentLiteracyStat(db, studentId, code, category, label) {
  * Copies made before rewrites were firewalled out of the profile may still own
  * an evidence row, so each deleted copy gets its stat recomputed too.
  */
-function deleteAnnotationCascade(db, annotationId) {
+export function deleteAnnotationCascade(db, annotationId) {
   const copies = db.prepare(`
     SELECT a.id, a.type, a.metadata_json, p.student_id
     FROM native_annotations a JOIN native_pads p ON p.id = a.native_pad_id
