@@ -1393,6 +1393,43 @@ export function retractAiFeedbackForPad(db, padId) {
   return { retracted: removed };
 }
 
+// Closed-class words: articles, prepositions, conjunctions, pronouns and
+// auxiliaries. These carry no lexical meaning of their own, so "you picked the
+// wrong word" is not a claim that can be made about one of them in isolation.
+const FUNCTION_WORDS = new Set([
+  'a', 'an', 'the',
+  'of', 'to', 'in', 'on', 'at', 'by', 'for', 'with', 'from', 'into', 'onto', 'over',
+  'under', 'about', 'after', 'before', 'between', 'through', 'during', 'against',
+  'above', 'below', 'across', 'among', 'within', 'without', 'upon', 'off', 'out', 'up',
+  'and', 'or', 'but', 'nor', 'so', 'yet', 'if', 'as', 'than', 'that', 'because',
+  'while', 'when', 'where', 'which', 'who', 'whom', 'whose', 'though', 'although',
+  'i', 'me', 'my', 'mine', 'we', 'us', 'our', 'ours', 'you', 'your', 'yours',
+  'he', 'him', 'his', 'she', 'her', 'hers', 'it', 'its', 'they', 'them', 'their',
+  'theirs', 'this', 'these', 'those', 'there', 'here',
+  'is', 'am', 'are', 'was', 'were', 'be', 'been', 'being', 'do', 'does', 'did',
+  'have', 'has', 'had', 'will', 'would', 'shall', 'should', 'can', 'could',
+  'may', 'might', 'must', 'not', 'no',
+]);
+
+// Codes that assert the student chose the wrong VOCABULARY item.
+const WORD_CHOICE_CODES = new Set(['WW', 'WORD-CLASS']);
+
+/**
+ * A wrong-word code on a single bare function word is a miscoding, not a find.
+ * If a preposition or article really is wrong the taxonomy has a dedicated code
+ * for it (PREP-WRONG, PREP-TIME-PLACE, ART-*), so WW on "of" tells the teacher
+ * nothing and, once auto-applied, follows the student into their literacy
+ * profile. A real student hit this: every "of" in her essay came back as a
+ * wrong-word error (2026-07-29). These stay pending for the teacher rather than
+ * being deleted, the same as any other contested finding.
+ */
+export function isBareFunctionWordFlag(code, quote) {
+  if (!WORD_CHOICE_CODES.has(code)) return false;
+  const word = String(quote ?? '').trim().toLowerCase().replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '');
+  if (!word || /\s/.test(word)) return false;
+  return FUNCTION_WORDS.has(word);
+}
+
 export function autoPromoteSuggestions(db, padId) {
   const pad = db.prepare('SELECT id, student_id, assignment_id FROM native_pads WHERE id = ?').get(padId);
   if (!pad) return { promoted: 0 };
@@ -1409,6 +1446,8 @@ export function autoPromoteSuggestions(db, padId) {
     if (MANUAL_REVIEW_CODES.has(suggestion.code)) continue;
     // The teacher already disagreed with this exact finding on a previous run.
     if (rejectedKeys.has(`${suggestion.code} ${suggestion.quote}`)) continue;
+    // "Wrong word" on a bare function word is a miscoding, not a find.
+    if (isBareFunctionWordFlag(suggestion.code, suggestion.quote)) continue;
     let checker = {};
     try { checker = JSON.parse(suggestion.checker_json ?? '{}'); } catch { checker = {}; }
     const confident = checker.verbatim === true && checker.flag == null
