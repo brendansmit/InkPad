@@ -1,5 +1,37 @@
 # SESSION_NOTES_ARCHIVE.md — InkHeron Platform
 
+## 2026-07-07 — Test Portal part 2: section passages and section shuffle
+
+- Asked: "go check and do part 2" after the audit found `CODEX_TESTGP_HANDOFF.md` Part 2 missing.
+- Built: `settings_json.test.sections[]` now preserves optional `passage_text`; `/teacher/new-test` has a passage textarea for MCQ, SRQ and FRQ sections; `/native/test/:assignmentId` renders passage text above each section in a readable serif block; `/teacher/test-review` shows section passages in a collapsed details block.
+- Built: student take payload now shuffles question order within each non-FRQ section only when shuffle is true, using deterministic seed `(studentId * 104729) + sectionIndex`. Section order never changes; teacher review stays in authoring order; shuffle=false preserves authoring order.
+- Verified: `node --test test/tests.test.js` passed 8/8, including passage payload/no-answer-leak, stable reload order, different per-student section-question order and shuffle=false authoring order. No deploy.
+- Commit: `f227add` (`Add test section passages and section shuffle`).
+- Full suite: Node 24 `npm test` ran 164 tests, 161 pass / 3 fail. The failures are pre-existing dirty-worktree `nativePads.js` semantics: finish-marking now returns `marked`, while three older native pad tests still expect `green_pen_open`. Part 2 touched only `src/routes/tests.js`, `public/teacher/new-test.html`, `public/native-test.html`, `public/teacher/test-review.html` and `test/tests.test.js`; those files are clean and committed.
+- Open / next: reconcile the dirty `nativePads.js` finish-marking behaviour with its tests in the owning session, then rerun full suite. No deploy.
+
+## 2026-07-07 — Test green-pen rewrites
+
+- Asked: on branch `test-greenpen` from `analysis-ai`, follow `CODEX_TESTGP_HANDOFF.md` exactly; do not deploy; never `git add -A`.
+- Built: test assignments are now eligible for the existing greenpen-rewrite endpoint. Test rewrites are created as essay assignments with test config stripped, draft submit behaviour, native InkPad on, green pen off, `greenpen_rewrite` true, `source_assignment_id`, `feedback_release: batch`, `supervision: in_class` and prompt "Rewrite your test answers using your feedback." For tests, rewrite pads are seeded from FRQ text first, then SRQ prompt/answer blocks in section order. FRQ annotations copy with identical offsets; `rewrite_of_pad_id` points to the FRQ pad when present and stays NULL for SRQ-only tests. Students with no written answers get no rewrite pad.
+- UI: `/teacher/test-review` now shows a "Green pen rewrite" button once at least one attempt has been submitted and calls the existing rewrite endpoint.
+- Verified: targeted `node --test test/nativePads.test.js test/greenpenContext.test.js test/tests.test.js` passed 27/27; full Node 24 `npm test` passed 158/158. No deploy.
+- Commit: `7da2c0d` on `test-greenpen` contains the implementation and tests, though its commit title is mismatched ("Add section passages and within-section question shuffle to Codex handoff"). Left history intact rather than rewriting.
+
+## 2026-07-07 — Test Portal MVP schema checkpoint
+
+- Asked: build the Test Portal MVP on branch `test-portal` from `analysis-ai`, following `CLAUDE.md`, `TEST_PORTAL_SPEC.md` and `CODEX_TESTPORTAL_HANDOFF.md`.
+- Did: created migration `029_test_portal.sql` for `test_questions`, `test_attempts`, `test_responses` and `test_focus_events`; registered the new tables and migration file in `test/migration.test.js`.
+- Verified: Node 24 `npm test` command accidentally ran the full suite and stayed 152/152 green after the schema change.
+- Commit: `a2bc626` (`Add test portal schema`).
+- Did: added isolated `src/routes/tests.js` plus route registration in `src/app.js`: question bank CRUD, test assignment creation, student start/take/answer/focus/submit/results, teacher review and SRQ scoring. FRQ submit calls the existing native pad routes so native submit semantics still own the pad lock and background work.
+- Verified: `node --test test/tests.test.js` passes 3/3, covering answer-data secrecy, deterministic shuffle, timer rejection, MCQ auto-scoring, focus events, release gating, teacher scoring, wrong-role denial and other-class denial.
+- Commit: `48364c5` (`Add test portal backend routes`).
+- Did: added teacher pages for question bank, new test and test review, plus the student take-test page. `student-dashboard.html` now links tests to `/native/test/:assignmentId`; `teacher/assignments.html` links test cards to `/teacher/test-review` and exposes Question bank / New test. Added page-route shell tests.
+- Verified: `node --test test/tests.test.js` passes 4/4; student-facing test files contain no `AI` wording and no em/en dashes.
+- Commit: `48197e7` (`Add test portal pages`).
+- Open / next: run the full suite, fix any regressions, final log. No deploy.
+
 ## 2026-07-06 — Opus ROUND3 items 2 to 5: rubric tabs, feedback banks, layered marks, selection toolbar
 - Item 2 (4c32a20) rubric tabs: native-review.html cardRubric() now builds rubricTabs() — a scorable tab for every rubric_kind that has criteria (internal, secondary, exam), each labelled with its real name from settings.rubric_names, exam still gated on is_ap_lang. setScore looks up the per-kind endpoint (rubric-scores / secondary-rubric-scores / exam-rubric-scores). Verified in browser: all three tabs render, secondary and exam scores persist to their columns.
 - Item 3 (269dcee) feedback bank switcher: strengths/targets card regains a "Feedback bank" select (each table plus "All tables"), persisting per pad via the applied-feedback-table PUT then reloading. assets.js feedbackOptionsForAssignment gained an 'all' scope that merges every configured table (dedupe by title); the PUT and review payload now accept 'all'. feedbackSuggester loads the pad's applied bank and passes its options in the evidence; Doer prompt now says to prefer bank items adapted to the essay, invent only when nothing fits. New test asserts the Doer prompt carries the chosen bank and switching (incl 'all') changes what is sent.
