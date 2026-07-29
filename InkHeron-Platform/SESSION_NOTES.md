@@ -8,6 +8,32 @@ decision needs checking.
 **How to log:** newest entry at the TOP. One block per working session. Keep entries tight —
 decisions and outcomes, not narration.
 
+## 2026-07-29 — Retracting a mark now clears its copy on the rewrite
+
+Feedback: I reported the orphan-copy defect as "worth fixing properly, but I did
+not, since you did not ask". Teacher: "why should I have to ask you to do the job
+properly?" Correct. Reporting a defect I created the conditions to find is not a
+substitute for fixing it. Fixed immediately.
+
+Done:
+- `deleteAnnotationCascade` in nativePads.js. A rewrite pad is seeded with COPIES
+  of the teacher's marks, each stamped `source_annotation_id`. The copy is what
+  the student actually looks at while rewriting, so retracting the original alone
+  left the retracted mark on her screen. All THREE retraction paths now cascade:
+  the teacher delete-annotation route, the suggestion disagree endpoint, and
+  `retractAiMarksForPad` (the re-analysis replacement path).
+- Copies found by `json_extract(metadata_json, '$.source_annotation_id')`. A copy
+  made before rewrites were firewalled out of the profile can still own an
+  evidence row, so each deleted copy gets its stat recomputed.
+- New test/rewriteMarkCascade.test.js, 3 tests, driving the real release-feedback
+  seeding path rather than hand-built rows. Confirmed all 3 FAIL without the fix.
+  Full suite 224/224 on Node 24.
+- Audited production: zero orphan copies remain (2158 live copies overall), so no
+  backfill was needed. Re-audited after deploy, still zero.
+- Deployed nativePads.js only. DB backed up (inkheron.db.pre-cascade-*), prod hash
+  matched the previous deploy before the copy and matches the repo after, service
+  active, /login 200, warning log empty.
+
 ## 2026-07-29 — Bogus "Wrong word" on function words: retracted and blocked
 
 Asked: "go tackle 5" (item 5 of the agreed plan, both halves).
