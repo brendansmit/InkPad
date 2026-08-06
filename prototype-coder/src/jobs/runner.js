@@ -51,10 +51,15 @@ function extractJson(text) {
 }
 
 function stripFences(text) {
-  return text
-    .replace(/^```[^\n]*\n/, '')
-    .replace(/\n```\s*$/, '')
-    .trim();
+  const start = text.indexOf('```');
+  const end = text.lastIndexOf('```');
+  if (start !== -1 && end > start) {
+    const afterNewline = text.indexOf('\n', start);
+    if (afterNewline !== -1 && afterNewline < end) {
+      return text.slice(afterNewline + 1, end).trim();
+    }
+  }
+  return text.trim();
 }
 
 async function generateFile(client, task, generator, defaults, deps, plan) {
@@ -71,8 +76,7 @@ async function reviewFile(client, task, content, reviewer) {
     model: reviewer,
     messages: reviewMessages(task, content),
     temperature: 0.1,
-    max_tokens: 2048,
-    response_format: { type: 'json_object' }
+    max_tokens: 2048
   });
   const parsed = extractJson(res.content) || {};
   const issues = Array.isArray(parsed.issues)
@@ -98,7 +102,15 @@ async function runJob(job, deps) {
   const { createOpenRouter, packageBuild } = deps;
   const client = createOpenRouter(job.apiKey);
   const modeBase = job.options?.mode === 'spec' ? SPEC_DEFAULTS : DEFAULTS;
-  const defaults = { ...modeBase, ...(job.plan.defaults || {}), ...(job.options || {}) };
+  // Strip model fields from plan defaults so mode choice is never overridden by
+  // whatever the conversion model wrote into the plan JSON.
+  const planDefaults = { ...(job.plan.defaults || {}) };
+  delete planDefaults.generator;
+  delete planDefaults.fastGenerator;
+  delete planDefaults.hardGenerator;
+  delete planDefaults.reviewer;
+  delete planDefaults.repairer;
+  const defaults = { ...modeBase, ...planDefaults, ...(job.options || {}) };
   const budget = job.plan.budgetUsd || defaults.budgetUsd;
   const allowPartial = !!job.options.allowPartial;
 

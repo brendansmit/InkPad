@@ -2806,6 +2806,8 @@ ${hasPdf ? `<object class="pdf" data="/api/assignments/${assignment.id}/passage-
         await fs.promises.access(path.join(PASSAGES_DIR, `${assignmentId}.pdf`));
         passagePdf = true;
       } catch (_) {}
+      const rawReturnUrl = String(request.query?.return ?? '');
+      const testReturnUrl = rawReturnUrl.startsWith(`/native/test/${assignmentId}`) ? rawReturnUrl : '';
 
       return reply.type('text/html').send(renderNativeWriteView({
         title: assignment.title,
@@ -2819,6 +2821,7 @@ ${hasPdf ? `<object class="pdf" data="/api/assignments/${assignment.id}/passage-
         passageText: settings.passage_text || '',
         passagePdf,
         greenpen: Boolean(pad.rewrite_of_pad_id),
+        testReturnUrl,
       }));
     }
   );

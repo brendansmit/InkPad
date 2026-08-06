@@ -1,44 +1,5 @@
 # Session Notes
 
-## 2026-06-23 — Grade Importer: % column not showing on existing assignments
-
-**Asked:** % column not appearing even on assignments that already had `score_total` set (30.0 and 25.0 confirmed in DB).
-
-**Root cause:** Flask caches Jinja2 templates in memory at startup. The Grade Importer server (PID 28307) was started before the `f913932` commit that added the % column feature. Every page load served the old cached template without `currentScoreTotal` references. No code bug — just a stale server process.
-
-**Fix:** Killed PID 28307, restarted server. New PID 33871. Template now contains 6 `currentScoreTotal` references. % column confirmed present in served HTML.
-
-**Note for future:** Any time HTML changes don't appear in the browser, restart the Flask server — it must be restarted to pick up template changes when `debug=False`.
-
----
-
-## 2026-06-24 — AP Lang Reference Dashboard: deployed to production
-
-**Asked:** Deploy the AP Lang dashboard to lang.inkheron.app on the existing DigitalOcean droplet (167.172.71.219).
-
-**Did:**
-- Changed port to 3002 to avoid conflict with speed-dating (port already on droplet).
-- Pushed repo to `git@github.com:brendansmit/LangDashboard.git`.
-- Added `lang` A record in DNS pointing to 167.172.71.219 (managed at Porkbun or DO).
-- On server: cloned to `/var/www/ap-lang-dashboard`, `npm install`, created `.env`, started with PM2 as `ap-lang`, nginx reverse proxy config, certbot SSL.
-- Live at https://lang.inkheron.app — admin at /admin.html.
-- Deploy pattern: `git push` then on server `git pull && npm install && pm2 restart ap-lang`.
-
----
-
-## 2026-06-24 — AP Lang Reference Dashboard: initial build
-
-**Asked:** Build a full Node/Express/SQLite document library app for AP Lang students, with a password-protected admin panel. Retrieved complete design system from the prior AP Lang session.
-
-**Did:**
-- Created `ap-lang-dashboard/` with `server.js`, `package.json`, `.env`, `.gitignore`, `public/index.html`, `public/admin.html`.
-- Server: Express + sqlite3 + multer + cookie-parser. `.html`-only uploads (20 MB cap) into `uploads/`. Cookie-based admin auth (`ADMIN_PASSWORD` env var). All 8 API routes implemented.
-- Student view: white sidebar (212px), brand mark, nav, card grid (3→2→1 col responsive), inline iframe document viewer modal with back button and "open in tab" link.
-- Admin view: login modal on load, Library table (toggle-hidden switch, rename, delete with confirm), Upload view (drag-drop zone + title field + progress bar + toasts).
-- Full design system: CSS variables, Inter font, outlined/primary/danger buttons, cards with hover, toggle switch, filter bar, kebab-ready structure, modals, toasts, dropzone, empty states.
-- Verified: server starts, `/api/docs` returns JSON, login works, uploaded test doc appeared as card, doc deleted cleanly. Committed 28f2a0b + .gitignore fix 858885f.
-
----
 
 ## 2026-06-24 — Server Dashboard: command runner + launcher cleanup
 
@@ -310,3 +271,129 @@ Committed `fac26be`.
 **Did:** Recommended a separate private repo only if the serve panel will be deployed independently on the droplet. For initial implementation, it can also start inside the existing workspace and be split later.
 
 **Decision:** No code was started. Preferred production direction is a private `inkheron-serve` repo, but it is not required before inspection.
+
+## 2026-07-08: serve.inkheron.app implementation
+
+**Asked:** Build the separate remote server control panel and link it from Admin.
+
+**Did:** Implemented a standalone `serve` app inside the Admin repo with password login, signed sessions, optional Cloudflare Access email allowlist, CSRF protection, typed host confirmation, audit logging, security headers and only allowlisted status/log/restart/deploy operations. Added a `Serve` button in Admin linking to `https://serve.inkheron.app`. Added deployment notes and corrected Admin's serve target to `/opt/admin-platform` with PM2 `admin-platform`.
+
+**Verification:** Serve tests, Admin tests and syntax checks passed with bundled Node. Local browser checks verified login, the serve dashboard, mobile layout, no command runner, Admin link target and no console errors.
+
+**Commits:** Admin repo commits `f580182`, `21e17d8`, `91da628`. Not deployed publicly yet because `serve.inkheron.app` should be put behind Cloudflare Access or equivalent before exposure.
+
+## 2026-07-08: cheap server recommendation
+
+**Asked:** Best cheap capable server host and location at 10 dollars or less.
+
+**Did:** Recommended Singapore as the location for China/Asia use, with DigitalOcean Singapore as the easiest option because the current setup is already on DigitalOcean, and Hetzner Singapore as the value option if its current small plan is available under the cap. Warned that 1 GB RAM is tight and should use swap plus Cloudflare Access for `serve.inkheron.app`.
+
+**Decision:** No code was started.
+
+## 2026-07-08: server hardening add-ons
+
+**Asked:** How to add swap, nginx, PM2, UFW and Cloudflare Access.
+
+**Did:** Provided a command checklist for Ubuntu server setup and Cloudflare Access configuration order.
+
+**Decision:** No code was started.
+
+## 2026-07-08: DigitalOcean droplet choice
+
+**Asked:** Whether to choose the normal Ubuntu DigitalOcean 6 dollar droplet.
+
+**Did:** Confirmed that the normal Ubuntu 24.04 LTS Basic droplet at 6 dollars is the right choice under the stated 10 dollar cap, with Singapore as the preferred region and 2 GiB swap added after creation.
+
+**Decision:** No code was started.
+
+## 2026-07-08: DigitalOcean SSH key choice
+
+**Asked:** What to choose for SSH key during droplet creation.
+
+**Did:** Recommended using SSH key authentication instead of password login, preferably the existing local Ed25519 public key if available.
+
+**Decision:** No code was started.
+
+## 2026-07-08: new droplet setup
+
+**Asked:** Set up the new DigitalOcean droplet at `165.22.242.91`.
+
+**Did:** SSH verified. Updated Ubuntu 24.04.4, added 2 GiB swap, installed nginx, git, curl, UFW, Node 20.20.2 and PM2 7.0.3, enabled firewall for SSH/HTTP/HTTPS only, configured nginx for `serve.inkheron.app`, copied the Serve app to `/opt/admin-platform`, started `inkheron-serve` with PM2 on port 3469 and enabled PM2 startup.
+
+**Verification:** Local droplet health returned OK, nginx Host-header check returned the Serve login page, PM2 showed `inkheron-serve` online, UFW active, nginx active. DNS still points `serve.inkheron.app` to old IP `167.172.71.219`; A record must be changed to `165.22.242.91`.
+
+**Decision:** Do not store the generated Serve password in notes.
+
+## 2026-07-08: Serve public hardening without Cloudflare
+
+**Asked:** Continue after DNS was changed and make `serve.inkheron.app` as strong as possible for free without Cloudflare or more spending, including a second secret phrase for dangerous actions.
+
+**Did:** Added a second action secret gate to the Serve app. Deploy and restart now require normal login, a 15 minute action unlock, then typed host confirmation. Added tests for the locked/unlocked action path and committed the Admin repo change as `a0e6fff Add serve action secret unlock`. Deployed the update to the droplet, rotated the app password and session secret, added nginx Basic Auth, issued a Let's Encrypt certificate, configured HTTPS redirect, nginx rate limiting, security headers, fail2ban jails, disabled the unused Cloudflare tunnel and kept the Node app bound to `127.0.0.1:3469`.
+
+**Verification:** DNS resolves `serve.inkheron.app` to `165.22.242.91`. Public HTTPS without Basic Auth returns `401`. Basic Auth reaches the app login. App login succeeds with the rotated password. Deploy/restart return `423` before action unlock, action unlock succeeds with the new secret, and typed host confirmation still blocks incorrect confirmations. UFW allows only SSH, HTTP and HTTPS. fail2ban is active with `sshd`, `nginx-http-auth`, `serve-nginx-auth` and `nginx-limit-req` jails. Cloudflared is inactive. HTTP redirects to HTTPS. Certbot live issuance succeeded, but the renewal dry run hung and was stopped cleanly.
+
+**Decision:** Do not use Cloudflare for `inkheron.app`. Use direct DNS to the droplet plus layered free controls: nginx Basic Auth, Serve app password, action secret, CSRF, typed confirmations, rate limiting, fail2ban and audit logs.
+
+## 2026-07-08: Serve credential rotation
+
+**Asked:** Change the nginx Basic Auth password, Serve app password and action secret to user-provided memorable values.
+
+**Did:** Updated the nginx Basic Auth password for user `brendan`, updated the PM2 environment for `inkheron-serve` with the new Serve app password and action secret, rotated the session secret, saved PM2 and reloaded nginx.
+
+**Verification:** Confirmed public login works with the new Basic Auth and Serve app password. Confirmed the action unlock endpoint accepts the new action secret. Did not store the secret values in notes.
+
+## 2026-07-08: Admin Basic Auth reset
+
+**Asked:** Investigate why `admin.inkheron.app` was inaccessible and reset its Basic Auth password.
+
+**Did:** Confirmed `admin.inkheron.app` resolves to the old droplet `167.172.71.219`, where nginx protects the admin app with Basic Auth realm `Grade Importer` and username `Admin`. Installed `apache2-utils` because `htpasswd` was missing, reset the `Admin` Basic Auth password to the user-provided value, validated nginx and reloaded it.
+
+**Verification:** `https://admin.inkheron.app` returns HTTP 200 with username `Admin` and the new password. Did not store the password value in notes.
+
+## 2026-07-08: Restore admin and grade importer routing
+
+**Asked:** Restore `admin.inkheron.app` so the grade importer is only part of the admin site, not the entire admin site.
+
+**Did:** Investigated the old droplet nginx and PM2 state. Found nginx was routing all of `admin.inkheron.app` to the grade importer on port `5051`, while the main `admin-platform` app was still online on port `3474`. Replaced the nginx site config so `/` and normal admin APIs route to `admin-platform`, `/grades` routes to the grade importer, grade-specific API paths route to the grade importer and `/api/sync` remains unauthenticated as before. Backed up the previous nginx config before replacing it, validated nginx and reloaded it.
+
+**Verification:** `https://admin.inkheron.app/` redirects to the admin login, `/login` returns the InkHeron Admin login page, `/api/session` returns the admin API response, `/grades` returns the Grade Importer page and `/api/config` returns the grade importer config response.
+
+## 2026-07-08: Remove admin browser Basic Auth
+
+**Asked:** Remove the browser username/password popup from `admin.inkheron.app` because the admin site should only use its in-app login.
+
+**Did:** Removed nginx Basic Auth directives from the restored `admin.inkheron.app` server block and reloaded nginx. Backed up the prior config first at `/etc/nginx/sites-available/admin.inkheron.app.bak-20260708-no-basic-auth`.
+
+**Verification:** `https://admin.inkheron.app/login` returns HTTP 200 with no `WWW-Authenticate` header, and `/grades` still returns the Grade Importer page.
+
+## 2026-07-08: AI control panel one-hour MVP discussion
+
+**Asked:** Whether the private AI coding dashboard can be up on a new droplet within an hour, using details from the prior remote server dashboard conversation.
+
+**Did:** Pulled the relevant setup facts from notes: existing launcher/deploy dashboard pattern, Flask dashboard on port 5095, per-app configs in `deploy_server.py`, mixed `pm2` and `systemd`, InkPad live at `/opt/inkheron-platform`, and the need for tighter auth and scoped remote control. Recommended a very small MVP rather than the full safe architecture.
+
+**Decision:** No code started. User still needs to give explicit go-ahead before implementation.
+
+## 2026-07-08: AI Control MVP scaffold
+
+**Asked:** Go ahead and build the one-hour MVP for a private phone dashboard on the new `builder.inkheron.app` droplet.
+
+**Did:** Added `ai-control/`, a Python standard-library web app with password login, SQLite job history, mobile UI, per-project JSON config, per-job git clones, configurable Codex command execution, test/build commands, logs, diff display, changed-file safety checks, approve-push and approve-deploy endpoints, nginx config, systemd unit and Ubuntu install script.
+
+**Verification:** Python syntax check passed with bytecode redirected to `/tmp`; project JSON files validate; ASCII scan is clean. Ran a local smoke test with a fake git repo and fake Codex command: job cloned, branched, edited `README.md`, ran test/build commands, produced logs/diff, reached `review`, then fake deploy reached `deployed`. Node was not available locally, so no JS syntax check was run.
+
+**Remote install:** Copied to the new droplet `165.22.242.91`, installed `/opt/ai-control`, enabled `ai-control.service`, generated credentials into `/etc/ai-control.env` and `/root/ai-control-credentials.txt`, configured nginx and certbot for `https://builder.inkheron.app`. Verified public `/health` returns 200, unauthenticated `/` redirects to `/login`, generated password logs in locally on the droplet and the authenticated homepage returns 200.
+
+## 2026-07-08: AI Control auth integration explanation
+
+**Asked:** Explain how to connect Codex, Claude Code and GitHub to the new builder dashboard so it can access existing projects and save its own work.
+
+**Did:** Explained the three required identities: dashboard login, AI CLI auth for the `ai-control` Unix user and GitHub write access via a machine user or per-repo deploy keys. Recommended using SSH GitHub URLs in `projects.json`, storing AI API keys in `/etc/ai-control.env`, running the CLIs as `ai-control` and saving AI work by pushing per-job branches.
+
+## 2026-07-08: AI Control setup UI
+
+**Asked:** Continue step by step, keep a UI to interact with and deploy each working slice.
+
+**Did:** Added an authenticated setup panel to the builder dashboard. It shows Git, Codex, Claude Code, GitHub SSH auth, API key presence, enabled projects and each selected project's repo, AI command, test/build and deploy status. Added `/api/setup` to expose safe status metadata and the service user's public GitHub key without exposing secrets.
+
+**Verification:** Python syntax check passed, frontend JS syntax check passed with bundled Node, shell installer syntax passed and ASCII scan is clean. Local `/api/setup` smoke test returned tool/GitHub/project status.

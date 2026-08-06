@@ -1,13 +1,25 @@
 {
   "name": "model-router-coder",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
+  "version": "2.0.0",
+  "description": "OpenRouter-only draft builder with model-router review/repair pipeline.",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node server.js",
-    "check": "node --check server.js && node --check src/api.js && node --check src/openrouter.js && node --check src/families.js && node --check src/plan.js && node --check src/prompt-planner.js && node --check src/executor.js && node --check src/output.js && node --check public/app.js && node test/run.js"
+    "start": "node src/index.js",
+    "test": "jest --runInBand"
+  },
+  "dependencies": {
+    "archiver": "^5.3.2",
+    "express": "^4.19.2",
+    "openai": "^4.52.0",
+    "p-limit": "^3.1.0",
+    "uuid": "^9.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   }
 }

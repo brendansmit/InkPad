@@ -237,7 +237,7 @@ async function runBuildJob(job) {
     downloadUrl: `/api/builds/${encodeURIComponent(job.id)}/download`,
     runDownloadUrl: `/api/runs/${encodeURIComponent(result.runId)}/download`
   };
-  pushJobEvent(job, { type: "package:ready", result });
+  pushJobEvent(job, { type: "package:ready", result: job.result });
   finishJob(job, "done");
 }
 

@@ -1,0 +1,1430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writing Analyzer — skeuomorphic screens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Caveat:wght@600;700&family=Patrick+Hand&family=Bangers&family=Poiret+One&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   Writing Analyzer — design system (base)
+   Base style: soft modern SaaS. Palette: green, maroon, blue.
+   Variants: add .theme-neu / .theme-flat / .theme-skeuo to <body>.
+   ============================================================ */
+:root {
+  --bg: #FAF9F5;
+  --surface: #FFFFFF;
+  --surface-2: #F3F1EA;
+  --border: rgba(20,20,18,0.12);
+  --border-strong: rgba(20,20,18,0.22);
+  --text: #1C1C1A;
+  --text-2: #5C5B55;
+  --text-3: #8C8B83;
+
+  --ink: #1C1C1A;
+  --ink-text: #FAF9F5;
+
+  --green-50: #EAF3EC;
+  --green-100: #CDE5D3;
+  --green-500: #2E7D52;
+  --green-600: #246343;
+  --green-700: #1B4A32;
+
+  --maroon-50: #F6E9EB;
+  --maroon-500: #8C2F3B;
+  --maroon-700: #6A2531;
+
+  --blue-50: #E8F0F7;
+  --blue-500: #2C6E9C;
+  --blue-700: #1F5076;
+
+  --amber-50: #FBF0DC;
+  --amber-700: #8A5A12;
+
+  --primary: var(--green-600);
+  --primary-weak: var(--green-50);
+  --primary-text: var(--green-700);
+  --success: var(--green-600);
+  --danger: var(--maroon-500);
+  --info: var(--blue-500);
+
+  --r-sm: 8px;  --r-md: 12px; --r-lg: 16px; --r-xl: 22px; --r-pill: 999px;
+
+  --s-1: 4px; --s-2: 8px; --s-3: 12px;
+  --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px;
+
+  --font: 'Inter', -apple-system, system-ui, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  --fs-display: 30px; --fs-h1: 22px; --fs-h2: 18px;
+  --fs-body: 15px; --fs-sm: 13px; --fs-xs: 12px;
+  --fw-regular: 400; --fw-medium: 500;
+
+  --shadow-sm: 0 1px 2px rgba(20,20,18,0.05);
+  --shadow-card: 0 2px 12px rgba(20,20,18,0.05);
+  --shadow-pop: 0 8px 24px rgba(20,20,18,0.08);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: var(--font); font-size: var(--fs-body);
+  font-weight: var(--fw-regular); line-height: 1.6;
+  color: var(--text); background: var(--bg);
+}
+h1 { font-size: var(--fs-h1); font-weight: var(--fw-medium); margin: 0; }
+h2 { font-size: var(--fs-h2); font-weight: var(--fw-medium); margin: 0; }
+.display { font-size: var(--fs-display); font-weight: var(--fw-medium); line-height: 1.1; }
+.muted { color: var(--text-2); }
+.hint { color: var(--text-3); font-size: var(--fs-sm); }
+
+.card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-xl); padding: var(--s-5); box-shadow: var(--shadow-card); }
+.card--dark { background: var(--ink); color: var(--ink-text); border: none; }
+
+.nav { display: flex; gap: var(--s-1); padding: var(--s-1);
+  border: 1px solid var(--border); border-radius: var(--r-pill); }
+.nav__pill { padding: 7px 14px; border-radius: var(--r-pill);
+  font-size: var(--fs-sm); color: var(--text-2); cursor: pointer; }
+.nav__pill--active { background: var(--text); color: var(--bg); }
+
+.btn { font-size: var(--fs-sm); font-weight: var(--fw-medium);
+  padding: 10px 18px; border-radius: var(--r-md);
+  border: 1px solid var(--border-strong); background: var(--surface);
+  color: var(--text); cursor: pointer; transition: background .15s, transform .05s; }
+.btn:active { transform: scale(0.98); }
+.btn--primary { background: var(--primary); color: #fff; border: none; }
+.btn--pill { border-radius: var(--r-pill); }
+
+.stat__num { font-size: 28px; font-weight: var(--fw-medium); line-height: 1; }
+.stat__num--green { color: var(--primary); }
+.stat__label { font-size: var(--fs-xs); color: var(--text-2); }
+
+.tag { display: inline-block; font-size: var(--fs-sm);
+  padding: 5px 11px; border-radius: var(--r-md); }
+.tag--target { background: var(--maroon-50); color: var(--maroon-700); }
+.tag--strength { background: var(--green-50); color: var(--primary-text); }
+.tag--info { background: var(--blue-50); color: var(--blue-700); }
+.tag--muted { background: var(--surface-2); color: var(--text-2); }
+
+.bar { height: 9px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
+.bar__fill { height: 100%; border-radius: var(--r-pill); background: var(--danger); opacity: .8; }
+
+.code { font-family: var(--mono); font-size: var(--fs-xs); font-weight: var(--fw-medium);
+  padding: 1px 5px; border-radius: 5px; }
+.code--surface { background: var(--amber-50); color: var(--amber-700); }
+.code--grammar { background: var(--maroon-50); color: var(--maroon-700); }
+.code--format  { background: var(--blue-50);  color: var(--blue-700); }
+.code--good    { background: var(--green-50); color: var(--primary-text); }
+
+.avatar { width: 38px; height: 38px; border-radius: 50%;
+  background: var(--green-50); color: var(--primary-text);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: var(--fw-medium); font-size: var(--fs-sm); }
+
+/* ---- variant: neumorphism ---- */
+.theme-neu { --surface: var(--bg); }
+.theme-neu .card { border: none;
+  box-shadow: 6px 6px 14px rgba(0,0,0,0.10), -6px -6px 14px rgba(255,255,255,0.75); }
+.theme-neu .btn { border: none;
+  box-shadow: 4px 4px 10px rgba(0,0,0,0.10), -4px -4px 10px rgba(255,255,255,0.75); }
+.theme-neu .btn:active, .theme-neu .nav__pill--active {
+  box-shadow: inset 3px 3px 7px rgba(0,0,0,0.12), inset -3px -3px 7px rgba(255,255,255,0.7); }
+
+/* ---- variant: flat (graphic, bordered, tighter geometry) ---- */
+.theme-flat {
+  --shadow-sm: none; --shadow-card: none; --shadow-pop: none;
+  --bg: #F1EFE8;                 /* slightly deeper desk so white cards pop */
+  --border: rgba(20,20,18,0.20); /* borders carry the structure, so make them read */
+  /* tighter, more geometric radii */
+  --r-sm: 4px; --r-md: 6px; --r-lg: 8px; --r-xl: 10px; --r-pill: 999px;
+}
+.theme-flat .card { border: 1.5px solid var(--border); border-radius: var(--r-xl); }
+/* secondary buttons: flat tinted block instead of plain white */
+.theme-flat .btn {
+  border: 1.5px solid var(--border); background: var(--surface-2); transition: none;
+}
+.theme-flat .btn:active { transform: none; background: var(--green-50); }
+.theme-flat .btn--primary { border: 1.5px solid var(--green-700); background: var(--primary); }
+/* nav: square-ish bordered segmented control, active pill in brand green */
+.theme-flat .nav { border: 1.5px solid var(--border); border-radius: var(--r-md); padding: 3px; }
+.theme-flat .nav__pill { border-radius: var(--r-sm); }
+.theme-flat .nav__pill--active { background: var(--primary); color: #fff; }
+/* tags + chips: solid edged blocks */
+.theme-flat .tag { border-radius: var(--r-sm); border: 1px solid currentColor; }
+.theme-flat .code { border-radius: 3px; border: 1px solid currentColor; }
+/* progress channel: flat track, square ends read as a meter */
+.theme-flat .bar { border: 1px solid var(--border); border-radius: var(--r-sm); }
+.theme-flat .bar__fill { border-radius: 0; opacity: 1; }
+.theme-flat .bar__fill--green { background: var(--green-600); }
+/* inputs: crisp bordered fields */
+.theme-flat input, .theme-flat textarea, .theme-flat select {
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface); padding: 10px 12px;
+  font-family: var(--font); font-size: var(--fs-body); color: var(--text);
+}
+.theme-flat .avatar { border: 1.5px solid var(--green-600); }
+
+/* ============================================================
+   Frosted theme (SaaS + glassmorphism) — <body class="theme-glass">.
+   Same SaaS geometry, but translucent blurred panels over a soft
+   brand-tinted gradient desk. Light, layered, airy.
+   ============================================================ */
+.theme-glass {
+  --bg: #EAF0EE;
+  --surface: rgba(255,255,255,0.55);
+  --surface-2: rgba(255,255,255,0.35);
+  --border: rgba(255,255,255,0.6);
+  --border-strong: rgba(255,255,255,0.8);
+  --text: #1B2A24;
+  --text-2: #4A5650;
+  --text-3: #7C857F;
+  background-color: var(--bg);
+}
+/* soft aurora desk on a fixed layer so frosted panels refract it while scrolling
+   (background-attachment:fixed + backdrop-filter breaks compositing, so avoid it) */
+.theme-glass::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(60% 55% at 12% 8%,  rgba(46,125,82,0.30), transparent 70%),
+    radial-gradient(55% 50% at 92% 14%, rgba(44,110,156,0.28), transparent 70%),
+    radial-gradient(60% 60% at 78% 96%, rgba(140,47,59,0.22), transparent 72%),
+    radial-gradient(50% 50% at 20% 92%, rgba(46,125,82,0.20), transparent 70%);
+}
+.theme-glass .card {
+  background: var(--surface);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid var(--border); border-radius: var(--r-xl);
+  box-shadow: 0 8px 30px rgba(20,40,30,0.12), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.theme-glass .card--dark {
+  background: rgba(27,42,36,0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  color: #F2F1EA; border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.theme-glass .nav {
+  background: rgba(255,255,255,0.4);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+.theme-glass .nav__pill--active {
+  background: rgba(255,255,255,0.9); color: var(--primary-text);
+  box-shadow: 0 1px 4px rgba(20,40,30,0.15);
+}
+.theme-glass .btn {
+  background: rgba(255,255,255,0.45);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--border-strong);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.theme-glass .btn--primary {
+  background: linear-gradient(180deg, rgba(58,150,105,0.95), rgba(36,99,67,0.95));
+  border: 1px solid rgba(255,255,255,0.25); color: #fff;
+  box-shadow: 0 4px 14px rgba(36,99,67,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+}
+.theme-glass .tag { -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.theme-glass .bar { background: rgba(255,255,255,0.4); }
+.theme-glass .bar__fill { opacity: .9; }
+.theme-glass .bar__fill--green { background: var(--green-600); }
+.theme-glass input, .theme-glass textarea, .theme-glass select {
+  background: rgba(255,255,255,0.55);
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+  border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); color: var(--text);
+}
+.theme-glass .avatar { border: 1px solid rgba(255,255,255,0.7); }
+/* mockup chrome: let the desk show through the window body so glass refracts */
+.theme-glass .window { border: 1px solid rgba(255,255,255,0.4);
+  box-shadow: 0 24px 60px rgba(20,40,30,0.22); }
+.theme-glass .studentrow { background: rgba(255,255,255,0.28); border-radius: var(--r-md); }
+
+/* ============================================================
+   Brutalist theme — <body class="theme-brutal">.
+   Loud, graphic: thick ink borders, hard offset shadows (no blur),
+   zero radius, saturated colour blocks, heavy type.
+   ============================================================ */
+.theme-brutal {
+  --bg: #F1E7CF;                /* flat butter desk, not neutral */
+  --surface: #FFFFFF;
+  --surface-2: #FBF0DC;
+  --border: #141412; --border-strong: #141412;
+  --r-sm: 0; --r-md: 0; --r-lg: 0; --r-xl: 0; --r-pill: 0;
+  --shadow-sm: none; --shadow-card: 6px 6px 0 #141412; --shadow-pop: 8px 8px 0 #141412;
+}
+.theme-brutal .display { font-weight: 800; letter-spacing: -0.01em; }
+.theme-brutal h1, .theme-brutal h2 { font-weight: 800; }
+.theme-brutal .card { border: 2.5px solid #141412; border-radius: 0; box-shadow: 6px 6px 0 #141412; }
+.theme-brutal .card--dark { background: #141412; color: #FAF9F5; border: 2.5px solid #141412;
+  border-radius: 0; box-shadow: 6px 6px 0 var(--green-500); }
+.theme-brutal .nav { border: 2.5px solid #141412; border-radius: 0; padding: 0;
+  background: #fff; box-shadow: 4px 4px 0 #141412; gap: 0; }
+.theme-brutal .nav__pill { border-radius: 0; border-right: 2.5px solid #141412; font-weight: 700; }
+.theme-brutal .nav__pill:last-child { border-right: none; }
+.theme-brutal .nav__pill--active { background: var(--maroon-500); color: #fff; }
+.theme-brutal .btn { border: 2.5px solid #141412; border-radius: 0; background: #fff;
+  font-weight: 700; box-shadow: 4px 4px 0 #141412; transition: none; }
+.theme-brutal .btn:active { transform: translate(4px,4px); box-shadow: 0 0 0 #141412; }
+.theme-brutal .btn--primary { background: var(--green-500); color: #fff; border: 2.5px solid #141412; }
+.theme-brutal .tag { border: 2px solid #141412; border-radius: 0; font-weight: 700; }
+.theme-brutal .code { border: 1.5px solid #141412; border-radius: 0; }
+.theme-brutal .bar { border: 2px solid #141412; border-radius: 0; background: #fff; height: 14px; }
+.theme-brutal .bar__fill { border-radius: 0; opacity: 1; }
+.theme-brutal .bar__fill--green { background: var(--green-500); }
+.theme-brutal input, .theme-brutal textarea, .theme-brutal select {
+  border: 2.5px solid #141412; border-radius: 0; background: #fff; box-shadow: 4px 4px 0 #141412;
+  padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+.theme-brutal .avatar { border: 2.5px solid #141412; }
+.theme-brutal .screen__tab { border: 2px solid #141412; border-radius: 0;
+  background: var(--amber-50); color: #141412; box-shadow: 3px 3px 0 #141412; }
+.theme-brutal .studentrow { border: 2px solid #141412; border-radius: 0; background: #fff; }
+
+/* ============================================================
+   Editorial theme — <body class="theme-editorial">.
+   Quiet, literary: serif type, hairline rules, restrained maroon
+   accent, generous air. Reads like a literary journal.
+   ============================================================ */
+.theme-editorial {
+  --font: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --bg: #F7F4EC;
+  --surface: #FFFFFF;
+  --surface-2: #F0ECE0;
+  --border: rgba(20,20,18,0.16);
+  --text: #1A1815; --text-2: #56524A; --text-3: #8A867C;
+  --primary: var(--maroon-700); --primary-weak: var(--maroon-50); --primary-text: var(--maroon-700);
+  --r-sm: 3px; --r-md: 4px; --r-lg: 5px; --r-xl: 6px;
+  --shadow-sm: none; --shadow-card: none; --shadow-pop: none;
+}
+.theme-editorial .display { font-weight: 700; letter-spacing: -0.02em; }
+.theme-editorial h1, .theme-editorial h2 { font-weight: 600; letter-spacing: -0.01em; }
+.theme-editorial .card { border: 1px solid var(--border); border-radius: var(--r-xl); padding: var(--s-6); }
+.theme-editorial .card--dark { background: #1A1815; color: #F2EFE6; border: none; }
+/* tabs become an underlined ruled tab bar */
+.theme-editorial .nav { border: none; border-bottom: 1.5px solid var(--text);
+  border-radius: 0; padding: 0; gap: 22px; }
+.theme-editorial .nav__pill { border-radius: 0; padding: 8px 2px; color: var(--text-2);
+  font-size: var(--fs-body); }
+.theme-editorial .nav__pill--active { background: transparent; color: var(--text);
+  box-shadow: inset 0 -2.5px 0 var(--maroon-500); }
+.theme-editorial .btn { border: 1px solid var(--text); border-radius: var(--r-md);
+  background: transparent; font-family: var(--font); letter-spacing: .01em; }
+.theme-editorial .btn--primary { background: var(--maroon-700); color: #fff; border: 1px solid var(--maroon-700); }
+.theme-editorial .tag { border: 1px solid currentColor; border-radius: var(--r-sm);
+  background: transparent; font-variant: small-caps; letter-spacing: .04em; }
+.theme-editorial .bar__fill { opacity: 1; }
+.theme-editorial .bar__fill--green { background: var(--green-600); }
+.theme-editorial input, .theme-editorial textarea, .theme-editorial select {
+  border: 1px solid var(--border); border-radius: var(--r-sm); background: #fff;
+  font-family: var(--font); font-size: var(--fs-body); color: var(--text); padding: 10px 12px; }
+.theme-editorial .avatar { background: var(--surface-2); color: var(--maroon-700);
+  border: 1px solid var(--border); }
+.theme-editorial .stat__num--green { color: var(--maroon-700); }
+
+/* ============================================================
+   Midnight theme — <body class="theme-dark">. True dark UI,
+   accents glowing on near-black. (Explicit, not media-query based.)
+   ============================================================ */
+.theme-dark {
+  --bg: #0F1311; --surface: #181F1A; --surface-2: #212A23;
+  --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.22);
+  --text: #EAF0EA; --text-2: #A6B0A8; --text-3: #737C75;
+  --ink: #EAF0EA; --ink-text: #0F1311;
+  --green-50: #16241B; --green-100: #CDE5D3;
+  --maroon-50: #2A171A; --blue-50: #16242E; --amber-50: #2A2110;
+  --primary: var(--green-500); --primary-weak: var(--green-50); --primary-text: var(--green-100);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-card: 0 2px 14px rgba(0,0,0,0.55); --shadow-pop: 0 10px 30px rgba(0,0,0,0.6);
+  background: var(--bg);
+}
+.theme-dark .card { background: var(--surface); border: 1px solid var(--border); }
+.theme-dark .btn { background: var(--surface-2); }
+.theme-dark .btn--primary { background: var(--green-500);
+  box-shadow: 0 0 18px rgba(46,125,82,0.45); }
+.theme-dark .nav { border: 1px solid var(--border); }
+.theme-dark .nav__pill--active { background: var(--green-500); color: #fff; }
+.theme-dark .bar { background: var(--surface-2); }
+.theme-dark .bar__fill--green { background: var(--green-500); }
+.theme-dark .stat__num--green { color: var(--green-100); }
+.theme-dark input, .theme-dark textarea, .theme-dark select {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+  color: var(--text); padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); }
+.theme-dark .studentrow { background: rgba(255,255,255,0.04); }
+
+/* ============================================================
+   Claymorphism theme — <body class="theme-clay">. Puffy inflated
+   3D shapes, pastel ground, big soft radii, double shadow.
+   ============================================================ */
+.theme-clay {
+  --bg: #E9EAF6; --surface: #FBFAFF; --surface-2: #EEEEF8;
+  --border: transparent; --border-strong: transparent;
+  --text: #3A3550; --text-2: #6B6680; --text-3: #9A95AC;
+  --r-sm: 14px; --r-md: 18px; --r-lg: 24px; --r-xl: 30px;
+  background: var(--bg);
+}
+.theme-clay .card { border: none; border-radius: var(--r-xl); background: var(--surface);
+  box-shadow: 8px 8px 18px rgba(60,53,80,0.18), -6px -6px 14px rgba(255,255,255,0.9),
+    inset 0 -4px 8px rgba(60,53,80,0.06), inset 0 4px 8px rgba(255,255,255,0.6); }
+.theme-clay .card--dark { background: #4B4470; color: #F4F2FB;
+  box-shadow: 8px 8px 18px rgba(40,34,64,0.35), inset 0 -4px 8px rgba(0,0,0,0.18),
+    inset 0 4px 8px rgba(255,255,255,0.12); }
+.theme-clay .btn { border: none; border-radius: var(--r-md); background: var(--surface);
+  box-shadow: 5px 5px 12px rgba(60,53,80,0.18), -4px -4px 10px rgba(255,255,255,0.9),
+    inset 0 -3px 6px rgba(60,53,80,0.06), inset 0 3px 6px rgba(255,255,255,0.7); }
+.theme-clay .btn:active { transform: translateY(1px); }
+.theme-clay .btn--primary { background: var(--green-500); color: #fff;
+  box-shadow: 5px 5px 12px rgba(46,125,82,0.4), inset 0 -3px 6px rgba(0,0,0,0.18),
+    inset 0 3px 6px rgba(255,255,255,0.3); }
+.theme-clay .nav { border: none; border-radius: var(--r-pill); background: var(--surface);
+  box-shadow: inset 3px 3px 7px rgba(60,53,80,0.14), inset -3px -3px 7px rgba(255,255,255,0.9); }
+.theme-clay .nav__pill--active { background: var(--green-500); color: #fff;
+  box-shadow: 3px 3px 8px rgba(46,125,82,0.35); }
+.theme-clay .tag { border-radius: var(--r-sm); }
+.theme-clay .bar { border-radius: var(--r-pill); height: 12px;
+  box-shadow: inset 2px 2px 5px rgba(60,53,80,0.16), inset -2px -2px 5px rgba(255,255,255,0.8); }
+.theme-clay .bar__fill { border-radius: var(--r-pill); opacity: 1; }
+.theme-clay .bar__fill--green { background: var(--green-500); }
+.theme-clay input, .theme-clay textarea, .theme-clay select {
+  border: none; border-radius: var(--r-md); background: var(--surface-2);
+  box-shadow: inset 3px 3px 7px rgba(60,53,80,0.14), inset -3px -3px 7px rgba(255,255,255,0.9);
+  padding: 11px 14px; font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+.theme-clay .avatar { box-shadow: 4px 4px 9px rgba(60,53,80,0.2), -3px -3px 7px rgba(255,255,255,0.9); }
+
+/* ============================================================
+   Material theme — <body class="theme-material">. Crisp elevation
+   shadows, uppercase tracked buttons, underline tabs, grey ground.
+   ============================================================ */
+.theme-material {
+  --bg: #F4F4F5; --surface: #FFFFFF; --surface-2: #ECECEE;
+  --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.24);
+  --text: #1F1F22; --text-2: #5F5F66; --text-3: #9A9AA1;
+  --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-xl: 12px;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.12);
+  --primary: var(--green-600);
+  background: var(--bg);
+}
+.theme-material .card { border: none; border-radius: var(--r-lg); }
+.theme-material .btn { border: none; border-radius: var(--r-sm);
+  text-transform: uppercase; letter-spacing: .06em; font-size: var(--fs-sm); font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2); background: var(--surface); }
+.theme-material .btn--primary { background: var(--primary); color: #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.28); }
+.theme-material .nav { border: none; border-bottom: 1px solid var(--border);
+  border-radius: 0; padding: 0; gap: 6px; }
+.theme-material .nav__pill { border-radius: 0; padding: 12px 14px;
+  text-transform: uppercase; letter-spacing: .06em; font-size: var(--fs-sm);
+  font-weight: 500; color: var(--text-2); }
+.theme-material .nav__pill--active { background: transparent; color: var(--primary);
+  box-shadow: inset 0 -3px 0 var(--primary); }
+.theme-material .tag { border-radius: var(--r-md); }
+.theme-material .bar { height: 6px; border-radius: 2px; }
+.theme-material .bar__fill { opacity: 1; }
+.theme-material .bar__fill--green { background: var(--green-600); }
+.theme-material input, .theme-material textarea, .theme-material select {
+  border: none; border-bottom: 2px solid var(--border); border-radius: 4px 4px 0 0;
+  background: var(--surface-2); padding: 11px 12px;
+  font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+
+/* ============================================================
+   Swiss theme — <body class="theme-swiss">. International Typographic:
+   hairline grid, big uppercase type, single red accent, no ornament.
+   ============================================================ */
+.theme-swiss {
+  --bg: #FFFFFF; --surface: #FFFFFF; --surface-2: #F2F2F2;
+  --border: #111111; --border-strong: #111111;
+  --text: #111111; --text-2: #555555; --text-3: #888888;
+  --r-sm: 0; --r-md: 0; --r-lg: 0; --r-xl: 0; --r-pill: 0;
+  --shadow-sm: none; --shadow-card: none; --shadow-pop: none;
+  --swiss-red: #E2342B;
+  background: var(--bg);
+}
+.theme-swiss .display { text-transform: uppercase; font-weight: 800; letter-spacing: -0.01em; }
+.theme-swiss h1, .theme-swiss h2 { text-transform: uppercase; font-weight: 700; letter-spacing: .01em; }
+.theme-swiss .card { border: 1px solid #111; border-radius: 0; }
+.theme-swiss .card--dark { background: #111; color: #fff; border: none; border-radius: 0; }
+.theme-swiss .nav { border: 1px solid #111; border-radius: 0; padding: 0; gap: 0; }
+.theme-swiss .nav__pill { border-radius: 0; border-right: 1px solid #111;
+  text-transform: uppercase; letter-spacing: .04em; font-size: var(--fs-xs); font-weight: 600; }
+.theme-swiss .nav__pill:last-child { border-right: none; }
+.theme-swiss .nav__pill--active { background: var(--swiss-red); color: #fff; }
+.theme-swiss .btn { border: 1px solid #111; border-radius: 0; background: #fff;
+  text-transform: uppercase; letter-spacing: .04em; font-size: var(--fs-xs); font-weight: 600; }
+.theme-swiss .btn--primary { background: var(--swiss-red); color: #fff; border: 1px solid var(--swiss-red); }
+.theme-swiss .tag { border-radius: 0; text-transform: uppercase; letter-spacing: .03em;
+  font-size: 11px; font-weight: 600; }
+.theme-swiss .code { border-radius: 0; }
+.theme-swiss .bar { border: 1px solid #111; border-radius: 0; background: #fff; height: 10px; }
+.theme-swiss .bar__fill { border-radius: 0; background: var(--swiss-red); opacity: 1; }
+.theme-swiss .bar__fill--green { background: var(--green-600); }
+.theme-swiss .stat__num { font-weight: 800; }
+.theme-swiss .stat__num--green { color: var(--swiss-red); }
+.theme-swiss .avatar { border-radius: 0; background: #111; color: #fff; }
+.theme-swiss .screen__tab { border-radius: 0; background: var(--swiss-red); color: #fff; box-shadow: none; }
+.theme-swiss input, .theme-swiss textarea, .theme-swiss select {
+  border: 1px solid #111; border-radius: 0; background: #fff;
+  padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+
+/* ============================================================
+   Sketch theme — <body class="theme-sketch">. Hand-drawn marked-up
+   exercise book: wobbly uneven borders, handwriting, marker accents.
+   (Uneven border-radius fakes the hand-drawn line without distorting text.)
+   ============================================================ */
+.theme-sketch {
+  --font: 'Patrick Hand', 'Comic Sans MS', cursive;
+  --bg: #FBF8F0; --surface: #FFFFFF; --surface-2: #F3EFE3;
+  --border: #2E2A24; --border-strong: #2E2A24;
+  --text: #2E2A24; --text-2: #5C564C; --text-3: #8A8377;
+  background-color: var(--bg);
+  background-image: radial-gradient(rgba(46,42,36,0.07) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+.theme-sketch .display { font-family: 'Caveat', cursive; font-weight: 700; font-size: 44px; }
+.theme-sketch h1 { font-family: 'Caveat', cursive; font-weight: 700; font-size: 30px; }
+.theme-sketch h2 { font-family: 'Caveat', cursive; font-weight: 700; font-size: 24px; }
+.theme-sketch .card { border: 2px solid var(--border); background: var(--surface);
+  border-radius: 14px 10px 18px 8px / 10px 16px 8px 14px; box-shadow: 2px 3px 0 rgba(46,42,36,0.18); }
+.theme-sketch .card--dark { background: #2E2A24; color: #FBF8F0; border: 2px solid #2E2A24;
+  border-radius: 12px 16px 10px 14px / 14px 10px 16px 12px; box-shadow: 3px 4px 0 rgba(46,42,36,0.3); }
+.theme-sketch .btn { border: 2px solid var(--border); background: var(--surface); font-family: var(--font);
+  border-radius: 12px 8px 14px 9px / 9px 13px 8px 12px; box-shadow: 1.5px 2px 0 rgba(46,42,36,0.2); }
+.theme-sketch .btn--primary { background: var(--green-500); color: #fff; }
+.theme-sketch .nav { border: 2px solid var(--border); border-radius: 18px 14px 16px 15px / 15px 17px 14px 16px; }
+.theme-sketch .nav__pill--active { color: var(--text);
+  background: linear-gradient(transparent 45%, #FCE38A 45%); border-radius: 4px; }
+.theme-sketch .tag { border: 2px solid currentColor; background: transparent;
+  border-radius: 9px 7px 11px 6px / 6px 10px 7px 9px; }
+.theme-sketch .code { border: 1.5px solid currentColor; border-radius: 6px 4px 7px 3px / 3px 6px 4px 6px; }
+.theme-sketch .bar { border: 2px solid var(--border); border-radius: 999px; background: #fff; height: 13px; }
+.theme-sketch .bar__fill { border-radius: 999px; opacity: 1;
+  background-image: repeating-linear-gradient(45deg, var(--maroon-500) 0 5px, #a23a46 5px 10px); }
+.theme-sketch .bar__fill--green {
+  background-image: repeating-linear-gradient(45deg, var(--green-600) 0 5px, #3a9669 5px 10px); }
+.theme-sketch input, .theme-sketch textarea, .theme-sketch select {
+  border: 2px solid var(--border); background: #fff; font-family: var(--font);
+  border-radius: 10px 8px 12px 7px / 7px 11px 8px 10px; padding: 10px 12px;
+  font-size: var(--fs-body); color: var(--text); }
+.theme-sketch .avatar { border: 2px solid var(--border);
+  border-radius: 48% 52% 50% 50% / 52% 48% 52% 48%; background: var(--amber-50); color: var(--text); }
+.theme-sketch .screen__tab { border: 2px solid var(--border); background: var(--amber-50); color: var(--text);
+  border-radius: 9px 7px 11px 6px / 6px 10px 7px 9px; box-shadow: 1.5px 2px 0 rgba(46,42,36,0.2); }
+.theme-sketch .studentrow { border: 2px dashed var(--border); background: #fff;
+  border-radius: 12px 9px 14px 8px / 8px 13px 9px 12px; }
+
+/* ============================================================
+   Terminal theme — <body class="theme-terminal">. Monospace TUI:
+   dark, bracketed buttons, inverted active states, scanlines.
+   ============================================================ */
+.theme-terminal {
+  --font: var(--mono);
+  --bg: #0B0F0C; --surface: #0F140F; --surface-2: #161D16;
+  --border: rgba(120,200,140,0.25); --border-strong: rgba(120,200,140,0.5);
+  --text: #C6E6CC; --text-2: #7FAE89; --text-3: #5D7D66;
+  --green-50: #0F2416; --maroon-50: #2A1414; --blue-50: #0F2230; --amber-50: #2A2410;
+  --primary: #3FB950; --primary-text: #7CF08E;
+  --r-sm: 0; --r-md: 0; --r-lg: 0; --r-xl: 0; --r-pill: 0;
+  --shadow-sm: none; --shadow-card: none; --shadow-pop: none;
+  background: var(--bg);
+}
+.theme-terminal::before { content: ""; position: fixed; inset: 0; z-index: 40; pointer-events: none;
+  background: repeating-linear-gradient(rgba(0,0,0,0) 0 2px, rgba(0,0,0,0.16) 2px 3px); }
+.theme-terminal .card { border: 1px solid var(--border); background: var(--surface); }
+.theme-terminal .card--dark { background: #060806; color: var(--text); border: 1px solid var(--border-strong); }
+.theme-terminal .nav { border: 1px solid var(--border); padding: 0; }
+.theme-terminal .nav__pill--active { background: var(--primary); color: #06120A; }
+.theme-terminal .btn { border: 1px solid var(--border-strong); background: transparent; color: var(--text); }
+.theme-terminal .btn::before { content: "[ "; } .theme-terminal .btn::after { content: " ]"; }
+.theme-terminal .btn--primary { background: var(--primary); color: #06120A; border-color: var(--primary); }
+.theme-terminal .tag { background: var(--surface-2); border: 1px solid var(--border); }
+.theme-terminal .bar { border: 1px solid var(--border); background: var(--surface-2); height: 12px; }
+.theme-terminal .bar__fill, .theme-terminal .bar__fill--green { opacity: 1; background: var(--primary);
+  background-image: repeating-linear-gradient(90deg, var(--primary) 0 6px, transparent 6px 9px); }
+.theme-terminal input, .theme-terminal textarea, .theme-terminal select {
+  border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text);
+  font-family: var(--mono); padding: 10px 12px; font-size: var(--fs-body); }
+.theme-terminal .avatar { background: var(--surface-2); color: var(--primary); border: 1px solid var(--border); }
+.theme-terminal .stat__num--green { color: var(--primary); }
+.theme-terminal .screen__tab { background: transparent; color: var(--primary);
+  border: 1px solid var(--border); box-shadow: none; }
+.theme-terminal .studentrow { background: var(--surface-2); }
+
+/* ============================================================
+   Comic theme — <body class="theme-comic">. Pop-art: halftone dot
+   ground, comic display font, ink outlines, action-colour fills.
+   ============================================================ */
+.theme-comic {
+  --bg: #FFE34D; --surface: #FFFFFF; --surface-2: #FFF4C2;
+  --border: #111; --border-strong: #111;
+  --text: #111; --text-2: #3A3A3A; --text-3: #6A6A6A;
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-xl: 14px;
+  background-color: #FFE34D;
+  background-image: radial-gradient(rgba(0,0,0,0.13) 1.4px, transparent 1.6px);
+  background-size: 14px 14px;
+}
+.theme-comic .display { font-family: 'Bangers', cursive; font-weight: 400; letter-spacing: .02em;
+  font-size: 50px; color: var(--maroon-500); -webkit-text-stroke: 1px #111; }
+.theme-comic h1 { font-family: 'Bangers', cursive; font-weight: 400; letter-spacing: .02em; font-size: 32px; }
+.theme-comic h2 { font-family: 'Bangers', cursive; font-weight: 400; letter-spacing: .02em; font-size: 26px; }
+.theme-comic .card { border: 3px solid #111; border-radius: var(--r-xl); background: #fff; box-shadow: 5px 5px 0 #111; }
+.theme-comic .card--dark { background: var(--maroon-500); color: #fff; border: 3px solid #111; box-shadow: 5px 5px 0 #111; }
+.theme-comic .btn { border: 3px solid #111; border-radius: var(--r-md); background: #fff; font-weight: 800;
+  box-shadow: 3px 3px 0 #111; transition: none; }
+.theme-comic .btn:active { transform: translate(3px,3px); box-shadow: 0 0 0 #111; }
+.theme-comic .btn--primary { background: var(--maroon-500); color: #fff; }
+.theme-comic .nav { border: 3px solid #111; border-radius: var(--r-pill); background: #fff; box-shadow: 3px 3px 0 #111; padding: 3px; }
+.theme-comic .nav__pill { font-weight: 800; }
+.theme-comic .nav__pill--active { background: var(--blue-500); color: #fff; }
+.theme-comic .tag { border: 2.5px solid #111; border-radius: var(--r-sm); font-weight: 800; }
+.theme-comic .code { border: 2px solid #111; border-radius: 5px; font-weight: 700; }
+.theme-comic .bar { border: 2.5px solid #111; border-radius: var(--r-pill); background: #fff; height: 14px; }
+.theme-comic .bar__fill { border-radius: var(--r-pill); opacity: 1; }
+.theme-comic .bar__fill--green { background: var(--green-500); }
+.theme-comic input, .theme-comic textarea, .theme-comic select {
+  border: 3px solid #111; border-radius: var(--r-md); background: #fff; box-shadow: 3px 3px 0 #111;
+  font-weight: 600; padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+.theme-comic .avatar { border: 3px solid #111; font-weight: 800; }
+.theme-comic .stat__num { font-family: 'Bangers', cursive; font-weight: 400; letter-spacing: .03em;
+  -webkit-text-stroke: 0.5px #111; }
+.theme-comic .stat__num--green { color: var(--green-600); }
+.theme-comic .screen__tab { border: 2.5px solid #111; border-radius: var(--r-sm); background: var(--blue-500);
+  color: #fff; box-shadow: 3px 3px 0 #111; font-weight: 800; }
+.theme-comic .studentrow { border: 2.5px solid #111; border-radius: var(--r-md); background: #fff; }
+
+/* ============================================================
+   Vaporwave theme — <body class="theme-vapor">. Neon synthwave:
+   purple grid horizon, glowing pink/cyan gradients, chrome-glow text.
+   ============================================================ */
+.theme-vapor {
+  --bg: #1A0B2E; --surface: rgba(45,20,75,0.55); --surface-2: rgba(60,30,95,0.5);
+  --border: rgba(255,110,199,0.5); --border-strong: rgba(120,220,255,0.6);
+  --text: #F4E9FF; --text-2: #C9A6E0; --text-3: #9A7FB5;
+  --primary: #FF6EC7; --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-xl: 16px;
+  background-color: #1A0B2E;
+  background-image:
+    linear-gradient(rgba(255,110,199,0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120,220,255,0.10) 1px, transparent 1px),
+    radial-gradient(circle at 50% 125%, rgba(255,110,199,0.45), transparent 55%),
+    linear-gradient(180deg, #2A0B45, #0D0420);
+  background-size: 40px 40px, 40px 40px, 100% 100%, 100% 100%;
+  background-attachment: fixed;
+}
+.theme-vapor .display { color: #fff; letter-spacing: .04em;
+  text-shadow: 0 0 8px #FF6EC7, 0 0 20px rgba(255,110,199,0.7); }
+.theme-vapor h1, .theme-vapor h2 { color: #fff; text-shadow: 0 0 8px rgba(120,220,255,0.7); }
+.theme-vapor .card { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface);
+  box-shadow: 0 0 26px rgba(255,110,199,0.22), inset 0 0 0 1px rgba(120,220,255,0.15); }
+.theme-vapor .card--dark { background: rgba(10,4,20,0.6); border: 1px solid var(--border-strong);
+  box-shadow: 0 0 26px rgba(120,220,255,0.3); }
+.theme-vapor .nav { border: 1px solid var(--border-strong); border-radius: var(--r-pill); background: rgba(20,8,40,0.5); }
+.theme-vapor .nav__pill--active { background: linear-gradient(90deg, #FF6EC7, #7B5CFF); color: #fff;
+  box-shadow: 0 0 12px rgba(255,110,199,0.6); }
+.theme-vapor .btn { border: 1px solid var(--border-strong); background: rgba(40,18,70,0.5); color: var(--text);
+  box-shadow: 0 0 10px rgba(120,220,255,0.2); }
+.theme-vapor .btn--primary { background: linear-gradient(90deg, #FF6EC7, #7B5CFF); border: none; color: #fff;
+  box-shadow: 0 0 16px rgba(255,110,199,0.6); }
+.theme-vapor .tag { background: rgba(255,255,255,0.08); border: 1px solid currentColor; }
+.theme-vapor .tag--target { color: #FF8ECF; } .theme-vapor .tag--strength { color: #7CFFC4; }
+.theme-vapor .tag--info { color: #8FD3FF; } .theme-vapor .tag--muted { color: var(--text-2); }
+.theme-vapor .bar { background: rgba(255,255,255,0.1); }
+.theme-vapor .bar__fill { opacity: 1; background: linear-gradient(90deg, #FF6EC7, #7B5CFF);
+  box-shadow: 0 0 10px rgba(255,110,199,0.6); }
+.theme-vapor .bar__fill--green { background: linear-gradient(90deg, #3FFFA8, #37C0FF); }
+.theme-vapor input, .theme-vapor textarea, .theme-vapor select {
+  background: rgba(20,8,40,0.5); border: 1px solid var(--border); color: var(--text);
+  border-radius: var(--r-md); padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); }
+.theme-vapor .avatar { background: linear-gradient(135deg, #FF6EC7, #7B5CFF); color: #fff; border: none;
+  box-shadow: 0 0 10px rgba(255,110,199,0.5); }
+.theme-vapor .stat__num { color: #fff; text-shadow: 0 0 8px rgba(120,220,255,0.6); }
+.theme-vapor .stat__num--green { color: #7CFFC4; text-shadow: 0 0 8px rgba(124,255,196,0.6); }
+.theme-vapor .screen__tab { background: rgba(255,110,199,0.15); color: #FF8ECF; border: 1px solid var(--border);
+  box-shadow: 0 0 10px rgba(255,110,199,0.25); }
+.theme-vapor .studentrow { background: rgba(255,255,255,0.05); }
+
+/* ============================================================
+   Art Deco theme — <body class="theme-deco">. Gold linework on
+   deep emerald, geometric, elegant. Double gold frames, sharp.
+   ============================================================ */
+.theme-deco {
+  --font: 'Inter', sans-serif;
+  --bg: #0E2A24; --surface: #123129; --surface-2: #0C231E;
+  --border: rgba(201,162,75,0.5); --border-strong: rgba(201,162,75,0.85);
+  --text: #F2E9D6; --text-2: #C9BFA6; --text-3: #968C73;
+  --primary: #C9A24B; --gold: #C9A24B;
+  --r-sm: 0; --r-md: 0; --r-lg: 0; --r-xl: 0; --r-pill: 0;
+  --shadow-sm: none; --shadow-card: none; --shadow-pop: none;
+  background-color: #0E2A24;
+  background-image:
+    repeating-linear-gradient(90deg, rgba(201,162,75,0.05) 0 1px, transparent 1px 64px),
+    radial-gradient(circle at 50% 0%, rgba(201,162,75,0.10), transparent 55%);
+}
+.theme-deco .display { font-family: 'Poiret One', sans-serif; text-transform: uppercase;
+  letter-spacing: .14em; color: var(--gold); }
+.theme-deco h1, .theme-deco h2 { font-family: 'Poiret One', sans-serif; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--gold); }
+.theme-deco .card { background: var(--surface); border: 2px solid var(--gold); border-radius: 0;
+  box-shadow: inset 0 0 0 4px var(--surface), inset 0 0 0 5px rgba(201,162,75,0.45); }
+.theme-deco .card--dark { background: #0A1F1A; color: var(--gold); border: 2px solid var(--gold);
+  box-shadow: inset 0 0 0 4px #0A1F1A, inset 0 0 0 5px rgba(201,162,75,0.45); }
+.theme-deco .btn { background: transparent; border: 1px solid var(--gold); color: var(--gold);
+  border-radius: 0; text-transform: uppercase; letter-spacing: .1em; font-size: var(--fs-xs); }
+.theme-deco .btn--primary { background: var(--gold); color: #0E2A24; border: 1px solid var(--gold); }
+.theme-deco .nav { border: 1px solid var(--gold); border-radius: 0; padding: 0; }
+.theme-deco .nav__pill { text-transform: uppercase; letter-spacing: .08em; font-size: var(--fs-xs);
+  border-right: 1px solid rgba(201,162,75,0.3); }
+.theme-deco .nav__pill:last-child { border-right: none; }
+.theme-deco .nav__pill--active { background: var(--gold); color: #0E2A24; }
+.theme-deco .tag { border: 1px solid var(--gold); border-radius: 0; background: transparent; color: var(--gold);
+  text-transform: uppercase; letter-spacing: .05em; font-size: 11px; }
+.theme-deco .code { border-radius: 0; }
+.theme-deco .bar { border: 1px solid var(--gold); border-radius: 0; background: transparent; height: 10px; }
+.theme-deco .bar__fill { border-radius: 0; opacity: 1; background: var(--gold); }
+.theme-deco .bar__fill--green { background: #7FB39A; }
+.theme-deco .stat__num { font-family: 'Poiret One', sans-serif; color: var(--gold); }
+.theme-deco .stat__num--green { color: var(--gold); }
+.theme-deco input, .theme-deco textarea, .theme-deco select {
+  border: 1px solid var(--gold); border-radius: 0; background: rgba(0,0,0,0.22); color: var(--text);
+  padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); }
+.theme-deco .avatar { border-radius: 0; background: transparent; border: 1px solid var(--gold); color: var(--gold); }
+.theme-deco .screen__tab { border: 1px solid var(--gold); border-radius: 0; background: transparent;
+  color: var(--gold); box-shadow: none; }
+.theme-deco .studentrow { border-bottom: 1px solid rgba(201,162,75,0.25); background: transparent; }
+
+/* ============================================================
+   Cyberpunk theme — <body class="theme-cyber">. Angular clipped
+   HUD frames, neon cyan + warning yellow on near-black.
+   ============================================================ */
+.theme-cyber {
+  --font: 'Inter', sans-serif;
+  --bg: #07090D; --surface: #0E141C; --surface-2: #141C26;
+  --border: rgba(43,229,255,0.45); --border-strong: rgba(43,229,255,0.8);
+  --text: #D5F4FB; --text-2: #7FB6C6; --text-3: #5A8493;
+  --primary: #2BE5FF; --cyber-warn: #FFD400;
+  --r-sm: 0; --r-md: 0; --r-lg: 0; --r-xl: 0; --r-pill: 0;
+  --shadow-sm: none; --shadow-card: none; --shadow-pop: none;
+  background-color: #07090D;
+  background-image:
+    linear-gradient(rgba(43,229,255,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43,229,255,0.06) 1px, transparent 1px),
+    radial-gradient(circle at 82% 0%, rgba(43,229,255,0.14), transparent 50%);
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+}
+.theme-cyber .display { text-transform: uppercase; letter-spacing: .08em; color: #fff;
+  text-shadow: 0 0 10px rgba(43,229,255,0.8); }
+.theme-cyber h1, .theme-cyber h2 { text-transform: uppercase; letter-spacing: .05em; color: #D5F4FB; }
+.theme-cyber .card { background: var(--surface); border: 1px solid var(--border);
+  box-shadow: 0 0 18px rgba(43,229,255,0.12), inset 0 0 0 1px rgba(43,229,255,0.08);
+  clip-path: polygon(0 14px, 14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%); }
+.theme-cyber .card--dark { background: #05080B; border: 1px solid var(--border-strong);
+  box-shadow: 0 0 20px rgba(43,229,255,0.2); }
+.theme-cyber .btn { background: transparent; border: 1px solid var(--border-strong); color: var(--text);
+  text-transform: uppercase; letter-spacing: .06em; font-size: var(--fs-xs); font-weight: 500;
+  clip-path: polygon(0 8px, 8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%); }
+.theme-cyber .btn--primary { background: var(--primary); color: #06121A; border: none; }
+.theme-cyber .nav { border: 1px solid var(--border); background: rgba(10,16,22,0.6); padding: 0; }
+.theme-cyber .nav__pill { text-transform: uppercase; letter-spacing: .05em; font-size: var(--fs-xs); }
+.theme-cyber .nav__pill--active { background: var(--primary); color: #06121A; }
+.theme-cyber .tag { border: 1px solid currentColor; background: rgba(255,255,255,0.04); border-radius: 0;
+  text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+.theme-cyber .tag--target { color: #FF6E9C; } .theme-cyber .tag--strength { color: #5CFFC2; }
+.theme-cyber .tag--info { color: #2BE5FF; } .theme-cyber .tag--muted { color: var(--text-2); }
+.theme-cyber .bar { background: rgba(43,229,255,0.12); border: 1px solid var(--border); border-radius: 0; height: 10px; }
+.theme-cyber .bar__fill { background: var(--primary); border-radius: 0; opacity: 1; box-shadow: 0 0 8px rgba(43,229,255,0.7); }
+.theme-cyber .bar__fill--green { background: #5CFFC2; }
+.theme-cyber input, .theme-cyber textarea, .theme-cyber select {
+  background: rgba(10,16,22,0.7); border: 1px solid var(--border-strong); color: var(--text);
+  border-radius: 0; padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); }
+.theme-cyber .avatar { border-radius: 0; background: rgba(43,229,255,0.1); color: var(--primary);
+  border: 1px solid var(--border-strong);
+  clip-path: polygon(0 6px, 6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%); }
+.theme-cyber .stat__num { color: #fff; text-shadow: 0 0 8px rgba(43,229,255,0.6); }
+.theme-cyber .stat__num--green { color: #5CFFC2; }
+.theme-cyber .screen__tab { background: var(--cyber-warn); color: #111; border-radius: 0; box-shadow: none;
+  text-transform: uppercase; font-weight: 600; }
+.theme-cyber .studentrow { background: rgba(43,229,255,0.04); border: 1px solid rgba(43,229,255,0.12); }
+
+/* ============================================================
+   Bauhaus theme — <body class="theme-bauhaus">. Primary red/blue/
+   yellow + black, geometric colour-blocking, heavy type.
+   ============================================================ */
+.theme-bauhaus {
+  --font: 'Inter', sans-serif;
+  --bg: #F3EFE4; --surface: #FFFFFF; --surface-2: #EAE5D6;
+  --border: #1A1A1A; --border-strong: #1A1A1A;
+  --text: #1A1A1A; --text-2: #444444; --text-3: #777777;
+  --bau-red: #D8352A; --bau-blue: #2A52BE; --bau-yellow: #F2C400;
+  --primary: #2A52BE;
+  --r-sm: 0; --r-md: 0; --r-lg: 0; --r-xl: 0;
+  --shadow-sm: none; --shadow-card: none; --shadow-pop: none;
+  background: var(--bg);
+}
+.theme-bauhaus .display { font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em; }
+.theme-bauhaus h1, .theme-bauhaus h2 { font-weight: 800; text-transform: uppercase; }
+.theme-bauhaus .card { border: 2px solid #1A1A1A; border-radius: 0; box-shadow: none; background: #fff; }
+.theme-bauhaus .grid--3 > .card:nth-child(1) { border-top: 7px solid var(--bau-red); }
+.theme-bauhaus .grid--3 > .card:nth-child(2) { border-top: 7px solid var(--bau-yellow); }
+.theme-bauhaus .grid--3 > .card:nth-child(3) { border-top: 7px solid var(--bau-blue); }
+.theme-bauhaus .card--dark { background: #1A1A1A; color: #F3EFE4; border: 2px solid #1A1A1A; }
+.theme-bauhaus .btn { border: 2px solid #1A1A1A; border-radius: 0; background: #fff; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .03em; font-size: var(--fs-xs); }
+.theme-bauhaus .btn--primary { background: var(--bau-blue); color: #fff; border: 2px solid #1A1A1A; }
+.theme-bauhaus .nav { border: 2px solid #1A1A1A; border-radius: 999px; padding: 3px; background: #fff; }
+.theme-bauhaus .nav__pill--active { background: var(--bau-red); color: #fff; }
+.theme-bauhaus .tag { border: 2px solid #1A1A1A; border-radius: 0; font-weight: 700;
+  text-transform: uppercase; font-size: 11px; letter-spacing: .03em; }
+.theme-bauhaus .code { border: 1.5px solid #1A1A1A; border-radius: 0; }
+.theme-bauhaus .bar { border: 2px solid #1A1A1A; border-radius: 0; background: #fff; height: 14px; }
+.theme-bauhaus .bar__fill { border-radius: 0; opacity: 1; background: var(--bau-red); }
+.theme-bauhaus .bar__fill--green { background: var(--bau-blue); }
+.theme-bauhaus input, .theme-bauhaus textarea, .theme-bauhaus select {
+  border: 2px solid #1A1A1A; border-radius: 0; background: #fff; padding: 10px 12px;
+  font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+.theme-bauhaus .avatar { border: 2px solid #1A1A1A; background: var(--bau-yellow); color: #1A1A1A; }
+.theme-bauhaus .stat__num { font-weight: 800; }
+.theme-bauhaus .stat__num--green { color: var(--bau-red); }
+.theme-bauhaus .screen__tab { border: 2px solid #1A1A1A; border-radius: 0; background: var(--bau-yellow);
+  color: #1A1A1A; box-shadow: none; font-weight: 700; }
+.theme-bauhaus .studentrow { border: 2px solid #1A1A1A; border-radius: 0; background: #fff; }
+
+/* ============================================================
+   Botanical theme — <body class="theme-botanical">. Organic sage,
+   blob shapes, serif headings, terracotta accent. Calm, natural.
+   ============================================================ */
+.theme-botanical {
+  --font: 'Inter', sans-serif;
+  --bg: #EDEFE1; --surface: #FBFCF5; --surface-2: #E3E7D2;
+  --border: rgba(76,92,60,0.22); --border-strong: rgba(76,92,60,0.4);
+  --text: #33402A; --text-2: #5E6B50; --text-3: #8A9678;
+  --green-50: #E3EBD7; --green-500: #6E8B4E; --green-600: #5A7540; --green-700: #445A30;
+  --maroon-50: #F2E2D8; --maroon-500: #A1583F; --maroon-700: #7E4430;
+  --primary: #5A7540; --primary-weak: #E3EBD7; --primary-text: #445A30;
+  --r-sm: 14px; --r-md: 20px; --r-lg: 28px; --r-xl: 34px;
+  --shadow-card: 0 6px 18px rgba(76,92,60,0.10);
+  background: var(--bg);
+}
+.theme-botanical .display { font-family: 'Source Serif 4', serif; font-weight: 600; }
+.theme-botanical h1, .theme-botanical h2 { font-family: 'Source Serif 4', serif; font-weight: 600; }
+.theme-botanical .card { border: 1px solid var(--border); background: var(--surface);
+  border-radius: 34px 28px 36px 30px / 30px 36px 28px 34px; box-shadow: var(--shadow-card); }
+.theme-botanical .card--dark { background: #3C4A2E; color: #EDEFE1; border: none;
+  border-radius: 32px 36px 28px 34px / 34px 28px 36px 30px; }
+.theme-botanical .btn { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px; }
+.theme-botanical .btn--primary { background: var(--green-600); color: #fff; border: none; }
+.theme-botanical .nav { border: 1px solid var(--border); border-radius: 999px; background: var(--surface); }
+.theme-botanical .nav__pill--active { background: var(--green-600); color: #fff; }
+.theme-botanical .tag { border-radius: 999px; }
+.theme-botanical .bar { border-radius: 999px; background: var(--surface-2); }
+.theme-botanical .bar__fill { opacity: 1; background: var(--maroon-500); }
+.theme-botanical .bar__fill--green { background: var(--green-600); }
+.theme-botanical input, .theme-botanical textarea, .theme-botanical select {
+  border: 1px solid var(--border-strong); border-radius: 16px; background: var(--surface);
+  padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+.theme-botanical .avatar { background: var(--green-50); color: var(--green-700);
+  border-radius: 48% 52% 50% 50% / 52% 48% 52% 48%; }
+.theme-botanical .stat__num--green { color: var(--green-600); }
+.theme-botanical .screen__tab { border-radius: 999px; background: var(--green-50); color: var(--green-700); }
+.theme-botanical .studentrow { background: var(--surface-2); border-radius: 22px; }
+
+/* ============================================================
+   Risograph theme — <body class="theme-riso">. Two spot inks
+   (fluoro pink + blue), grain, offset misregistration, flat.
+   ============================================================ */
+.theme-riso {
+  --font: 'Inter', sans-serif;
+  --bg: #F2ECDD; --surface: #FBF7EC; --surface-2: #EDE6D4;
+  --border: #2547D0; --border-strong: #2547D0;
+  --text: #1F2430; --text-2: #5A5F6E; --text-3: #8A8E9A;
+  --riso-pink: #FF4F7E; --riso-blue: #2547D0;
+  --primary: #FF4F7E;
+  --r-sm: 2px; --r-md: 2px; --r-lg: 2px; --r-xl: 2px;
+  --shadow-sm: none; --shadow-pop: none;
+  background-color: #F2ECDD; background-image: var(--grain);
+}
+.theme-riso .display { font-weight: 800; color: var(--riso-pink); text-shadow: 2px 2px 0 var(--riso-blue); }
+.theme-riso h1, .theme-riso h2 { font-weight: 800; color: var(--text); }
+.theme-riso .card { background: var(--surface); border: 2px solid var(--riso-blue); border-radius: 2px;
+  box-shadow: 4px 4px 0 var(--riso-pink); background-image: var(--grain); }
+.theme-riso .card--dark { background: var(--riso-blue); color: #F2ECDD; border: 2px solid var(--riso-blue);
+  box-shadow: 4px 4px 0 var(--riso-pink); }
+.theme-riso .btn { border: 2px solid var(--riso-blue); border-radius: 2px; background: var(--surface);
+  box-shadow: 3px 3px 0 var(--riso-pink); font-weight: 700; }
+.theme-riso .btn--primary { background: var(--riso-pink); color: #fff; border: 2px solid var(--riso-blue);
+  box-shadow: 3px 3px 0 var(--riso-blue); }
+.theme-riso .nav { border: 2px solid var(--riso-blue); border-radius: 2px; background: var(--surface); }
+.theme-riso .nav__pill--active { background: var(--riso-pink); color: #fff; }
+.theme-riso .tag { border: 1.5px solid var(--riso-blue); border-radius: 2px; background: transparent;
+  color: var(--riso-blue); font-weight: 700; }
+.theme-riso .code { border-radius: 2px; }
+.theme-riso .bar { border: 2px solid var(--riso-blue); border-radius: 2px; background: var(--surface); height: 13px; }
+.theme-riso .bar__fill { border-radius: 0; opacity: 1; background: var(--riso-pink); }
+.theme-riso .bar__fill--green { background: var(--riso-blue); }
+.theme-riso input, .theme-riso textarea, .theme-riso select {
+  border: 2px solid var(--riso-blue); border-radius: 2px; background: var(--surface);
+  padding: 10px 12px; font-family: var(--font); font-size: var(--fs-body); color: var(--text); }
+.theme-riso .avatar { border: 2px solid var(--riso-blue); background: var(--riso-pink); color: #fff; }
+.theme-riso .stat__num { color: var(--riso-blue); font-weight: 800; }
+.theme-riso .stat__num--green { color: var(--riso-pink); }
+.theme-riso .screen__tab { border: 2px solid var(--riso-blue); border-radius: 2px; background: var(--riso-pink);
+  color: #fff; box-shadow: 3px 3px 0 var(--riso-blue); font-weight: 700; }
+.theme-riso .studentrow { border: 1.5px solid var(--riso-blue); border-radius: 2px; background: var(--surface); }
+
+/* ============================================================
+   Skeuomorphism theme — activate with <body class="theme-skeuo">.
+   Material metaphor: felt desk · paper essays · leather binder.
+   ============================================================ */
+:root {
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  --felt: #2f5e43; --felt-dark: #234a34;
+  --paper: #fbf8ef; --paper-edge: #e6e0cf;
+  --leather: #5b2630; --leather-hi: #743440; --leather-lo: #3f1a22;
+  --gold: #b08833;
+}
+.theme-skeuo {
+  background-color: var(--felt);
+  background-image: var(--grain),
+    radial-gradient(120% 100% at 50% 0%, rgba(255,255,255,0.06), rgba(0,0,0,0.18));
+  color: #20201d;
+}
+.theme-skeuo .card {
+  background-color: var(--paper);
+  background-image: var(--grain),
+    linear-gradient(180deg, rgba(255,255,255,0.7), rgba(0,0,0,0.02));
+  border: 1px solid var(--paper-edge); border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(0,0,0,0.06),
+    0 2px 3px rgba(0,0,0,0.18), 0 10px 22px rgba(0,0,0,0.22);
+  color: #2a2820;
+}
+.theme-skeuo .card--ruled {
+  background-image: var(--grain),
+    linear-gradient(180deg, rgba(255,255,255,0.7), rgba(0,0,0,0.02)),
+    linear-gradient(90deg, transparent 38px, rgba(176,52,52,0.25) 38px, transparent 40px);
+}
+.theme-skeuo .card--dark {
+  background-color: var(--leather);
+  background-image: var(--grain), linear-gradient(180deg, var(--leather-hi), var(--leather-lo));
+  border: 1px solid var(--leather-lo); border-radius: 12px; color: #f3e7d6;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), inset 0 0 0 2px rgba(0,0,0,0.25),
+    inset 0 0 14px rgba(0,0,0,0.35), 0 10px 24px rgba(0,0,0,0.4);
+  position: relative;
+}
+.theme-skeuo .card--dark::after {
+  content: ""; position: absolute; inset: 8px; border-radius: 8px;
+  border: 1.5px dashed rgba(214,180,120,0.5); pointer-events: none;
+}
+.theme-skeuo .btn {
+  border: 1px solid rgba(0,0,0,0.18); border-radius: 10px;
+  background-image: linear-gradient(180deg, #ffffff, #e9e3d4); color: #2a2820;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -2px 2px rgba(0,0,0,0.10),
+    0 2px 3px rgba(0,0,0,0.22);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+.theme-skeuo .btn:active {
+  background-image: linear-gradient(180deg, #e9e3d4, #f3eee1);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.6);
+  transform: translateY(1px);
+}
+.theme-skeuo .btn--primary {
+  background-image: linear-gradient(180deg, #3a9669, #246343);
+  border-color: var(--green-700); color: #fff; text-shadow: 0 -1px 0 rgba(0,0,0,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.35), inset 0 -2px 3px rgba(0,0,0,0.25),
+    0 2px 4px rgba(0,0,0,0.3);
+}
+.theme-skeuo .nav {
+  background: linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.06));
+  border: 1px solid rgba(0,0,0,0.25); border-radius: 999px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+.theme-skeuo .nav__pill { color: rgba(255,255,255,0.8); text-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+.theme-skeuo .nav__pill--active {
+  background-image: linear-gradient(180deg, #ffffff, #e9e3d4);
+  color: #2a2820; text-shadow: 0 1px 0 rgba(255,255,255,0.7);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(0,0,0,0.3);
+}
+.theme-skeuo .bar {
+  background: #d8d0bd; border-radius: 999px;
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.28), inset 0 -1px 0 rgba(255,255,255,0.5);
+}
+.theme-skeuo .bar__fill {
+  background-image: linear-gradient(180deg, #a23a46, var(--maroon-500));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.25); opacity: 1;
+}
+.theme-skeuo .bar__fill--green {
+  background-image: linear-gradient(180deg, #3a9669, var(--green-600));
+}
+.theme-skeuo .code {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 1px 1px rgba(0,0,0,0.18);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+}
+.theme-skeuo input, .theme-skeuo textarea, .theme-skeuo select {
+  background: #fffdf6; border: 1px solid #cfc8b6; border-radius: 8px;
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.14);
+  font-family: var(--font); font-size: var(--fs-body); color: var(--text); padding: 10px 12px;
+}
+.theme-skeuo .avatar {
+  background-image: linear-gradient(180deg, #cfe3d3, #9cc4a8);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 3px rgba(0,0,0,0.25);
+  color: var(--green-700); text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* ============================================================
+   Mockup scaffolding only (not part of the design system).
+   ============================================================ */
+.page { max-width: 1080px; margin: 0 auto; padding: 224px 24px 80px; }
+/* page chrome adapts to theme; skeuo overrides below for the dark felt desk */
+.page__title { color: var(--text); margin: 0 0 4px; }
+.page__sub { color: var(--text-2); margin: 0 0 28px; font-size: var(--fs-sm); }
+.screen { margin: 0 0 26px; }
+.screen__tab { display: inline-block; font-size: var(--fs-xs); font-weight: var(--fw-medium);
+  letter-spacing: .04em; text-transform: uppercase; color: var(--primary-text);
+  background: var(--surface-2); padding: 4px 12px; border-radius: 999px; margin: 0 0 10px; }
+.theme-skeuo .page__title { color: #f3e7d6; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+.theme-skeuo .page__sub { color: rgba(243,231,214,0.7); }
+.theme-skeuo .screen__tab { color: var(--gold); background: rgba(0,0,0,0.25);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4); }
+
+/* fixed theme switcher (mockup tooling, not part of the design system) */
+.switcher { position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 50; display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 6px; padding: 6px; max-width: min(960px, 92vw);
+  background: rgba(20,20,18,0.72); border-radius: 22px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35); backdrop-filter: blur(8px); }
+.switcher button { font-family: var(--font); font-size: var(--fs-xs);
+  font-weight: var(--fw-medium); color: rgba(255,255,255,0.7);
+  background: transparent; border: none; padding: 5px 11px; border-radius: 999px; cursor: pointer; }
+.switcher button.is-active { background: #fff; color: #1c1c1a; }
+.window { border-radius: 14px; overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.45), 0 2px 0 rgba(255,255,255,0.06) inset;
+  border: 1px solid rgba(0,0,0,0.4); }
+.titlebar { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: linear-gradient(180deg, #3a6b50, #2a513b);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12); }
+.dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 1px 1px rgba(0,0,0,0.3); }
+.dot--r { background: #ec6a5e; } .dot--y { background: #f4bf4f; } .dot--g { background: #61c554; }
+.titlebar__name { margin-left: 8px; color: rgba(255,255,255,0.85); font-size: var(--fs-sm);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.3); }
+.body { padding: 22px; }
+
+.toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.toolbar .spacer { flex: 1; }
+.grid { display: grid; gap: 16px; }
+.grid--3 { grid-template-columns: repeat(3, 1fr); }
+.grid--2 { grid-template-columns: 1fr 1fr; }
+.row { display: flex; align-items: center; gap: 12px; }
+.between { justify-content: space-between; }
+.stack { display: flex; flex-direction: column; gap: 6px; }
+.list { display: flex; flex-direction: column; gap: 10px; }
+.studentrow { display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+  border-radius: 10px; background: rgba(0,0,0,0.02); }
+.spread { display:flex; gap: 8px; flex-wrap: wrap; }
+.mb-0 { margin-bottom: 0; } .mt-2 { margin-top: 8px; } .mt-3 { margin-top: 12px; }
+.wfull { width: 100%; }
+.essay { font-size: 15.5px; line-height: 2.0; color: #2a2820; padding-left: 16px; }
+.mark { border-bottom: 2px solid; padding-bottom: 1px; }
+.mark--surface { border-color: var(--amber-700); }
+.mark--grammar { border-color: var(--maroon-500); }
+.mark--format  { border-color: var(--blue-500); }
+.sup { font-size: 10px; vertical-align: super; margin-left: 1px; }
+.legend { display:flex; gap: 14px; flex-wrap: wrap; font-size: var(--fs-sm); color: var(--text-2); }
+@media (max-width: 720px){ .grid--3,.grid--2{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body class="theme-skeuo">
+<div class="switcher" id="switcher">
+  <button data-theme="">Soft SaaS</button>
+  <button data-theme="theme-glass">Frosted</button>
+  <button data-theme="theme-neu">Neumorphism</button>
+  <button data-theme="theme-flat">Flat</button>
+  <button data-theme="theme-skeuo" class="is-active">Skeuomorphic</button>
+  <button data-theme="theme-brutal">Brutalist</button>
+  <button data-theme="theme-editorial">Editorial</button>
+  <button data-theme="theme-dark">Midnight</button>
+  <button data-theme="theme-clay">Claymorphism</button>
+  <button data-theme="theme-material">Material</button>
+  <button data-theme="theme-swiss">Swiss</button>
+  <button data-theme="theme-sketch">Sketch</button>
+  <button data-theme="theme-terminal">Terminal</button>
+  <button data-theme="theme-comic">Comic</button>
+  <button data-theme="theme-vapor">Vaporwave</button>
+  <button data-theme="theme-deco">Art Deco</button>
+  <button data-theme="theme-cyber">Cyberpunk</button>
+  <button data-theme="theme-bauhaus">Bauhaus</button>
+  <button data-theme="theme-botanical">Botanical</button>
+  <button data-theme="theme-riso">Risograph</button>
+</div>
+<div class="page">
+  <div class="display page__title">Writing Analyzer</div>
+  <p class="page__sub">Skeuomorphic theme · felt desk, paper essays, leather binder · all screens</p>
+
+  <!-- ============ SCREEN 1 — ROSTER ============ -->
+  <section class="screen">
+    <span class="screen__tab">1 · Roster</span>
+    <div class="window">
+      <div class="titlebar">
+        <span class="dot dot--r"></span><span class="dot dot--y"></span><span class="dot dot--g"></span>
+        <span class="titlebar__name">Writing Analyzer — Year 9 English</span>
+      </div>
+      <div class="body">
+        <div class="toolbar">
+          <nav class="nav">
+            <span class="nav__pill nav__pill--active">Roster</span>
+            <span class="nav__pill">Upload</span>
+            <span class="nav__pill">Compare</span>
+            <span class="nav__pill">Assignments</span>
+            <span class="nav__pill">Code</span>
+          </nav>
+          <span class="spacer"></span>
+          <input type="search" placeholder="Search students" style="width:200px">
+          <button class="btn btn--primary btn--pill">+ Add student</button>
+        </div>
+
+        <div class="grid grid--3" style="margin-bottom:18px">
+          <div class="card"><div class="stack">
+            <span class="stat__num stat__num--green">28</span>
+            <span class="stat__label">Students in class</span></div></div>
+          <div class="card"><div class="stack">
+            <span class="stat__num">142</span>
+            <span class="stat__label">Submissions marked</span></div></div>
+          <div class="card"><div class="stack">
+            <span class="stat__num">9</span>
+            <span class="stat__label">Awaiting review</span></div></div>
+        </div>
+
+        <div class="card">
+          <div class="row between" style="margin-bottom:14px">
+            <h2>Class roster</h2>
+            <span class="hint">Sorted by most recent submission</span>
+          </div>
+          <div class="list">
+            <div class="studentrow">
+              <span class="avatar">AM</span>
+              <div class="stack" style="flex:1;gap:2px">
+                <strong>Aisha Mwangi</strong>
+                <span class="hint">Last draft: Persuasive essay · 2 days ago</span>
+              </div>
+              <span class="tag tag--strength">Improving</span>
+              <span class="tag tag--muted">6 drafts</span>
+              <button class="btn">Open</button>
+            </div>
+            <div class="studentrow">
+              <span class="avatar">DT</span>
+              <div class="stack" style="flex:1;gap:2px">
+                <strong>Daniel Tan</strong>
+                <span class="hint">Last draft: Narrative recount · 4 days ago</span>
+              </div>
+              <span class="tag tag--target">Needs review</span>
+              <span class="tag tag--muted">4 drafts</span>
+              <button class="btn">Open</button>
+            </div>
+            <div class="studentrow">
+              <span class="avatar">LF</span>
+              <div class="stack" style="flex:1;gap:2px">
+                <strong>Lena Fischer</strong>
+                <span class="hint">Last draft: Persuasive essay · 5 days ago</span>
+              </div>
+              <span class="tag tag--strength">On target</span>
+              <span class="tag tag--muted">7 drafts</span>
+              <button class="btn">Open</button>
+            </div>
+            <div class="studentrow">
+              <span class="avatar">RO</span>
+              <div class="stack" style="flex:1;gap:2px">
+                <strong>Ravi Okonkwo</strong>
+                <span class="hint">Last draft: Analytical response · 1 week ago</span>
+              </div>
+              <span class="tag tag--info">New baseline</span>
+              <span class="tag tag--muted">2 drafts</span>
+              <button class="btn">Open</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 2 — STUDENT DETAIL (leather binder) ============ -->
+  <section class="screen">
+    <span class="screen__tab">2 · Student detail</span>
+    <div class="window">
+      <div class="titlebar">
+        <span class="dot dot--r"></span><span class="dot dot--y"></span><span class="dot dot--g"></span>
+        <span class="titlebar__name">Aisha Mwangi — progress</span>
+      </div>
+      <div class="body">
+        <div class="toolbar">
+          <button class="btn btn--pill">&larr; Roster</button>
+          <span class="spacer"></span>
+          <button class="btn">Export report</button>
+          <button class="btn btn--primary">Mark latest draft</button>
+        </div>
+
+        <div class="grid grid--2" style="grid-template-columns: 1.1fr 1fr; align-items:start">
+          <!-- leather binder card -->
+          <div class="card--dark card" style="border-radius:12px">
+            <div class="row" style="gap:16px;margin-bottom:18px">
+              <span class="avatar" style="width:52px;height:52px;font-size:18px">AM</span>
+              <div class="stack" style="gap:2px">
+                <h1 style="color:#f3e7d6">Aisha Mwangi</h1>
+                <span style="color:rgba(243,231,214,0.7);font-size:13px">Year 9 English · 6 drafts on file</span>
+              </div>
+            </div>
+            <div class="grid grid--3" style="gap:12px">
+              <div class="stack"><span class="stat__num" style="color:#f3e7d6">12</span>
+                <span class="stat__label" style="color:rgba(243,231,214,0.65)">Errors, latest</span></div>
+              <div class="stack"><span class="stat__num" style="color:#9cc4a8">&minus;43%</span>
+                <span class="stat__label" style="color:rgba(243,231,214,0.65)">vs baseline</span></div>
+              <div class="stack"><span class="stat__num" style="color:#f3e7d6">8</span>
+                <span class="stat__label" style="color:rgba(243,231,214,0.65)">Good points (&check;)</span></div>
+            </div>
+          </div>
+
+          <!-- focus areas paper card -->
+          <div class="card">
+            <h2 style="margin-bottom:12px">Targets this term</h2>
+            <div class="spread" style="margin-bottom:18px">
+              <span class="tag tag--target">Verb tense (VT)</span>
+              <span class="tag tag--target">Run-on sentences (RO)</span>
+              <span class="tag tag--target">Punctuation (P)</span>
+            </div>
+            <h2 style="margin-bottom:12px">Strengths</h2>
+            <div class="spread">
+              <span class="tag tag--strength">Vocabulary range</span>
+              <span class="tag tag--strength">Paragraph structure</span>
+              <span class="tag tag--strength">Quotation embedding</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-3">
+          <h2 style="margin-bottom:16px">Error rate by category (per 100 words)</h2>
+          <div class="list">
+            <div class="stack">
+              <div class="row between"><span>Grammar &amp; tense</span><span class="hint">3.1 &rarr; 1.8</span></div>
+              <div class="bar"><div class="bar__fill" style="width:58%"></div></div>
+            </div>
+            <div class="stack">
+              <div class="row between"><span>Surface (spelling, caps)</span><span class="hint">2.4 &rarr; 0.9</span></div>
+              <div class="bar"><div class="bar__fill" style="width:38%"></div></div>
+            </div>
+            <div class="stack">
+              <div class="row between"><span>Punctuation &amp; format</span><span class="hint">1.9 &rarr; 1.5</span></div>
+              <div class="bar"><div class="bar__fill" style="width:62%"></div></div>
+            </div>
+            <div class="stack">
+              <div class="row between"><span>Good points (&check;)</span><span class="hint">trending up</span></div>
+              <div class="bar"><div class="bar__fill bar__fill--green" style="width:74%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 3 — ESSAY MARKING (ruled) ============ -->
+  <section class="screen">
+    <span class="screen__tab">3 · Literacy coder · marking</span>
+    <div class="window">
+      <div class="titlebar">
+        <span class="dot dot--r"></span><span class="dot dot--y"></span><span class="dot dot--g"></span>
+        <span class="titlebar__name">Marking — Persuasive essay, draft 6</span>
+      </div>
+      <div class="body">
+        <div class="toolbar">
+          <nav class="nav">
+            <span class="nav__pill">Roster</span>
+            <span class="nav__pill">Upload</span>
+            <span class="nav__pill">Compare</span>
+            <span class="nav__pill">Assignments</span>
+            <span class="nav__pill nav__pill--active">Code</span>
+          </nav>
+          <span class="spacer"></span>
+          <button class="btn">Re-run</button>
+          <button class="btn btn--primary">Download marked .docx</button>
+        </div>
+
+        <div class="grid grid--2" style="grid-template-columns: 1.6fr 1fr; align-items:start">
+          <!-- ruled essay surface -->
+          <div class="card card--ruled">
+            <div class="row between" style="margin-bottom:14px">
+              <h2>Marked text</h2>
+              <span class="tag tag--muted">14 marks</span>
+            </div>
+            <div class="essay">
+              Many people <span class="mark mark--grammar">believes<span class="sup"><span class="code code--grammar">Gra</span></span></span>
+              that mobile phones should be banned in schools. In my opinion this is
+              <span class="mark mark--surface">recieve<span class="sup"><span class="code code--surface">Sp</span></span></span>
+              a mistake. Yesterday a student <span class="mark mark--grammar">runs<span class="sup"><span class="code code--grammar">VT</span></span></span>
+              to class and used a phone to find a fact for the lesson it
+              <span class="mark mark--grammar">was very useful<span class="sup"><span class="code code--grammar">RO</span></span></span>.
+              Phones help us learn <span class="mark mark--format">however<span class="sup"><span class="code code--format">P</span></span></span>
+              they can also distract us. <span class="mark mark--format">As Orwell writes power tends to corrupt<span class="sup"><span class="code code--format">Embed</span></span></span>,
+              and the same is true of any tool used without rules.
+              A clear policy would let students <span class="code code--good">&check;</span> use phones responsibly.
+            </div>
+          </div>
+
+          <!-- summary / codebook side panel -->
+          <div class="stack" style="gap:16px">
+            <div class="card">
+              <h2 style="margin-bottom:12px">This draft</h2>
+              <div class="grid grid--2" style="gap:12px">
+                <div class="stack"><span class="stat__num">12</span><span class="stat__label">Errors flagged</span></div>
+                <div class="stack"><span class="stat__num stat__num--green">2</span><span class="stat__label">Good points</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:12px">Codes used</h2>
+              <div class="list">
+                <div class="row between"><span class="row" style="gap:8px"><span class="code code--surface">Sp</span> Spelling</span><span class="hint">3</span></div>
+                <div class="row between"><span class="row" style="gap:8px"><span class="code code--grammar">Gra</span> Grammar</span><span class="hint">2</span></div>
+                <div class="row between"><span class="row" style="gap:8px"><span class="code code--grammar">VT</span> Verb tense</span><span class="hint">3</span></div>
+                <div class="row between"><span class="row" style="gap:8px"><span class="code code--grammar">RO</span> Run-on</span><span class="hint">2</span></div>
+                <div class="row between"><span class="row" style="gap:8px"><span class="code code--format">P</span> Punctuation</span><span class="hint">2</span></div>
+                <div class="row between"><span class="row" style="gap:8px"><span class="code code--format">Embed</span> Quote embed</span><span class="hint">1</span></div>
+                <div class="row between"><span class="row" style="gap:8px"><span class="code code--good">&check;</span> Good point</span><span class="hint">2</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-3">
+          <div class="legend">
+            <span class="row" style="gap:6px"><span class="code code--surface">Aa</span> Surface (spelling, caps, wrong word)</span>
+            <span class="row" style="gap:6px"><span class="code code--grammar">Aa</span> Grammar (tense, run-on, structure)</span>
+            <span class="row" style="gap:6px"><span class="code code--format">Aa</span> Format (punctuation, embedding)</span>
+            <span class="row" style="gap:6px"><span class="code code--good">&check;</span> Good point</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 4 — UPLOAD ============ -->
+  <section class="screen">
+    <span class="screen__tab">4 · Upload</span>
+    <div class="window">
+      <div class="titlebar">
+        <span class="dot dot--r"></span><span class="dot dot--y"></span><span class="dot dot--g"></span>
+        <span class="titlebar__name">Upload a submission</span>
+      </div>
+      <div class="body">
+        <div class="toolbar">
+          <nav class="nav">
+            <span class="nav__pill">Roster</span>
+            <span class="nav__pill nav__pill--active">Upload</span>
+            <span class="nav__pill">Compare</span>
+            <span class="nav__pill">Assignments</span>
+            <span class="nav__pill">Code</span>
+          </nav>
+        </div>
+        <div class="grid grid--2" style="grid-template-columns: 1fr 1fr; align-items:start">
+          <div class="card">
+            <h2 style="margin-bottom:16px">Submission details</h2>
+            <div class="list">
+              <div class="stack"><label class="hint">Student</label>
+                <select><option>Aisha Mwangi</option><option>Daniel Tan</option></select></div>
+              <div class="stack"><label class="hint">Assignment</label>
+                <select><option>Persuasive essay</option><option>Narrative recount</option></select></div>
+              <div class="stack"><label class="hint">Draft number</label>
+                <input type="text" value="6"></div>
+            </div>
+            <button class="btn btn--primary wfull mt-3" style="margin-top:18px">Save submission</button>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:240px">
+            <div class="avatar" style="width:56px;height:56px;font-size:22px">&uarr;</div>
+            <h2 class="mt-3" style="margin-top:14px">Drop a .docx here</h2>
+            <p class="muted" style="margin:6px 0 16px">or paste text below to mark a quick draft</p>
+            <button class="btn">Choose file</button>
+            <textarea class="wfull mt-3" rows="3" placeholder="Paste essay text" style="margin-top:16px"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SCREEN 5 — COMPARE ============ -->
+  <section class="screen">
+    <span class="screen__tab">5 · Compare drafts</span>
+    <div class="window">
+      <div class="titlebar">
+        <span class="dot dot--r"></span><span class="dot dot--y"></span><span class="dot dot--g"></span>
+        <span class="titlebar__name">Compare — draft 4 vs draft 6</span>
+      </div>
+      <div class="body">
+        <div class="toolbar">
+          <nav class="nav">
+            <span class="nav__pill">Roster</span>
+            <span class="nav__pill">Upload</span>
+            <span class="nav__pill nav__pill--active">Compare</span>
+            <span class="nav__pill">Assignments</span>
+            <span class="nav__pill">Code</span>
+          </nav>
+          <span class="spacer"></span>
+          <select style="width:150px"><option>Draft 4</option></select>
+          <span class="muted">vs</span>
+          <select style="width:150px"><option>Draft 6</option></select>
+        </div>
+
+        <div class="grid grid--3" style="margin-bottom:18px">
+          <div class="card"><div class="stack">
+            <span class="stat__num">21 &rarr; 12</span><span class="stat__label">Total errors</span></div></div>
+          <div class="card"><div class="stack">
+            <span class="stat__num stat__num--green">&minus;43%</span><span class="stat__label">Error rate change</span></div></div>
+          <div class="card"><div class="stack">
+            <span class="stat__num stat__num--green">+5</span><span class="stat__label">Good points gained</span></div></div>
+        </div>
+
+        <div class="grid grid--2">
+          <div class="card card--ruled">
+            <div class="row between" style="margin-bottom:12px"><h2>Draft 4</h2><span class="tag tag--target">21 errors</span></div>
+            <div class="essay" style="font-size:14px;line-height:1.9">
+              Many people <span class="mark mark--grammar">believes</span> that phones should be banned.
+              <span class="mark mark--surface">Yesterday</span> a student <span class="mark mark--grammar">runs</span>
+              to class it <span class="mark mark--grammar">was useful</span> for the lesson and helped alot.
+            </div>
+          </div>
+          <div class="card card--ruled">
+            <div class="row between" style="margin-bottom:12px"><h2>Draft 6</h2><span class="tag tag--strength">12 errors</span></div>
+            <div class="essay" style="font-size:14px;line-height:1.9">
+              Many people <span class="mark mark--grammar">believes</span> that phones should be banned.
+              Yesterday a student ran to class. <span class="code code--good">&check;</span> It was useful for the lesson
+              and helped a lot. <span class="code code--good">&check;</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-3">
+          <h2 style="margin-bottom:14px">What improved</h2>
+          <div class="spread">
+            <span class="tag tag--strength">Spelling: alot &rarr; a lot</span>
+            <span class="tag tag--strength">Run-on split into two sentences</span>
+            <span class="tag tag--strength">+2 good points</span>
+            <span class="tag tag--target">Still: subject-verb agreement (believes)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+<script>
+  const sw = document.getElementById('switcher');
+  const subtitle = document.querySelector('.page__sub');
+  const names = { '': 'Soft SaaS (default)', 'theme-glass': 'Frosted (SaaS + glass)',
+                  'theme-neu': 'Neumorphism', 'theme-flat': 'Flat', 'theme-skeuo': 'Skeuomorphic',
+                  'theme-brutal': 'Brutalist', 'theme-editorial': 'Editorial',
+                  'theme-dark': 'Midnight', 'theme-clay': 'Claymorphism',
+                  'theme-material': 'Material', 'theme-swiss': 'Swiss',
+                  'theme-sketch': 'Sketch', 'theme-terminal': 'Terminal',
+                  'theme-comic': 'Comic', 'theme-vapor': 'Vaporwave',
+                  'theme-deco': 'Art Deco', 'theme-cyber': 'Cyberpunk',
+                  'theme-bauhaus': 'Bauhaus', 'theme-botanical': 'Botanical',
+                  'theme-riso': 'Risograph' };
+  sw.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    const theme = btn.dataset.theme;
+    document.body.className = theme;
+    sw.querySelectorAll('button').forEach(b => b.classList.toggle('is-active', b === btn));
+    subtitle.textContent = names[theme] + ' theme · all five Writing Analyzer screens';
+  });
+</script>
+</body>
+</html>

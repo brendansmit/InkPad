@@ -116,6 +116,9 @@ test('structured CSV bulk import creates rows and appends to quiz section', asyn
   assert.deepEqual(json.needs_answer, []);
   assert.equal(json.created[0].topic, 'Arithmetic');
   assert.deepEqual(json.created[0].tags, ['addition', 'basics']);
+  assert.equal(json.created[0].answer_source, 'CSV answer column');
+  assert.equal(json.created[0].import_confidence, 'high');
+  assert.match(json.created[0].source_excerpt, /What is 2\+2/);
 
   const review = await app.inject({
     method: 'GET',
@@ -136,7 +139,7 @@ test('loose text import uses injected chat and flags missing answers without inv
       choices: [{
         message: {
           content: JSON.stringify([
-            { prompt_text: 'What does the metaphor suggest?', options: ['Speed', 'Fear', 'Calm'], answer_index: null, topic: 'Figurative Language', tags: ['metaphor'] },
+            { prompt_text: 'What does the metaphor suggest?', options: ['Speed', 'Fear', 'Calm'], answer_index: null, topic: 'Figurative Language', tags: ['metaphor'], answer_source: 'answer uncertain', confidence: 'uncertain', source_excerpt: 'What does the metaphor suggest?' },
           ]),
         },
       }],
@@ -163,7 +166,18 @@ test('loose text import uses injected chat and flags missing answers without inv
   const json = res.json();
   assert.equal(json.created.length, 1);
   assert.equal(json.created[0].answer_index, null);
+  assert.equal(json.created[0].answer_source, 'answer uncertain');
+  assert.equal(json.created[0].import_confidence, 'uncertain');
   assert.deepEqual(json.needs_answer, [json.created[0].id]);
+
+  const source = await app.inject({
+    method: 'GET',
+    url: `/api/tests/questions/${json.created[0].id}/source`,
+    headers: { cookie: teacher.cookies },
+  });
+  assert.equal(source.statusCode, 200);
+  assert.match(source.json().source_text, /What does the metaphor suggest/);
+  assert.match(source.json().source_excerpt, /metaphor/);
 
   const review = await app.inject({
     method: 'GET',
@@ -171,5 +185,73 @@ test('loose text import uses injected chat and flags missing answers without inv
     headers: { cookie: teacher.cookies },
   });
   assert.deepEqual(review.json().sections[0].question_ids, [starter.id, json.created[0].id]);
+  await app.close();
+});
+
+test('txt file bulk import uses loose parser and appends to quiz', async () => {
+  let rawText = '';
+  const chat = async (_db, { messages }) => {
+    rawText = messages.find((message) => message.role === 'user')?.content ?? '';
+    return {
+      choices: [{
+        message: {
+          content: JSON.stringify([
+            { prompt_text: 'Which answer is marked?', options: ['Alpha', 'Beta'], answer_index: 1, topic: 'TXT Import', tags: ['file'] },
+          ]),
+        },
+      }],
+    };
+  };
+  const app = await buildApp({ databasePath: tmpDb(), chat });
+  const teacher = await setupTeacher(app);
+  const classId = await createClass(app, teacher);
+  const starter = await createQuestion(app, teacher);
+  const assignment = await createAssignment(app, teacher, classId, starter.id);
+  const body = multipartPayload({
+    fields: { assignment_id: assignment.id, description: 'teacher note' },
+    file: { fieldName: 'file', filename: 'questions.txt', contentType: 'text/plain', body: 'Loose MCQ text from a document.' },
+  });
+
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/tests/questions/bulk-import',
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf, 'content-type': body.contentType },
+    payload: body.payload,
+  });
+  assert.equal(res.statusCode, 201);
+  assert.match(rawText, /Loose MCQ text/);
+  assert.equal(res.json().created[0].topic, 'TXT Import');
+  assert.equal(res.json().added_to_quiz, 1);
+  await app.close();
+});
+
+test('bulk import marks possible duplicates', async () => {
+  const app = await buildApp({ databasePath: tmpDb() });
+  const teacher = await setupTeacher(app);
+  await createQuestion(app, teacher, {
+    prompt_text: 'Which option is duplicated?',
+    options: ['Same', 'Different'],
+    answer_index: 0,
+  });
+  const csv = [
+    'prompt,optionA,optionB,answer,topic,tags',
+    '"Which option is duplicated?",Same,Different,A,Duplicates,copy',
+  ].join('\n');
+  const body = multipartPayload({
+    fields: {},
+    file: { fieldName: 'file', filename: 'duplicates.csv', contentType: 'text/csv', body: csv },
+  });
+
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/tests/questions/bulk-import',
+    headers: { cookie: teacher.cookies, 'X-CSRF-Token': teacher.csrf, 'content-type': body.contentType },
+    payload: body.payload,
+  });
+  assert.equal(res.statusCode, 201);
+  const json = res.json();
+  assert.equal(json.created.length, 1);
+  assert.ok(json.created[0].duplicate_of_question_id);
+  assert.match(json.warnings[0], /may duplicate/);
   await app.close();
 });

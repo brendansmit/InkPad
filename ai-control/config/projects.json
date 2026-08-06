@@ -1,0 +1,9 @@
+{
+  "default_codex_command": [
+    "codex",
+    "exec",
+    "--dangerously-bypass-approvals-and-sandbox",
+    "{prompt}"
+  ],
+  "projects": {}
+}
