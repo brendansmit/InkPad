@@ -89,6 +89,72 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
   }
 
+  /* ── switcher, grouped by droplet ─────────── */
+  .switcher-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .srv-group {
+    background: var(--surface);
+    border: 1.5px solid var(--faint);
+    border-radius: 14px;
+    padding: 12px 14px 10px;
+  }
+  .srv-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 9px;
+    padding-left: 4px;
+  }
+  .srv-group-label {
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .srv-group-note {
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+  .srv-group-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .srv-group .srv-btn {
+    border: 1.5px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .srv-group .srv-btn.active {
+    border-color: var(--faint);
+  }
+  /* Live dot on each button so the whole estate is visible at a glance. */
+  .srv-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .srv-dot.online   { background: #2f9e6b; }
+  .srv-dot.degraded { background: #d99a2b; }
+  .srv-dot.offline  { background: #c2483d; }
+  .srv-kind {
+    font-size: 0.62rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--faint);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+
   /* ── status banner ────────────────────────── */
   .status-banner {
     background: var(--surface);
@@ -107,8 +173,9 @@
     flex-shrink: 0;
     transition: background 0.3s;
   }
-  .status-dot.online  { background: #1f8f5f; box-shadow: 0 0 0 3px rgba(31,143,95,.18); }
-  .status-dot.offline { background: var(--red); box-shadow: 0 0 0 3px rgba(160,56,56,.18); }
+  .status-dot.online   { background: #1f8f5f; box-shadow: 0 0 0 3px rgba(31,143,95,.18); }
+  .status-dot.degraded { background: #c98411; box-shadow: 0 0 0 3px rgba(201,132,17,.20); }
+  .status-dot.offline  { background: var(--red); box-shadow: 0 0 0 3px rgba(160,56,56,.18); }
   .status-label {
     font-family: 'DM Serif Display', Georgia, serif;
     font-size: 1.15rem;
@@ -191,6 +258,9 @@
   .card:active { transform: translateY(-1px) scale(0.99); }
   .card.running { border-color: var(--accent); }
   .card.running .card-icon { background: var(--accent); color: #fff; }
+  /* Deploy is not possible for every app, e.g. one with no git remote. */
+  .card.disabled { opacity: 0.45; cursor: not-allowed; }
+  .card.disabled:hover { transform: none; box-shadow: none; border-color: var(--faint); }
 
   .card-icon {
     width: 38px; height: 38px;
@@ -361,14 +431,10 @@
   <!-- header -->
   <div class="page-header">
     <h1 class="page-title">Server <em>Dashboard</em></h1>
-    <div class="server-switcher">
-      <button class="srv-btn active" data-srv="inkpad"          onclick="switchServer('inkpad')">InkPad</button>
-      <button class="srv-btn"        data-srv="eap-platform"    onclick="switchServer('eap-platform')">EAP</button>
-      <button class="srv-btn"        data-srv="ap-lang"        onclick="switchServer('ap-lang')">AP Lang</button>
-      <button class="srv-btn"        data-srv="speed-dating"    onclick="switchServer('speed-dating')">Speed Dating</button>
-      <button class="srv-btn"        data-srv="grammar-arcade" onclick="switchServer('grammar-arcade')">Grammar Arcade</button>
-    </div>
   </div>
+
+  <!-- server switcher, grouped by droplet, built from /api/servers -->
+  <div class="switcher-groups" id="switcherGroups"></div>
 
   <!-- status banner -->
   <div class="status-banner">
@@ -388,9 +454,9 @@
       <div class="card-icon">↑</div>
       <div>
         <div class="card-title">Deploy Update</div>
-        <div class="card-desc">Sync the latest local code to the server and restart the selected app. Takes about 15 seconds.</div>
+        <div class="card-desc" id="cardDeployDesc">Sync the latest local code to the server and restart the selected app. Takes about 15 seconds.</div>
       </div>
-      <div class="card-action">Sync &amp; restart →</div>
+      <div class="card-action" id="cardDeployAction">Sync &amp; restart →</div>
     </div>
 
     <div class="card" id="cardLogs" data-icon="≡" onclick="runLogs()">
@@ -455,21 +521,96 @@
   const statusUrl   = document.getElementById('statusUrl');
   const statusStats = document.getElementById('statusStats');
 
-  const SERVER_LABELS = {
-    'inkpad':          'inkpad.inkheron.app',
-    'eap-platform':    'eap.inkheron.app',
-    'speed-dating':    'speeddating.inkheron.app',
-    'ap-lang':         'lang.inkheron.app',
-    'grammar-arcade':  'eap.inkheron.app/grammar-arcade/',
-  };
-
+  // Server list comes from the backend, so the switcher cannot drift out of
+  // sync with the config the way a hardcoded copy did.
+  let SERVERS = {};
   let currentServer = 'inkpad';
+
+  async function loadServers() {
+    const groups = document.getElementById('switcherGroups');
+    let data;
+    try {
+      const r = await fetch('/api/servers');
+      data = await r.json();
+    } catch {
+      groups.innerHTML = '<div class="srv-group"><div class="srv-group-note">Could not load the server list.</div></div>';
+      return;
+    }
+
+    groups.innerHTML = '';
+    data.groups.forEach(group => {
+      const el = document.createElement('div');
+      el.className = 'srv-group';
+      el.innerHTML = `
+        <div class="srv-group-head">
+          <span class="srv-group-label">${group.label}</span>
+          <span class="srv-group-note">${group.note}</span>
+        </div>
+        <div class="srv-group-btns"></div>`;
+      const btns = el.querySelector('.srv-group-btns');
+
+      group.servers.forEach(srv => {
+        SERVERS[srv.key] = srv;
+        const btn = document.createElement('button');
+        btn.className = 'srv-btn';
+        btn.dataset.srv = srv.key;
+        btn.innerHTML =
+          `<span class="srv-dot" data-dot="${srv.key}"></span>` +
+          `<span>${srv.label}</span>` +
+          `<span class="srv-kind">${srv.kind}</span>`;
+        btn.onclick = () => switchServer(srv.key);
+        btns.appendChild(btn);
+      });
+
+      groups.appendChild(el);
+    });
+
+    switchServer(currentServer in SERVERS ? currentServer : Object.keys(SERVERS)[0]);
+    refreshAllDots();
+  }
+
+  const DEPLOY_DESC = document.getElementById('cardDeployDesc').textContent;
 
   function switchServer(key) {
     currentServer = key;
     document.querySelectorAll('.srv-btn').forEach(b => b.classList.toggle('active', b.dataset.srv === key));
+
+    // Not every app can be deployed. mosaic has no git remote on the droplet,
+    // so say that plainly instead of letting the button fail.
+    const srv = SERVERS[key] || {};
+    const deployCard = document.getElementById('cardDeploy');
+    if (deployCard) {
+      const blocked = srv.can_deploy === false;
+      const note = srv.deploy_note || 'Deploy is not configured for this app.';
+      deployCard.classList.toggle('disabled', blocked);
+      deployCard.title = blocked ? note : '';
+      // A greyed card with unchanged text reads as a glitch. Say what is wrong.
+      document.getElementById('cardDeployDesc').textContent = blocked ? note : DEPLOY_DESC;
+      document.getElementById('cardDeployAction').textContent =
+        blocked ? 'Unavailable' : 'Sync & restart →';
+    }
+
     clearOutput();
     loadStatus();
+  }
+
+  // Poll every button's dot so the whole estate is visible without clicking.
+  // One request for all of them: firing eleven in parallel hit the browser's
+  // per-host connection cap and left the last few pending indefinitely.
+  async function refreshAllDots() {
+    let all;
+    try {
+      const r = await fetch('/api/status-all');
+      all = await r.json();
+    } catch {
+      return;
+    }
+    Object.entries(all).forEach(([key, d]) => {
+      const dot = document.querySelector(`.srv-dot[data-dot="${key}"]`);
+      if (!dot) return;
+      dot.className = 'srv-dot ' + (d.online ? 'online' : d.degraded ? 'degraded' : 'offline');
+      dot.title = d.status || '';
+    });
   }
 
   function qs(extra) {
@@ -480,32 +621,29 @@
   async function loadStatus() {
     statusDot.className = 'status-dot';
     statusLabel.textContent = 'Checking…';
-    statusUrl.textContent = SERVER_LABELS[currentServer] || '';
+    statusUrl.textContent = (SERVERS[currentServer] || {}).label || '';
     statusStats.innerHTML = '';
     try {
       const r = await fetch('/api/status' + qs());
       const d = await r.json();
-      statusUrl.textContent = d.label || SERVER_LABELS[currentServer] || '';
-      if (d.online) {
-        statusDot.className = 'status-dot online';
-        statusLabel.textContent = 'Online';
-        statusStats.innerHTML = `
+      statusUrl.textContent = d.label || (SERVERS[currentServer] || {}).label || '';
+      if (d.online || d.degraded) {
+        // Degraded = the process is running but the public URL did not answer.
+        // Painting that green would hide a real outage, so it gets its own colour.
+        statusDot.className = 'status-dot ' + (d.degraded ? 'degraded' : 'online');
+        statusLabel.textContent = d.degraded ? 'Degraded — ' + d.status : 'Online';
+        // Only PM2 reports per-process stats. Docker and systemd apps have no
+        // uptime/memory/CPU here, so render nothing rather than "undefined MB".
+        const stats = [];
+        if (d.uptime_ms != null) stats.push(['Uptime',   fmtUptime(d.uptime_ms)]);
+        if (d.memory_mb != null) stats.push(['Memory',   d.memory_mb + ' MB']);
+        if (d.cpu != null)       stats.push(['CPU',      d.cpu + '%']);
+        if (d.restarts != null)  stats.push(['Restarts', d.restarts]);
+        statusStats.innerHTML = stats.map(([label, value]) => `
           <div class="stat-item">
-            <div class="stat-value">${fmtUptime(d.uptime_ms)}</div>
-            <div class="stat-label">Uptime</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">${d.memory_mb} MB</div>
-            <div class="stat-label">Memory</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">${d.cpu}%</div>
-            <div class="stat-label">CPU</div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-value">${d.restarts}</div>
-            <div class="stat-label">Restarts</div>
-          </div>`;
+            <div class="stat-value">${value}</div>
+            <div class="stat-label">${label}</div>
+          </div>`).join('');
       } else {
         statusDot.className = 'status-dot offline';
         statusLabel.textContent = 'Offline — ' + (d.status || 'unreachable');
@@ -635,9 +773,10 @@
     if (e.key === 'Enter') runCmd();
   });
 
-  // ── auto-refresh status every 30s ──────────
-  loadStatus();
+  // ── boot, then auto-refresh ────────────────
+  loadServers();
   setInterval(loadStatus, 30000);
+  setInterval(refreshAllDots, 60000);
 </script>
 </body>
 </html>

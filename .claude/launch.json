@@ -6,6 +6,12 @@
       "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
       "runtimeArgs": ["launcher/launcher_server.py"],
       "port": 5099
+    },
+    {
+      "name": "deploy-dashboard",
+      "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
+      "runtimeArgs": ["launcher/deploy-dashboard/deploy_server.py"],
+      "port": 5095
     }
   ]
 }
