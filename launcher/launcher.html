@@ -252,12 +252,12 @@
     padding: 28px;
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr) 0.62fr;
     gap: 12px;
     height: 100vh;
   }
 
-  /* Card placements — 10 cards, 4 rows */
+  /* Card placements — 12 cards, 4 rows plus a full-width control bar */
   .card:nth-child(1) { grid-column: 1 / 4; grid-row: 1; }
   .card:nth-child(2) { grid-column: 4 / 7; grid-row: 1; }
   .card:nth-child(3) { grid-column: 1 / 3; grid-row: 2; }
@@ -266,8 +266,10 @@
   .card:nth-child(6) { grid-column: 1 / 3; grid-row: 3; }
   .card:nth-child(7) { grid-column: 3 / 5; grid-row: 3; }
   .card:nth-child(8) { grid-column: 5 / 7; grid-row: 3; }
-  .card:nth-child(9)  { grid-column: 1 / 4; grid-row: 4; }
-  .card:nth-child(10) { grid-column: 4 / 7; grid-row: 4; }
+  .card:nth-child(9)  { grid-column: 1 / 3; grid-row: 4; }
+  .card:nth-child(10) { grid-column: 3 / 5; grid-row: 4; }
+  .card:nth-child(11) { grid-column: 5 / 7; grid-row: 4; }
+  .card:nth-child(12) { grid-column: 1 / 7; grid-row: 5; }
 
   /* Per-card accent colours */
   .card:nth-child(1) { --accent: var(--c1); --accent-bg: #eef4ff; }
@@ -278,15 +280,33 @@
   .card:nth-child(6) { --accent: #2563eb;   --accent-bg: #eef4ff; }
   .card:nth-child(7) { --accent: #0e7490;   --accent-bg: #ecfeff; }
   .card:nth-child(8) { --accent: #3a5c42;   --accent-bg: #f0f5f1; }
-  .card:nth-child(9)  { --accent: #7c3aed;   --accent-bg: #f3eeff; }
-  .card:nth-child(10) { --accent: #b45309;   --accent-bg: #fef3e2; }
+  .card:nth-child(9)  { --accent: #b91c1c;   --accent-bg: #fef2f2; }
+  .card:nth-child(10) { --accent: #047857;   --accent-bg: #ecfdf5; }
+  .card:nth-child(11) { --accent: #7c3aed;   --accent-bg: #f3eeff; }
+  .card:nth-child(12) { --accent: #b45309;   --accent-bg: #fef3e2; }
+
+  /* The control bar is short and wide, so lay it out horizontally. */
+  .card:nth-child(12) {
+    flex-direction: row;
+    align-items: center;
+    gap: 18px;
+    padding: 14px 24px;
+  }
+  .card:nth-child(12) .card-top {
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    margin: 0;
+    order: 2;
+    margin-left: auto;
+  }
 
   /* ── card base ───────────────────────────────────── */
   .card {
     background: var(--accent-bg);
     border: 1.5px solid color-mix(in srgb, var(--accent) 18%, transparent);
     border-radius: 18px;
-    padding: 22px 24px 20px;
+    padding: 18px 24px 16px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -370,6 +390,13 @@
     font-weight: 400;
     color: color-mix(in srgb, var(--accent) 60%, var(--muted));
     letter-spacing: 0.01em;
+    /* Rows got shorter when the grid went to 12 cards, so clamp instead of
+       letting a two-line description get sliced through the middle. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
   }
 
   /* ── toast ───────────────────────────────────────── */
@@ -480,7 +507,7 @@
           <div class="restart-result" id="restart-result"></div>
         </div>
         <div class="sidebar-footer">
-          <strong>10 tools</strong>
+          <strong>12 tools</strong>
           Click any card to open.<br>
           Servers start automatically.
         </div>
@@ -506,8 +533,10 @@ const APPS = [
   { id: "model-router-coder",name: "Model Router",    desc: "Cheap AI prebuilder with cross-family review",                  num: "06" },
   { id: "prototype-coder",   name: "Prototype Coder", desc: "OpenRouter scaffold builder · generate, review, repair",        num: "07" },
   { id: "inkheron-platform", name: "InkHeron",        desc: "Classroom writing platform · students, assignments, Etherpad",  num: "08" },
-  { id: "inkpad",            name: "InkPad",          desc: "Open inkpad.inkheron.app in browser",                           num: "09" },
-  { id: "server-dashboard",  name: "Deploy Dashboard",desc: "Deploy & monitor live servers",                                  num: "10" },
+  { id: "ap-lang-dashboard", name: "AP Lang",         desc: "AP Language class dashboard",                                   num: "09" },
+  { id: "grammar-arcade",    name: "Grammar Arcade",  desc: "Grammar practice games · case lab",                             num: "10" },
+  { id: "inkpad",            name: "InkPad",          desc: "Open inkpad.inkheron.app in browser",                           num: "11" },
+  { id: "server-dashboard",  name: "Deploy Dashboard",desc: "Deploy & monitor live servers",                                  num: "12" },
 ];
 
 // ── Bento grid ──────────────────────────────────────────
@@ -597,7 +626,9 @@ async function restartServer(appId, btn) {
 }
 
 // ── Local server restart (Apps panel) ──────────────────
-const SERVER_APPS = APPS.filter(a => !["writing-analyzer"].includes(a.id));
+// Only apps with a port can be restarted. writing-analyzer is a desktop app,
+// bugsmash and inkpad just open a file or a URL, so /restart would 400 on them.
+const SERVER_APPS = APPS.filter(a => !["writing-analyzer", "bugsmash", "inkpad"].includes(a.id));
 const restartSel = document.getElementById('restart-select');
 SERVER_APPS.forEach(a => {
   const opt = document.createElement('option');

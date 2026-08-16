@@ -66,6 +66,16 @@
     "url": "http://localhost:3472",
     "env": { "PORT": "3472" }
   },
+  "grammar-arcade": {
+    "runtime": "node",
+    "entry": "artifacts/grammar-case-lab/node_modules/tsx/dist/cli.mjs",
+    "args": ["artifacts/grammar-case-lab/server/index.ts"],
+    "cwd": "Grammar Arcade/Gramm-Builder",
+    "node": "24",
+    "port": 3465,
+    "url": "http://localhost:3465/grammar-arcade/",
+    "env": { "PORT": "3465", "BASE_PATH": "/grammar-arcade/" }
+  },
   "inkpad": {
     "runtime": "open",
     "path": "https://inkpad.inkheron.app"
@@ -75,6 +85,8 @@
     "debugger": "bugsmash",
     "model-router": "model-router-coder",
     "prototype": "prototype-coder",
-    "inkheron": "inkheron-platform"
+    "inkheron": "inkheron-platform",
+    "grammar": "grammar-arcade",
+    "ap-lang": "ap-lang-dashboard"
   }
 }
