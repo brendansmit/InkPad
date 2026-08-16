@@ -135,6 +135,11 @@ SERVERS = {
         'process':     {'kind': 'pm2', 'name': 'inkheron-serve'},
         'local_repo':  os.path.expanduser('~/Documents/Claude/InkHeron-Platform/Admin'),
         'remote_path': '/opt/admin-platform',
+        # Ships by rsync, not git pull: droplet 2 holds no GitHub credentials,
+        # and giving it any would mean adding a deploy key to the account.
+        # 'data' is excluded so the audit log and sessions survive a deploy.
+        'deploy_mode': 'rsync',
+        'rsync_excludes': ['.git', 'node_modules', 'data', '.env'],
         'npm_install': 'npm install --omit=dev',
         'npm_restart': 'pm2 restart inkheron-serve --update-env',
         'label':       'serve.inkheron.app',
