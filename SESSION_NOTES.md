@@ -1,91 +1,6 @@
 # Session Notes
 
 
-## 2026-06-24 — Server Dashboard: command runner + launcher cleanup
-
-**Asked:** (1) Add a freeform SSH command runner to the server dashboard. (2) Remove cards 08 (Server Dashboard) and 09 (AP Lang Library) from the launcher bento grid — redundant now that both live in the Servers sidebar tab.
-
-**Did:**
-- `deploy_server.py`: added `/api/run` POST endpoint — takes `{cmd}` JSON body, runs via `ssh()`, returns output. Respects `?server=` param so it targets the currently selected server.
-- `dashboard.html`: added "Run command on server" terminal input above the output panel — dark monospace input with green `$` prompt, Run button, Enter key support. Output goes to the shared output panel with colorise() applied.
-- `launcher.html`: removed apps 08 and 09 from APPS array; grid CSS changed to 3 rows; cards 06/07 now span half the row each (symmetric); "9 tools" → "7 tools".
-
----
-
-## 2026-06-24 — Server Dashboard: add AP Lang server
-
-**Asked:** Add AP Lang Dashboard (lang.inkheron.app) to the server dashboard alongside the existing Speed Dating server, with the same four action cards.
-
-**Did:**
-- Refactored `launcher/deploy-dashboard/deploy_server.py` — added `SERVERS` dict with configs for both `speed-dating` and `ap-lang`. All API routes (`/api/status`, `/api/deploy`, `/api/logs`, `/api/restart`) now read a `?server=` query param to pick the right config (PM2 name, local repo path, remote path).
-- Updated `dashboard.html` — added a "Speed Dating / AP Lang" toggle in the top-right header; JS `switchServer()` updates `currentServer` and appends `?server=<key>` to all API calls. Status URL and banner update dynamically on switch.
-- Added `server-dashboard` entry to `.claude/launch.json` for preview tool access.
-- Verified in preview: switcher renders, Speed Dating shows Online with live stats.
-
----
-
-## 2026-06-24 — Launcher: sidebar tabs (Servers / Apps)
-
-**Asked:** Restructure launcher sidebar into two tabs. "Servers" tab shows live server cards for lang.inkheron.app and speeddating.inkheron.app with quick-open links and ↺ Restart buttons. "Apps" tab holds the existing restart dropdown and tool count footer.
-
-**Did:**
-- Rewrote `launcher/launcher.html` sidebar — two tabs (Servers default, Apps).
-- Servers panel: two `.server-card` components each with a green status dot, URL, named link buttons (↗ Open / ↗ Organiser / ↗ Library / ↗ Admin), and a ↺ Restart button calling `restartServer(appId)` → `POST /restart/<appId>`.
-- Apps panel: existing restart dropdown + "9 tools" footer moved here.
-- Bento grid and all 9 cards unchanged.
-- Restart buttons for live servers reuse the existing `/restart/<app-id>` endpoint already in launcher_server.py.
-
----
-
-## 2026-06-29 — Grade Importer: bidirectional sync + server deployment
-
-**Asked:** Back up grades to server and run Grade Importer at admin.inkheron.app, syncing bidirectionally (local autosave pushes to server; assignment click pulls from server; 60s background poll; offline queuing).
-
-**Architecture:** Server (admin.inkheron.app) is primary. Local talks to server. Last-write-wins via `last_modified` timestamps. Sync uses Bearer token auth; `/api/sync` endpoint excluded from nginx basic auth so local JS can reach it cross-origin.
-
-**Did (commit b9f84a4):**
-- `last_modified REAL` added to assignments, scores, students — all write functions stamp it with `time.time()`; migration stamps existing rows
-- `get_sync_data(since_ts)` / `apply_sync_data(data)` in database.py
-- `GET/POST /api/sync` with CORS headers and Bearer auth; `GET /api/config` returns sync metadata
-- Settings API updated for `sync_url` and `sync_key`
-- JS: `syncWithServer()` — pull remote → apply local, push local → remote; wired into `selectAssignment` and `saveAllScores`; 60s `setInterval`; offline fallback status bar
-- Settings tab: Sync card with server URL + key fields
-- `ecosystem.config.cjs` — PM2 config (port 5051, python3 interpreter)
-- `deploy.sh` — one-command deploy: rsync, pip install, DB init with sync_key, PM2, nginx with basic auth + sync route exclusion, certbot
-
-**To deploy:** `cd grade-importer && ./deploy.sh <sync-key> <admin-password>`
-**Then on local:** Settings → Sync → `https://admin.inkheron.app` + same sync-key
-
----
-
-## 2026-06-29 — Grade Importer: extra credit CSV import
-
-**Asked:** Add ability to import extra credit from a CSV (Grammar Arcade `grammar-case-lab-results-*.csv` format).
-
-**Did (commit ac83c9b):**
-- `extracredit_parser.py`: auto-detects `officialExtraCredit`/`extra credit`/`bonus`/`ec` column; skips rows where `officialAttemptCompleted != true`, EC blank, or name is test/demo.
-- DB: `extra_credit REAL` column on `scores` table; `upsert_extra_credit()` updates EC only without touching score/section_scores.
-- `app.py`: `POST /import-extracredit` route; `save_scores` routes EC-only entries to `upsert_extra_credit`.
-- `matcher.py`: added `score_key` param so `match_csv_rows` works for any value column.
-- Score table: amber **EC** column appears when any student has extra credit data.
-- Import card: dedicated EC drop zone below main CSV drop zone.
-- Parser is flexible — will detect other future EC column name variants automatically.
-
----
-
-## 2026-06-29 — Grade Importer: rounding toggle + Launcher restart button
-
-**Asked:** (1) Add 0 dp / 1 dp rounding toggle to score conversion. (2) Add kill and restart server button to launcher sidebar.
-
-**Did (commit f89d031):**
-- Added `export_round INTEGER DEFAULT 1` column to assignments table (migration).
-- Score Conversion card: `0 dp` / `1 dp` toggle buttons; active state highlighted blue; saves immediately on click via PATCH. Loaded per-assignment on select.
-- Export applies `round(score, export_round)` — 0 dp gives whole numbers.
-- Launcher: added `/restart/<app_id>` POST endpoint — kills process on port via `lsof`, waits 1s, starts fresh.
-- Launcher sidebar: "Restart server" section with dropdown (all server apps) and "↺ Kill & Restart" button; shows green/red status inline.
-
----
-
 ## 2026-06-24 — AP Lang: full feature session + period removal
 
 **Asked:** Multiple requests across context boundary:
@@ -397,3 +312,31 @@ Committed `fac26be`.
 **Did:** Added an authenticated setup panel to the builder dashboard. It shows Git, Codex, Claude Code, GitHub SSH auth, API key presence, enabled projects and each selected project's repo, AI command, test/build and deploy status. Added `/api/setup` to expose safe status metadata and the service user's public GitHub key without exposing secrets.
 
 **Verification:** Python syntax check passed, frontend JS syntax check passed with bundled Node, shell installer syntax passed and ASCII scan is clean. Local `/api/setup` smoke test returned tool/GitHub/project status.
+
+## 2026-08-16: Launcher and both server dashboards audited, fixed and extended
+
+**Asked:** Audit the local app launcher and both servers. Make sure every app and every site has a launch icon, and that every server has a dashboard that can restart an app and push an update by pulling from the git repo. Update and fix what already exists rather than rebuilding. Later: duplicate the local launcher onto serve.inkheron.app, since it is the same thing on a website instead of the Mac.
+
+**Decisions taken up front:** fix serve.inkheron.app and pull builder.inkheron.app down; real tools only in the launcher; strip the GitHub token from the git remote; fix the lang.inkheron.app IPv6 trap; delete old mosaic backups; reach droplet 1 from droplet 2 over a dedicated restricted key, not a plain root key; show Mac-only tools greyed as "local only" on the web panel; clone the Admin repo properly on droplet 2.
+
+**Deploy Dashboard (Mac, port 5095):** now covers both droplets, eleven apps, grouped by host.
+- Every HTTPS health check had been failing silently since it was written. The python.org framework build ships no CA bundle, so each check died with CERTIFICATE_VERIFY_FAILED and fell through to the process check, which meant a down site looked identical to a healthy one. Pointed SSL at certifi's bundle.
+- Status now collects both signals every time and reports three states. A process that is running while its public URL does not answer is "degraded", not "online".
+- Added `/api/status-all`: one request for the whole estate, with the SSH master connections warmed first. Eleven parallel requests were hitting the browser's per-host connection cap, and eleven ssh processes were racing to create the same ControlMaster socket, which showed up as sites randomly flashing offline.
+- inkheron-serve now deploys by rsync, because droplet 2 holds no GitHub credentials.
+
+**Serve panel (serve.inkheron.app):** restored and brought to parity with the Mac launcher.
+- Was unreachable. Caddy on droplet 2 is in Docker and cannot see 127.0.0.1, so the panel binds 0.0.0.0 with ufw allowing 3469 from the Docker subnets only, and the Caddy container got `host.docker.internal:host-gateway`.
+- New launcher grid: all eleven live sites as cards grouped by droplet, plus the five Mac-only tools greyed and labelled "local only".
+- Cross-droplet access is a forced-command key. `/usr/local/bin/serve-remote` accepts only `<verb> <app>` pairs from a fixed table. Verified the deny paths: command injection, arbitrary file read, unknown app, extra arguments and an interactive shell are all refused.
+- Status was lying in two more places: `pm2 jlist` exits 0 whatever the app is doing, and `docker compose ps` exits 0 with empty output when the container is down. The wrapper now parses the pm2 list per app, and docker status steps ask for running ids only.
+- Deploy and restart are refused with the reason when an app cannot support them, instead of handing the runner an undefined step. Only three droplet-1 apps have a git remote on the droplet; the rest ship by rsync and say so.
+- All existing gates kept: password login, 15-minute action unlock behind a second secret, typed hostname confirmation, CSRF, audit log, rate limiting. Six security tests pass.
+
+**Launcher:** the Servers panel was missing six live sites. Added InkPad, Admin, Mosaic, HealthSpan, SmitRecipes and Serve, and made it explicit that the restart buttons there restart the copy on this Mac, not the live site.
+
+**Cleanups:** fixed the lang.inkheron.app `proxy_pass` to 127.0.0.1 and reloaded nginx; stopped and disabled ai-control.service on droplet 2 (builder.inkheron.app had already lost its Caddy route, and /opt/ai-control is left on disk); deleted 15 of the 17 mosaic.previous-* directories, keeping the two newest, which freed only about 28 MB, so the 69% disk usage is elsewhere; replaced the plaintext GitHub PAT in /opt/healthspan/.git/config with per-repo SSH deploy keys.
+
+**Verification:** all ten public sites answered after every change. Six security tests pass. The web panel was driven end to end in a browser against a local instance: login, grid render, card selection, and the greyed deploy/restart buttons showing their reason.
+
+**Left for Brendan:** rotate the GitHub token (it is still in /root/.bash_history on droplet 2 and I must not rotate it); paste the two deploy public keys into the Verax and SmitRecipes repos on GitHub, after which their Deploy buttons start working; decide what to do about the plaintext TEACHER_DASHBOARD_PASSWORD committed in grammar-arcade's ecosystem.config.cjs; delete the builder.inkheron.app DNS record at Porkbun if it is not wanted.

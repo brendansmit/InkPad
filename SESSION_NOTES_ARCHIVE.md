@@ -890,3 +890,87 @@ Commit: 66e12f1. Confirmed pre-existing DB test failures (6) unchanged. Not depl
 - Verified: server starts, `/api/docs` returns JSON, login works, uploaded test doc appeared as card, doc deleted cleanly. Committed 28f2a0b + .gitignore fix 858885f.
 
 ---
+## 2026-06-24 — Server Dashboard: command runner + launcher cleanup
+
+**Asked:** (1) Add a freeform SSH command runner to the server dashboard. (2) Remove cards 08 (Server Dashboard) and 09 (AP Lang Library) from the launcher bento grid — redundant now that both live in the Servers sidebar tab.
+
+**Did:**
+- `deploy_server.py`: added `/api/run` POST endpoint — takes `{cmd}` JSON body, runs via `ssh()`, returns output. Respects `?server=` param so it targets the currently selected server.
+- `dashboard.html`: added "Run command on server" terminal input above the output panel — dark monospace input with green `$` prompt, Run button, Enter key support. Output goes to the shared output panel with colorise() applied.
+- `launcher.html`: removed apps 08 and 09 from APPS array; grid CSS changed to 3 rows; cards 06/07 now span half the row each (symmetric); "9 tools" → "7 tools".
+
+---
+
+## 2026-06-24 — Server Dashboard: add AP Lang server
+
+**Asked:** Add AP Lang Dashboard (lang.inkheron.app) to the server dashboard alongside the existing Speed Dating server, with the same four action cards.
+
+**Did:**
+- Refactored `launcher/deploy-dashboard/deploy_server.py` — added `SERVERS` dict with configs for both `speed-dating` and `ap-lang`. All API routes (`/api/status`, `/api/deploy`, `/api/logs`, `/api/restart`) now read a `?server=` query param to pick the right config (PM2 name, local repo path, remote path).
+- Updated `dashboard.html` — added a "Speed Dating / AP Lang" toggle in the top-right header; JS `switchServer()` updates `currentServer` and appends `?server=<key>` to all API calls. Status URL and banner update dynamically on switch.
+- Added `server-dashboard` entry to `.claude/launch.json` for preview tool access.
+- Verified in preview: switcher renders, Speed Dating shows Online with live stats.
+
+---
+
+## 2026-06-24 — Launcher: sidebar tabs (Servers / Apps)
+
+**Asked:** Restructure launcher sidebar into two tabs. "Servers" tab shows live server cards for lang.inkheron.app and speeddating.inkheron.app with quick-open links and ↺ Restart buttons. "Apps" tab holds the existing restart dropdown and tool count footer.
+
+**Did:**
+- Rewrote `launcher/launcher.html` sidebar — two tabs (Servers default, Apps).
+- Servers panel: two `.server-card` components each with a green status dot, URL, named link buttons (↗ Open / ↗ Organiser / ↗ Library / ↗ Admin), and a ↺ Restart button calling `restartServer(appId)` → `POST /restart/<appId>`.
+- Apps panel: existing restart dropdown + "9 tools" footer moved here.
+- Bento grid and all 9 cards unchanged.
+- Restart buttons for live servers reuse the existing `/restart/<app-id>` endpoint already in launcher_server.py.
+
+---
+
+## 2026-06-29 — Grade Importer: bidirectional sync + server deployment
+
+**Asked:** Back up grades to server and run Grade Importer at admin.inkheron.app, syncing bidirectionally (local autosave pushes to server; assignment click pulls from server; 60s background poll; offline queuing).
+
+**Architecture:** Server (admin.inkheron.app) is primary. Local talks to server. Last-write-wins via `last_modified` timestamps. Sync uses Bearer token auth; `/api/sync` endpoint excluded from nginx basic auth so local JS can reach it cross-origin.
+
+**Did (commit b9f84a4):**
+- `last_modified REAL` added to assignments, scores, students — all write functions stamp it with `time.time()`; migration stamps existing rows
+- `get_sync_data(since_ts)` / `apply_sync_data(data)` in database.py
+- `GET/POST /api/sync` with CORS headers and Bearer auth; `GET /api/config` returns sync metadata
+- Settings API updated for `sync_url` and `sync_key`
+- JS: `syncWithServer()` — pull remote → apply local, push local → remote; wired into `selectAssignment` and `saveAllScores`; 60s `setInterval`; offline fallback status bar
+- Settings tab: Sync card with server URL + key fields
+- `ecosystem.config.cjs` — PM2 config (port 5051, python3 interpreter)
+- `deploy.sh` — one-command deploy: rsync, pip install, DB init with sync_key, PM2, nginx with basic auth + sync route exclusion, certbot
+
+**To deploy:** `cd grade-importer && ./deploy.sh <sync-key> <admin-password>`
+**Then on local:** Settings → Sync → `https://admin.inkheron.app` + same sync-key
+
+---
+
+## 2026-06-29 — Grade Importer: extra credit CSV import
+
+**Asked:** Add ability to import extra credit from a CSV (Grammar Arcade `grammar-case-lab-results-*.csv` format).
+
+**Did (commit ac83c9b):**
+- `extracredit_parser.py`: auto-detects `officialExtraCredit`/`extra credit`/`bonus`/`ec` column; skips rows where `officialAttemptCompleted != true`, EC blank, or name is test/demo.
+- DB: `extra_credit REAL` column on `scores` table; `upsert_extra_credit()` updates EC only without touching score/section_scores.
+- `app.py`: `POST /import-extracredit` route; `save_scores` routes EC-only entries to `upsert_extra_credit`.
+- `matcher.py`: added `score_key` param so `match_csv_rows` works for any value column.
+- Score table: amber **EC** column appears when any student has extra credit data.
+- Import card: dedicated EC drop zone below main CSV drop zone.
+- Parser is flexible — will detect other future EC column name variants automatically.
+
+---
+
+## 2026-06-29 — Grade Importer: rounding toggle + Launcher restart button
+
+**Asked:** (1) Add 0 dp / 1 dp rounding toggle to score conversion. (2) Add kill and restart server button to launcher sidebar.
+
+**Did (commit f89d031):**
+- Added `export_round INTEGER DEFAULT 1` column to assignments table (migration).
+- Score Conversion card: `0 dp` / `1 dp` toggle buttons; active state highlighted blue; saves immediately on click via PATCH. Loaded per-assignment on select.
+- Export applies `round(score, export_round)` — 0 dp gives whole numbers.
+- Launcher: added `/restart/<app_id>` POST endpoint — kills process on port via `lsof`, waits 1s, starts fresh.
+- Launcher sidebar: "Restart server" section with dropdown (all server apps) and "↺ Kill & Restart" button; shows green/red status inline.
+
+---
