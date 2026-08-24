@@ -340,3 +340,25 @@ Committed `fac26be`.
 **Verification:** all ten public sites answered after every change. Six security tests pass. The web panel was driven end to end in a browser against a local instance: login, grid render, card selection, and the greyed deploy/restart buttons showing their reason.
 
 **Left for Brendan:** rotate the GitHub token (it is still in /root/.bash_history on droplet 2 and I must not rotate it); paste the two deploy public keys into the Verax and SmitRecipes repos on GitHub, after which their Deploy buttons start working; decide what to do about the plaintext TEACHER_DASHBOARD_PASSWORD committed in grammar-arcade's ecosystem.config.cjs; delete the builder.inkheron.app DNS record at Porkbun if it is not wanted.
+
+## 2026-08-25: Cadence, a teaching calendar built overnight
+
+**Asked:** Vibe code a calendar app for a teacher with two courses: AP Language with one section, and EAP with three G12 sections running the same lessons on different days. Track when lessons happen, where, and what events land when, mainly to check the three parallel sections stay even. Periods and slots must be editable because the real timetable keeps changing. Track submission types. Feature rich, good design, some colour but not loud. Later it should become a web app that installs on a phone home screen, with a Mac widget if possible. Set and forget, no permission checks, build it while asleep.
+
+**Stack chosen:** Vite, React, TypeScript. No UI framework, no date library, no state library, no icon package. React is the only runtime dependency. Hand written CSS with design tokens, light and dark. State is one JSON blob in localStorage with a debounced save, a clone on write store, and 50 step undo.
+
+**The model:** `TIMETABLE x CALENDAR -> OCCURRENCES`, `CURRICULUM -> LESSONS`, then a projector flows the lesson sequence onto each section's own meetings. A recorded lesson always wins, a cancelled meeting consumes nothing, so an event that eats two classes shows as those sections falling behind rather than a lesson vanishing. Due dates are counted in meetings, not days, which is what makes "three lessons after I set it" land on a different date per section.
+
+**Built, one commit per working step:** scaffold and Today view, Week, Pacing, Curriculum, Assignments, Timetable, Classes, Month, Settings, then PWA, sync server, README, phone layout. Nine views, no stubs left.
+
+**Pacing is the reason it exists.** Parity tracks per section, a runway table with slack, lost meetings grouped by cause, and an alignment matrix showing the date each section reaches each lesson with the day spread. The seeded sample includes a sports day two Wednesdays back that cancels two EAP sections, so on first run it already reads "4 lessons between front and back" and the cause is visible in Week, Month and Today.
+
+**PWA:** service worker with an offline shell, icons generated from the brand mark, manifest with home screen shortcuts to Today, Week and Pacing. The worker only registers in a real build, because in front of the dev server it serves stale modules and fights hot reload.
+
+**Sync server:** `server/server.mjs`, zero dependencies, one file. Serves the built app and holds one JSON blob at `GET/PUT /state` behind an `X-Cadence-Key` header, with a timing safe compare, temp file plus rename writes, and the last 30 versions kept. Optional: leave the setting blank and the app stays local only.
+
+**Verification:** typecheck and production build clean. Every route driven in the browser. Sync proved end to end against a live server on port 8791: push, pull, 36 lessons and 48 teaching records survived the round trip, wrong key returns 401, rubbish payload is refused. Offline proved by stopping the server and reloading the built app, which still rendered from cache. Phone layout checked at 375 px on all nine routes with no clipped content: found and fixed a `1fr` grid blowout that was silently cutting off the right hand side of every card.
+
+**Decisions worth remembering:** free period totals sum real period durations rather than assuming 40 minutes each; the app never claims a past meeting happened if nothing was recorded; a Mac widget was not built, because a real Notification Centre widget needs a signed Swift WidgetKit app, and the README says so plainly along with what it would fetch.
+
+**Left for Brendan:** it is a separate git repo at `Cadence/`, not yet pushed anywhere and not deployed. To put it on a droplet, follow the README: build, rsync `dist/` and `server/`, run it under systemd with a `CADENCE_KEY`, nginx and TLS in front, then paste the URL and key into Settings > Sync on both devices. Screenshots stopped working partway through the night because the browser pane was not displayed, so the last visual checks were done by measuring the DOM instead of looking at it.
