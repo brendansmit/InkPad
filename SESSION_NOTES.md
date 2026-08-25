@@ -308,3 +308,20 @@ untouched on the droplet.
 **Found while there:** droplet 1 is running and inkheron-wrapper is active, but **inkheron.app now resolves to 207.207.210.229 and .107, not 167.172.71.219**. Confirmed from a clean network, so it is not the local proxy. That is why InkPad looks down. It is a DNS record, not a server.
 
 **Test data:** the mock exam event and two fake shifts I injected to see the banner and the week bar were removed from local state before finishing. The app rewrites localStorage on load, so they had to be cleared from the read only Glance route.
+
+## 2026-08-26 (later) — Cadence wiped back to empty, and the to do flag fix
+
+**Asked:** Clear out the classes and content, it was all last semester's and the kids only start next week, so you need a clean slate. Fix the to do list: clicking the flag to change urgency should not shoot the row to a new position mid cycle. The only assignments that exist are two AP Lang essays and one more, on InkPad. Then deploy it, that is what I will use.
+
+**You chose:** wipe absolutely everything, bell schedule included. Not just content: no term, no periods, no timetable slots, no classes.
+
+**Done:** `6a93459`
+- `makeEmptyState()` now really is empty. `storage.ts` uses it for a first run *and* as the base `migrate()` fills missing arrays from, which was the real landmine: a saved state missing one array used to get the sample courses back.
+- New `src/domain/tasks.ts` holds the to do ordering, because Desk, Today and the store all have to agree about it and the store could not import from a view.
+- `setTaskPriority(id, priority, visibleOrder?)` freezes the order on screen in the same mutation that changes the flag, so one undo puts both back. Same rule dragging already had, and "Sort by urgency" still hands the list back to the machine. Wired in Desk and in Today's card.
+
+**Verified:** every view renders empty without crashing, each with its own call to action (Pacing, Curriculum and Classes all offer "Add a course"; Today offers "Open the timetable"). Cycled a flag twice on the bottom row and it stayed put, then "Sort by urgency" moved it, so both halves work.
+
+**Assignments not added, and why:** a Cadence assignment needs a courseId and a section. Wiping everything means there is nothing to attach one to. The three that exist on InkPad are MLK Rhetorical Analysis Essay and Argument Essay - Organ Donation for AP Lang, and Personal Statements Second Draft across EAP 1, EAP 2 and EAP 3. They go in the moment the classes exist.
+
+**Deployed:** live at https://cadence.inkheron.app, opens empty, no console errors. The server had no state to wipe.
