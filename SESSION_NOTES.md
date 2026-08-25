@@ -351,3 +351,50 @@ your call.
 **Next:** the eight step plan is done. Suggested separately, not built: the
 Cadence merge, ics, curriculum, vault, forecast and inkpad tests currently live
 only in a scratchpad and should become a real test file with a runner.
+
+---
+
+## 2026-08-25 (later) - Cadence to do list: urgency lights and drag to reorder
+
+**You asked** whether the widget work was actually finished and easy to use, and
+after that: make the to do list adjustable in urgency, draggable to rearrange,
+with a traffic light system. You said go on the plan.
+
+**The audit first.** I drove the browser rather than opining. Five findings, one
+of them a real code bug: Desk does not light the More tab on mobile
+(App.tsx:161), Glance goes empty after the last lesson of the day, the Needs you
+titles truncate hard, and the Cadence tests still live only in a scratchpad. All
+suggested, none built.
+
+**Built, in three commits on the Cadence repo:**
+
+- `af8b3a9` traffic light and drag. A red, amber or green dot on every task,
+  click cycles it in place, no modal. The word is on the tooltip and the aria
+  label too, so the light is never colour alone. Rows drag by a grip using
+  pointer events, with arrow keys on the grip doing the same move from the
+  keyboard. No drag library: React is still the only runtime dependency.
+- `cbc6cf7` Today's card gets the same dots and follows the same order. One sort
+  function now, not two, so the two surfaces cannot disagree. Deliberately not
+  draggable: it shows the top eight of a longer list.
+- `ead497d` touch fixes, below.
+
+**The decision that mattered.** Auto sorting and hand sorting cannot both be
+true. Once you drag anything, your order wins and stays won, the light becomes a
+tag rather than a sorter, and a Sort by urgency button hands it back to the
+machine on request. Reasoning is in the Desk.tsx header comment.
+
+**Two real bugs found by testing, not by reading.** The drop handler read the
+drag from a render closure, so a drag that started and finished inside one frame
+did nothing; it now lives in a ref. And the grip was hover revealed and 18px
+wide, meaning invisible and unhittable on the phone layout the pointer events
+existed for in the first place. A refused `setPointerCapture` also used to kill
+the drag outright and now degrades to an uncaptured one.
+
+**Verified** in the browser on both viewports: drag reorder, keyboard nudge,
+dot cycling, the sort button, the colours against the dark tokens, and a touch
+pointer drag under mobile emulation. Typecheck and production build clean. Your
+two real tasks were used as the test fixtures and were restored afterwards to
+their exact original shape, no priority and no order, and diffed to confirm it.
+
+**Still not deployed.** The InkHeron summary endpoint remains committed and
+untouched on the droplet.
