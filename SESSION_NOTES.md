@@ -363,3 +363,33 @@ localhost, so a droplet on plain http cannot open the log.
 
 **Next:** step 7 of the original plan, the cover sheet. Then step 8, the InkPad
 link and marking forecast.
+
+## 2026-08-25 — Cadence step 7, the cover sheet, commits e0fe4d6, f75ee8e
+
+**Asked:** "go do whatever you can next", taken as the batch go-ahead for the
+remaining plan steps.
+
+**Built:** the cover sheet. `#/cover?date=YYYY-MM-DD`, opened by a Cover button
+in the Today header in its own tab. One printable page per day: every meeting in
+period order with time, room, class size, the projected lesson, its aim,
+activities, homework, materials with links, what to collect or hand out, and
+where the class got to last time. Cancelled meetings say so and stop, thinned
+ones warn against teaching new material. Duties, calendar events and the day
+note follow. Read only and outside the store, same reasoning as Glance: a
+document you print must not be able to write state back.
+
+**Decisions:** forced light theme (nobody prints a dark page); the title is set
+to `Cover notes <date>` because browsers name the PDF after it, and restored on
+the way out; work handed out or collected prints once per class per day rather
+than once per meeting, and never against a cancelled meeting.
+
+**Two bugs found by testing in the browser and fixed before commit:** a class
+that meets twice in one day printed "hand out" twice, and once the first meeting
+of the day was cancelled the hand-out vanished from the sheet entirely.
+
+**Verified:** typecheck and production build clean, no console errors, and the
+sheet rendered correctly for a normal day, a thinned day, a cancelled period, a
+day with materials and a day note, and a closed weekend. Test data was written
+into localStorage and removed again afterwards, byte for byte back to 26194.
+
+**Next:** step 8, the InkPad link and marking forecast.
