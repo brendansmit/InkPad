@@ -1,202 +1,5 @@
 # Session Notes
 
-
-## 2026-06-24 — AP Lang: full feature session + period removal
-
-**Asked:** Multiple requests across context boundary:
-1. Add AP Lang to Server Dashboard alongside Speed Dating (all 4 action cards)
-2. Add freeform SSH command runner to dashboard
-3. Add Copy button to dashboard output
-4. Remove cards 08 (Server Dashboard) and 09 (AP Lang Library) from launcher bento; add Servers tab with Open Server Dashboard button
-5. Fix narrow-column layout bug on student view and admin panel
-6. Make sidebar categories editable from admin
-7. Admin views should not count toward view count; students should not see view counts
-8. Add student identity system (name prompt) to track who viewed what and for how long
-9. Remove class period field (has only 8 students in one class)
-
-**Did (two commits):**
-- ap-lang-dashboard repo `f84ebf2`: Removed period field from identity modal, student object, filterLog, analytics table column, and row rendering
-- Outer repo `e417399`: Launcher sidebar Servers/Apps tabs; 7-card bento grid; deploy_server.py AP Lang config + /api/run endpoint; dashboard.html server toggle + terminal runner + Copy button; AP Lang server.js view_log/categories tables + admin-exempt counting; student identity modal + sendBeacon view tracking + dynamic categories
-
-**Deploy:** Push & Restart AP Lang from Server Dashboard to send changes live.
-
-## 2026-06-25
-**Asked:** Add InkHeron Platform to the app launcher — bento grid card + server dashboard entry.
-**Did:**
-- `apps.json`: added `inkheron-platform` (node, `InkHeron-Platform/src/server.js`, port 3472 via env override, url `http://localhost:3472`) and alias `"inkheron"`.
-- `launcher.html`: added card 08 with `#3a5c42` brand-green accent; updated grid from 7→8 cards (row 3 now 3×2-col cards); added InkHeron server card in the Servers sidebar panel with Open + Restart buttons; updated tools count 7→8.
-**Decision:** Port 3472 (default 3000 conflicts with ap-lang-dashboard); PORT injected via env in apps.json.
-
----
-
-## 2026-06-27 — Grammar Arcade: fix teacher dashboard auth + deploy pipeline
-
-**Root causes (multiple):**
-1. `!` in password rejected by browser fetch Headers API → fixed with encodeURIComponent/decode
-2. TeacherLite.tsx old build in dist/ bypassed server auth → replaced /teacher with server-side Express route (no React involved)
-3. React Router's `<Link>` intercepted /teacher client-side → changed to `<a>` tag forcing full page load
-4. `TEACHER_DASHBOARD_PASSWORD` wiped on each deploy (git pull overwrites ecosystem.config.cjs) → server now reads from `/var/www/grammar-arcade/.teacher-password` file (gitignored, persists)
-5. Server OOM during Vite build (exit 137) → deploy now builds locally on Mac and rsyncs dist/ to server
-6. Local deploy_server.py running old code → restarted to pick up grammar-arcade config
-
-**Password file on server:** `/var/www/grammar-arcade/.teacher-password` — never touched by git pull. If lost, recreate with: `echo -n 'NMMYou5531!InkHeron' > /var/www/grammar-arcade/.teacher-password`
-
-**Deploy now:** builds locally (pnpm build on Mac), rsyncs dist/, git pulls server code, pm2 reload --update-env.
-
-## 2026-06-27 — Grammar Arcade: fix teacher login "string did not match" error
-
-**Asked:** Teacher login returned "Request failed: The string did not match the expected pattern."
-
-**Root cause:** Browser's `fetch()` Headers API rejects certain characters in header values. The `!` in the password `NMMYou5531!InkHeron` triggered this. The error was thrown before the request reached the server.
-
-**Fix (commit cd69fd4):**
-- `backendApi.ts`: added `teacherHeaders()` helper that `encodeURIComponent()`s the password before setting the `x-teacher-password` header.
-- `server/index.ts`: `requireTeacherPassword` now `decodeURIComponent()`s the raw header value before comparing to the env var.
-
-**Pending (still needs user action):**
-1. Deploy grammar-arcade from server dashboard.
-2. In dashboard "Run Command", paste the Python snippet to inject `TEACHER_DASHBOARD_PASSWORD` into `/var/www/grammar-arcade/ecosystem.config.cjs` and `pm2 reload --update-env`.
-
-## 2026-06-29
-
-### EAP deploy dashboard split + fixes
-Asked: Fix deploy bugs and messy flow, add launcher button, fix Grammar Arcade build error.
-Did:
-- Fixed Grammar Arcade vite build: `--config vite.config.ts` → `--config ./artifacts/grammar-case-lab/vite.config.ts`
-- Removed `ok = True` that silenced SSH failures in git-push deploy path
-- Removed dead `local_build` block in git-push path (referenced nonexistent rsync_src/rsync_dst keys)
-- Added Deploy Dashboard as card #09 in launcher grid
-- Added EAP Library card to launcher sidebar (Library + Admin links, Restart button)
-- Updated Grammar Arcade sidebar card URL label to eap.inkheron.app/grammar-arcade
-
-### EAP library admin rebuild
-Asked: Match EAP admin to AP Lang admin in look and features.
-Did:
-- Full rewrite of `InkHeron-Platform/public/eap-library-admin.html`:
-  - Fixed sidebar nav: Library / Upload / Categories / Analytics
-  - Library table: inline category select, release date picker, download + visible toggle switches, Rename/Replace/Delete
-  - Upload: drag-and-drop, FA icon picker, category select, downloadable toggle
-  - Categories: FA icon picker (replacing text input)
-  - Analytics: formatted time + visit count table
-  - Session auth (redirect to /teacher-login), CSRF from /api/me
-- Updated `eap-library.html` to render FA icons instead of letter abbreviations (with legacy mapping)
-- Updated `cleanIcon()` in `library.js` to accept FA class strings like "fas fa-folder"
-
-## 2026-07-01 — Grade Importer: class colors + GitHub push + server deploy
-
-**Asked:** (1) Add class colors to badges. (2) Push to GitHub. (3) Deploy to admin.inkheron.app.
-
-**Did:**
-- Added `badge-orange` (#ffedd5) and `badge-pink` (#fce7f3) CSS classes.
-- Added `classColor(cls)` JS helper: Lang→yellow, EAP3→orange, EAP2→green, EAP1→pink, EAP→blue, AP→yellow.
-- Updated all 3 badge expressions in index.html (roster table, assignment list, score table) to use `classColor()`.
-- Committed and pushed via `git subtree push --prefix grade-importer` to `git@github.com:brendansmit/Grades-exporter-.git`.
-- Deployed to server with `./grade-importer/deploy.sh`. Fixed pip3 not found — server uses `pip3 install --break-system-packages --ignore-installed`.
-- Dependencies installed, PM2 started, nginx config updated, SSL cert renewed.
-- Auto-configured local sync: `https://admin.inkheron.app` + sync key `GwPVRUH4EhC2vSrxrmn7XYRgar28nVXWjLlprDv6ulk` via `/api/settings`.
-- Updated `deploy.sh` should use `pip3 install --break-system-packages --ignore-installed` for future deploys.
-
-**Sync key:** `GwPVRUH4EhC2vSrxrmn7XYRgar28nVXWjLlprDv6ulk` (stored in local DB and server DB).
-
----
-
-## 2026-06-29 — Assignment archive/delete/unassign
-
-- Asked: Add ability to delete, archive, and unassign students from assignments.
-- Did:
-  - Migration 008: `ALTER TABLE assignments ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`
-  - New endpoints in assignments.js: `POST /api/assignments/:id/archive` (toggle), `POST /api/assignments/:id/unassign-student` (seeds class-wide override list then removes one student)
-  - `DELETE /api/assignments/:id` now requires CSRF token
-  - `GET /api/assignments` accepts `?archived=1` to show archived; defaults to non-archived
-  - assignments.html: Archive/Unarchive + Delete buttons in detail header; Show archived toggle in list header; Unassign button per student row; archive label updates on openGroup(); assignment_id annotated on merged 'all' rows for correct unassign targeting
-- Deployed and restarted. Committed 8fad189.
-
-## 2026-07-01 — Birthday importer UX + smart date parsing
-
-**Asked:** (1) Show CSV is loaded visually. (2) Undo button after import. (3) Delete button per record. (4) Smarter date parsing — if an age column exists use it, if `has_year=false` show "Jan 5" not a year-2001 date.
-
-**Did (server-side, previous session):**
-- Rewrote `birthdays.js` on server: `parseDateValue()` returns `{date, hasYear}`. MM/DD stored as `1900-MM-DD` with `has_year=false`. Age column detected, converts age → birth year. `has_year` field stored on all birthday records.
-- Patched `server.js` via Python script: added `let lastImportIds = []`, `POST /api/birthdays/preview`, `POST /api/birthdays/undo`, `DELETE /api/birthdays/:id`. Import endpoint stores `lastImportIds`.
-
-**Did (frontend, this session):**
-- `index.html`: added `id="dropZoneLabel"` on drop zone span, `id="importBtn"` on submit, `<div id="importPreview">`, undo button (`id="undoImportBtn"`, hidden by default), Delete column header in table.
-- `app.js`: `updateDropZoneLabel()` — on file select, shows filename in drop zone with green border (`file-loaded` class), shows "File loaded" message in preview div. File `change` and drop listeners call it. `formatBirthdayDisplay()` — if `has_year=false` shows "Jan 5", else shows "Jan 5, 2001 (age 24)". `renderBirthdayRow` uses display cell (not date input) for birthday column. `deleteCell()` + `deleteBirthday(id)` call `DELETE /api/birthdays/:id`. `undoImport()` calls `POST /api/birthdays/undo`. Undo button shown after successful import, hidden after undo.
-- `styles.css`: `.drop-zone.file-loaded` (green border/bg), `.import-preview`, `button.danger`, `button.compact`, `button.secondary`, `.birthday-display`.
-
-**Restarted:** `pm2 restart admin-platform` — server online, all new endpoints confirmed present in server.js.
-
-## 2026-07-07 — Launcher: InkPad + deploy dashboard cards
-
-**Asked:** Add inkpad.inkheron.app and the server dashboard to the app launcher so I can restart, debug and deploy the platform without waiting.
-
-**Found:** Both were already registered — `apps.json` has `inkpad` (open runtime → https://inkpad.inkheron.app, opened directly by launcher_server.py line 76) and `server-dashboard` (Flask deploy dashboard on 5095), and both sit in the `launcher.html` APPS array as cards 09 and 10. Only cosmetic gaps remained.
-
-**Did:** `launcher.html` — added accent colours for `.card:nth-child(9)` (violet) and `(10)` (amber); fixed sidebar footer "8 tools" → "10 tools". Committed `83d9cb6`. No launcher restart needed (apps.json read live).
-
-## 2026-07-07 — Deploy dashboard: add InkPad (live) tab
-
-**Asked:** InkPad is not in the server dashboard, I cannot deploy any updates.
-
-**Root cause:** Two deployments of the InkHeron-Platform repo exist. The live site `inkpad.inkheron.app` is `/opt/inkheron-platform`, a systemd service `inkheron-wrapper` on port 3000. The dashboard only had an "EAP" tab, which deploys `/opt/eap-platform` — an older pm2 copy on port 3466 serving `eap.inkheron.app`. So every deploy hit the wrong (old) copy and the live site never updated.
-
-**Did:**
-- `deploy_server.py`: added `inkpad` server — rsync deploy (excludes .git/node_modules/data/.env), remote `/opt/inkheron-platform`, DB backup + `node src/db/migrate.js` on deploy, restart `systemctl restart inkheron-wrapper`, logs via `journalctl -u inkheron-wrapper`, health `inkpad.inkheron.app/healthz`. Made `inkpad` the default server. Added a `logs_cmd` override so systemd apps use journalctl instead of `pm2 logs`.
-- `dashboard.html`: added "InkPad" tab (default active), relabelled the pm2 copy "EAP (old)", added the label mapping, default `currentServer='inkpad'`.
-- Verified Python parses. Could not run a live health probe (sandbox blocks outbound HTTPS — both inkpad and eap return 000 here identically). No deploy triggered; that is the teacher's to click.
-
-Committed `fac26be`.
-
-## 2026-07-07: AI control panel viability discussion
-
-**Asked:** Discuss whether a private mobile web dashboard on the existing droplet can run Codex or Claude Code jobs against selected projects, show logs and diffs, then allow phone approval for push and deploy.
-
-**Did:** Recommended treating the runner as an isolated project-level build worker rather than remote root access. Outlined a practical MVP with private auth, per-project config, job queue, SQLite history, per-job workspaces, Codex CLI execution under a restricted Unix user, dangerous-action gates, git diff review and explicit deploy approval.
-
-**Decision:** No code was started. Next step is to confirm the MVP stack and repository location before implementation.
-
-## 2026-07-07: admin.inkheron.app remote server control security
-
-**Asked:** How to encrypt and strengthen `admin.inkheron.app` so it can control only the sites on the DigitalOcean droplet while away from the main computer.
-
-**Did:** Recommended a narrow remote admin design: HTTPS-only, Cloudflare Access or equivalent identity gate, app-level admin auth, allowlisted server actions, no shell command box, CSRF protection, audit logging, rate limits and a restricted deploy runner user on the droplet.
-
-**Decision:** No code was started. Next step is explicit go-ahead to inspect the admin app and launcher dashboard before implementing.
-
-## 2026-07-07: admin ops subdomain decision
-
-**Asked:** Whether to protect only part of `admin.inkheron.app` or create another subdomain with a button from admin to the remote server controls.
-
-**Did:** Recommended a separate locked-down ops subdomain for restart/deploy/log controls, linked from the normal admin UI, so high-risk droplet actions can sit behind stricter access without changing the security posture of the whole admin app.
-
-**Decision:** No code was started. Preferred direction is an `ops.inkheron.app` style control panel with a link from admin.
-
-## 2026-07-07: serve.inkheron.app name chosen
-
-**Asked:** Proposed `serve.inkheron.app` as the subdomain for the separate droplet control panel.
-
-**Did:** Confirmed it is a suitable name for the locked-down restart/deploy/log dashboard.
-
-**Decision:** No code was started. Use `serve.inkheron.app` as the planned remote ops subdomain.
-
-## 2026-07-07: serve repo question
-
-**Asked:** Whether a GitHub repo needs to be created for `serve.inkheron.app`.
-
-**Did:** Recommended a separate private repo only if the serve panel will be deployed independently on the droplet. For initial implementation, it can also start inside the existing workspace and be split later.
-
-**Decision:** No code was started. Preferred production direction is a private `inkheron-serve` repo, but it is not required before inspection.
-
-## 2026-07-08: serve.inkheron.app implementation
-
-**Asked:** Build the separate remote server control panel and link it from Admin.
-
-**Did:** Implemented a standalone `serve` app inside the Admin repo with password login, signed sessions, optional Cloudflare Access email allowlist, CSRF protection, typed host confirmation, audit logging, security headers and only allowlisted status/log/restart/deploy operations. Added a `Serve` button in Admin linking to `https://serve.inkheron.app`. Added deployment notes and corrected Admin's serve target to `/opt/admin-platform` with PM2 `admin-platform`.
-
-**Verification:** Serve tests, Admin tests and syntax checks passed with bundled Node. Local browser checks verified login, the serve dashboard, mobile layout, no command runner, Admin link target and no console errors.
-
-**Commits:** Admin repo commits `f580182`, `21e17d8`, `91da628`. Not deployed publicly yet because `serve.inkheron.app` should be put behind Cloudflare Access or equivalent before exposure.
-
 ## 2026-07-08: cheap server recommendation
 
 **Asked:** Best cheap capable server host and location at 10 dollars or less.
@@ -362,3 +165,147 @@ Committed `fac26be`.
 **Decisions worth remembering:** free period totals sum real period durations rather than assuming 40 minutes each; the app never claims a past meeting happened if nothing was recorded; a Mac widget was not built, because a real Notification Centre widget needs a signed Swift WidgetKit app, and the README says so plainly along with what it would fetch.
 
 **Left for Brendan:** it is a separate git repo at `Cadence/`, not yet pushed anywhere and not deployed. To put it on a droplet, follow the README: build, rsync `dist/` and `server/`, run it under systemd with a `CADENCE_KEY`, nginx and TLS in front, then paste the URL and key into Settings > Sync on both devices. Screenshots stopped working partway through the night because the browser pane was not displayed, so the last visual checks were done by measuring the DOM instead of looking at it.
+
+## 2026-08-25 (later): Cadence, scope conversation, no code written
+
+**Asked:** an overview of what Cadence does and why runway is counted in meetings; then what would take it to 11/10; then whether InkPad assignment data can feed the calendar. Answered all three in chat, no code changed.
+
+**InkPad feasibility, checked against the source not from memory:** yes. `fetchDashboardRows` in `src/routes/assignments.js:213` already resolves who should submit (`assignment_students` rows if any, otherwise the class roll) and `publicDashboardRow` already derives per student status (`not_started|writing|submitted|marked|green_pen_open|resubmitted`) and `grade_state` (`released` once a pad hits `marked`). A summary endpoint is a tally over functions that already exist and already back the CSV export. Auth is the only gap: InkPad is session cookie plus CSRF (`src/routes/auth.js:85`), so a separate app needs its own read only bearer token. Recommended Cadence's sync server proxy the call so the token never sits in a browser.
+
+**New constraints from Brendan, and they change the design:**
+- The school publishes no long term calendar. Events surface one or two days ahead and the semester end is unknown until roughly two weeks out. So a fixed term end is a fiction, and `planSection`'s `slack` (which measures against `termBounds`) currently states a guess as a fact.
+- AP Lang has a real fixed deadline and he will supply pacing documents. EAP is open ended, his own curriculum, his own pace. Two different pacing modes, not one.
+- G12 disruptions are constant and often partial: SAT, TOEFL, other exams pull some students out, not the whole section. That is not a cancellation and the model has no category for it.
+- No Apple developer account, and he does not want Notification Centre or notifications at all (ServerChan on WeChat covers alerts, InkPad already pings on submit). He wants a glanceable panel parked on the second monitor. So: a `#/glance` route, rendered by Ubersicht on the desktop or opened as a chromeless Chrome app window. No signed Swift app needed.
+
+**Decision:** term end gets a confirmed/provisional flag and pacing verdicts must show a range rather than a false number when the end is a guess. Waiting on go ahead before building.
+
+## 2026-08-25 (batch): Cadence, flexible timelines and pacing
+
+Brendan said go on the whole revised plan. Archived everything before 2026-07-08 into SESSION_NOTES_ARCHIVE.md first, notes were at 378 lines.
+
+**Step 1, commit `b9f0bcf`: the time model stops pretending.** Term gains `endConfidence` (provisional by default), `endEarliest` and `endLatest`. Course gains `pacingMode`, `deadline` and `deadlineLabel`. Settings gains `knownGoodThrough`. New `src/domain/horizon.ts` holds every default, so saved state needs no migration and simply reads as provisional and open. Controls live in Settings (term rows get a continuation row for the earliest and latest, plus a "calendar confirmed through" field with a two weeks out shortcut) and in the course editor (mode switch, date, label, and a warning when deadline mode has no date). Verified in the browser: switched AP Lang to deadline mode with a 2027-05-12 AP exam date and confirmed it persisted. Nothing downstream reads these yet, that is step 2.
+
+**Step 2, commit `d6b4ff4`: pacing reads the horizon.** New `outlookFor()` in `src/domain/pacing.ts` measures a section against its course's horizon and reports slack at the earliest, expected and latest end. Three honesty fixes. A deadline past the end of term (AP exam in May) is counted only as far as the schedule actually reaches, because next term's calendar does not exist, and the verdict says how much lands after the break rather than inventing meetings across a summer. An open ended course is never told it will run out of time, only where the sequence lands, and is warned only when the finish needs the term to run long. The runway table changes shape with the course: slack against a real deadline, or the projected last lesson plus how far each section trails the first, which is the number that makes three uneven sections obvious at a glance. Verified both courses in the browser including the overrun warning firing and undo reverting the term edit that triggered it.
+
+**Step 3, commit `7272151`: unconfirmed days are drawn as guesses.** Anything past `knownGoodThrough` gets a faint diagonal hatch in Week and Month (not a grey out, they are real days, they are just not confirmed), a legend swatch on Month, and a quiet line above the week grid saying where the confirmed part stops. Today shows a nudge when the confirmed-through date has gone stale, with a one click "confirmed to <date+14>" button, because a marker nobody moves drags the whole calendar into hatching and stops meaning anything. Verified in the browser: with the date at 8 Sep, September rendered 18 of 25 cells hatched with a clean boundary and August none; with the date pushed into the past the nudge appeared with the correct day count and the button restored it.
+
+**Testing note worth keeping:** writing state straight into localStorage to force a test case does not work. The app's own debounced save overwrites it and the page then renders against unmodified state, which reads as a bug in the feature under test. Drive the real UI instead.
+
+**Step 4, commit `c12cc88`: disruptions with partial cohorts and a ripple preview.** An event can now take students instead of taking the period. `EventImpact` is `none | cancels | thins`; a thinned meeting still happens and you still turn up, but the sequence holds, because nothing new should be taught to a class that is half at an SAT. That category simply did not exist before: the model knew cancelled or normal and nothing between. `eventImpact()` derives the value from the old `cancelsClasses` flag for anything saved earlier, and the editor writes both fields together so they never drift.
+
+New `rippleOf()` in `src/domain/pacing.ts` plans every affected section twice, with and without the draft event, and the editor shows the difference before you commit: meetings hit, meetings lost, and where each section's last lesson moves to. A three day school wide cancellation reads as four rows, Lang +3d, EAP 1 +7d, EAP 2 +7d, EAP 3 +4d. Checked the prediction against reality afterwards: it said EAP 1 would slip 8 Sep to 9 Sep, and after saving the pacing table said exactly that, with meetings left dropping 60 to 58.
+
+`EventEditor` moved out of `Month.tsx` into `src/components/EventEditor.tsx` so a meeting can open it too. That entry point matters: the real workflow is finding out two days ahead while looking at the day, so `MeetingSheet` has a "Something came up" button that opens a disruption already scoped to that date, section and period. A meeting already disrupted shows the reason and offers "Edit the disruption" instead.
+
+Thinned meetings render as a soft amber, never struck through, because they are not cancellations: half dots in Month, an amber cell in Week, a "9 out" chip and the reason in Today. Test event was undone afterwards, state left as found.
+
+**Step 5, commit `97910db`: sync stops destroying the other device.** Push and pull moved the whole state as one blob, so the last device to sync silently wiped whatever the other one had done. Mark a lesson taught on the phone in a corridor, open the laptop that evening, gone. Now every editable record carries `updatedAt` (new `Stamped` interface in `types.ts`), deletions leave a tombstone in `AppState.deleted`, and `src/lib/merge.ts` folds the server copy into this device record by record, newest wins. `syncNow()` in `storage.ts` does GET, merge, PUT in one go. "Sync now" is the button; the two overwrite-everything paths sit behind a fold with a confirmation each, because they are genuinely dangerous now that a real merge exists.
+
+Two rules that matter. An unstamped record counts as never edited, not as edited whenever its copy happened to be written, otherwise adding one event on the laptop refreshes the whole copy and every untouched record on it starts beating real edits from the phone. And a conflict is only counted when both sides genuinely changed the same record since this device last synced, so the number means something instead of firing on every ordinary sync.
+
+Verified two ways. 26 assertions against the merge logic (bundled with esbuild, run in node from the scratchpad, no test harness added to the repo). Then live against a real `server/server.mjs`, simulating the phone by writing to the server directly: the phone's lesson edit arrived, its delivery arrived, its deletion removed the event here, the laptop's own edit to a record both had touched won on time and was reported as a conflict, and a second sync said both copies already agreed. The live run is what caught both of the rules above, after the unit tests had passed. State restored afterwards via the forced pull, sync fields cleared, test server and its data removed.
+
+**Worth doing separately:** those 26 merge assertions live in the scratchpad and will be gone next session. Merge logic is the one part of this app where a silent bug costs real work, so it is the one part worth a permanent test file and a runner.
+
+**Step 6, commit `ba23342`: the glance panel, and a window that stops eating other windows.** `#/glance` is the app boiled down to one narrow read only column: long date and week of term, a hero saying what is on now and how long is left of it (or what is next, or that teaching is done, or that school is closed), any event that costs teaching time, the rest of the day as rows, and a footer with what is waiting to be marked. `desktop/Cadence Glance.command` opens it as its own 420x940 Chrome window with no tabs or address bar. Same Chrome profile as the app, so it reads the same saved data and repaints within a second of an edit made in the main window, which was verified by switching the theme in one window and watching the panel follow.
+
+It runs outside the store deliberately. A panel left open for a week holds a week old copy of everything, and a window that cannot save is a window that cannot flatten a week of work with it.
+
+**No Übersicht widget, and no Notification Centre widget.** A WidgetKit one needs a signed Swift app in Xcode, which Brendan cannot build without a developer account and a web app cannot install anyway. An Übersicht widget cannot read Chrome's localStorage, so it would have to fetch from the sync server and then reimplement the entire timetable engine in the widget to say anything useful. The Chrome app window gives the same panel, live, with nothing to install, so that is what got built. Called out here because the plan said Übersicht and this is not that.
+
+**Two real bugs found while testing it, both fixed in the same commit.** A window left open since the previous session flushed its stale in memory copy over localStorage when it was hidden, and erased a restore that had been verified minutes earlier. That is the same failure as the sync bug, one machine instead of two. Saving now checks what is already stored and, if it is newer than what is about to be written, folds the two together with the same record by record merge the server sync uses. Proved it by writing a repair to localStorage, reloading so the stale window flushed on the way out, and confirming the repair survived. Second bug: the store added `beforeunload` and `visibilitychange` listeners but only removed the first, so a discarded provider kept writing.
+
+Third bug, in Glance itself: when a class was on now, the next one was filtered out of the list but the hero was not showing it either, so the next lesson of the day was invisible. It is hidden from the list only when the hero actually names it.
+
+**Verification note:** to test a time of day that is not now, override `window.Date` in the page and let the panel's own 30 second tick pick it up, or fire a `focus` event to force it immediately. No reload, so the override survives. Checked the hero on now mid lesson, the hero next with four meetings listed, a plain event chip, and a school wide cancellation with every row struck through.
+
+**Step 7, commit `d564a4b`: the timetable as a calendar feed.** New `src/domain/ics.ts` renders state as an `.ics`: every meeting with its lesson title, room and time, school events, no-school days and every assignment due date. A cancelled meeting is dropped rather than struck through, so the day reads as empty with the reason sitting on it as an all day event; a short handed meeting stays and says so in the title. Times are floating local, deliberately, because period 1 is period 1 wherever the laptop is. Settings > Calendar feed has a download button that needs no server, and shows a subscription address once sync is set up.
+
+The app renders the file and the server only holds it. The alternative was reimplementing the timetable, the disruption calendar and the lesson projection inside `server.mjs` in order to say anything useful, which is the entire domain engine in a second language.
+
+Calendar apps subscribe with a plain URL and cannot send a header, so `GET /calendar.ics` takes a token in the query string, `sha256(CADENCE_KEY + ':calendar')` cut to 32 characters. Derived rather than configured, so there is nothing extra to set and it does not give the key away. `PUT /calendar.ics` still wants the real key. Every sync republishes the feed, so a lesson moved here moves in Apple Calendar within the hour.
+
+Verified three ways. 19 assertions against the builder in node (CRLF, 75 octet folding, unique UIDs, all day DTEND exclusivity, cancelled days emitting no class, range filtering, category switches). An independent Python parser unfolded the fetched file and round tripped all 409 events with no malformed lines and no missing required properties. Then live: server up, PUT and GET checked including 401 on a missing token, a wrong token, a wrong key, and a 400 on a body that is not a calendar; then the real Settings UI, where Sync now published the feed, stored the address and showed it. Test server and its data removed, sync fields cleared, state confirmed unchanged at 2 events, 48 deliveries, 36 lessons.
+
+Clearing the server address now also clears the stored feed address, because an address that leads nowhere is worse than none.
+
+## 2026-08-25 — Cadence step 8, commit 3c9436f
+
+**Asked:** continue the agreed build order. Step 6 of the plan: curriculum paste
+import, so the AP Lang pacing documents can go in without retyping.
+
+**Did:**
+- `src/domain/curriculumText.ts`, a parser with no dependency on the store. Reads
+  markdown outlines, numbered lists, bulleted lists, spreadsheet tables (tab or bar
+  separated) and week by week pacing guides. Headings from `Unit 2`, `Week 3`,
+  markdown `#`, a trailing colon or a shouted line. Objective split on a tab, a bar,
+  a dash or a colon. `(2 periods)` or `x2` at the end sets the period count. Header
+  rows and stray prose are reported as ignored rather than dropped silently.
+- Curriculum > Paste: a live preview modal showing the units, the numbered lessons in
+  the order they will land, the objectives, the doubles and the skipped lines. Add to
+  the end, or Replace behind a confirm that names how many lessons and how many
+  recorded meetings it is about to destroy. Also offered from the empty state.
+- 41 node assertions on the parser, all passing, plus a real paste driven through the
+  UI: 6 lessons across 2 units, orders continuing from 16, objectives and doubles
+  carried, then deleted back out to the original 36 lessons and 10 units.
+
+**Decisions:**
+- Where the parser has to guess it guesses towards a lesson. A heading read as a
+  lesson is one line to fix; a lesson read as a heading is a lesson lost.
+- A table row counts as a list item, so rows pasted under a bulleted section are not
+  read as notes on the bullet above.
+- A unit whose name already exists takes the new lessons instead of a second unit of
+  the same name appearing beside it.
+
+**Bug found and fixed while verifying:** undo has not been saving since step 4. An
+undo hands back a state with an older `updatedAt`, and merge on write treated this
+window's own last write as a newer stranger, so it merged the undone change straight
+back in. The UI showed the undo, storage kept the change, and a reload brought it
+back. Two fixes: a write merges only when the stored copy is not the one this window
+last saw, and undo now stamps the records it restores so a sync cannot resurrect them
+either. Verified by reload.
+
+**Note for the tools:** `cmd+z` sent through the browser pane's key action never
+reaches the page. A synthetic `keydown` on `window` does. Plain letter keys work
+either way.
+
+## 2026-08-25 — Cadence Desk step A, commits 480373a and 4d3a9ef
+
+**Asked:** a to do list with priorities, a notes/ideas area, and a private
+per student log behind a passcode set at login. Then, mid build: green accents
+and a more modern but classical diary look.
+
+**Decisions taken before building.** Told him plainly that a passcode with no
+encryption is theatre, because the state is one plain JSON blob readable from
+devtools, from state.json on the droplet, or from any backup. He chose real
+encryption (AES-GCM, PBKDF2 derived key, ciphertext is what reaches storage)
+and a per student log rather than free notes. Costs accepted: no recovery if
+the passcode is forgotten, no global search, last writer wins across devices.
+Building it in three commits: tasks, notes, then the encrypted vault.
+
+**Done, commit 480373a — tasks with a priority.** TaskItem gained priority,
+detail and doneAt; a new Note type and a notes collection went into the model,
+merge and seed ready for step B. New Desk view at #/desk, key D, in the nav
+and the command palette: a composer, a list ordered high first then soonest
+due then newest, an editor modal, and a done list with Clear. Today's card
+reads the same order, shows the priority stripe and links through.
+
+**Bug found by testing, fixed in the same commit.** The Segmented control had
+no explicit button type, so inside a form every click on it submitted the
+form. Adding a task with a priority added the wrong task with the wrong
+priority. Worth noting: I first assumed the mismatch was my test harness
+firing events synchronously and said so. It was not. Adding waits did not fix
+it, and dumping the stored records showed a real rotation of values. Check the
+data before blaming the tooling.
+
+**Done, commit 4d3a9ef — green ink on ruled paper.** Accent from ink indigo to
+bottle green in both themes, faint horizontal diary rules under the content
+scrolling with the page, a second green hairline under the topbar and beside
+the sidebar, the brand mark off violet, card head icons in accent, neutrals
+pulled a shade off orange. Signal colour untouched: late is still red, due is
+still blue. Verified both themes in the browser.
+
+**Next:** step B, the Notes tab on Desk. Then step C, the encrypted per student
+log. Steps 7 and 8 of the original plan (cover sheet, InkPad marking forecast)
+still outstanding.
