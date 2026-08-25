@@ -1,121 +1,5 @@
 # Session Notes
 
-## 2026-07-08: cheap server recommendation
-
-**Asked:** Best cheap capable server host and location at 10 dollars or less.
-
-**Did:** Recommended Singapore as the location for China/Asia use, with DigitalOcean Singapore as the easiest option because the current setup is already on DigitalOcean, and Hetzner Singapore as the value option if its current small plan is available under the cap. Warned that 1 GB RAM is tight and should use swap plus Cloudflare Access for `serve.inkheron.app`.
-
-**Decision:** No code was started.
-
-## 2026-07-08: server hardening add-ons
-
-**Asked:** How to add swap, nginx, PM2, UFW and Cloudflare Access.
-
-**Did:** Provided a command checklist for Ubuntu server setup and Cloudflare Access configuration order.
-
-**Decision:** No code was started.
-
-## 2026-07-08: DigitalOcean droplet choice
-
-**Asked:** Whether to choose the normal Ubuntu DigitalOcean 6 dollar droplet.
-
-**Did:** Confirmed that the normal Ubuntu 24.04 LTS Basic droplet at 6 dollars is the right choice under the stated 10 dollar cap, with Singapore as the preferred region and 2 GiB swap added after creation.
-
-**Decision:** No code was started.
-
-## 2026-07-08: DigitalOcean SSH key choice
-
-**Asked:** What to choose for SSH key during droplet creation.
-
-**Did:** Recommended using SSH key authentication instead of password login, preferably the existing local Ed25519 public key if available.
-
-**Decision:** No code was started.
-
-## 2026-07-08: new droplet setup
-
-**Asked:** Set up the new DigitalOcean droplet at `165.22.242.91`.
-
-**Did:** SSH verified. Updated Ubuntu 24.04.4, added 2 GiB swap, installed nginx, git, curl, UFW, Node 20.20.2 and PM2 7.0.3, enabled firewall for SSH/HTTP/HTTPS only, configured nginx for `serve.inkheron.app`, copied the Serve app to `/opt/admin-platform`, started `inkheron-serve` with PM2 on port 3469 and enabled PM2 startup.
-
-**Verification:** Local droplet health returned OK, nginx Host-header check returned the Serve login page, PM2 showed `inkheron-serve` online, UFW active, nginx active. DNS still points `serve.inkheron.app` to old IP `167.172.71.219`; A record must be changed to `165.22.242.91`.
-
-**Decision:** Do not store the generated Serve password in notes.
-
-## 2026-07-08: Serve public hardening without Cloudflare
-
-**Asked:** Continue after DNS was changed and make `serve.inkheron.app` as strong as possible for free without Cloudflare or more spending, including a second secret phrase for dangerous actions.
-
-**Did:** Added a second action secret gate to the Serve app. Deploy and restart now require normal login, a 15 minute action unlock, then typed host confirmation. Added tests for the locked/unlocked action path and committed the Admin repo change as `a0e6fff Add serve action secret unlock`. Deployed the update to the droplet, rotated the app password and session secret, added nginx Basic Auth, issued a Let's Encrypt certificate, configured HTTPS redirect, nginx rate limiting, security headers, fail2ban jails, disabled the unused Cloudflare tunnel and kept the Node app bound to `127.0.0.1:3469`.
-
-**Verification:** DNS resolves `serve.inkheron.app` to `165.22.242.91`. Public HTTPS without Basic Auth returns `401`. Basic Auth reaches the app login. App login succeeds with the rotated password. Deploy/restart return `423` before action unlock, action unlock succeeds with the new secret, and typed host confirmation still blocks incorrect confirmations. UFW allows only SSH, HTTP and HTTPS. fail2ban is active with `sshd`, `nginx-http-auth`, `serve-nginx-auth` and `nginx-limit-req` jails. Cloudflared is inactive. HTTP redirects to HTTPS. Certbot live issuance succeeded, but the renewal dry run hung and was stopped cleanly.
-
-**Decision:** Do not use Cloudflare for `inkheron.app`. Use direct DNS to the droplet plus layered free controls: nginx Basic Auth, Serve app password, action secret, CSRF, typed confirmations, rate limiting, fail2ban and audit logs.
-
-## 2026-07-08: Serve credential rotation
-
-**Asked:** Change the nginx Basic Auth password, Serve app password and action secret to user-provided memorable values.
-
-**Did:** Updated the nginx Basic Auth password for user `brendan`, updated the PM2 environment for `inkheron-serve` with the new Serve app password and action secret, rotated the session secret, saved PM2 and reloaded nginx.
-
-**Verification:** Confirmed public login works with the new Basic Auth and Serve app password. Confirmed the action unlock endpoint accepts the new action secret. Did not store the secret values in notes.
-
-## 2026-07-08: Admin Basic Auth reset
-
-**Asked:** Investigate why `admin.inkheron.app` was inaccessible and reset its Basic Auth password.
-
-**Did:** Confirmed `admin.inkheron.app` resolves to the old droplet `167.172.71.219`, where nginx protects the admin app with Basic Auth realm `Grade Importer` and username `Admin`. Installed `apache2-utils` because `htpasswd` was missing, reset the `Admin` Basic Auth password to the user-provided value, validated nginx and reloaded it.
-
-**Verification:** `https://admin.inkheron.app` returns HTTP 200 with username `Admin` and the new password. Did not store the password value in notes.
-
-## 2026-07-08: Restore admin and grade importer routing
-
-**Asked:** Restore `admin.inkheron.app` so the grade importer is only part of the admin site, not the entire admin site.
-
-**Did:** Investigated the old droplet nginx and PM2 state. Found nginx was routing all of `admin.inkheron.app` to the grade importer on port `5051`, while the main `admin-platform` app was still online on port `3474`. Replaced the nginx site config so `/` and normal admin APIs route to `admin-platform`, `/grades` routes to the grade importer, grade-specific API paths route to the grade importer and `/api/sync` remains unauthenticated as before. Backed up the previous nginx config before replacing it, validated nginx and reloaded it.
-
-**Verification:** `https://admin.inkheron.app/` redirects to the admin login, `/login` returns the InkHeron Admin login page, `/api/session` returns the admin API response, `/grades` returns the Grade Importer page and `/api/config` returns the grade importer config response.
-
-## 2026-07-08: Remove admin browser Basic Auth
-
-**Asked:** Remove the browser username/password popup from `admin.inkheron.app` because the admin site should only use its in-app login.
-
-**Did:** Removed nginx Basic Auth directives from the restored `admin.inkheron.app` server block and reloaded nginx. Backed up the prior config first at `/etc/nginx/sites-available/admin.inkheron.app.bak-20260708-no-basic-auth`.
-
-**Verification:** `https://admin.inkheron.app/login` returns HTTP 200 with no `WWW-Authenticate` header, and `/grades` still returns the Grade Importer page.
-
-## 2026-07-08: AI control panel one-hour MVP discussion
-
-**Asked:** Whether the private AI coding dashboard can be up on a new droplet within an hour, using details from the prior remote server dashboard conversation.
-
-**Did:** Pulled the relevant setup facts from notes: existing launcher/deploy dashboard pattern, Flask dashboard on port 5095, per-app configs in `deploy_server.py`, mixed `pm2` and `systemd`, InkPad live at `/opt/inkheron-platform`, and the need for tighter auth and scoped remote control. Recommended a very small MVP rather than the full safe architecture.
-
-**Decision:** No code started. User still needs to give explicit go-ahead before implementation.
-
-## 2026-07-08: AI Control MVP scaffold
-
-**Asked:** Go ahead and build the one-hour MVP for a private phone dashboard on the new `builder.inkheron.app` droplet.
-
-**Did:** Added `ai-control/`, a Python standard-library web app with password login, SQLite job history, mobile UI, per-project JSON config, per-job git clones, configurable Codex command execution, test/build commands, logs, diff display, changed-file safety checks, approve-push and approve-deploy endpoints, nginx config, systemd unit and Ubuntu install script.
-
-**Verification:** Python syntax check passed with bytecode redirected to `/tmp`; project JSON files validate; ASCII scan is clean. Ran a local smoke test with a fake git repo and fake Codex command: job cloned, branched, edited `README.md`, ran test/build commands, produced logs/diff, reached `review`, then fake deploy reached `deployed`. Node was not available locally, so no JS syntax check was run.
-
-**Remote install:** Copied to the new droplet `165.22.242.91`, installed `/opt/ai-control`, enabled `ai-control.service`, generated credentials into `/etc/ai-control.env` and `/root/ai-control-credentials.txt`, configured nginx and certbot for `https://builder.inkheron.app`. Verified public `/health` returns 200, unauthenticated `/` redirects to `/login`, generated password logs in locally on the droplet and the authenticated homepage returns 200.
-
-## 2026-07-08: AI Control auth integration explanation
-
-**Asked:** Explain how to connect Codex, Claude Code and GitHub to the new builder dashboard so it can access existing projects and save its own work.
-
-**Did:** Explained the three required identities: dashboard login, AI CLI auth for the `ai-control` Unix user and GitHub write access via a machine user or per-repo deploy keys. Recommended using SSH GitHub URLs in `projects.json`, storing AI API keys in `/etc/ai-control.env`, running the CLIs as `ai-control` and saving AI work by pushing per-job branches.
-
-## 2026-07-08: AI Control setup UI
-
-**Asked:** Continue step by step, keep a UI to interact with and deploy each working slice.
-
-**Did:** Added an authenticated setup panel to the builder dashboard. It shows Git, Codex, Claude Code, GitHub SSH auth, API key presence, enabled projects and each selected project's repo, AI command, test/build and deploy status. Added `/api/setup` to expose safe status metadata and the service user's public GitHub key without exposing secrets.
-
-**Verification:** Python syntax check passed, frontend JS syntax check passed with bundled Node, shell installer syntax passed and ASCII scan is clean. Local `/api/setup` smoke test returned tool/GitHub/project status.
-
 ## 2026-08-16: Launcher and both server dashboards audited, fixed and extended
 
 **Asked:** Audit the local app launcher and both servers. Make sure every app and every site has a launch icon, and that every server has a dashboard that can restart an app and push an update by pulling from the git repo. Update and fix what already exists rather than rebuilding. Later: duplicate the local launcher onto serve.inkheron.app, since it is the same thing on a website instead of the Mac.
@@ -393,3 +277,77 @@ day with materials and a day note, and a closed weekend. Test data was written
 into localStorage and removed again afterwards, byte for byte back to 26194.
 
 **Next:** step 8, the InkPad link and marking forecast.
+
+## 2026-08-25 — Cadence step 8, the InkPad link and marking forecast, commits 234c4d9, 30ead82, c577939, 754bdf9, 706267d, 38b0d3d
+
+**Asked:** "go do whatever you can next", still running under the batch
+go-ahead. This closes the last of the eight plan steps.
+
+**Marking forecast (234c4d9, Cadence):** `markingForecast(state, from, weeks)`
+in the domain layer, shown on Assignments. It counts what is waiting per
+section, spreads it over the weeks ahead by due date, and says which weeks are
+heavy. Status stays a judgement, so nothing here changes it.
+
+**Summary endpoint (30ead82, InkHeron):** `GET /api/summary/assignments`, new
+`src/routes/summary.js`, 7 tests in `test/summary.test.js` all green on node 24.
+Counts only: students set, not started, handed in, marked, waiting, plus the
+raw pad states. No names, no essay text, no marks. Demo and ghost students are
+excluded through `realStudentsWhere`, and `assignment_students` overrides the
+class roster when rows exist for that assignment.
+
+**Decisions on the endpoint:** counts only, so a leaked token leaks titles and
+tallies and nothing about a student; fail closed, so with
+`INKHERON_SUMMARY_TOKEN` unset the route 503s to everybody including a
+signed-in teacher; missing, malformed and wrong tokens all get the same 401;
+and the comparison is on SHA-256 digests rather than the raw strings, because
+`timingSafeEqual` throws on a length mismatch and the token's length is not
+something a caller should be able to measure.
+
+**Cadence proxy (c577939):** `GET /inkpad/assignments` on the sync server. The
+browser asks the sync server, the sync server asks InkHeron. The token sits in
+`INKPAD_TOKEN` on the server and never reaches a page. Only `class_id`, `limit`
+and `include_archived` are passed through, so nothing a page puts in a query
+string can be aimed at anything else over there. Upstream failures are reported
+without echoing the request, since the token is in it.
+
+**Cadence app (754bdf9):** `src/lib/inkpad.ts` plus an InkPad button on each
+assignment card. The modal lists sections against InkHeron assignments, offers
+`Match by title`, and `Pull counts` writes In and Marked. `inkpadId` is per
+section, not per assignment, because one Cadence assignment spans several
+sections while an InkHeron assignment belongs to one class. Matching is offered
+rather than applied automatically: a title alone cannot tell which class copy
+belongs to which section, and a wrong guess pulls the wrong numbers. A pull
+never touches the status column. A class of nobody is not believed, so
+`expected` is only overwritten when the far side reports students.
+
+**Docs (706267d, 38b0d3d):** Cadence README gained the two env vars, the route,
+a marking forecast section and an InkHeron counts section. `deploy/DEPLOY.md`
+gained a summary token section: what the endpoint hands out, that it is off
+until the variable is set, how to generate and revoke it, and how Cadence
+consumes it.
+
+**Four bugs found and fixed before commit:** `Failed to fetch` and
+`fetch failed` were both surfaced to you as-is and now say where the request
+was going and why it failed; a dangling `inkpadId` rendered the section select
+blank, so it now shows `gone from InkPad`; and a dead SQL helper using
+`LATERAL`, which SQLite does not have, was removed.
+
+**Verified end to end** against a seeded InkHeron on 8791 behind the proxy on
+8792: counts through the proxy 200, no key 401, wrong upstream token 502 with
+the upstream reason and no echo, unreachable droplet 502 ECONNREFUSED, nothing
+configured 503. In the browser: options populated, Pull disabled at zero links,
+Match by title filled all three sections, Pull wrote 4/4, 3/1, 2/1 matching the
+server exactly, the header chip went 12 to mark down to 3 and the forecast
+recalculated, a second pull said already up to date, and deleting an InkHeron
+assignment produced "Pulled 0. 1 linked to work InkPad no longer lists." with
+that section untouched. Your own state was restored afterwards and diffed:
+only timestamps differ. The 10 second proxy timeout branch is written but was
+not exercised.
+
+**Not deployed.** The summary endpoint is committed but the droplet has not
+been touched and `INKHERON_SUMMARY_TOKEN` is not set anywhere. Deploying is
+your call.
+
+**Next:** the eight step plan is done. Suggested separately, not built: the
+Cadence merge, ics, curriculum, vault, forecast and inkpad tests currently live
+only in a scratchpad and should become a real test file with a runner.
