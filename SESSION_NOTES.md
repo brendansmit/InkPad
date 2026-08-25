@@ -309,3 +309,57 @@ still blue. Verified both themes in the browser.
 **Next:** step B, the Notes tab on Desk. Then step C, the encrypted per student
 log. Steps 7 and 8 of the original plan (cover sheet, InkPad marking forecast)
 still outstanding.
+
+## 2026-08-25 — Cadence Desk steps B and C, commits 1ab96eb, 48b3bb1, 68f1818, 350557c
+
+**Done, commit 1ab96eb — the Notes tab.** Jot box at the top, cards below,
+pinned first then most recently touched, editor in a modal. The editor keeps a
+local copy and writes on blur, on Done, on close and on unmount rather than on
+every keystroke: every store mutation is an undo step, and a long note typed
+straight into the store would bury an hour of real work under hundreds of them.
+Caught before shipping that Escape closes a modal without blurring, so the
+original LazyInput version would have lost the last thing typed.
+
+**Done, commit 48b3bb1 — the private log, crypto and plumbing.** Passcode goes
+through PBKDF2-SHA256 at 250,000 rounds to an AES-GCM 256 key; the key seals
+the whole log in one box; the box is what sits in localStorage, in state.json
+and in every backup. AES-GCM authenticates, so a wrong passcode fails to
+decrypt rather than producing plausible rubbish, and no separate verifier is
+needed. Merge treats it like settings: neither side can read it, so the later
+write wins the lot. A destroy leaves a tombstone at `vault:one`, because a
+stale phone quietly resurrecting a deleted private log is the worst thing this
+feature could do. Node tests over the bundled module cover create, right and
+wrong passcode, tampered ciphertext, nonce freshness, rekey, and nine merge
+cases; all pass. Tests live in the scratchpad, same as the other three.
+
+**Done, commit 68f1818 — the UI.** Settings holds a Private log card that sets,
+changes and destroys the passcode; the Desk holds a Private tab with the door
+and, behind it, students with dated entries, a class chip kept inside the box,
+and a Lock button. Two things the browser taught me that reasoning had not:
+
+- Writes have to go through a queue. Sealing is asynchronous, so three entries
+  typed in the same breath all read the same copy and the last one silently
+  threw the other two away. Reproduced it, fixed it, reproduced the fix.
+- My first "somebody else changed this box" check locked the log every time
+  you typed, because the render between sealing and the state catching up looks
+  exactly like a stranger's box. It now remembers every box this tab wrote.
+  Verified the real case with Cmd Z, which swaps the box under an open session:
+  it locks and says so.
+
+Verified in the browser end to end: passcode too short, passcodes not matching,
+wrong passcode, right passcode, add and edit and delete entries, delete a
+student, assign a class, lock, full page reload, change passcode with the old
+one rejected and the contents intact, destroy with the tombstone written, and
+both themes. At no point did any student name or entry text appear in
+localStorage. Test data cleaned up afterwards; the app is back to no log.
+
+**Decisions accepted by you up front:** real encryption over a passcode gate,
+per student log rather than one running diary, and the three costs that come
+with it (no recovery, no global search, last writer wins between devices).
+
+**Also documented:** README now has a Desk section and a private log section
+saying plainly what it costs, including that WebCrypto needs https or
+localhost, so a droplet on plain http cannot open the log.
+
+**Next:** step 7 of the original plan, the cover sheet. Then step 8, the InkPad
+link and marking forecast.
