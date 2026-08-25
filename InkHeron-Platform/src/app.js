@@ -18,6 +18,7 @@ import { registerLibraryRoutes } from './routes/library.js';
 import { registerFeedbackAssetRoutes } from './routes/feedbackAssets.js';
 import { registerToeflRoutes } from './routes/toefl.js';
 import { registerEssayExportRoutes } from './routes/essayExports.js';
+import { registerSummaryRoutes } from './routes/summary.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -136,6 +137,7 @@ export async function buildApp(options = {}) {
   await registerNativeReanalyzeRoutes(app, { db });
   await registerClassInsightsRoutes(app, { db });
   await registerToeflRoutes(app, { db });
+  await registerSummaryRoutes(app, { db });
 
   app.get('/login', async (_request, reply) => reply.sendFile('login.html', publicDir));
   app.get('/student/change-password', async (_request, reply) => reply.sendFile('student-change-password.html', publicDir));
