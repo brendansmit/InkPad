@@ -99,6 +99,32 @@ Nothing destructive happens to data, but if the new code misbehaves:
    ```
 3. Read logs: `journalctl -u inkheron-wrapper -n 80`
 
+## The summary token (optional)
+
+`GET /api/summary/assignments` hands out counts for the assignment list: how
+many students an assignment is set to, how many have not started, how many
+handed in, how many are marked and how many are waiting. Names, essay text and
+marks are not in it, so a leaked token leaks assignment titles and tallies and
+nothing about a student. Cadence uses it to fill in its marking forecast.
+
+It is off unless `INKHERON_SUMMARY_TOKEN` is set. With the variable unset the
+route answers 503 to everybody, including a signed-in teacher. There is no
+other way in: sessions and CSRF tokens do not open it, and a missing, malformed
+or wrong token all get the same 401, so nobody learns anything by guessing.
+
+To turn it on, put the variable wherever the service already reads
+`INKHERON_SESSION_SECRET` from, then restart:
+
+```
+openssl rand -hex 32          # the token, treat it like a password
+systemctl restart inkheron-wrapper
+```
+
+Give that value to the Cadence sync server as `INKPAD_TOKEN` (with
+`INKPAD_URL=https://inkheron.app`). It belongs on a server and never in a
+browser, which is why Cadence proxies the call rather than fetching it from the
+page. To revoke, change the variable and restart.
+
 ## Notes
 
 - `/opt/eap-platform` is a separate older app (eap.inkheron.app). Leave it
