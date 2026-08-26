@@ -215,3 +215,42 @@ double-mount noise from many hot edits; a clean production build is silent.
 Argument Essay - Organ Donation, Personal Statements Second Draft) cannot be
 added until your classes exist again, because an assignment needs a course and
 sections to attach to. Say the word once they are in and I will add them.
+
+## 2026-08-26 (later) - Cadence: a section holds its own colour
+
+**You asked** to change the Shade slider to a hex code input, and when I asked
+whether to keep the tint mechanism as a fallback you said migrate it out,
+otherwise it gets cluttered. Commit eaeb63d, deployed, bundle index-ZYu7xIIR.js.
+
+A section used to carry a `tint`, a number from 0 to 1, and its real colour was
+computed from the course colour on every render. The slider set that number. A
+hex is not a distance from anything, so the section needed a colour of its own.
+
+**What the field is now.** A hex text box, a native colour well beside it so you
+can point instead of type, and the same sixteen swatches the Course editor
+offers. A bare "ffd400" works, so does the three digit shorthand. Half typed
+text is left exactly as typed rather than rewritten under the cursor, and
+applies nothing until it is a whole colour.
+
+**Decision: unset is still a real state.** It means "wear the course colour",
+and it is not the same as a hex that happens to match, because unset follows if
+you ever recolour the course and a pinned hex does not. So a tint of zero
+migrates to unset rather than to a copy of the course colour, and both the
+migration and the editor fold a colour identical to its course's back to unset.
+"Match the course" is the way back by hand. I caught this on the first run of
+the migration, where Lang and EAP 1 had been given pinned copies of their course
+colours, which would have quietly broken recolouring later.
+
+**The migration lives in `migrate` in storage.ts**, so it covers a sync pull and
+an imported backup as well as a local load, not just this machine.
+
+**A new section still starts a step round the wheel** from its course, so the
+second and third class of a course can be told apart at a glance. That is now
+baked in once at creation rather than derived forever, which leaves it free to
+be overwritten. `sectionColour` survives only for that and for the migration.
+
+**Verified on your real data.** Lang and EAP 1 are unset and follow their
+courses, EAP 2 kept #4c7085 and EAP 3 kept #5c669b, which are the exact hexes
+their old tints of 0.5 and 1 were already drawing. No `tint` survives anywhere.
+Set EAP 2 to bright yellow by typing the hex, confirmed it flowed through to the
+week grid and stayed legible, then undid it.
