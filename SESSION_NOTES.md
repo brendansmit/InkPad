@@ -325,3 +325,5 @@ untouched on the droplet.
 **Assignments not added, and why:** a Cadence assignment needs a courseId and a section. Wiping everything means there is nothing to attach one to. The three that exist on InkPad are MLK Rhetorical Analysis Essay and Argument Essay - Organ Donation for AP Lang, and Personal Statements Second Draft across EAP 1, EAP 2 and EAP 3. They go in the moment the classes exist.
 
 **Deployed:** live at https://cadence.inkheron.app, opens empty, no console errors. The server had no state to wipe.
+
+**Addendum, same day:** you reported Cadence still loading full. Not a deploy failure, the droplet was serving the right bundle. The empty start only applies to a browser that has never opened Cadence, and yours saved a copy of the sample the first time you opened the link, then loads from that copy. Settings > Start empty clears it. While checking, found that button's confirmation still promised to keep the bell schedule, which stopped being true when I changed the wipe. Corrected and deployed.
