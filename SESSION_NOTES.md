@@ -350,4 +350,4 @@ untouched on the droplet.
 
 **Noted while deploying:** the server now reports `hasState: true`, so you have synced at least once, and the calendar feed answers 200 instead of 404.
 
-**Follow up, same day:** the month's "This month" list truncated the event name ("Chinese Nati..."). One flex line in a narrow column, so the "school closed" chip took its width out of the title's. Gave that list its own class rather than changing `.mini-row`, which the ripple panel also uses and where one line is right: title on its own line, chip and weekday underneath, clamped at two lines. Verified at 1140, 768 and full width. Commit c5ffb0f-ish, live bundle index-C5Rk6ZsT.js.
+**Follow up, same day:** the month's "This month" list truncated the event name ("Chinese Nati..."). One flex line in a narrow column, so the "school closed" chip took its width out of the title's. Gave that list its own class rather than changing `.mini-row`, which the ripple panel also uses and where one line is right: title on its own line, chip and weekday underneath, clamped at two lines. Verified at 1140, 768 and full width. Commit f6de078, live bundle index-C5Rk6ZsT.js.
