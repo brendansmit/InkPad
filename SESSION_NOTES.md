@@ -327,3 +327,25 @@ untouched on the droplet.
 **Deployed:** live at https://cadence.inkheron.app, opens empty, no console errors. The server had no state to wipe.
 
 **Addendum, same day:** you reported Cadence still loading full. Not a deploy failure, the droplet was serving the right bundle. The empty start only applies to a browser that has never opened Cadence, and yours saved a copy of the sample the first time you opened the link, then loads from that copy. Settings > Start empty clears it. While checking, found that button's confirmation still promised to keep the bell schedule, which stopped being true when I changed the wipe. Corrected and deployed.
+
+---
+
+## 2026-08-26 (later) - Cadence: public holidays and school closures
+
+**You asked:** add "public holiday" to the event Kind list, and add "school is closed" to "What it does to your classes".
+
+**The second one was not a UI change.** Closing a day meant a calendar exception, one record per date, so a three day public holiday was three separate entries and the event you had just made sat next to them doing nothing. A closure is now a fourth event impact and runs for the event's whole date range.
+
+**Where it hooks in:** `effectiveWeekday` in schedule.ts, not the per class checks, because a closed school is the day being gone rather than something done to a class. Everything downstream follows on its own: week grid hatches, month cell greys, workload skips it, pacing rolls lessons forward, the calendar feed drops those classes. A hand written exception on that exact date still outranks the event, being the more deliberate statement. A closed day borrows the event title so it reads "Mid-Autumn Festival" rather than sitting blank.
+
+**Two bugs the new impact would have caused, both fixed:** `pendingImpacts` and `rippleOf` counted the classes an event lands on by planning the days with the event already applied. That works for an event which leaves the classes standing and finds nothing at all for one that deletes the day, so a week long closure would have saved silently with "lands on no classes" in the ripple panel and no warning on Today. Both now count against the world without the event.
+
+**Verified** with a 32 check domain script (in scratchpad, not the repo) plus the browser: 3 day closure closes all 3 days, an exception still wins, ripple reports 10 classes lost, Today reads "Closes the school, taking 10 classes", week and month go closed, the .ics drops those classes and labels the event "(school closed)".
+
+**Also fixed in passing:** the cover sheet for a closed day read "Mid-Autumn Festival There is nothing to cover." The built in label ends in a full stop, an event title does not.
+
+**Decision:** `holiday` and `public-holiday` are separate kinds, not a rename. A school break and a statutory day the whole country takes are different things to plan around.
+
+**Commits:** d39b21e, 6fc9054, 106e97c. Deployed, live bundle index-o-SpCN2W.js.
+
+**Noted while deploying:** the server now reports `hasState: true`, so you have synced at least once, and the calendar feed answers 200 instead of 404.
