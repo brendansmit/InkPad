@@ -254,3 +254,65 @@ courses, EAP 2 kept #4c7085 and EAP 3 kept #5c669b, which are the exact hexes
 their old tints of 0.5 and 1 were already drawing. No `tint` survives anywhere.
 Set EAP 2 to bright yellow by typing the hex, confirmed it flowed through to the
 week grid and stayed legible, then undid it.
+
+## 2026-08-26 (later) - Cadence: terms gate the schedule, and classes that stop
+
+**You asked** to clear the logged sessions between now and 2 September, or
+better, to make the term dates actually mean something, because you had set the
+term to start on the 2nd and it was still putting classes on today. Then, mid
+turn, for a way to log a class you pick up for a while that does not sit in the
+timetable forever: a number of weeks it repeats, defaulting to in perpetuity
+with the end being the end of the term. You approved both with "go", and told
+me plainly: no dates, no from and to, just a number of weeks. Cleaner. You were
+right, and I had proposed the worse version.
+
+**Nothing was ever logged.** I said so before building anything. Occurrences are
+generated fresh from the weekly pattern on every render, so there was nothing to
+clear. The bug was that `effectiveWeekday` looked at exceptions, closures and
+weekends and never once looked at `state.terms`.
+
+**Terms now gate the day** (`1897d3f`). A date outside every term closes the way
+a holiday does. Three judgement calls in it:
+
+- An app with no terms yet runs everything. A term list nobody has filled in
+  cannot mean school never happens, and a blank grid reads as a broken app.
+- A hand written `follows-day` exception still outranks the term dates, so a
+  make up day scheduled into the holidays runs. One date written by hand is the
+  more deliberate statement than a range.
+- An out of term day says why: "Before Autumn", "Between terms", "After Autumn".
+  A closure already names itself and this deserves the same. Weekends stay
+  unlabelled because they explain themselves.
+
+**A slot can run a set number of weeks** (`7d60eea`). Absent means every week for
+as long as the term runs, which is what a timetable is. A count means it runs
+that many times and stops. In the cell editor it is a **Repeats** control:
+*Every week* or *For a few weeks* with a number, and a line underneath saying
+what that comes to, "4 times, last on Thu 24 Sep". The weekly grid shows a small
+"4 left" on the cell, greyed once spent, because a weekly pattern has no other
+way of saying a thing is temporary.
+
+**One thing you should know, since you asked for a number and not a date.** A
+count needs something to count from, so the slot quietly stores the week it was
+added. You are never asked for it and never shown it. It is worked out as the
+next occurrence of that weekday, so a slot added on a Thursday for four Tuesdays
+means the next four Tuesdays, not four weeks from Thursday. It is preserved when
+you edit, so changing the room of a class in its third week does not hand it
+three weeks back. The visible consequence: a count starts from the week you add
+it, not from the start of term.
+
+**Class names are bigger and bolder** (`bf18d08`), 14px at weight 700, up from
+12.5px at 650. Held at the old size under 900px where five columns leave no room
+to grow. The name is what the grid is scanned for; the lesson and the room are
+detail you read after you have found the class.
+
+**Verified.** 13 assertions on the term gate and 15 on the week count, run
+against the real domain code, all passing. Then in the browser on a seeded state
+with a term of 2 Sep to 18 Dec: 24 to 28 August and 31 Aug to 1 Sep read closed,
+2 September onward runs classes, Today says "Before Autumn", the Thursday pickup
+carries "4 left", editing it to 2 weeks saved and redrew as "2 left", and the
+hint tracked the number and the singular. Deployed, bundle `index-HU37D4vI.js`.
+
+**Still open for you.** If you have real `deliveries` records between now and 2
+September, the term gate hides the occurrences but does not delete those
+records. I cannot see your production data from here. Say the word and I will
+purge them.
