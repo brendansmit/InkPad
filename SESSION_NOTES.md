@@ -1,245 +1,5 @@
 # Session Notes
 
-## 2026-08-25 — Cadence step 8, commit 3c9436f
-
-**Asked:** continue the agreed build order. Step 6 of the plan: curriculum paste
-import, so the AP Lang pacing documents can go in without retyping.
-
-**Did:**
-- `src/domain/curriculumText.ts`, a parser with no dependency on the store. Reads
-  markdown outlines, numbered lists, bulleted lists, spreadsheet tables (tab or bar
-  separated) and week by week pacing guides. Headings from `Unit 2`, `Week 3`,
-  markdown `#`, a trailing colon or a shouted line. Objective split on a tab, a bar,
-  a dash or a colon. `(2 periods)` or `x2` at the end sets the period count. Header
-  rows and stray prose are reported as ignored rather than dropped silently.
-- Curriculum > Paste: a live preview modal showing the units, the numbered lessons in
-  the order they will land, the objectives, the doubles and the skipped lines. Add to
-  the end, or Replace behind a confirm that names how many lessons and how many
-  recorded meetings it is about to destroy. Also offered from the empty state.
-- 41 node assertions on the parser, all passing, plus a real paste driven through the
-  UI: 6 lessons across 2 units, orders continuing from 16, objectives and doubles
-  carried, then deleted back out to the original 36 lessons and 10 units.
-
-**Decisions:**
-- Where the parser has to guess it guesses towards a lesson. A heading read as a
-  lesson is one line to fix; a lesson read as a heading is a lesson lost.
-- A table row counts as a list item, so rows pasted under a bulleted section are not
-  read as notes on the bullet above.
-- A unit whose name already exists takes the new lessons instead of a second unit of
-  the same name appearing beside it.
-
-**Bug found and fixed while verifying:** undo has not been saving since step 4. An
-undo hands back a state with an older `updatedAt`, and merge on write treated this
-window's own last write as a newer stranger, so it merged the undone change straight
-back in. The UI showed the undo, storage kept the change, and a reload brought it
-back. Two fixes: a write merges only when the stored copy is not the one this window
-last saw, and undo now stamps the records it restores so a sync cannot resurrect them
-either. Verified by reload.
-
-**Note for the tools:** `cmd+z` sent through the browser pane's key action never
-reaches the page. A synthetic `keydown` on `window` does. Plain letter keys work
-either way.
-
-## 2026-08-25 — Cadence Desk step A, commits 480373a and 4d3a9ef
-
-**Asked:** a to do list with priorities, a notes/ideas area, and a private
-per student log behind a passcode set at login. Then, mid build: green accents
-and a more modern but classical diary look.
-
-**Decisions taken before building.** Told him plainly that a passcode with no
-encryption is theatre, because the state is one plain JSON blob readable from
-devtools, from state.json on the droplet, or from any backup. He chose real
-encryption (AES-GCM, PBKDF2 derived key, ciphertext is what reaches storage)
-and a per student log rather than free notes. Costs accepted: no recovery if
-the passcode is forgotten, no global search, last writer wins across devices.
-Building it in three commits: tasks, notes, then the encrypted vault.
-
-**Done, commit 480373a — tasks with a priority.** TaskItem gained priority,
-detail and doneAt; a new Note type and a notes collection went into the model,
-merge and seed ready for step B. New Desk view at #/desk, key D, in the nav
-and the command palette: a composer, a list ordered high first then soonest
-due then newest, an editor modal, and a done list with Clear. Today's card
-reads the same order, shows the priority stripe and links through.
-
-**Bug found by testing, fixed in the same commit.** The Segmented control had
-no explicit button type, so inside a form every click on it submitted the
-form. Adding a task with a priority added the wrong task with the wrong
-priority. Worth noting: I first assumed the mismatch was my test harness
-firing events synchronously and said so. It was not. Adding waits did not fix
-it, and dumping the stored records showed a real rotation of values. Check the
-data before blaming the tooling.
-
-**Done, commit 4d3a9ef — green ink on ruled paper.** Accent from ink indigo to
-bottle green in both themes, faint horizontal diary rules under the content
-scrolling with the page, a second green hairline under the topbar and beside
-the sidebar, the brand mark off violet, card head icons in accent, neutrals
-pulled a shade off orange. Signal colour untouched: late is still red, due is
-still blue. Verified both themes in the browser.
-
-**Next:** step B, the Notes tab on Desk. Then step C, the encrypted per student
-log. Steps 7 and 8 of the original plan (cover sheet, InkPad marking forecast)
-still outstanding.
-
-## 2026-08-25 — Cadence Desk steps B and C, commits 1ab96eb, 48b3bb1, 68f1818, 350557c
-
-**Done, commit 1ab96eb — the Notes tab.** Jot box at the top, cards below,
-pinned first then most recently touched, editor in a modal. The editor keeps a
-local copy and writes on blur, on Done, on close and on unmount rather than on
-every keystroke: every store mutation is an undo step, and a long note typed
-straight into the store would bury an hour of real work under hundreds of them.
-Caught before shipping that Escape closes a modal without blurring, so the
-original LazyInput version would have lost the last thing typed.
-
-**Done, commit 48b3bb1 — the private log, crypto and plumbing.** Passcode goes
-through PBKDF2-SHA256 at 250,000 rounds to an AES-GCM 256 key; the key seals
-the whole log in one box; the box is what sits in localStorage, in state.json
-and in every backup. AES-GCM authenticates, so a wrong passcode fails to
-decrypt rather than producing plausible rubbish, and no separate verifier is
-needed. Merge treats it like settings: neither side can read it, so the later
-write wins the lot. A destroy leaves a tombstone at `vault:one`, because a
-stale phone quietly resurrecting a deleted private log is the worst thing this
-feature could do. Node tests over the bundled module cover create, right and
-wrong passcode, tampered ciphertext, nonce freshness, rekey, and nine merge
-cases; all pass. Tests live in the scratchpad, same as the other three.
-
-**Done, commit 68f1818 — the UI.** Settings holds a Private log card that sets,
-changes and destroys the passcode; the Desk holds a Private tab with the door
-and, behind it, students with dated entries, a class chip kept inside the box,
-and a Lock button. Two things the browser taught me that reasoning had not:
-
-- Writes have to go through a queue. Sealing is asynchronous, so three entries
-  typed in the same breath all read the same copy and the last one silently
-  threw the other two away. Reproduced it, fixed it, reproduced the fix.
-- My first "somebody else changed this box" check locked the log every time
-  you typed, because the render between sealing and the state catching up looks
-  exactly like a stranger's box. It now remembers every box this tab wrote.
-  Verified the real case with Cmd Z, which swaps the box under an open session:
-  it locks and says so.
-
-Verified in the browser end to end: passcode too short, passcodes not matching,
-wrong passcode, right passcode, add and edit and delete entries, delete a
-student, assign a class, lock, full page reload, change passcode with the old
-one rejected and the contents intact, destroy with the tombstone written, and
-both themes. At no point did any student name or entry text appear in
-localStorage. Test data cleaned up afterwards; the app is back to no log.
-
-**Decisions accepted by you up front:** real encryption over a passcode gate,
-per student log rather than one running diary, and the three costs that come
-with it (no recovery, no global search, last writer wins between devices).
-
-**Also documented:** README now has a Desk section and a private log section
-saying plainly what it costs, including that WebCrypto needs https or
-localhost, so a droplet on plain http cannot open the log.
-
-**Next:** step 7 of the original plan, the cover sheet. Then step 8, the InkPad
-link and marking forecast.
-
-## 2026-08-25 — Cadence step 7, the cover sheet, commits e0fe4d6, f75ee8e
-
-**Asked:** "go do whatever you can next", taken as the batch go-ahead for the
-remaining plan steps.
-
-**Built:** the cover sheet. `#/cover?date=YYYY-MM-DD`, opened by a Cover button
-in the Today header in its own tab. One printable page per day: every meeting in
-period order with time, room, class size, the projected lesson, its aim,
-activities, homework, materials with links, what to collect or hand out, and
-where the class got to last time. Cancelled meetings say so and stop, thinned
-ones warn against teaching new material. Duties, calendar events and the day
-note follow. Read only and outside the store, same reasoning as Glance: a
-document you print must not be able to write state back.
-
-**Decisions:** forced light theme (nobody prints a dark page); the title is set
-to `Cover notes <date>` because browsers name the PDF after it, and restored on
-the way out; work handed out or collected prints once per class per day rather
-than once per meeting, and never against a cancelled meeting.
-
-**Two bugs found by testing in the browser and fixed before commit:** a class
-that meets twice in one day printed "hand out" twice, and once the first meeting
-of the day was cancelled the hand-out vanished from the sheet entirely.
-
-**Verified:** typecheck and production build clean, no console errors, and the
-sheet rendered correctly for a normal day, a thinned day, a cancelled period, a
-day with materials and a day note, and a closed weekend. Test data was written
-into localStorage and removed again afterwards, byte for byte back to 26194.
-
-**Next:** step 8, the InkPad link and marking forecast.
-
-## 2026-08-25 — Cadence step 8, the InkPad link and marking forecast, commits 234c4d9, 30ead82, c577939, 754bdf9, 706267d, 38b0d3d
-
-**Asked:** "go do whatever you can next", still running under the batch
-go-ahead. This closes the last of the eight plan steps.
-
-**Marking forecast (234c4d9, Cadence):** `markingForecast(state, from, weeks)`
-in the domain layer, shown on Assignments. It counts what is waiting per
-section, spreads it over the weeks ahead by due date, and says which weeks are
-heavy. Status stays a judgement, so nothing here changes it.
-
-**Summary endpoint (30ead82, InkHeron):** `GET /api/summary/assignments`, new
-`src/routes/summary.js`, 7 tests in `test/summary.test.js` all green on node 24.
-Counts only: students set, not started, handed in, marked, waiting, plus the
-raw pad states. No names, no essay text, no marks. Demo and ghost students are
-excluded through `realStudentsWhere`, and `assignment_students` overrides the
-class roster when rows exist for that assignment.
-
-**Decisions on the endpoint:** counts only, so a leaked token leaks titles and
-tallies and nothing about a student; fail closed, so with
-`INKHERON_SUMMARY_TOKEN` unset the route 503s to everybody including a
-signed-in teacher; missing, malformed and wrong tokens all get the same 401;
-and the comparison is on SHA-256 digests rather than the raw strings, because
-`timingSafeEqual` throws on a length mismatch and the token's length is not
-something a caller should be able to measure.
-
-**Cadence proxy (c577939):** `GET /inkpad/assignments` on the sync server. The
-browser asks the sync server, the sync server asks InkHeron. The token sits in
-`INKPAD_TOKEN` on the server and never reaches a page. Only `class_id`, `limit`
-and `include_archived` are passed through, so nothing a page puts in a query
-string can be aimed at anything else over there. Upstream failures are reported
-without echoing the request, since the token is in it.
-
-**Cadence app (754bdf9):** `src/lib/inkpad.ts` plus an InkPad button on each
-assignment card. The modal lists sections against InkHeron assignments, offers
-`Match by title`, and `Pull counts` writes In and Marked. `inkpadId` is per
-section, not per assignment, because one Cadence assignment spans several
-sections while an InkHeron assignment belongs to one class. Matching is offered
-rather than applied automatically: a title alone cannot tell which class copy
-belongs to which section, and a wrong guess pulls the wrong numbers. A pull
-never touches the status column. A class of nobody is not believed, so
-`expected` is only overwritten when the far side reports students.
-
-**Docs (706267d, 38b0d3d):** Cadence README gained the two env vars, the route,
-a marking forecast section and an InkHeron counts section. `deploy/DEPLOY.md`
-gained a summary token section: what the endpoint hands out, that it is off
-until the variable is set, how to generate and revoke it, and how Cadence
-consumes it.
-
-**Four bugs found and fixed before commit:** `Failed to fetch` and
-`fetch failed` were both surfaced to you as-is and now say where the request
-was going and why it failed; a dangling `inkpadId` rendered the section select
-blank, so it now shows `gone from InkPad`; and a dead SQL helper using
-`LATERAL`, which SQLite does not have, was removed.
-
-**Verified end to end** against a seeded InkHeron on 8791 behind the proxy on
-8792: counts through the proxy 200, no key 401, wrong upstream token 502 with
-the upstream reason and no echo, unreachable droplet 502 ECONNREFUSED, nothing
-configured 503. In the browser: options populated, Pull disabled at zero links,
-Match by title filled all three sections, Pull wrote 4/4, 3/1, 2/1 matching the
-server exactly, the header chip went 12 to mark down to 3 and the forecast
-recalculated, a second pull said already up to date, and deleting an InkHeron
-assignment produced "Pulled 0. 1 linked to work InkPad no longer lists." with
-that section untouched. Your own state was restored afterwards and diffed:
-only timestamps differ. The 10 second proxy timeout branch is written but was
-not exercised.
-
-**Not deployed.** The summary endpoint is committed but the droplet has not
-been touched and `INKHERON_SUMMARY_TOKEN` is not set anywhere. Deploying is
-your call.
-
-**Next:** the eight step plan is done. Suggested separately, not built: the
-Cadence merge, ics, curriculum, vault, forecast and inkpad tests currently live
-only in a scratchpad and should become a real test file with a runner.
-
----
-
 ## 2026-08-25 (later) - Cadence to do list: urgency lights and drag to reorder
 
 **You asked** whether the widget work was actually finished and easy to use, and
@@ -388,3 +148,70 @@ Still not approved, do not build unasked: the brighter course colours plan
 (bright yellow, green, pink, orange). It needs SectionPill and CourseTag
 changed first, because they use the raw course colour as text on a wash of
 itself, which only reads because every current palette entry is dark.
+
+## 2026-08-26 (later) - Cadence: 24 hour clock, and the highlighter colour set
+
+**You asked** for two things. First, to change how a period's time reads, from
+"7:40 am to 8:20 am" to something more visible. Second, for brighter class
+colours: bright yellow, bright green, pink and orange, the ones you actually use
+to mark up a timetable.
+
+**Clock, commit 1318a10.** `fmtClock` now writes 24 hour by default and a new
+`fmtClockRange` is the single way a span is written, so every screen writes it
+alike. The timetable, the week grid, the class sheet and Today all went through
+it. In the timetable's period column the time was 11px in the faintest ink,
+sitting under the period name like a footnote. It is now 12.5px at weight 550 in
+`--ink-2`, with tabular numerals so the colons line up down the column. The am/pm
+form is still there behind a flag, unused, in case a printed cover sheet wants it.
+
+**Colours, commit ef11ea5.** You had hard refreshed and said the colours were
+not changed. They were not: that job had been planned earlier and never built. I
+said so rather than dressing it up.
+
+The reason the palette was ten muted colours is that the app could not safely
+draw anything else. `SectionPill`, `CourseTag`, the week grid label and the
+curriculum marks all painted the raw hex straight onto text over a 14% wash of
+the same colour. That only works while every colour is already dark. A bright
+yellow label would have been invisible on a light background.
+
+So the reading problem was fixed first. A new `inkVars` hands an element the raw
+colour plus both theme-corrected versions, and a `.c-ink` rule in views.css picks
+one. Doing it in CSS rather than JS means an inline style does not need to know
+the theme and nothing re-renders when the theme changes.
+
+`readable` had to be rewritten. It clamped HSL lightness, and lightness is not
+perceived luminance: a saturated yellow at l=0.40 is still far too bright to read
+on paper white, while a blue at the same lightness is comfortably dark. It now
+bisects lightness until relative luminance hits a target, leaving hue and
+saturation alone so the colour still says which class it is.
+
+Then the six brights went in: yellow, green, pink, orange, cyan, violet. Sixteen
+swatches now, wrapping onto two rows in the Course modal.
+
+**Decision: verified numerically, not by eye.** I wrote a throwaway script that
+composites the wash over each theme's real surface and checks the WCAG ratio for
+every palette colour at section tints 0, 1 and 2. First run reported 38 failing
+combinations, including the bright yellow at 4.72:1 and a scatter of muted tints
+between 4.1 and 4.49. I retuned the luminance targets and ran it again: 96
+combinations, zero failures. Then checked it visually in both themes with AP Lang
+temporarily set to bright yellow, and put it back to its original colour.
+
+**A real bug found on the way, in commit 91b40e0.** Testing that a version delete
+closes the date window behind it turned up an older fault in `newVersion`: it
+built the previous version's end date by reading a local midnight back out in
+UTC, which east of Greenwich returns yesterday. Live, a version starting 26 Aug
+had closed the one before it on 24 Aug, leaving 25 Aug claimed by no timetable at
+all. `activeTimetable` silently falls back to the first timetable across a hole
+like that, so it would have planned the wrong week without ever complaining. Now
+uses string arithmetic and writes 25 Aug.
+
+**Your existing courses were not repainted.** This adds options.
+
+Both commits are live at cadence.inkheron.app, bundle index-C1iEAl9F.js, and
+pushed to origin/main. Console errors seen during the session were Vite HMR
+double-mount noise from many hot edits; a clean production build is silent.
+
+**Still waiting on you:** the three InkPad assignments (MLK Rhetorical Analysis,
+Argument Essay - Organ Donation, Personal Statements Second Draft) cannot be
+added until your classes exist again, because an assignment needs a course and
+sections to attach to. Say the word once they are in and I will add them.
