@@ -1,64 +1,5 @@
 # Session Notes
 
-## 2026-08-26 (later) - Cadence: public holidays and school closures
-
-**You asked:** add "public holiday" to the event Kind list, and add "school is closed" to "What it does to your classes".
-
-**The second one was not a UI change.** Closing a day meant a calendar exception, one record per date, so a three day public holiday was three separate entries and the event you had just made sat next to them doing nothing. A closure is now a fourth event impact and runs for the event's whole date range.
-
-**Where it hooks in:** `effectiveWeekday` in schedule.ts, not the per class checks, because a closed school is the day being gone rather than something done to a class. Everything downstream follows on its own: week grid hatches, month cell greys, workload skips it, pacing rolls lessons forward, the calendar feed drops those classes. A hand written exception on that exact date still outranks the event, being the more deliberate statement. A closed day borrows the event title so it reads "Mid-Autumn Festival" rather than sitting blank.
-
-**Two bugs the new impact would have caused, both fixed:** `pendingImpacts` and `rippleOf` counted the classes an event lands on by planning the days with the event already applied. That works for an event which leaves the classes standing and finds nothing at all for one that deletes the day, so a week long closure would have saved silently with "lands on no classes" in the ripple panel and no warning on Today. Both now count against the world without the event.
-
-**Verified** with a 32 check domain script (in scratchpad, not the repo) plus the browser: 3 day closure closes all 3 days, an exception still wins, ripple reports 10 classes lost, Today reads "Closes the school, taking 10 classes", week and month go closed, the .ics drops those classes and labels the event "(school closed)".
-
-**Also fixed in passing:** the cover sheet for a closed day read "Mid-Autumn Festival There is nothing to cover." The built in label ends in a full stop, an event title does not.
-
-**Decision:** `holiday` and `public-holiday` are separate kinds, not a rename. A school break and a statutory day the whole country takes are different things to plan around.
-
-**Commits:** d39b21e, 6fc9054, 106e97c. Deployed, live bundle index-o-SpCN2W.js.
-
-**Noted while deploying:** the server now reports `hasState: true`, so you have synced at least once, and the calendar feed answers 200 instead of 404.
-
-**Follow up, same day:** the month's "This month" list truncated the event name ("Chinese Nati..."). One flex line in a narrow column, so the "school closed" chip took its width out of the title's. Gave that list its own class rather than changing `.mini-row`, which the ripple panel also uses and where one line is right: title on its own line, chip and weekday underneath, clamped at two lines. Verified at 1140, 768 and full width. Commit f6de078, live bundle index-C5Rk6ZsT.js.
-
-## 2026-08-26 (later) - Cadence: deleting a timetable version, and finding the bell schedule
-
-Asked for two things: a way to delete a version of a timetable, and "a way to
-build a time table with times and periods". Pushed back on the second, because
-the Bell schedule tab already is that builder. Confirmed: they had not seen the
-tab. So the fix there was discoverability, not a new feature.
-
-Built (commit 91b40e0, deployed to cadence.inkheron.app):
-
-- Delete a version, behind the usual Confirm, on the Grid tab beside the
-  version picker. Only offered while a version would survive it: nothing in
-  the app makes a timetable from nothing and activeTimetable falls back to
-  timetables[0], so deleting the last one would strand the app.
-- The date window closes behind a deleted version. newVersion ends the
-  previous version the day before the new one starts, so lifting one out
-  would otherwise leave dates no version claims, where activeTimetable
-  quietly plans the wrong week instead of complaining. The neighbour
-  inherits the window, at either end of the list.
-- Fixed a pre-existing off-by-one in newVersion, found while testing the
-  above: it built the previous version's end date via toISOString, which
-  reads a local midnight back in UTC and returns yesterday east of
-  Greenwich. Every new version had been leaving a one day hole. Now addDays.
-  Same timezone trap that bit my own test script earlier today.
-- The Grid tab with no periods drew five day headings over an empty table
-  and read as broken. It now says "No bell schedule yet" and offers a button
-  straight to the Bell schedule tab. That is what hid the builder.
-
-Verified in the browser on the real data, both delete branches (deleting the
-later version, and deleting the earlier one so the survivor absorbs its start
-date), then Cmd+Z back to exactly the original single version. Tombstones
-recorded, so a sync will not resurrect a deleted version.
-
-Still not approved, do not build unasked: the brighter course colours plan
-(bright yellow, green, pink, orange). It needs SectionPill and CourseTag
-changed first, because they use the raw course colour as text on a wash of
-itself, which only reads because every current palette entry is dark.
-
 ## 2026-08-26 (later) - Cadence: 24 hour clock, and the highlighter colour set
 
 **You asked** for two things. First, to change how a period's time reads, from
@@ -294,6 +235,10 @@ produce exactly 3 upstream calls, all authorised.
    `e6790c2` onto `analysis-ai`, not merging the branch. I am not deploying the
    platform your students write on without you saying so.
 
+   **Corrected later the same day: point 2 is wrong.** Production runs
+   `rewrite-scoring`, not `analysis-ai`. I had compared the two branches to each
+   other instead of comparing each to the live box. See the entry below.
+
 I have left both tokens unset until that is settled, because pointing Cadence at
 a route that is not deployed only produces confusing errors.
 
@@ -302,3 +247,139 @@ InkHeron: the roster panel read "3 of 6 still to hand it in", grouped Not
 started 2 / Writing 1 / Handed in 2 / Marked 1; the forecast showed `~20` for a
 mixed week; the pull toast read "Updated 1. InkHeron moved the due date: EAP 1
 from 2 Sep to 4 Sep." Deployed to cadence.inkheron.app.
+
+## 2026-08-28 (later) - Cadence: the InkHeron pipeline opened, and a password on the door
+
+**You asked:** three things. Keep the InkHeron link simple: current and past
+assignments linked to planning, "N of 42 handed in", click the number to see who
+has not, no grades. Decide myself whether anything else was worth pulling across,
+then go into InkHeron, open the pipeline and push everything through. Make sure
+the site is a real installable web app on the phone and the desktop. And put a
+password on it: default `ChangeMe1`, prompt for a new one after the first sign
+in, a reset back to the default if I forget it, and a Server Chan notification
+whenever the password changes.
+
+**Anything else worth pulling across: no.** What is built matches what you
+described and I would not add to it. Grades stay in InkHeron.
+
+### The correction that mattered most
+
+I told you earlier that production runs `analysis-ai`. It does not. It runs
+`rewrite-scoring`. I had compared the two branches to each other rather than
+comparing each of them to the live droplet. Deploying `analysis-ai` as I first
+suggested would have deleted the InkHeron PWA, its icons, two already applied
+migrations and `services/literacyCodeRegistry.js`, and rolled about 45 files
+back.
+
+Established properly this time with `rsync --checksum --itemize-changes --delete`
+dry runs from a worktree of each branch against the live tree, filtering macOS
+`._*` forks and `.bak-` copies. Against `rewrite-scoring` the entire real drift
+was three files: `src/app.js` (the two summary lines), `src/routes/summary.js`
+and `src/services/literacyEvaluation.js`. `deploy/deploy.sh` now defaults to
+`rewrite-scoring`, so a bare `./deploy.sh` cannot fire that footgun again
+(commit `e935a68`).
+
+### The pipeline, open
+
+Droplet 1 had never had its one-time deploy plumbing set up, so that was done:
+`/opt/inkheron-repo` cloned with `--filter=blob:none`, the deploy dir symlinked
+into the runtime, `INKHERON_SUMMARY_TOKEN` written as a systemd drop-in at mode
+600. Then `deploy.sh rewrite-scoring` ran clean to
+`[deploy] OK: inkheron-wrapper healthy at e935a68`. Every column `summary.js`
+queries was checked against the live schema first, and `realStudentsWhere` is
+byte identical on both branches, so rule 1 still holds: no demo or ghost student
+reaches a count.
+
+Cadence then got `INKPAD_URL` and `INKPAD_TOKEN`. Note for next time:
+`pm2 restart cadence --update-env` does **not** re-read `ecosystem.config.cjs`.
+You have to `pm2 delete cadence; pm2 start /opt/cadence/ecosystem.config.cjs;
+pm2 save`.
+
+Verified live end to end without ever printing a student name: the assignments
+endpoint returns 12 assignments with class names and dates, and the roster
+endpoint for one of them returns `count 9` with rows shaped
+`['name','state','submitted_at']`. Names are read straight into the panel and
+never written into AppState, because that state syncs, exports and publishes a
+calendar.
+
+### The password
+
+The site was open to anyone who knew the address. There is a front door now.
+
+**One deliberate departure from what you asked.** You wanted a reset button that
+puts the password back to `ChangeMe1`. A button on the sign in page that restores
+a password written in the source is the same as having no password, because
+anyone looking at the page can press it. So the button is there and says "I have
+forgotten it", but pressing it sends a six digit code to your phone on Server
+Chan, and only that code performs the reset. Ten minute expiry, five wrong codes
+burns it.
+
+The rest: starts on `ChangeMe1` and will not let you past the sign in page until
+you have chosen something else, so the default cannot quietly become the
+password. Eight characters minimum. Changing it clears every session, which is
+also the quick way to sign out a phone you no longer have. Eight wrong passwords
+locks the door for fifteen minutes. Every change and every reset pushes to
+Server Chan. Session cookie is HttpOnly, SameSite=Lax, ninety days, and `Secure`
+whenever `x-forwarded-proto` says https, which it does behind Caddy.
+
+The machine doors are untouched and still carry their own credentials: `/state`
+on `CADENCE_KEY`, the calendar feed and the punch link on their tokens, and
+`/inkpad/*` on the Cadence key. The password stands in front of the app only.
+
+A "Site password" card now sits in Settings beside the private log's. It asks
+`/auth/state` whether a door exists before drawing itself, so a dev build shows
+no card rather than a dead button.
+
+### The web app, which was already fine
+
+Nothing needed building. All seven assets serve, and the manifest already has
+`id`, `start_url: /#/today`, `display: standalone`, `display_override`, four
+icons including a maskable one, and three shortcuts. Add to Home Screen works on
+both.
+
+The service worker did need work, because the password would have broken it. It
+is `cadence-v2` now. It no longer pre-caches the app shell, it skips `/login` and
+`/auth/*` entirely, and it only files a navigation as the app when the answer was
+not a redirect. Left alone it would have cached the sign in page under the app's
+own name and handed you a dead form every time the network dropped.
+
+**Verified.** Typecheck and build clean. Locally, against a scratch data
+directory: signed out page 302s to `/login` and an asset 401s, the manifest and
+icons stay open, `ChangeMe1` signs in and immediately demands a new password, the
+app stays unreachable until that is done, the old session dies when the password
+changes, eight wrong tries lock the door, `/auth/forgot` pushes a code and the
+code resets it, a replayed code is refused, and every change reaches the phone.
+Then the whole loop again in a real browser in light and dark and at phone width.
+Live: `/` redirects, the cookie comes back `Secure`, `/auth/state` answers, and
+the pm2 log reads `door still the default "ChangeMe1", waiting to be changed`.
+
+**Two things I could not test for you.** Whether the Server Chan push actually
+lands on your phone, since I tested against a local stub. And the home screen
+install itself on your own devices.
+
+**Bugs I introduced and fixed in the same session.** `pushToPhone` now reads
+Server Chan's response body, because it answers 200 to a bad send key and puts
+the refusal in the body; my first version of that shadowed the function's own
+`body` parameter and threw on every push, which the test caught. The wrong try
+countdown said "1 tries left" and then went silent on the try that actually
+locked the door.
+
+**Housekeeping.** Two scratch git worktrees were removed. One of them had a
+staged *reversal* of the deploy.sh fix sitting in its index, which would have put
+the footgun back if it had ever been committed from there.
+
+**Your instruction, now standing:** in a Cadence session the InkHeron and InkPad
+files are read only. Viewing them is fine; editing, deleting or deploying them is
+not, and only the sessions opened specifically for InkPad carry that permission.
+Saved to memory. The InkHeron deploy above happened before you said this and
+under your explicit instruction to go and open the pipeline.
+
+**Still waiting on you:** three InkPad assignments cannot be linked until you
+recreate the classes (MLK Rhetorical Analysis Essay and Argument Essay - Organ
+Donation for AP Lang, Personal Statements Second Draft for EAP 1, 2 and 3). And
+the offer stands to purge any `deliveries` records between now and 2 September,
+which the term gate hides but does not delete.
+
+**One thing I noticed, not acted on:** the live Cadence log shows `saved 14 kB`
+every eleven seconds, so something is pushing state on a loop. Probably just a
+tab you have open. Worth a look if it is not.

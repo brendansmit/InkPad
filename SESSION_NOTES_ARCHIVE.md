@@ -1730,3 +1730,62 @@ untouched on the droplet.
 **Addendum, same day:** you reported Cadence still loading full. Not a deploy failure, the droplet was serving the right bundle. The empty start only applies to a browser that has never opened Cadence, and yours saved a copy of the sample the first time you opened the link, then loads from that copy. Settings > Start empty clears it. While checking, found that button's confirmation still promised to keep the bell schedule, which stopped being true when I changed the wipe. Corrected and deployed.
 
 ---
+
+## 2026-08-26 (later) - Cadence: public holidays and school closures
+
+**You asked:** add "public holiday" to the event Kind list, and add "school is closed" to "What it does to your classes".
+
+**The second one was not a UI change.** Closing a day meant a calendar exception, one record per date, so a three day public holiday was three separate entries and the event you had just made sat next to them doing nothing. A closure is now a fourth event impact and runs for the event's whole date range.
+
+**Where it hooks in:** `effectiveWeekday` in schedule.ts, not the per class checks, because a closed school is the day being gone rather than something done to a class. Everything downstream follows on its own: week grid hatches, month cell greys, workload skips it, pacing rolls lessons forward, the calendar feed drops those classes. A hand written exception on that exact date still outranks the event, being the more deliberate statement. A closed day borrows the event title so it reads "Mid-Autumn Festival" rather than sitting blank.
+
+**Two bugs the new impact would have caused, both fixed:** `pendingImpacts` and `rippleOf` counted the classes an event lands on by planning the days with the event already applied. That works for an event which leaves the classes standing and finds nothing at all for one that deletes the day, so a week long closure would have saved silently with "lands on no classes" in the ripple panel and no warning on Today. Both now count against the world without the event.
+
+**Verified** with a 32 check domain script (in scratchpad, not the repo) plus the browser: 3 day closure closes all 3 days, an exception still wins, ripple reports 10 classes lost, Today reads "Closes the school, taking 10 classes", week and month go closed, the .ics drops those classes and labels the event "(school closed)".
+
+**Also fixed in passing:** the cover sheet for a closed day read "Mid-Autumn Festival There is nothing to cover." The built in label ends in a full stop, an event title does not.
+
+**Decision:** `holiday` and `public-holiday` are separate kinds, not a rename. A school break and a statutory day the whole country takes are different things to plan around.
+
+**Commits:** d39b21e, 6fc9054, 106e97c. Deployed, live bundle index-o-SpCN2W.js.
+
+**Noted while deploying:** the server now reports `hasState: true`, so you have synced at least once, and the calendar feed answers 200 instead of 404.
+
+**Follow up, same day:** the month's "This month" list truncated the event name ("Chinese Nati..."). One flex line in a narrow column, so the "school closed" chip took its width out of the title's. Gave that list its own class rather than changing `.mini-row`, which the ripple panel also uses and where one line is right: title on its own line, chip and weekday underneath, clamped at two lines. Verified at 1140, 768 and full width. Commit f6de078, live bundle index-C5Rk6ZsT.js.
+
+## 2026-08-26 (later) - Cadence: deleting a timetable version, and finding the bell schedule
+
+Asked for two things: a way to delete a version of a timetable, and "a way to
+build a time table with times and periods". Pushed back on the second, because
+the Bell schedule tab already is that builder. Confirmed: they had not seen the
+tab. So the fix there was discoverability, not a new feature.
+
+Built (commit 91b40e0, deployed to cadence.inkheron.app):
+
+- Delete a version, behind the usual Confirm, on the Grid tab beside the
+  version picker. Only offered while a version would survive it: nothing in
+  the app makes a timetable from nothing and activeTimetable falls back to
+  timetables[0], so deleting the last one would strand the app.
+- The date window closes behind a deleted version. newVersion ends the
+  previous version the day before the new one starts, so lifting one out
+  would otherwise leave dates no version claims, where activeTimetable
+  quietly plans the wrong week instead of complaining. The neighbour
+  inherits the window, at either end of the list.
+- Fixed a pre-existing off-by-one in newVersion, found while testing the
+  above: it built the previous version's end date via toISOString, which
+  reads a local midnight back in UTC and returns yesterday east of
+  Greenwich. Every new version had been leaving a one day hole. Now addDays.
+  Same timezone trap that bit my own test script earlier today.
+- The Grid tab with no periods drew five day headings over an empty table
+  and read as broken. It now says "No bell schedule yet" and offers a button
+  straight to the Bell schedule tab. That is what hid the builder.
+
+Verified in the browser on the real data, both delete branches (deleting the
+later version, and deleting the earlier one so the survivor absorbs its start
+date), then Cmd+Z back to exactly the original single version. Tombstones
+recorded, so a sync will not resurrect a deleted version.
+
+Still not approved, do not build unasked: the brighter course colours plan
+(bright yellow, green, pink, orange). It needs SectionPill and CourseTag
+changed first, because they use the raw course colour as text on a wash of
+itself, which only reads because every current palette entry is dark.
