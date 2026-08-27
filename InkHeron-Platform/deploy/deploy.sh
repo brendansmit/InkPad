@@ -16,13 +16,17 @@
 #
 # Usage on the droplet:
 #   /opt/inkheron-platform/deploy/deploy.sh [branch]
-# Default branch is analysis-ai (the production line).
+# Default branch is rewrite-scoring, which is what the droplet actually runs.
+# It used to default to analysis-ai. That was a footgun: analysis-ai is a long
+# way behind the live box, so a deploy with no argument would have deleted the
+# PWA, the icons, two applied migrations and the literacy code registry, and
+# rolled about forty five files back. The default is now the live line.
 #
 # One-time setup is described in deploy/DEPLOY.md.
 
 set -euo pipefail
 
-BRANCH="${1:-analysis-ai}"
+BRANCH="${1:-rewrite-scoring}"
 REPO_DIR="${INKHERON_REPO_DIR:-/opt/inkheron-repo}"     # git clone of the private InkPad repo
 APP_DIR="${INKHERON_APP_DIR:-/opt/inkheron-platform}"   # live runtime dir (holds data/)
 APP_SUBDIR="InkHeron-Platform"                          # the app lives in this subdir of the monorepo
