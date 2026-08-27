@@ -6,15 +6,28 @@
  * marked. It is a different app on a different machine, so it cannot have a teacher
  * session and it must not have one.
  *
- * So this is one route, one method, counts only. It carries a bearer token that is
- * separate from every other credential in the platform, it never returns a student
- * name, a word, a mark or a piece of text, and it writes nothing. If the token leaks,
- * what leaks is a list of assignment titles and some tallies.
+ * Two routes, one method, no writes. Both carry a bearer token that is separate from
+ * every other credential in the platform.
+ *
+ *   /api/summary/assignments              counts only, one row per assignment
+ *   /api/summary/assignments/:id/students names and a state, one row per student
+ *
+ * The second one exists because a tally of five out of twenty five is not actionable:
+ * chasing work means knowing which four people have not handed it in. So it returns
+ * names, and nothing else about them. No words, no marks, no feedback, no text, no
+ * username, no id that could be used to ask another route for any of that. A name and
+ * one of four words for where the work has got to.
+ *
+ * That is still the furthest this token reaches into student data, so it is worth
+ * being plain about the trade. Cadence never stores what comes back: its state syncs
+ * to a server, exports to a file and publishes a calendar, and a class list has no
+ * business in any of those. The names are fetched when a count is clicked, shown, and
+ * dropped when the panel closes.
  *
  * The token lives in INKHERON_SUMMARY_TOKEN on the droplet, per rule 8. With no token
- * set the route refuses to answer at all rather than answering to anybody.
+ * set both routes refuse to answer at all rather than answering to anybody.
  *
- * Demo and ghost students are excluded from every count, per rule 1.
+ * Demo and ghost students are excluded from every count and every list, per rule 1.
  */
 import crypto from 'node:crypto';
 import { realStudentsWhere } from '../db/realStudents.js';
@@ -55,6 +68,23 @@ function clampLimit(raw) {
   if (!Number.isFinite(n) || n <= 0) return DEFAULT_LIMIT;
   return Math.min(n, MAX_LIMIT);
 }
+
+/**
+ * The five pad states, said in the four words a person chasing work needs.
+ *
+ * A green pen rewrite has been marked and handed back, so it is not waiting on you and
+ * it is certainly not missing. It reads as marked until it comes in again.
+ */
+const STATE_WORD = {
+  writing: 'writing',
+  submitted: 'handed_in',
+  resubmitted: 'handed_in',
+  marked: 'marked',
+  green_pen_open: 'marked',
+};
+
+/** not_started first, because that is the list you clicked through to see. */
+const STATE_ORDER = { not_started: 0, writing: 1, handed_in: 2, marked: 3 };
 
 function isTruthy(raw) {
   return raw === '1' || raw === 'true' || raw === 'yes';
@@ -181,6 +211,100 @@ export async function registerSummaryRoutes(app, { db }) {
       by_state: byState,
     };
   }
+
+  /* One assignment, one row per student. Same roster rule as the counts: rows in
+     assignment_students mean that table is the roster, otherwise it is the class. */
+  const assignmentById = db.prepare(`
+    SELECT a.id, a.title, a.type, a.class_id, c.name AS class_name, a.due_at, a.is_archived
+    FROM assignments a
+    LEFT JOIN classes c ON c.id = a.class_id
+    WHERE a.id = ?
+  `);
+
+  const padRosterOverride = db.prepare(`
+    SELECT s.display_name AS name, p.state AS state, p.submitted_at AS submitted_at
+    FROM assignment_students ast
+    JOIN students s ON s.id = ast.student_id
+    LEFT JOIN native_pads p ON p.student_id = s.id AND p.assignment_id = ast.assignment_id
+    WHERE ast.assignment_id = ? AND ${real}
+  `);
+  const padRosterClass = db.prepare(`
+    SELECT s.display_name AS name, p.state AS state, p.submitted_at AS submitted_at
+    FROM students s
+    LEFT JOIN native_pads p ON p.student_id = s.id AND p.assignment_id = ?
+    WHERE s.class_id = ? AND ${real}
+  `);
+
+  /* A test has no pad. Unsubmitted is still writing, and submitted is marked only once
+     nothing in it is waiting for a score. Multiple choice scores itself on the way in. */
+  const testRosterOverride = db.prepare(`
+    SELECT s.display_name AS name, t.started_at AS started_at, t.submitted_at AS submitted_at,
+           (SELECT COUNT(*) FROM test_responses r
+             WHERE r.attempt_id = t.id AND r.is_correct IS NULL AND r.points_awarded IS NULL) AS unscored
+    FROM assignment_students ast
+    JOIN students s ON s.id = ast.student_id
+    LEFT JOIN test_attempts t ON t.student_id = s.id AND t.assignment_id = ast.assignment_id
+    WHERE ast.assignment_id = ? AND ${real}
+  `);
+  const testRosterClass = db.prepare(`
+    SELECT s.display_name AS name, t.started_at AS started_at, t.submitted_at AS submitted_at,
+           (SELECT COUNT(*) FROM test_responses r
+             WHERE r.attempt_id = t.id AND r.is_correct IS NULL AND r.points_awarded IS NULL) AS unscored
+    FROM students s
+    LEFT JOIN test_attempts t ON t.student_id = s.id AND t.assignment_id = ?
+    WHERE s.class_id = ? AND ${real}
+  `);
+
+  app.get('/api/summary/assignments/:id/students', { preValidation: [requireSummaryToken] }, async (request, reply) => {
+    const id = Number.parseInt(request.params?.id ?? '', 10);
+    if (!Number.isFinite(id)) return reply.code(400).send({ error: 'bad_assignment_id' });
+
+    const row = assignmentById.get(id);
+    if (!row) return reply.code(404).send({ error: 'no_such_assignment' });
+
+    const overridden = overrideCount.get(row.id).n > 0;
+    const args = overridden ? [row.id] : [row.id, row.class_id];
+
+    let students;
+    if (row.type === 'test') {
+      students = (overridden ? testRosterOverride : testRosterClass).all(...args).map(r => ({
+        name: r.name,
+        state: !r.started_at ? 'not_started'
+          : !r.submitted_at ? 'writing'
+          : r.unscored > 0 ? 'handed_in'
+          : 'marked',
+        submitted_at: r.submitted_at ?? null,
+      }));
+    } else {
+      students = (overridden ? padRosterOverride : padRosterClass).all(...args).map(r => ({
+        name: r.name,
+        state: r.state ? (STATE_WORD[r.state] ?? 'writing') : 'not_started',
+        submitted_at: r.submitted_at ?? null,
+      }));
+    }
+
+    /* Missing first, then alphabetical inside each group. localeCompare so a list of
+       names does not sort by code point. */
+    students.sort((x, y) =>
+      (STATE_ORDER[x.state] - STATE_ORDER[y.state]) || String(x.name).localeCompare(String(y.name)));
+
+    /* Names. Not something to keep a copy of anywhere, at any layer. */
+    reply.header('Cache-Control', 'no-store');
+
+    return {
+      generated_at: new Date().toISOString(),
+      assignment: {
+        id: row.id,
+        title: row.title,
+        type: row.type,
+        class_id: row.class_id,
+        class_name: row.class_name ?? null,
+        due_at: row.due_at ?? null,
+      },
+      count: students.length,
+      students,
+    };
+  });
 
   app.get('/api/summary/assignments', { preValidation: [requireSummaryToken] }, async (request, reply) => {
     const query = request.query ?? {};
