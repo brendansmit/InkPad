@@ -327,3 +327,20 @@ healthy: `/inkpad/assignments` returns 12 right now, including the MLK
 Rhetorical Analysis Essay and Argument Essay - Organ Donation for AP Lang and
 the four copies of Personal Statements Second Draft. There is nothing to link
 them to because the Cadence side has no assignments yet.
+
+## 2026-08-28 - Live two-server app inventory
+
+**Asked:** List every app deployed across both servers.
+
+**Did:** Queried both droplets read-only over SSH and reconciled PM2, systemd,
+Docker Compose, reverse-proxy routes, listening ports and top-level deployment
+directories. Found 12 running logical apps: seven on `167.172.71.219` and five
+on `165.22.242.91`. Also found AI Control deployed on the second server with
+both its service and Cloudflare tunnel inactive. Excluded infrastructure,
+default web roots and two timestamped Mosaic backup directories.
+
+**Decision:** Treat InkPad's Etherpad and wrapper services as one logical app,
+and treat Grammar Arcade as a separate app mounted behind the EAP domain.
+Noted that `SERVER_CONTEXT.md` is stale: it omits Cadence on droplet 2 and its
+droplet 1 AP Lang, Lang and Admin mappings no longer match live process paths
+and ports.
