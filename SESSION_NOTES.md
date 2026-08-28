@@ -342,3 +342,40 @@ Next: Phase 2 extraction blocked on GitHub repo creation (gh CLI not installed).
 - Untracked all 16 project dirs + broken gitlinks from InkPad; InkPad now tracks only InkHeron-Platform + root docs. Moved SmitRecipes and Admin out of InkHeron-Platform to top level.
 - Added README.md project map; added repo-hygiene guard to global CLAUDE.md.
 - Deployed to droplet 1: healthy at fd8b4a2. Tests: 258 pass, same 2 known pre-existing failures.
+
+---
+
+## 2026-08-28 (later still) - Cadence: the calendar feed stops shipping your timetable
+
+**Asked:** "Fix the calendar part, i subscribed and then it populated my iphoe
+calendar with all my periods and classes. I only want events that are added to
+be included in the subscription calendar, not classes, events and then
+assignments maybe."
+
+**Cause:** `publishCalendar` called `buildICS(state)` with no options, and the
+library defaults in `src/domain/ics.ts` say `classes: true, events: true,
+due: true`. Nothing had ever set them. The live feed on the droplet held 417
+entries, 5 of them due dates, so the rest were periods.
+
+**Did:** `Settings` gained `feedClasses`, `feedEvents` and `feedDue`, all
+optional. A new `feedParts()` in `ics.ts` resolves them, and both the published
+feed and the Download .ics button read it, so the two can never disagree. Unset
+means classes off, events on, due dates on: a file you download on purpose may
+as well hold everything, but a subscription lands in the calendar you already
+live in. Three tick boxes on the Calendar feed card, and a line that owns up
+when all three are off.
+
+**Verified** in the preview on the sample data, by intercepting the blob the
+download button builds and counting `SUMMARY:` lines. Defaults: 9 entries, 7
+due dates and 2 events, 0 classes. Classes ticked on: 297, of which 288 are
+classes. Events only: 2. All off: 0, and the empty warning shows. Back to
+defaults: 9 again. `tsc --noEmit` and `npm run build` clean.
+
+**Commit:** `c8be40b` on Cadence `main`, pushed and deployed. `/health` came
+back `{"ok":true,"hasState":true,"size":16545}`.
+
+**Left for you:** the .ics sitting on the droplet is still the old 417 entry
+one. The server only holds what the app last published, so open Cadence once
+and let it sync, and the feed shrinks on its own. Apple then re-checks about
+hourly. If the classes are still there tomorrow, delete the subscription in
+Calendar and add it again.
