@@ -49,7 +49,7 @@ SERVERS = {
         'local_repo':  os.path.expanduser('~/Documents/Claude/InkHeron-Platform'),
         'remote_path': '/opt/inkheron-platform',
         'deploy_mode': 'rsync',
-        'rsync_excludes': ['.git', 'node_modules', 'data', '.env'],
+        'rsync_excludes': ['.git', 'node_modules', '/data', '.env'],
         'npm_install': 'cp data/inkheron.db data/inkheron.db.pre-deploy-$(date +%Y%m%d%H%M%S) 2>/dev/null; npm install --omit=dev && INKHERON_DB_PATH=/opt/inkheron-platform/data/inkheron.db node src/db/migrate.js',
         'npm_restart': 'systemctl restart inkheron-wrapper',
         'logs_cmd':    'journalctl -u inkheron-wrapper -n 80 --no-pager',
@@ -62,7 +62,7 @@ SERVERS = {
         'local_repo':  os.path.expanduser('~/Documents/Claude/InkHeron-Platform'),
         'remote_path': '/opt/eap-platform',
         'deploy_mode': 'rsync',
-        'rsync_excludes': ['.git', 'node_modules', 'data', '.env'],
+        'rsync_excludes': ['.git', 'node_modules', '/data', '.env'],
         'npm_install': 'npm install --omit=dev && INKHERON_DB_PATH=/opt/eap-platform/data/inkheron.db node src/db/migrate.js',
         'npm_restart': 'cd /opt/eap-platform && set -a && . /etc/eap-platform.env && set +a && (pm2 describe eap-platform >/dev/null 2>&1 && pm2 restart eap-platform --update-env || pm2 start src/server.js --name eap-platform --update-env)',
         'label':       'eap.inkheron.app',
@@ -93,7 +93,7 @@ SERVERS = {
         'local_repo':  os.path.expanduser('~/Documents/Claude/Grammar Arcade/Gramm-Builder'),
         'remote_path': '/var/www/grammar-arcade',
         'deploy_mode': 'rsync',
-        'rsync_excludes': ['.git', 'node_modules', 'data', '.env', '.teacher-password'],
+        'rsync_excludes': ['.git', 'node_modules', '/data', '.env', '.teacher-password'],
         'local_build': {
             'cmd':       'PATH=/Users/brendansmit/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin:$PATH PORT=3465 BASE_PATH=/grammar-arcade/ NODE_ENV=production ./artifacts/grammar-case-lab/node_modules/.bin/vite build --config ./artifacts/grammar-case-lab/vite.config.ts',
             'env':       {'PORT': '3465', 'BASE_PATH': '/grammar-arcade/', 'NODE_ENV': 'production'},
@@ -109,7 +109,7 @@ SERVERS = {
         'remote_path': '/opt/admin-platform',
         # No .git on the droplet, so this one ships by rsync.
         'deploy_mode': 'rsync',
-        'rsync_excludes': ['.git', 'node_modules', 'data', '.env', 'serve'],
+        'rsync_excludes': ['.git', 'node_modules', '/data', '.env', 'serve'],
         'npm_install': 'npm install --omit=dev',
         'npm_restart': 'pm2 restart admin-platform --update-env',
         'label':       'admin.inkheron.app',
@@ -139,7 +139,7 @@ SERVERS = {
         # and giving it any would mean adding a deploy key to the account.
         # 'data' is excluded so the audit log and sessions survive a deploy.
         'deploy_mode': 'rsync',
-        'rsync_excludes': ['.git', 'node_modules', 'data', '.env'],
+        'rsync_excludes': ['.git', 'node_modules', '/data', '.env'],
         'npm_install': 'npm install --omit=dev',
         'npm_restart': 'pm2 restart inkheron-serve --update-env',
         'label':       'serve.inkheron.app',

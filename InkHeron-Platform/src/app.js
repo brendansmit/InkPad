@@ -69,7 +69,7 @@ export async function buildApp(options = {}) {
   });
 
   await app.register(fastifyStatic, {
-    root: publicDir,
+    root: path.join(publicDir, 'static'),
     prefix: '/static/',
     decorateReply: false,
     index: false,
@@ -158,7 +158,10 @@ export async function buildApp(options = {}) {
   app.get('/native/feedback/:assignmentId', { preValidation: [app.requireStudentSession] }, async (_request, reply) => reply.sendFile('native-feedback.html', publicDir));
   app.get('/native/test/:assignmentId', { preValidation: [app.requireStudentSession] }, async (_request, reply) => reply.sendFile('native-test.html', publicDir));
   app.get('/library', async (_request, reply) => reply.sendFile('eap-library.html', publicDir));
-  app.get('/library/admin', { preValidation: [app.requireTeacherSession] }, async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
+  // No preValidation guard here: the page itself shows an inline login overlay
+  // when unauthenticated (see checkAuth() in eap-library-admin.html). Guarding
+  // this route server-side returns a raw JSON 401 instead of that page.
+  app.get('/library/admin', async (_request, reply) => reply.sendFile('eap-library-admin.html', publicDir));
   // Two domains share this app: inkpad.* is the writing portal, whose root
   // is the student/teacher chooser (signout links land there); any other
   // host gets the EAP portal landing page.
