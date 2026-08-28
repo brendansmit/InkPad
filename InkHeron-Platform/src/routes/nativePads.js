@@ -4,14 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { renderNativeWriteView } from '../views/nativeWrite.js';
 import { feedbackOptionsForAssignment, feedbackTablesForAssignment } from '../feedback/assets.js';
 import { notifyTeacher } from '../services/serverChan.js';
-import { runLiteracyAnalysis, MANUAL_REVIEW_CODES } from '../services/literacyCoder.js';
-import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
-import { scoreRewrite } from '../services/implementationScorer.js';
+import { MANUAL_REVIEW_CODES } from '../services/literacyCoder.js';
+import { recordTeacherScores } from '../services/markerProfile.js';
 import { recordStyleMetrics, aggregateStyleProfile, detectStyleAnomaly } from '../services/styleMetrics.js';
 import { compareRewrite, spanTouchesInsertion } from '../services/rewriteDiff.js';
 import { realStudentsWhere } from '../db/realStudents.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
-import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
 import { generateReportSnippet } from '../services/reportSnippet.js';
 import {
   ALL_CODE_DEFINITIONS,
@@ -1763,23 +1761,18 @@ export async function registerNativePadRoutes(app, { db }) {
         action: nextState === 'resubmitted' ? 'resubmitted work' : 'submitted work',
       }));
 
-      // Background analysis seams (stubs until Fable fills phases B/D).
-      runInBackground('literacy', () => {
-        retractAiMarksForPad(db, padId);
-        return runLiteracyAnalysis(db, { padId })
-          .then(() => autoPromoteSuggestions(db, padId));
-      });
+      // Submitting no longer triggers any AI (teacher decision, 2026-08-29).
+      // Marking a class one trickle-fed essay at a time meant every prompt or
+      // model change forced a manual re-run of everything already through, and
+      // there was no moment where the whole class had been marked by the same
+      // version. The AI chain now runs only when the teacher clicks Run check,
+      // which marks the whole assignment as one batch: see
+      // POST /api/native/assignments/:id/reanalyze in nativeReanalyze.js.
+      //
+      // Style metrics stay here. They are deterministic, cost nothing, and are
+      // the stylometric fingerprint of writing as submitted, so they belong to
+      // the submit event rather than to a later batch.
       runInBackground('style-metrics', () => recordStyleMetrics(db, { padId }));
-      runInBackground('grade-estimate', () => estimateRubric(db, { padId }));
-      runInBackground('feedback-suggestions', () => suggestFeedbackItems(db, { padId }));
-      // Any submit of a rewrite pad gets judged against the original feedback.
-      // Keyed off the rewrite link, NOT the state: green-pen rewrites are now a
-      // separate assignment whose pads start in 'writing' and submit to
-      // 'submitted', so gating on 'resubmitted' silently never fired and no
-      // rewrite was ever scored. Legacy in-place pads still land here too.
-      if (updated.rewrite_of_pad_id) {
-        runInBackground('implementation', () => scoreRewrite(db, { rewritePadId: padId }));
-      }
 
       return reply.code(201).send({ pad: publicNativePad(updated), locked: true, resubmitted: nextState === 'resubmitted' });
     }
