@@ -136,3 +136,48 @@ test('the review flags a rewrite pad so the page can hide its marks', async () =
 
   await app.close();
 });
+
+test('the tally counts the draft errors and any new ones, and waits for the check to say what was fixed', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, headers, padId, rewritePadId } = await seedRewrite(db);
+
+  // A new slip made while rewriting: 'for' is text the student produced, so it
+  // sits on changed text.
+  const start = REWRITE.indexOf('for');
+  await app.inject({ method: 'POST', url: `/api/native/pads/${rewritePadId}/annotations`,
+    payload: {
+      type: 'literacy_code', start_offset: start, end_offset: start + 3, selected_text: 'for', body: '',
+      metadata: { code: 'Prep', category: 'grammar', label: 'Preposition' }, document_version: 1,
+    }, headers });
+  // A mark on text carried over unchanged is the draft's error surviving, and
+  // must not be counted again as new.
+  const carried = REWRITE.indexOf('memorable');
+  await app.inject({ method: 'POST', url: `/api/native/pads/${rewritePadId}/annotations`,
+    payload: {
+      type: 'literacy_code', start_offset: carried, end_offset: carried + 9, selected_text: 'memorable', body: '',
+      metadata: { code: 'WW', category: 'surface', label: 'Wrong word' }, document_version: 1,
+    }, headers });
+
+  const before = await review(app, headers, rewritePadId);
+  assert.deepEqual(before.rewrite_error_tally, { original: 1, fixed: null, introduced: 1, scored: false },
+    'fixed is unknown until the check has run');
+
+  // Stand in for the implementation scorer having run.
+  db.prepare(`
+    INSERT INTO implementation_scores (rewrite_pad_id, original_pad_id, student_id, addressed_json, meaningful, summary, model)
+    VALUES (?, ?, (SELECT student_id FROM native_pads WHERE id = ?), ?, 1, '', 'fake/model')
+  `).run(rewritePadId, padId, rewritePadId, JSON.stringify({ codes: [{ code: 'WW', addressed: true }] }));
+
+  const after = await review(app, headers, rewritePadId);
+  assert.deepEqual(after.rewrite_error_tally, { original: 1, fixed: 1, introduced: 1, scored: true });
+
+  await app.close();
+});
+
+test('an ordinary essay has no tally', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, headers, padId } = await seedRewrite(db);
+  const data = await review(app, headers, padId);
+  assert.equal(data.rewrite_error_tally, null);
+  await app.close();
+});

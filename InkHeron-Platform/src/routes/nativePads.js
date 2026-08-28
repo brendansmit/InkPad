@@ -2251,6 +2251,50 @@ function loadDraftComparison(db, pad) {
   };
 }
 
+/**
+ * Grammar tally for a rewrite: how many errors the draft had, how many the
+ * student fixed, and how many new ones they introduced while rewriting.
+ *
+ * Each number comes from machinery that already exists, so the tally cannot
+ * disagree with the rest of the page:
+ *   - `original` is simply the literacy marks on the draft pad.
+ *   - `fixed` is the implementation scorer's per-code verdict, which is diff
+ *     gated: the model cannot claim a fix on text that never changed. It is
+ *     null until that scorer has run, which since 2026-08-29 means until the
+ *     teacher clicks Run check.
+ *   - `introduced` is a mark made ON the rewrite that sits on text the student
+ *     actually changed or added, the same test that decides whether a rewrite
+ *     mark reaches the literacy profile. A mark sitting on carried-over text is
+ *     the draft's error surviving, and is already counted under `original`.
+ */
+function loadRewriteErrorTally(db, pad) {
+  if (!pad?.rewrite_of_pad_id) return null;
+  const original = db.prepare(
+    "SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'"
+  ).get(pad.rewrite_of_pad_id).n;
+
+  const scored = db.prepare(
+    'SELECT addressed_json FROM implementation_scores WHERE rewrite_pad_id = ?'
+  ).get(pad.id);
+  let fixed = null;
+  if (scored) {
+    let addressed = {};
+    try { addressed = JSON.parse(scored.addressed_json ?? '{}'); } catch { addressed = {}; }
+    const codes = Array.isArray(addressed.codes) ? addressed.codes : [];
+    fixed = codes.filter((c) => c.addressed).length;
+  }
+
+  const ranges = rewriteInsertionRanges(db, pad.id) ?? [];
+  const onRewrite = db.prepare(
+    "SELECT start_offset, end_offset FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'"
+  ).all(pad.id);
+  const introduced = onRewrite.filter(
+    (row) => spanTouchesInsertion(ranges, row.start_offset, row.end_offset)
+  ).length;
+
+  return { original, fixed, introduced, scored: Boolean(scored) };
+}
+
 function loadImplementationScore(db, padId) {
   const row = db.prepare(`
     SELECT rewrite_pad_id, original_pad_id, addressed_json, cosmetic_ratio, meaningful, summary, model, created_at
@@ -2379,6 +2423,9 @@ function loadImplementationScore(db, padId) {
         // Kept out of the compact exclusions because the review page loads
         // compact and this is the whole point of opening a rewrite.
         draft_comparison: loadDraftComparison(db, pad),
+        // Only ever set on a rewrite pad: errors in the draft, how many were
+        // fixed, and how many new ones the rewrite introduced.
+        rewrite_error_tally: loadRewriteErrorTally(db, pad),
       };
     }
   );

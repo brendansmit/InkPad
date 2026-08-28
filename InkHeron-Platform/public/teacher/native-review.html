@@ -625,6 +625,8 @@ function openCodeChanger(ann, anchor){
 function renderRail(){
   const rail = document.getElementById('rail');
   rail.innerHTML = '';
+  const tally = cardErrorTally();
+  if (tally) rail.appendChild(tally);
   const impl = cardImplementation();
   if (impl) rail.appendChild(impl);
   if (isRewrite()) rail.appendChild(cardMarksHidden());
@@ -635,6 +637,51 @@ function renderRail(){
   rail.appendChild(cardComments());
   rail.appendChild(cardStrengthsTargets());
   rail.appendChild(cardRubric());
+}
+
+// Grammar tally, only on rewrite pads: how many errors the draft had, how many
+// the student fixed, and how many new ones the rewrite introduced. "Fixed"
+// stays blank until Run check has scored the rewrite, because it is the
+// implementation scorer that decides it.
+function cardErrorTally(){
+  const t = review.rewrite_error_tally;
+  if (!t) return null;
+  const card = el('div','card');
+  const head = el('header');
+  head.innerHTML = '<strong>Grammar tally</strong><span class="count">vs draft 1</span>';
+  card.appendChild(head);
+  const body = el('div','body');
+
+  const row = el('div');
+  row.style.cssText = 'display:flex;gap:8px;text-align:center';
+  const cells = [
+    ['In draft 1', t.original, 'var(--text-1)'],
+    ['Fixed', t.scored ? t.fixed : null, 'var(--green-700)'],
+    ['New', t.introduced, t.introduced > 0 ? 'var(--maroon-500)' : 'var(--text-3)'],
+  ];
+  cells.forEach(function(cell){
+    const box = el('div');
+    box.style.cssText = 'flex:1;border:1px solid var(--line);border-radius:8px;padding:8px 4px';
+    const n = el('div');
+    n.style.cssText = 'font-size:22px;font-weight:800;line-height:1;color:'+cell[2];
+    n.textContent = (cell[1] === null || cell[1] === undefined) ? '--' : String(cell[1]);
+    const lab = el('div');
+    lab.style.cssText = 'font-size:11px;color:var(--text-3);margin-top:4px';
+    lab.textContent = cell[0];
+    box.appendChild(n); box.appendChild(lab);
+    row.appendChild(box);
+  });
+  body.appendChild(row);
+
+  const note = el('div');
+  note.style.cssText = 'font-size:11.5px;color:var(--text-3);margin-top:8px;line-height:1.45';
+  note.textContent = t.scored
+    ? 'New counts only marks on text the student actually rewrote. A mark on wording they carried over is a draft 1 error still standing.'
+    : 'Fixed is blank until you run the check on this rewrite.';
+  body.appendChild(note);
+
+  card.appendChild(body);
+  return card;
 }
 
 // Green-pen verdict card, only on scored rewrite pads: did the student act
