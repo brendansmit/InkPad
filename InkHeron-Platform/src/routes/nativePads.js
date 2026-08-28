@@ -2317,12 +2317,14 @@ function loadImplementationScore(db, padId) {
           comparison: comparisonForRevisions(revisions),
           student_profile: loadStudentWritingProfile(db, pad.student_id),
           feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
-          // Only ever set on a rewrite pad: what changed from the first draft.
-          draft_comparison: loadDraftComparison(db, pad),
         }),
         // Green-pen verdict: present when this pad IS a rewrite that has been
         // scored, so the teacher reviewing a resubmit sees what was acted on.
         implementation_score: loadImplementationScore(db, padId),
+        // Only ever set on a rewrite pad: what changed from the first draft.
+        // Kept out of the compact exclusions because the review page loads
+        // compact and this is the whole point of opening a rewrite.
+        draft_comparison: loadDraftComparison(db, pad),
       };
     }
   );

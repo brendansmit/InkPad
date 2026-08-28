@@ -82,6 +82,18 @@ test('a rewrite pad review carries the diff against draft 1', async () => {
   await app.close();
 });
 
+test('the compact review the page actually loads still carries the diff', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, headers, rewritePadId } = await seedRewrite(db);
+
+  const res = await app.inject({
+    method: 'GET', url: `/api/native/pads/${rewritePadId}/review?compact=1`, headers,
+  });
+  assert.ok(res.json().draft_comparison, 'compact mode is what the review page requests');
+
+  await app.close();
+});
+
 test('an ordinary essay review has no draft comparison', async () => {
   const db = openDatabase(tmpDb());
   const { app, headers, padId } = await seedRewrite(db);

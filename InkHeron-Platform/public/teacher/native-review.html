@@ -43,6 +43,15 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
 .mk.wash.surface{background:var(--amber-50)}
 .mk.wash.grammar{background:var(--maroon-50,rgba(150,40,40,.08))}
 .mk.wash.format{background:var(--blue-50,rgba(40,80,150,.08))}
+/* Rewrite comparison: draft 1 against the green-pen version. Deletions keep
+   the maroon of an error mark, insertions the green of the pen itself. */
+.viewtabs{display:inline-flex;border:1px solid var(--border-2);border-radius:9px;overflow:hidden;margin-bottom:12px}
+.viewtabs button{border:0;background:var(--surface);color:var(--text-2);font:inherit;font-weight:700;font-size:12.5px;padding:6px 13px;cursor:pointer}
+.viewtabs button + button{border-left:1px solid var(--border-2)}
+.viewtabs button.on{background:var(--green-600);color:#fff}
+.diffsum{font-family:var(--mono);font-size:12px;color:var(--text-3);margin:0 0 14px}
+.dins{background:var(--green-50);box-shadow:inset 0 -2px 0 var(--green-500);border-radius:2px}
+.ddel{color:var(--maroon-500);text-decoration:line-through;text-decoration-thickness:1.5px;opacity:.7}
 .code-pop{position:absolute;z-index:90;display:flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--border-2);border-radius:10px;padding:8px 10px;box-shadow:var(--shadow-lift)}
 .code-pop-quote{font-family:var(--serif);font-size:12.5px;color:var(--text-2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .code-pop select{border:1.5px solid var(--border-2);border-radius:8px;padding:5px 7px;font:inherit;font-size:12.5px;background:var(--surface)}
@@ -216,6 +225,8 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   <div class="paper">
     <h2 id="essayTitle">…</h2>
     <div class="meta" id="essayMeta"></div>
+    <div id="viewTabs"></div>
+    <div class="diffsum" id="diffSummary"></div>
     <div class="essay" id="essay"><div class="loading">Loading essay…</div></div>
   </div>
   <div class="rail" id="rail"></div>
@@ -377,7 +388,54 @@ async function reanalyze(){
 function isAuto(ann){ return ann.type === 'literacy_code'; }
 function markCategory(ann){ return CAT[ann.metadata && ann.metadata.category] || 'grammar'; }
 
+// On a rewrite pad the teacher can flip the essay body between the rewrite as
+// submitted and a word diff against draft 1, which is the only quick way to
+// see what the student actually changed.
+let essayView = 'rewrite';
+
+function renderViewTabs(){
+  const host = document.getElementById('viewTabs');
+  if (!host) return;
+  host.innerHTML = '';
+  if (!review.draft_comparison) return;
+  const tabs = el('div','viewtabs');
+  [['rewrite','Rewrite'],['compare','Compare to draft 1']].forEach(function(pair){
+    const b = el('button');
+    b.type = 'button';
+    b.textContent = pair[1];
+    if (essayView === pair[0]) b.className = 'on';
+    b.onclick = function(){ essayView = pair[0]; renderViewTabs(); renderEssay(); };
+    tabs.appendChild(b);
+  });
+  host.appendChild(tabs);
+}
+
+// Marking is disabled in compare mode: the diff interleaves deleted text from
+// the original, so a selection offset here would not match the rewrite.
+function renderDiff(){
+  const cmp = review.draft_comparison;
+  const st = cmp.stats || {};
+  const pct = Math.round((st.changed_ratio || 0) * 100);
+  document.getElementById('diffSummary').textContent =
+    st.words_added + ' words added · ' + st.words_removed + ' removed · '
+    + pct + '% of the draft changed · struck-through text was cut';
+  let html = '';
+  for (const seg of (cmp.segments || [])){
+    if (seg.type === 'insert') html += '<span class="dins">' + esc(seg.text) + '</span>';
+    else if (seg.type === 'delete') html += '<span class="ddel">' + esc(seg.text) + '</span>';
+    else html += esc(seg.text);
+  }
+  const elx = document.getElementById('essay');
+  elx.innerHTML = html;
+  elx.onmouseup = null;
+  elx.ontouchend = null;
+  elx.onclick = null;
+}
+
 function renderEssay(){
+  renderViewTabs();
+  if (essayView === 'compare' && review.draft_comparison) return renderDiff();
+  document.getElementById('diffSummary').textContent = '';
   const text = review.pad.plain_text || '';
   const spans = [];
   for (const ann of review.annotations){
