@@ -269,3 +269,19 @@ Verified end to end against an isolated copy of the dev database (never touched 
 Committed (`5b6ac52`). Replicated the same feature in ap-lang-dashboard (separate Express/sqlite3 app): idempotent `event_type` column, matching `POST /api/docs/:id/download` route, matching admin-analytics aggregation and collapsible-card UI. Verified against an isolated scratch copy of that app too (never touched its real `ap-lang.db`), committed there as `eeb73cb`.
 
 Asked Brendan about deploying both. InkHeron: held off, flagged that `rewrite-scoring` also carries an unrelated commit from another session ("Add a compare-to-draft-1 view on rewrite reviews") I did not write, and that deploys are Fable-only per memory. He said wait. ap-lang-dashboard: no deploy tooling or hosting docs found in that repo; asked Brendan how it's hosted, he said circle back later. Both apps stay committed locally, not deployed, until he says go.
+
+## 2026-08-28 — Green-pen rewrite UX: diff view and mark suppression (Features 1 and 2)
+
+Asked for three things about green-pen rewrites: an intuitive way to see what changed from draft 1, removal of the grammar mark clutter on both the teacher and student views of a rewrite, and a settings switch letting students see their submitted work so they can copy it out. Also asked for a written plan so Opus and Sonnet could split the work. Plan is in `PLAN_GREENPEN_UX.md`. This session implemented Features 1 and 2; Feature 3 is assigned to Sonnet.
+
+Decision point resolved. In July rewrites were firewalled out of both the style fingerprint and the literacy profile, which contradicted the request that rewrites still feed the grammar profile. Split the exclusion: the stylometric fingerprint keeps the blanket exclusion, because scaffolded phrasing says nothing about natural voice; the grammar profile now takes a rewrite mark only where it sits on text the student changed or added. Carried-over errors and corrections of already-flagged errors fall outside the insertion regions, so nothing is double counted, but a genuinely new slip made while rewriting does land and does count.
+
+Built `src/services/rewriteDiff.js`, a word-level LCS diff (Int32Array DP, prefix/suffix trim, cell-count fallback) that serves both features from one implementation, so what the teacher sees and what the profile counts can never drift. The review payload gained `draft_comparison` (in the base block, not the non-compact one, since the review page fetches `compact=1`). The teacher review page gained a rewrite/compare tab pair with insertions washed green and deletions struck through in maroon, plus a summary line.
+
+Marks are now hidden on a rewrite for both sides. Empirical justification found while verifying in the browser: the copied reference marks still carry the draft's offsets, so on the rewrite they were rendering on the wrong words entirely. Teacher rail and student rail both explain why the marks are absent rather than showing an empty zero card.
+
+Three commits: `b4142e9` diff module plus 12 unit tests, `8f2710d`/`3d2f776` Feature 1 payload and UI plus 5 tests, `6aa50b1` Feature 2. All 23 tests across the three affected files pass. Verified by eye on a throwaway seeded server on port 4599: compare tab and diff, teacher review clean on a rewrite and unaffected on an ordinary essay, student feedback page clean with the explanatory rail card.
+
+Two failures in the full suite are not mine and were proven so. The EAP library admin upload test (200 vs 401) reproduces at my base commit in a scratch worktree, so it is pre-existing. The migration count test expects 34 files and sees 35 because of `035_library_download_tracking.sql` from commit `5b6ac52`, which is not an ancestor of my base.
+
+Note: another session is committing to `rewrite-scoring` at the same time. Commits interleave. Used explicit pathspecs on every `git add` so its files were never swept into mine, and this must continue while both sessions are live.
