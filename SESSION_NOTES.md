@@ -379,3 +379,45 @@ one. The server only holds what the app last published, so open Cadence once
 and let it sync, and the feed shrinks on its own. Apple then re-checks about
 hourly. If the classes are still there tomorrow, delete the subscription in
 Calendar and add it again.
+
+## 2026-08-29 InkHeron: green pen tally, no auto AI, Run check, live cleanup
+
+**You asked** for four things: check nothing broke, stop copying the marks onto
+the green pen rewrite, move the AI off submit and behind a button you press
+once the whole class is in, and look at whether a newer model beats the current
+one at a similar price.
+
+**Done, five commits on rewrite-scoring:**
+- `df059d6` rewrite pads no longer inherit the literacy marks. Comments and
+  feedback still copy across, which is what you asked to keep.
+- `cae1555` grammar tally on the rewrite: errors in draft 1, how many were
+  fixed, how many are new. Fixed comes from the existing diff gated
+  implementation score, so it means the same thing as the rest of the app. New
+  counts only marks landing on text the student actually changed. Fixed shows
+  `--` until the check has run.
+- `895eb45` submitting runs nothing but style metrics. No AI on submit at all.
+- `83b482e` Run check: a real background job in a new `ai_check_runs` table,
+  with an X of Y progress bar and the name of the student being marked. Close
+  the tab and walk away, the run keeps going and the page picks it back up when
+  you return. A restart marks the run interrupted rather than lying about it.
+
+**Tests:** 269 total, 268 pass. The one failure is the EAP library admin test,
+which already failed at the commit I branched from. Not mine.
+
+**Live cleanup, done on the droplet:** backed the database up first
+(`data/backups/inkheron.db.pre-cleanup-20260829-023011`, plus the deploy's own
+backup), deployed, then deleted the 2099 copied marks off the 49 rewrite pads.
+The 82 marks actually made on rewrites were kept, all 36 comments kept, all 49
+rewrite texts untouched, no orphaned evidence rows, no student profile stats
+affected because none of the copies ever owned one. Server healthy after.
+
+**Model:** staying on Kimi K3. It is $3.00/$15.00 per million and the priciest
+in its bracket, and the literacy pass is output heavy so that hurts most, but
+the same family half steps are k2.6 ($0.95/$4.00) and k2.5 ($0.60/$3.00) and
+dropping reasoning is the wrong trade while the gold standard set is still
+thin. Now that Run check gives you identical batches on demand, the honest
+move is to A/B them on one real class later rather than guess.
+
+**Flagged:** InkHeron-Platform is not its own git repo. It sits inside the
+`Claude` monorepo, so every commit here needs an explicit path. The monorepo
+split missed it.
