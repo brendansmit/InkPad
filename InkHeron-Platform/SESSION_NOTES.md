@@ -310,3 +310,11 @@ Two things this exposed, both still outstanding:
 Also noted: npm warns sqlite3@5.1.7 has unapproved install scripts under npm 11. It did not cause a failure, the existing native binding still loads, so I left it alone rather than rebuilding on a live box.
 
 Deploys were meant to be Fable-only. The Fable handoff was blocked by the permission classifier, and you told me to run them myself.
+
+## 2026-08-28 — Deploys, ap-lang db incident and recovery
+- Asked: deploy library analytics to both apps, then verify nothing broke.
+- InkHeron: deployed clean via deploy/deploy.sh at bb8bf5f. Migration 035 applied (event_type on eap_library_view_log). Site healthy, no data touched.
+- ap-lang: git reset --hard on the droplet clobbered the live ap-lang.db because it was tracked in git (repo copy was a stale empty snapshot). Live docs rows and all view_log history lost. Uploaded files in uploads/ survived.
+- Recovery: rebuilt 7 docs rows from uploads/ (titles from HTML title tags; 2 PDFs given placeholder titles to rename in admin). View history unrecoverable unless a DO snapshot exists. Untracked .env and ap-lang.db, gitignored (d512780, d1c88c4), safe-pulled on droplet with backup/restore. Site verified live with all 7 docs and new analytics code.
+- Outstanding for user: rename the 2 PDF placeholders, rotate ADMIN_PASSWORD in droplet .env (old value is in GitHub history), check DO panel for a pre-12:20 snapshot if view history matters.
+- Lesson logged: always git ls-files before reset --hard on a live checkout.
