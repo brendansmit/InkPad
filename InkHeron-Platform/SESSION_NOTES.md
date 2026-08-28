@@ -292,3 +292,21 @@ Three commits: `b4142e9` diff module plus 12 unit tests, `8f2710d`/`3d2f776` Fea
 Two failures in the full suite are not mine and were proven so. The EAP library admin upload test (200 vs 401) reproduces at my base commit in a scratch worktree, so it is pre-existing. The migration count test expects 34 files and sees 35 because of `035_library_download_tracking.sql` from commit `5b6ac52`, which is not an ancestor of my base.
 
 Note: another session is committing to `rewrite-scoring` at the same time. Commits interleave. Used explicit pathspecs on every `git add` so its files were never swept into mine, and this must continue while both sessions are live.
+
+## 2026-08-28 — Deploy both library-analytics builds to droplet 1
+
+Asked: after the monorepo split, work out the deploy state for both apps and ship the library analytics feature (per-student collapsible list plus download tracking) to production.
+
+Investigated first. Both repos were already fully pushed, 0 ahead 0 behind. Read-only SSH recon established ground truth rather than trusting docs, which was the right call: SERVER_CONTEXT.md lists ap-lang on port 3474, but 3474 is actually admin-platform. ap-lang really runs on 3002 behind lang.inkheron.app, from /var/www/ap-lang-dashboard, PM2 process ap-lang. That doc row needs correcting.
+
+InkHeron deployed clean via deploy/deploy.sh rewrite-scoring. DB backed up to data/backups/inkheron.db.pre-deploy-20260828-121914, deps unchanged, restarted, healthy at bb8bf5f. eap.inkheron.app/login returns 200.
+
+ap-lang broke on deploy and I caused it. `.env` is TRACKED in that repo, so `git reset --hard origin/main` overwrote the droplet's live env with the repo copy, which sets PORT=3000. The app then fought InkHeron for port 3000, threw EADDRINUSE and crash-looped 17 times. lang.inkheron.app served 502 for a few minutes. Fixed by setting PORT=3002 back in the droplet .env and marking it `git update-index --skip-worktree .env` so future pulls cannot clobber it again. Stable since, 200 on lang.inkheron.app.
+
+Two things this exposed, both still outstanding:
+- `.env` is committed to the LangDashboard repo and carries ADMIN_PASSWORD. It should be untracked, gitignored, and the admin password rotated, because the reset also overwrote whatever the live password was with the repo value.
+- ap-lang deploys must never use `git reset --hard` while .env is tracked. The skip-worktree flag covers it for now but the real fix is untracking the file.
+
+Also noted: npm warns sqlite3@5.1.7 has unapproved install scripts under npm 11. It did not cause a failure, the existing native binding still loads, so I left it alone rather than rebuilding on a live box.
+
+Deploys were meant to be Fable-only. The Fable handoff was blocked by the permission classifier, and you told me to run them myself.
