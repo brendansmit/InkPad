@@ -8,7 +8,7 @@ import { runLiteracyAnalysis, MANUAL_REVIEW_CODES } from '../services/literacyCo
 import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
 import { scoreRewrite } from '../services/implementationScorer.js';
 import { recordStyleMetrics, aggregateStyleProfile, detectStyleAnomaly } from '../services/styleMetrics.js';
-import { compareRewrite } from '../services/rewriteDiff.js';
+import { compareRewrite, spanTouchesInsertion } from '../services/rewriteDiff.js';
 import { realStudentsWhere } from '../db/realStudents.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
 import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
@@ -336,21 +336,63 @@ export function deleteAnnotationCascade(db, annotationId) {
   return { copies: copies.length };
 }
 
-// A green-pen rewrite is not evidence of how the student writes unaided: they
-// have the marked original in front of them and have looked up how to fix each
-// error. Marks are still made ON the rewrite so the teacher can see it, they
-// just never aggregate into the long-term literacy profile (teacher decision,
-// 2026-07-29). Same reasoning excludes rewrites from the stylometric
-// fingerprint in styleMetrics.js.
-function isRewritePad(db, pad) {
-  if (pad.rewrite_of_pad_id !== undefined) return Boolean(pad.rewrite_of_pad_id);
-  const row = db.prepare('SELECT rewrite_of_pad_id FROM native_pads WHERE id = ?').get(pad.id);
-  return Boolean(row?.rewrite_of_pad_id);
+/**
+ * Character ranges of the text a student actually changed in a rewrite, or
+ * null when the pad is not a rewrite at all. Cached per pad version because
+ * marking a pad calls this once per mark.
+ */
+const rewriteInsertionCache = new Map();
+
+function rewriteInsertionRanges(db, padId) {
+  const row = db.prepare(
+    'SELECT id, plain_text, version, updated_at, rewrite_of_pad_id FROM native_pads WHERE id = ?'
+  ).get(padId);
+  if (!row?.rewrite_of_pad_id) return null;
+  const key = `${row.version}:${row.updated_at}`;
+  const cached = rewriteInsertionCache.get(row.id);
+  if (cached && cached.key === key) return cached.ranges;
+  const original = db.prepare('SELECT plain_text FROM native_pads WHERE id = ?').get(row.rewrite_of_pad_id);
+  // With no original left to diff against we cannot tell new writing from
+  // carried-over text, so fall back to the old blanket exclusion rather than
+  // crediting the whole rewrite as unaided work.
+  const ranges = original
+    ? compareRewrite(original.plain_text ?? '', row.plain_text ?? '').insertions
+    : [];
+  rewriteInsertionCache.set(row.id, { key, ranges });
+  return ranges;
+}
+
+/**
+ * A mark on a rewrite is only evidence of how the student writes when it sits
+ * on text they changed or added. A mark on untouched carried-over text is the
+ * original error surviving, and a mark on a correction of something already
+ * flagged would count the same error twice; neither is new information
+ * (teacher decision, 2026-08-28, narrowing the 2026-07-29 blanket exclusion,
+ * which still stands whole for the stylometric fingerprint in styleMetrics.js).
+ */
+function markCountsTowardsProfile(db, pad, annotationRow) {
+  const ranges = rewriteInsertionRanges(db, pad.id);
+  if (ranges === null) return true;
+  return spanTouchesInsertion(ranges, annotationRow.start_offset, annotationRow.end_offset);
+}
+
+function dropLiteracyEvidence(db, studentId, annotationId) {
+  const existing = db.prepare(
+    'SELECT code, category, label FROM student_literacy_evidence WHERE annotation_id = ?'
+  ).get(annotationId);
+  if (!existing) return;
+  db.prepare('DELETE FROM student_literacy_evidence WHERE annotation_id = ?').run(annotationId);
+  recomputeStudentLiteracyStat(db, studentId, existing.code, existing.category, existing.label);
 }
 
 function syncLiteracyEvidence(db, pad, annotationRow) {
   if (annotationRow.type !== 'literacy_code') return;
-  if (isRewritePad(db, pad)) return;
+  // Re-checked on every sync, not just on insert: editing a rewrite can move a
+  // mark off the text that made it count, and its evidence has to go with it.
+  if (!markCountsTowardsProfile(db, pad, annotationRow)) {
+    dropLiteracyEvidence(db, pad.student_id, annotationRow.id);
+    return;
+  }
   ensureStudentWritingProfile(db, pad.student_id);
   const key = normalizeLiteracyKey(annotationRow);
   db.prepare(`

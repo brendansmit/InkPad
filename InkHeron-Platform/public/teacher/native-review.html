@@ -353,7 +353,9 @@ function renderTop(){
   document.getElementById('crumb').textContent = [a.title, (pad.word_count||0)+' words', 'v'+(pad.version||1), pasteN+' paste event'+(pasteN===1?'':'s')].join(' · ');
   document.getElementById('essayTitle').textContent = a.title;
   const autoN = review.annotations.filter(isAuto).length;
-  document.getElementById('essayMeta').textContent = 'AI placed '+autoN+' marks automatically · '+contested.length+' need your decision · hover any mark for its category';
+  document.getElementById('essayMeta').textContent = isRewrite()
+    ? 'Green-pen rewrite · grammar marks hidden on the final version · comments and scoring still apply'
+    : 'AI placed '+autoN+' marks automatically · '+contested.length+' need your decision · hover any mark for its category';
   const withPad = queue.filter(q => q.pad_id);
   const markedN = withPad.filter(q => isDone(q.status)).length;
   document.getElementById('markedCount').textContent = markedN+' of '+withPad.length+' marked';
@@ -386,6 +388,12 @@ async function reanalyze(){
 }
 
 function isAuto(ann){ return ann.type === 'literacy_code'; }
+// A green-pen rewrite is the final version, so its grammar marks are not shown
+// on either side: the copied reference marks still carry the DRAFT's offsets
+// and land on the wrong words here, and fresh marks on a final draft are noise
+// the teacher did not ask for. Analysis still runs and is still stored
+// (teacher decision, 2026-08-28); comments and rubric scoring are unaffected.
+function isRewrite(){ return Boolean(review.pad && review.pad.rewrite_of_pad_id); }
 function markCategory(ann){ return CAT[ann.metadata && ann.metadata.category] || 'grammar'; }
 
 // On a rewrite pad the teacher can flip the essay body between the rewrite as
@@ -437,13 +445,19 @@ function renderEssay(){
   if (essayView === 'compare' && review.draft_comparison) return renderDiff();
   document.getElementById('diffSummary').textContent = '';
   const text = review.pad.plain_text || '';
+  const hideMarks = isRewrite();
   const spans = [];
   for (const ann of review.annotations){
     if (ann.start_offset == null || ann.end_offset == null) continue;
-    if (ann.type === 'literacy_code') spans.push({ s:ann.start_offset, e:ann.end_offset, cls:markCategory(ann), tip:CAT_LABEL[ann.metadata.category]||'Grammar', kind:'lit', id:ann.id, sug:ann.metadata.suggestion_id });
+    if (ann.type === 'literacy_code'){
+      if (hideMarks) continue;
+      spans.push({ s:ann.start_offset, e:ann.end_offset, cls:markCategory(ann), tip:CAT_LABEL[ann.metadata.category]||'Grammar', kind:'lit', id:ann.id, sug:ann.metadata.suggestion_id });
+    }
     else if (ann.type === 'inline_comment') spans.push({ s:ann.start_offset, e:ann.end_offset, cls:'comment', tip:'Comment', kind:'comment', id:ann.id });
   }
-  for (const c of contested) spans.push({ s:c.start_offset, e:c.end_offset, cls:'contested', tip:'Needs your decision', kind:'contested', id:c.id });
+  if (!hideMarks){
+    for (const c of contested) spans.push({ s:c.start_offset, e:c.end_offset, cls:'contested', tip:'Needs your decision', kind:'contested', id:c.id });
+  }
   const valid = spans.filter(sp => Number.isInteger(sp.s) && Number.isInteger(sp.e) && sp.e > sp.s);
   // Segment rendering: split the text at every mark boundary so overlapping
   // marks all show. Each segment carries ALL marks covering it; the widest is
@@ -613,8 +627,11 @@ function renderRail(){
   rail.innerHTML = '';
   const impl = cardImplementation();
   if (impl) rail.appendChild(impl);
-  rail.appendChild(cardAutoMarked());
-  rail.appendChild(cardNeedsYou());
+  if (isRewrite()) rail.appendChild(cardMarksHidden());
+  else {
+    rail.appendChild(cardAutoMarked());
+    rail.appendChild(cardNeedsYou());
+  }
   rail.appendChild(cardComments());
   rail.appendChild(cardStrengthsTargets());
   rail.appendChild(cardRubric());
@@ -662,6 +679,24 @@ function cardImplementation(){
     const a = el('a'); a.className='btn sm'; a.style.marginTop='8px'; a.href='/teacher/native-review?pad_id='+s.original_pad_id; a.textContent='Open original';
     body.appendChild(a);
   }
+  card.appendChild(body);
+  return card;
+}
+
+// Stands in for the marking cards on a rewrite, so the absence of marks reads
+// as a deliberate choice rather than a page that failed to load them.
+function cardMarksHidden(){
+  const card = el('div','card');
+  const head = el('header');
+  head.innerHTML = '<strong>Grammar marks</strong><span class="count">hidden</span>';
+  card.appendChild(head);
+  const body = el('div','body');
+  const note = el('div','autonote');
+  note.style.padding = '0';
+  note.textContent = 'This is a green-pen rewrite, so it is the final version and marks stay off it. '
+    + 'The writing is still analysed in the background and still counts towards the grammar profile '
+    + 'where the student changed something. Comments and rubric scoring work as normal.';
+  body.appendChild(note);
   card.appendChild(body);
   return card;
 }

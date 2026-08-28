@@ -123,14 +123,25 @@ async function boot(){
   render();
 }
 
-function litAnnotations(){ return data.annotations.filter(a=>a.type==='literacy_code'); }
+// A green-pen rewrite is the final version, so the student does not get grammar
+// marks back on it: the marks copied onto the rewrite pad still carry the
+// DRAFT's offsets and would point at the wrong words, and the point of the
+// rewrite was to fix the draft, not to start another marking round. The marks
+// on the ORIGINAL draft are unaffected and still drive the green-pen panel.
+function isRewrite(){ return Boolean(data.pad && data.pad.rewrite_of_pad_id); }
+function litAnnotations(){
+  if (isRewrite()) return [];
+  return data.annotations.filter(a=>a.type==='literacy_code');
+}
 function markCategory(a){ return (a.metadata && a.metadata.category) || 'grammar'; }
 
 function render(){
   document.getElementById('title').textContent = 'Your feedback · ' + data.assignment.title;
   document.getElementById('essayTitle').textContent = data.assignment.title;
   const marked = (data.pad.submitted_at || data.pad.updated_at || '').slice(0,10);
-  document.getElementById('essayMeta').textContent = 'marked '+marked+' · hover a mark to see WHAT KIND of error it is, then fix it yourself';
+  document.getElementById('essayMeta').textContent = isRewrite()
+    ? 'your green-pen rewrite · this is your final version'
+    : 'marked '+marked+' · hover a mark to see WHAT KIND of error it is, then fix it yourself';
   const gp = document.getElementById('greenPen');
   if (data.assignment.green_pen && data.pad.state==='green_pen_open' && data.rewrite_url){ gp.style.display=''; gp.href=data.rewrite_url; }
   else gp.style.display='none';
@@ -144,8 +155,11 @@ function renderFocusBar(){
   const counts = { all: lit.length };
   for (const c of CATS) counts[c] = lit.filter(a=>markCategory(a)===c).length;
   const bar = document.getElementById('focusbar');
-  bar.innerHTML = '<span class="t">Show me</span>';
-  const chips = [['all','All marks', null, counts.all]].concat(CATS.map(c=>[c, CAT_LABEL[c], c, counts[c]]));
+  // No mark chips on a rewrite; the targets progress on the right still counts.
+  bar.innerHTML = isRewrite() ? '' : '<span class="t">Show me</span>';
+  const chips = isRewrite()
+    ? []
+    : [['all','All marks', null, counts.all]].concat(CATS.map(c=>[c, CAT_LABEL[c], c, counts[c]]));
   for (const [key,label,cat,n] of chips){
     if (key!=='all' && n===0) continue;
     const chip = document.createElement('span');
@@ -223,7 +237,7 @@ function cardLiteracy(){
     grouped.get(code).count++;
   });
   const card=document.createElement('div'); card.className='card';
-  card.innerHTML='<header><strong>Your literacy marks</strong><span class="count">'+marks.length+'</span></header>';
+  card.innerHTML='<header><strong>Your literacy marks</strong><span class="count">'+(isRewrite()?'--':marks.length)+'</span></header>';
   const body=document.createElement('div'); body.className='body';
   for(const item of grouped.values()){
     const div=document.createElement('div'); div.className='lit';
@@ -232,7 +246,8 @@ function cardLiteracy(){
       (item.selfCheck?'<div class="check"><b>Self-check:</b> '+esc(item.selfCheck)+'</div>':'');
     body.appendChild(div);
   }
-  if(!marks.length) body.innerHTML='<p class="gnote">No literacy marks on this essay.</p>';
+  if(isRewrite()) body.innerHTML='<p class="gnote">This is your green-pen rewrite, so it is the final version and it does not get marked up again. The marks you worked from are on your first draft.</p>';
+  else if(!marks.length) body.innerHTML='<p class="gnote">No literacy marks on this essay.</p>';
   card.appendChild(body); return card;
 }
 
