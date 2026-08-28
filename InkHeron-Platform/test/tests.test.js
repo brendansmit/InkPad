@@ -631,7 +631,9 @@ test('green-penning a test creates an essay rewrite seeded from FRQ then SRQs', 
   assert.equal(rewrite.statusCode, 201);
   assert.equal(rewrite.json().assignment.type, 'essay');
   assert.equal(rewrite.json().copied_pads, 1);
-  assert.equal(rewrite.json().copied_annotations, 1);
+  // The one annotation on the source pad is a literacy mark, and literacy
+  // marks are no longer copied onto a rewrite (2026-08-29).
+  assert.equal(rewrite.json().copied_annotations, 0);
 
   const rewriteSettings = JSON.parse(rewrite.json().assignment.settings_json);
   assert.equal(rewriteSettings.type, 'essay');
@@ -657,11 +659,13 @@ test('green-penning a test creates an essay rewrite seeded from FRQ then SRQs', 
   assert.ok(rewritePad.plain_text.indexOf('Explain the first choice.') < rewritePad.plain_text.indexOf('First short answer.'));
   assert.ok(rewritePad.plain_text.indexOf('First short answer.') < rewritePad.plain_text.indexOf('Explain the second choice.'));
   assert.ok(rewritePad.plain_text.indexOf('Explain the second choice.') < rewritePad.plain_text.indexOf('Second short answer.'));
-  const copiedMark = db.prepare('SELECT * FROM native_annotations WHERE native_pad_id = ?').get(rewritePad.id);
-  assert.equal(copiedMark.start_offset, 0);
-  assert.equal(copiedMark.end_offset, 3);
-  assert.equal(copiedMark.selected_text, 'FRQ');
-  assert.equal(JSON.parse(copiedMark.metadata_json).source_assignment_id, assignment.id);
+  // The literacy mark on the FRQ answer is NOT carried onto the rewrite
+  // (2026-08-29); the student reads it from /greenpen-context instead, which
+  // this test checks below.
+  assert.equal(
+    db.prepare("SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'").get(rewritePad.id).n,
+    0
+  );
   const bobPads = db.prepare('SELECT COUNT(*) AS n FROM native_pads WHERE assignment_id = ? AND student_id = ?')
     .get(rewrite.json().assignment.id, bob.student.id);
   assert.equal(bobPads.n, 0);

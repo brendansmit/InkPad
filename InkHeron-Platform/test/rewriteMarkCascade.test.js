@@ -1,10 +1,20 @@
 /**
- * When a green-pen rewrite pad is created it is seeded with COPIES of the
- * teacher's marks, each stamped with `source_annotation_id`. The copy is the
- * one the student actually looks at while rewriting, so retracting the original
- * has to take the copy with it. It did not: a teacher who deleted a bogus mark
- * would watch it stay on the student's screen (found 2026-07-29 after
- * retracting a student's marks and checking whether she could still see them).
+ * What a green-pen rewrite pad is seeded with, and what happens when the
+ * teacher retracts a mark.
+ *
+ * Until 2026-08-29 the rewrite was seeded with COPIES of every mark, literacy
+ * codes included. That is gone: a rewrite is the final version and is not
+ * marked up again, and a copied mark still carried the DRAFT's offsets, so on
+ * the rewritten text it pointed at whatever words had moved into those
+ * positions. The student still sees every mark while writing, served from
+ * /greenpen-context off the original pad. Comments and feedback items are
+ * still copied, because the teacher needs them beside the rewrite to judge how
+ * well the feedback was acted on.
+ *
+ * The cascade itself stays: historical pads created before this change still
+ * carry copies, and retracting an original has to take those with it. That was
+ * a real failure once (2026-07-29): a teacher deleted a bogus mark and watched
+ * it stay on the student's screen.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -21,9 +31,9 @@ function tmpDb() {
 
 const TEXT = 'She felt empathy of the problem and the speech was memorable.';
 
-// Marks an essay, releases feedback so the rewrite pad is seeded from it, and
-// returns the original mark plus its copy on the rewrite pad.
-async function seedRewriteWithCopiedMark(db) {
+// Marks an essay with one literacy code and one inline comment, then releases
+// feedback so the rewrite pad is seeded from it.
+async function seedRewrite(db) {
   const app = await buildApp({ db, logger: false });
   await app.inject({ method: 'POST', url: '/api/setup/teacher',
     payload: { username: 'teacher', display_name: 'Teacher', password: 'teacherpass123' } });
@@ -50,71 +60,114 @@ async function seedRewriteWithCopiedMark(db) {
       metadata: { code: 'WW', category: 'surface', label: 'Wrong word' }, document_version: 1,
     }, headers });
   assert.equal(mark.statusCode, 201);
-  const annotationId = mark.json().annotation.id;
+
+  const comment = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/annotations`,
+    payload: {
+      type: 'inline_comment', start_offset: 40, end_offset: 46, selected_text: 'speech',
+      body: 'Say which speech you mean.', metadata: {}, document_version: 1,
+    }, headers });
+  assert.equal(comment.statusCode, 201);
 
   const released = await app.inject({ method: 'POST', url: `/api/native/pads/${padId}/release-feedback`, headers });
   assert.equal(released.statusCode, 200);
 
-  const copies = db.prepare(
-    "SELECT id, native_pad_id FROM native_annotations WHERE json_extract(metadata_json, '$.source_annotation_id') = ?"
-  ).all(annotationId);
-  assert.equal(copies.length, 1, 'the rewrite pad was seeded with a copy of the mark');
-
-  return { app, headers, padId, annotationId, copyId: copies[0].id, db };
+  const rewritePadId = db.prepare('SELECT id FROM native_pads WHERE rewrite_of_pad_id = ?').get(padId).id;
+  return { app, headers, padId, rewritePadId, markId: mark.json().annotation.id, commentId: comment.json().annotation.id };
 }
 
 function countAnnotations(db, ids) {
   return db.prepare(`SELECT COUNT(*) AS n FROM native_annotations WHERE id IN (${ids.join(',')})`).get().n;
 }
 
-test('deleting a mark also removes the copy the student sees on their rewrite', async () => {
+test('a rewrite pad is seeded with the comments but not the literacy marks', async () => {
   const db = openDatabase(tmpDb());
-  const { app, headers, annotationId, copyId } = await seedRewriteWithCopiedMark(db);
+  const { app, rewritePadId, markId, commentId } = await seedRewrite(db);
 
-  const res = await app.inject({ method: 'DELETE', url: `/api/native/annotations/${annotationId}`, headers });
-  assert.equal(res.statusCode, 204);
+  const seeded = db.prepare(
+    'SELECT type, json_extract(metadata_json, \'$.source_annotation_id\') AS src FROM native_annotations WHERE native_pad_id = ?'
+  ).all(rewritePadId);
 
-  assert.equal(countAnnotations(db, [annotationId]), 0, 'the original is gone');
-  assert.equal(countAnnotations(db, [copyId]), 0, 'the copy on the rewrite pad went with it');
+  assert.deepEqual(
+    seeded.map((row) => row.type),
+    ['inline_comment'],
+    'the comment came across and the literacy mark did not'
+  );
+  assert.equal(seeded[0].src, commentId, 'the copied comment points back at the original');
+  assert.equal(
+    db.prepare("SELECT COUNT(*) AS n FROM native_annotations WHERE native_pad_id = ? AND type = 'literacy_code'").get(rewritePadId).n,
+    0
+  );
+  assert.equal(countAnnotations(db, [markId]), 1, 'the mark on the draft itself is untouched');
 
   await app.close();
 });
 
-test('unrelated marks on the rewrite pad survive the cascade', async () => {
+test('the student still sees every draft mark while rewriting', async () => {
   const db = openDatabase(tmpDb());
-  const { app, headers, annotationId, copyId } = await seedRewriteWithCopiedMark(db);
+  const { app, rewritePadId } = await seedRewrite(db);
 
-  const rewritePadId = db.prepare('SELECT native_pad_id FROM native_annotations WHERE id = ?').get(copyId).native_pad_id;
+  const studentLogin = await app.inject({ method: 'POST', url: '/api/login',
+    payload: { username: 'cathy', password: 'pass12345' } });
+  const res = await app.inject({ method: 'GET', url: `/api/native/pads/${rewritePadId}/greenpen-context`,
+    headers: { cookie: studentLogin.headers['set-cookie'] } });
+
+  assert.equal(res.statusCode, 200);
+  const marks = res.json().marks;
+  assert.equal(marks.length, 1, 'the mark is served off the original pad, not off a copy');
+  assert.equal(marks[0].quote, 'of');
+  assert.equal(marks[0].code, 'WW');
+
+  await app.close();
+});
+
+test('retracting a mark still clears a historical copy on a rewrite pad', async () => {
+  const db = openDatabase(tmpDb());
+  const { app, headers, rewritePadId, markId } = await seedRewrite(db);
+
+  // A pad created before 2026-08-29 carries copies. Stand one up by hand.
+  const legacyCopy = db.prepare(`
+    INSERT INTO native_annotations (native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, document_version)
+    VALUES (?, NULL, 'literacy_code', 17, 19, 'of', '', ?, 1)
+  `).run(rewritePadId, JSON.stringify({ code: 'WW', category: 'surface', label: 'Wrong word', source_annotation_id: markId })).lastInsertRowid;
+
+  // A mark the teacher made on the rewrite itself must not be swept up.
   const ownMark = db.prepare(`
     INSERT INTO native_annotations (native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, document_version)
     VALUES (?, NULL, 'literacy_code', 40, 46, 'speech', '', '{"code":"Sp","category":"surface","label":"Spelling"}', 1)
   `).run(rewritePadId).lastInsertRowid;
 
-  await app.inject({ method: 'DELETE', url: `/api/native/annotations/${annotationId}`, headers });
+  const res = await app.inject({ method: 'DELETE', url: `/api/native/annotations/${markId}`, headers });
+  assert.equal(res.statusCode, 204);
 
-  assert.equal(countAnnotations(db, [copyId]), 0, 'the copy went');
+  assert.equal(countAnnotations(db, [markId]), 0, 'the original is gone');
+  assert.equal(countAnnotations(db, [legacyCopy]), 0, 'the legacy copy went with it');
   assert.equal(countAnnotations(db, [ownMark]), 1, 'a mark made on the rewrite itself stays');
 
   await app.close();
 });
 
-test('disagreeing with an auto-applied AI mark clears its copy too', async () => {
+test('disagreeing with an auto-applied AI mark clears a historical copy too', async () => {
   const db = openDatabase(tmpDb());
-  const { app, headers, padId, annotationId, copyId } = await seedRewriteWithCopiedMark(db);
+  const { app, headers, padId, rewritePadId, markId } = await seedRewrite(db);
+
+  const legacyCopy = db.prepare(`
+    INSERT INTO native_annotations (native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, document_version)
+    VALUES (?, NULL, 'literacy_code', 17, 19, 'of', '', ?, 1)
+  `).run(rewritePadId, JSON.stringify({ code: 'WW', category: 'surface', label: 'Wrong word', source_annotation_id: markId })).lastInsertRowid;
 
   // Back the mark with the AI suggestion it would have been promoted from.
   const suggestionId = db.prepare(`
     INSERT INTO ai_literacy_suggestions
       (native_pad_id, code, category, label, quote, start_offset, end_offset, status, annotation_id, checker_json, document_version, model)
     VALUES (?, 'WW', 'surface', 'Wrong word', 'of', 17, 19, 'accepted', ?, '{}', 1, 'fake/model')
-  `).run(padId, annotationId).lastInsertRowid;
+  `).run(padId, markId).lastInsertRowid;
 
   const res = await app.inject({ method: 'POST',
     url: `/api/native/pads/${padId}/suggestions/${suggestionId}/disagree`, headers });
   assert.equal(res.statusCode, 204);
 
-  assert.equal(countAnnotations(db, [annotationId]), 0, 'the original is retracted');
-  assert.equal(countAnnotations(db, [copyId]), 0, 'and so is the copy on the rewrite');
+  assert.equal(countAnnotations(db, [markId]), 0, 'the original is retracted');
+  assert.equal(countAnnotations(db, [legacyCopy]), 0, 'and so is the copy on the rewrite');
 
   await app.close();
 });

@@ -991,10 +991,18 @@ function createGreenpenRewriteAssignment(db, sourceAssignmentId, teacherId, requ
         native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, resolved, document_version
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
+    // Literacy marks are deliberately NOT copied onto the rewrite. A rewrite is
+    // the final version and does not get marked up again, and a copied mark
+    // still carries the DRAFT's character offsets, so on the rewritten text it
+    // lands on whatever words now sit at those positions: seen live pointing at
+    // the wrong words entirely. The student still sees every mark while they
+    // write, from /greenpen-context, which reads them off the original pad.
+    // Comments and feedback items ARE copied: the teacher needs them beside the
+    // rewrite to judge how well the feedback was acted on (2026-08-29).
     const sourceAnnotationRows = db.prepare(`
       SELECT *
       FROM native_annotations
-      WHERE native_pad_id = ?
+      WHERE native_pad_id = ? AND type != 'literacy_code'
       ORDER BY id ASC
     `);
     for (const studentId of studentIds) {
@@ -1084,7 +1092,11 @@ function copyEssayPadIntoRewrite(db, { source, sourcePad, targetAssignmentId, te
       native_pad_id, teacher_id, type, start_offset, end_offset, selected_text, body, metadata_json, resolved, document_version
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const sourceAnnotations = db.prepare('SELECT * FROM native_annotations WHERE native_pad_id = ? ORDER BY id ASC').all(sourcePad.id);
+  // Literacy marks are not copied onto a rewrite; see the note in the bulk
+  // creation path above. Comments and feedback items are.
+  const sourceAnnotations = db.prepare(
+    "SELECT * FROM native_annotations WHERE native_pad_id = ? AND type != 'literacy_code' ORDER BY id ASC"
+  ).all(sourcePad.id);
   let copiedAnnotations = 0;
   for (const annotation of sourceAnnotations) {
     const metadata = parseMetadataJson(annotation.metadata_json);

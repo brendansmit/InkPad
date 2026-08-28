@@ -125,11 +125,13 @@ test('the review flags a rewrite pad so the page can hide its marks', async () =
 
   const data = await review(app, headers, rewritePadId);
   assert.equal(data.pad.rewrite_of_pad_id, padId, 'the pad announces it is a rewrite');
-  // The copied reference marks still exist in the payload; hiding them is the
-  // page's job, so the teacher can still reach them if ever needed.
-  assert.ok(
-    data.annotations.some((a) => a.type === 'literacy_code'),
-    'the copied marks are still stored and served'
+  // Since 2026-08-29 no literacy mark is copied onto a rewrite at all, so
+  // there is nothing for the page to hide and nothing left carrying the
+  // draft's stale offsets.
+  assert.equal(
+    data.annotations.filter((a) => a.type === 'literacy_code').length,
+    0,
+    'no copied marks reach the rewrite'
   );
 
   await app.close();
