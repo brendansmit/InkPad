@@ -18,6 +18,14 @@
       "port": 5095
     },
     {
+      "name": "greenpen-demo",
+      "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v24.18.0/bin/node",
+      "runtimeArgs": [
+        "/private/tmp/claude-501/-Users-brendansmit-Documents-Claude/bde72cbf-c49b-44af-a8b0-2f000863200e/scratchpad/seed-gp.mjs"
+      ],
+      "port": 4599
+    },
+    {
       "name": "cadence",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

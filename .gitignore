@@ -10,3 +10,6 @@ build/
 
 # Oversized archive, exceeds GitHub 100MB limit
 Grammar Arcade/Gramm-Builder.zip
+
+# Package-manager cache, never commit
+InkHeron-Platform/.pnpm-store/
