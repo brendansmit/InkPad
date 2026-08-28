@@ -151,6 +151,56 @@ export function splitParagraphs(text) {
   return paragraphs;
 }
 
+// Unambiguous British/American spelling pairs used to detect which standard an
+// essay follows. Only clear variant markers are listed: homographs that carry
+// meaning in both dialects (practice/practise, program, check, story, tire,
+// meter, license) are deliberately excluded so they cannot skew the count.
+const BRITISH_SPELLINGS = new Set([
+  'colour','colours','coloured','colouring','favour','favours','favourite','favourites','honour','honours','honoured','honourable','behaviour','behaviours','labour','laboured','neighbour','neighbours','neighbourhood','flavour','flavours','flavoured','humour','humours','rumour','rumours','odour','odours','vapour','harbour','harbours','endeavour','splendour',
+  'centre','centres','centred','theatre','theatres','fibre','fibres','litre','litres','calibre','sombre','metre','metres',
+  'organise','organised','organising','organisation','realise','realised','realising','recognise','recognised','recognising','apologise','apologised','emphasise','emphasised','criticise','criticised','summarise','summarised','specialise','specialised','characterise','characterised','memorise','memorised','prioritise','prioritised','minimise','maximise','analyse','analysed','analysing',
+  'travelled','travelling','traveller','cancelled','cancelling','labelled','labelling','modelling','modelled','marvellous','signalled','counsellor','jeweller',
+  'defence','offence','pretence',
+  'grey','catalogue','aluminium','mum','plough','moustache','pyjamas','sceptical','jewellery','colourful','neighbouring',
+]);
+const AMERICAN_SPELLINGS = new Set([
+  'color','colors','colored','coloring','favor','favors','favorite','favorites','honor','honors','honored','honorable','behavior','behaviors','labor','labored','neighbor','neighbors','neighborhood','flavor','flavors','flavored','humor','humors','rumor','rumors','odor','odors','vapor','harbor','harbors','endeavor','splendor',
+  'center','centers','centered','theater','theaters','fiber','fibers','liter','liters','caliber','somber',
+  'organize','organized','organizing','organization','realize','realized','realizing','recognize','recognized','recognizing','apologize','apologized','emphasize','emphasized','criticize','criticized','summarize','summarized','specialize','specialized','characterize','characterized','memorize','memorized','prioritize','prioritized','minimize','maximize','analyze','analyzed','analyzing',
+  'traveled','traveling','traveler','canceled','canceling','labeled','labeling','modeling','modeled','marvelous','signaled','counselor','jeweler',
+  'defense','offense','pretense',
+  'gray','catalog','aluminum','mom','plow','mustache','pajamas','skeptical','jewelry','colorful','neighboring',
+]);
+
+/**
+ * Decide whether an essay leans British or American in its spelling, by
+ * counting unambiguous variant words. Returns 'british', 'american', or null
+ * when there is no clear signal (no markers, or a tie).
+ */
+export function detectSpellingVariant(text) {
+  let british = 0;
+  let american = 0;
+  for (const word of String(text || '').toLowerCase().match(/[a-z]+/g) || []) {
+    if (BRITISH_SPELLINGS.has(word)) british++;
+    else if (AMERICAN_SPELLINGS.has(word)) american++;
+  }
+  if (british === american) return null;
+  return british > american ? 'british' : 'american';
+}
+
+/**
+ * Prompt fragment that tells the marker to judge spelling by the essay's own
+ * dominant variant, so consistent British (or American) spelling is not flagged
+ * as an error. Only deviations from that standard, or genuine misspellings, are
+ * flagged. Empty string when the variant is unknown (behaves as before).
+ */
+export function spellingDirective(variant) {
+  if (variant !== 'british' && variant !== 'american') return '';
+  const name = variant === 'british' ? 'British' : 'American';
+  const other = variant === 'british' ? 'American' : 'British';
+  return `\n\nSPELLING STANDARD: This essay is written predominantly in ${name} English spelling. Treat ${name} spellings as CORRECT and never flag them as Sp. Only use Sp for a genuine misspelling (wrong in every variant, e.g. "recieved") or for a word spelled in ${other} English, which is inconsistent with this essay's ${name} standard. Judge spelling by the essay's own ${name} standard, not the other variant.`;
+}
+
 export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat } = {}) {
   try {
     const pad = db.prepare('SELECT id, plain_text, version FROM native_pads WHERE id = ?').get(padId);
@@ -161,7 +211,10 @@ export async function runLiteracyAnalysis(db, { padId } = {}, { chat = callChat 
     let modelId = '';
     // Corrections from past marking sessions steer this run (learning loop).
     const calibration = buildCalibration(db);
-    const systemPrompt = SYSTEM_PROMPT + calibration;
+    // Detect the essay's spelling standard once from the whole text, so a
+    // consistently British (or American) essay is not marked wrong per paragraph.
+    const spelling = spellingDirective(detectSpellingVariant(plainText));
+    const systemPrompt = SYSTEM_PROMPT + spelling + calibration;
     for (const para of splitParagraphs(plainText)) {
       const result = await chat(db, {
         intent: readDoerIntent(db),
