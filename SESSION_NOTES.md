@@ -1,85 +1,5 @@
 # Session Notes
 
-## 2026-08-28 - Cadence: reminders, and InkHeron wired in properly
-
-**You asked for** reminders with Server Chan attached, InkPad called on for
-submission counts, clicking a count to see who has not submitted, and InkPad
-"decently integrated". You cut three of my four suggested reminder triggers:
-only the one you write yourself against a date. You settled the due date
-question: InkHeron wins when it has one, Cadence when it does not. Then "get
-going do it all together at once", so it was built as one batch.
-
-**Auto sync** (`3595279`). It used to publish the calendar and push state only
-when you pressed Sync. Now it syncs itself ten seconds after the typing stops,
-and immediately when the tab is hidden or closed. The server runs the reminders
-and hands out the calendar feed, and both are only ever as true as the last
-sync, so a sync that waits for a button press means a reminder about a lesson
-you moved on Tuesday.
-
-**Reminders** (`5f39216`, `68d74c2`). A task can carry a `remindAt`. The server
-checks every minute and pushes to Server Chan, so a shut browser tab is not a
-missed reminder. A reminder more than a few hours late is recorded as dealt with
-and not sent, because a 3am push about yesterday is noise. Sent ids are kept in
-`data/reminders-sent.json` so a restart does not fire everything twice, and the
-file is pruned when a task is deleted.
-
-**Server Chan is live on the Cadence droplet.** `SERVERCHAN_SENDKEY` copied
-across from the InkHeron droplet's `/etc/inkheron/serverchan.env` and added to
-`/opt/cadence/ecosystem.config.cjs`, pm2 restarted from the ecosystem file so it
-actually took. Verified end to end: a throwaway instance on a scratch data dir
-fired one real reminder and Server Chan accepted it. **You should have a push on
-your phone titled "Cadence reminder self test".** That was me. Nothing to do.
-
-**InkHeron's deadline is the deadline** (`ee81f2f`). A pull now reads `dueAt`
-off InkHeron and overwrites the Cadence date, using the local calendar day
-rather than a string slice, so a 23:59 deadline does not land on the day before.
-No date over there leaves yours alone. A date that moved is said out loud in the
-toast, because you typed the old one and told a class.
-
-**The marking pile is counted, not guessed** (`b012fa1`). Sections store
-InkHeron's own `toMark`. The forecast uses it when it has it and falls back to
-arithmetic on the class list when it does not, and the two are told apart on
-screen: a `~` in front of the number means part of that week is worked out from
-headcounts. Today the two agree by construction, but the assumption is no longer
-Cadence's to make.
-
-**Click the count, see the names** (`d92ef3b` here, `e6790c2` in InkPad). New
-InkHeron route `/api/summary/assignments/:id/students`: names and one of four
-states, nothing else. No words, no marks, no ids. Cadence proxies it through
-your own server so the token never reaches the browser. The names live in one
-component and are dropped when the panel closes: they are never put in state,
-because state syncs, exports and publishes a calendar.
-
-**One bug worth recording.** My first version of the proxy guard returned the
-result of a function that returns nothing, so a request with the wrong key got
-a 401 *and* was forwarded to InkHeron carrying the real token. Found by testing
-it rather than reading it. Now returns an explicit boolean, and 8 test requests
-produce exactly 3 upstream calls, all authorised.
-
-**Two things blocking the InkPad half, and they are your call.**
-
-1. The pipe was never configured at either end. `INKHERON_SUMMARY_TOKEN` is
-   unset on the InkHeron droplet and `INKPAD_URL`/`INKPAD_TOKEN` are not in the
-   Cadence config. Nothing has ever flowed between them.
-2. `summary.js` exists only on `rewrite-scoring`. Production runs `analysis-ai`,
-   which is 81 files and 5870 insertions behind inside `InkHeron-Platform/`
-   alone. Shipping the roster route means cherry picking `30ead82` and
-   `e6790c2` onto `analysis-ai`, not merging the branch. I am not deploying the
-   platform your students write on without you saying so.
-
-   **Corrected later the same day: point 2 is wrong.** Production runs
-   `rewrite-scoring`, not `analysis-ai`. I had compared the two branches to each
-   other instead of comparing each to the live box. See the entry below.
-
-I have left both tokens unset until that is settled, because pointing Cadence at
-a route that is not deployed only produces confusing errors.
-
-**Verified.** Typecheck clean. End to end in the browser against a fake
-InkHeron: the roster panel read "3 of 6 still to hand it in", grouped Not
-started 2 / Writing 1 / Handed in 2 / Marked 1; the forecast showed `~20` for a
-mixed week; the pull toast read "Updated 1. InkHeron moved the due date: EAP 1
-from 2 Sep to 4 Sep." Deployed to cadence.inkheron.app.
-
 ## 2026-08-28 (later) - Cadence: the InkHeron pipeline opened, and a password on the door
 
 **You asked:** three things. Keep the InkHeron link simple: current and past
@@ -263,7 +183,7 @@ Commit `c702bb9` on Cadence `main`, deployed.
 
 ---
 
-## 2026-08-28 — Abandoned creates no longer leave a placeholder behind
+## 2026-08-28 - Abandoned creates no longer leave a placeholder behind
 
 **Asked:** "When I click to create something but don't follow through or save, I
 don't want the untitled event or assignment or whatever to still exist, it's a
@@ -344,3 +264,58 @@ and treat Grammar Arcade as a separate app mounted behind the EAP domain.
 Noted that `SERVER_CONTEXT.md` is stale: it omits Cadence on droplet 2 and its
 droplet 1 AP Lang, Lang and Admin mappings no longer match live process paths
 and ports.
+
+---
+
+## 2026-08-28 (later) - Cadence: pick the InkPad assignment by name
+
+**Asked:** From a screenshot of the InkPad dialog: "This should be more
+automated and intuitve. The classes have the same names, I should just have to
+click on the assingment name listed in chronological order from newest to
+oldest and then it should auto populate. Make it less work to go and click on
+start dates for each on every littel thing per class."
+
+**Was:** One dropdown per class, each listing all 17 rows InkHeron holds, so
+linking a three-class assignment meant picking the same title three times and
+then typing a start date into every row by hand.
+
+**Did:** Three changes, all in `src/lib/inkpad.ts` and
+`src/views/Assignments.tsx`.
+
+1. `groupByTitle` collapses the rows to one entry per title, newest first by
+   id, with its copies attached. 17 rows became 8 titles. The dialog opens on
+   that list, each row showing the classes on it and how many of yours it
+   fills.
+2. `matchByClass` links a whole group in one click: for each of your sections
+   it takes the copy whose InkHeron class name matches the section's name or
+   short name, preferring a live copy over an archived one, and never claiming
+   the same InkPad row twice. Clicking a title links, pulls counts, sets class
+   sizes and fills dates in one go, off the rows already fetched, so there is
+   no second network trip. `suggestLinks` is gone, replaced by these two.
+3. Start dates now come across. `InkpadAssignment` gained `opensAt`, and the
+   old `dueDay` became a shared `calendarDay` used for both ends, so `opens_at`
+   fills the assigned date the way `due_at` already filled the due date. The
+   toast names only a date that contradicts one you had already set, and stays
+   quiet about the ones it merely filled in.
+
+The per-class dropdowns are still there, behind a "Link to a different
+assignment" button, for the cases the picker cannot solve: a class you named
+differently in Cadence, or two unrelated pieces sharing one title. A zero-match
+click writes nothing and explains itself instead.
+
+**Verified** in the preview against a local stub carrying the real 17-row
+payload, so no test click could reach the droplet. Picker renders 8 groups
+newest-first with correct match badges. Clicking the top one linked all three
+EAP sections, wrote ids 21/18/19, counts 2/2/6, class sizes 9/11/22 and start
+dates, and reported only the genuine move (EAP 2, 1 Jul to 23 Jul). Clicking
+"Personal Statements Second Draft", where EAP 3 has both a live copy and an
+archived one, took the live one. Clicking an MLK title from the AP Lang
+assignment, whose section is named APL 1, wrote nothing and said so. A second
+pull said "Already up to date." `tsc --noEmit` and `npm run build` clean.
+
+**Commit:** `e2ab05f` on Cadence `main`. Not deployed yet, and neither is
+`bc61e4a` before it.
+
+**Suggested, not built:** merging "Greenpen rewrite: X" with "X" into one
+picker row. They are two separate pieces on InkHeron, so this is a judgement
+call, not a bug.

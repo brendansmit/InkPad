@@ -1957,3 +1957,86 @@ hint tracked the number and the singular. Deployed, bundle `index-HU37D4vI.js`.
 September, the term gate hides the occurrences but does not delete those
 records. I cannot see your production data from here. Say the word and I will
 purge them.
+
+---
+
+## 2026-08-28 - Cadence: reminders, and InkHeron wired in properly
+
+**You asked for** reminders with Server Chan attached, InkPad called on for
+submission counts, clicking a count to see who has not submitted, and InkPad
+"decently integrated". You cut three of my four suggested reminder triggers:
+only the one you write yourself against a date. You settled the due date
+question: InkHeron wins when it has one, Cadence when it does not. Then "get
+going do it all together at once", so it was built as one batch.
+
+**Auto sync** (`3595279`). It used to publish the calendar and push state only
+when you pressed Sync. Now it syncs itself ten seconds after the typing stops,
+and immediately when the tab is hidden or closed. The server runs the reminders
+and hands out the calendar feed, and both are only ever as true as the last
+sync, so a sync that waits for a button press means a reminder about a lesson
+you moved on Tuesday.
+
+**Reminders** (`5f39216`, `68d74c2`). A task can carry a `remindAt`. The server
+checks every minute and pushes to Server Chan, so a shut browser tab is not a
+missed reminder. A reminder more than a few hours late is recorded as dealt with
+and not sent, because a 3am push about yesterday is noise. Sent ids are kept in
+`data/reminders-sent.json` so a restart does not fire everything twice, and the
+file is pruned when a task is deleted.
+
+**Server Chan is live on the Cadence droplet.** `SERVERCHAN_SENDKEY` copied
+across from the InkHeron droplet's `/etc/inkheron/serverchan.env` and added to
+`/opt/cadence/ecosystem.config.cjs`, pm2 restarted from the ecosystem file so it
+actually took. Verified end to end: a throwaway instance on a scratch data dir
+fired one real reminder and Server Chan accepted it. **You should have a push on
+your phone titled "Cadence reminder self test".** That was me. Nothing to do.
+
+**InkHeron's deadline is the deadline** (`ee81f2f`). A pull now reads `dueAt`
+off InkHeron and overwrites the Cadence date, using the local calendar day
+rather than a string slice, so a 23:59 deadline does not land on the day before.
+No date over there leaves yours alone. A date that moved is said out loud in the
+toast, because you typed the old one and told a class.
+
+**The marking pile is counted, not guessed** (`b012fa1`). Sections store
+InkHeron's own `toMark`. The forecast uses it when it has it and falls back to
+arithmetic on the class list when it does not, and the two are told apart on
+screen: a `~` in front of the number means part of that week is worked out from
+headcounts. Today the two agree by construction, but the assumption is no longer
+Cadence's to make.
+
+**Click the count, see the names** (`d92ef3b` here, `e6790c2` in InkPad). New
+InkHeron route `/api/summary/assignments/:id/students`: names and one of four
+states, nothing else. No words, no marks, no ids. Cadence proxies it through
+your own server so the token never reaches the browser. The names live in one
+component and are dropped when the panel closes: they are never put in state,
+because state syncs, exports and publishes a calendar.
+
+**One bug worth recording.** My first version of the proxy guard returned the
+result of a function that returns nothing, so a request with the wrong key got
+a 401 *and* was forwarded to InkHeron carrying the real token. Found by testing
+it rather than reading it. Now returns an explicit boolean, and 8 test requests
+produce exactly 3 upstream calls, all authorised.
+
+**Two things blocking the InkPad half, and they are your call.**
+
+1. The pipe was never configured at either end. `INKHERON_SUMMARY_TOKEN` is
+   unset on the InkHeron droplet and `INKPAD_URL`/`INKPAD_TOKEN` are not in the
+   Cadence config. Nothing has ever flowed between them.
+2. `summary.js` exists only on `rewrite-scoring`. Production runs `analysis-ai`,
+   which is 81 files and 5870 insertions behind inside `InkHeron-Platform/`
+   alone. Shipping the roster route means cherry picking `30ead82` and
+   `e6790c2` onto `analysis-ai`, not merging the branch. I am not deploying the
+   platform your students write on without you saying so.
+
+   **Corrected later the same day: point 2 is wrong.** Production runs
+   `rewrite-scoring`, not `analysis-ai`. I had compared the two branches to each
+   other instead of comparing each to the live box. See the entry below.
+
+I have left both tokens unset until that is settled, because pointing Cadence at
+a route that is not deployed only produces confusing errors.
+
+**Verified.** Typecheck clean. End to end in the browser against a fake
+InkHeron: the roster panel read "3 of 6 still to hand it in", grouped Not
+started 2 / Writing 1 / Handed in 2 / Marked 1; the forecast showed `~20` for a
+mixed week; the pull toast read "Updated 1. InkHeron moved the due date: EAP 1
+from 2 Sep to 4 Sep." Deployed to cadence.inkheron.app.
+
