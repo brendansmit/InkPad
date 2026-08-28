@@ -214,7 +214,7 @@ body{margin:0;font-family:var(--font);font-size:14px;color:var(--text);backgroun
   <span class="crumb" id="crumb"></span>
   <span class="spacer"></span>
   <span class="nextprev" id="markedCount"></span>
-  <button class="btn" id="reanalyzeBtn" title="Re-run the AI marking on this essay">Run AI review</button>
+  <button class="btn" id="reanalyzeBtn" title="Run the AI marking on this one essay">Run check</button>
   <button class="btn" id="prevBtn">← Prev</button>
   <button class="btn" id="nextBtn">Next →</button>
   <button class="btn" id="sendFeedbackBtn" style="display:none">Send feedback</button>
@@ -375,24 +375,26 @@ function renderTop(){
 async function reanalyze(){
   const btn = document.getElementById('reanalyzeBtn');
   if (btn.disabled) return;
-  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Reviewing…';
+  btn.disabled = true; const label = btn.textContent; btn.textContent = 'Checking…';
   try {
     const res = await api('/api/native/pads/'+padId+'/reanalyze', { method:'POST' });
     if (res.status === 'no_key') toast(res.message);
     else if (res.status === 'empty') toast(res.message);
-    else if (res.status === 'ok') toast('AI review done: '+res.marks+' marks, '+res.suggestions+' suggestions');
-    else toast('AI review finished');
+    else if (res.status === 'ok') toast('Check done: '+res.marks+' marks, '+res.suggestions+' suggestions');
+    else toast('Check finished');
     if (res.status === 'ok') await loadAll();
-  } catch(e){ toast('AI review failed'); }
+  } catch(e){ toast('Check failed'); }
   finally { btn.disabled = false; btn.textContent = label; }
 }
 
 function isAuto(ann){ return ann.type === 'literacy_code'; }
 // A green-pen rewrite is the final version, so its grammar marks are not shown
-// on either side: the copied reference marks still carry the DRAFT's offsets
-// and land on the wrong words here, and fresh marks on a final draft are noise
-// the teacher did not ask for. Analysis still runs and is still stored
-// (teacher decision, 2026-08-28); comments and rubric scoring are unaffected.
+// on either side: fresh marks on a final draft are noise the teacher did not
+// ask for. (Reference copies of the draft's marks used to be seeded onto the
+// rewrite too, carrying the DRAFT's offsets, so they landed on the wrong words
+// here; since 2026-08-29 they are not copied at all.) Analysis still runs when
+// the teacher runs the check, and is still stored; comments and rubric scoring
+// are unaffected.
 function isRewrite(){ return Boolean(review.pad && review.pad.rewrite_of_pad_id); }
 function markCategory(ann){ return CAT[ann.metadata && ann.metadata.category] || 'grammar'; }
 

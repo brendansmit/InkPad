@@ -35,12 +35,13 @@ const expectedColumns = {
   assignment_students: ['assignment_id', 'student_id'],
   eap_library_categories: ['id', 'label', 'icon', 'sort_order'],
   eap_library_docs: ['id', 'filename', 'title', 'hidden', 'views', 'uploaded_at', 'category_id', 'icon', 'release_at', 'file_type', 'downloadable'],
-  eap_library_view_log: ['id', 'doc_id', 'student_name', 'class_period', 'viewed_at', 'duration_seconds'],
+  eap_library_view_log: ['id', 'doc_id', 'student_name', 'class_period', 'viewed_at', 'duration_seconds', 'event_type'],
   sessions: ['sid', 'data', 'expires_at'],
   submission_comments: ['id', 'submission_id', 'kind', 'body', 'created_at', 'updated_at'],
   native_feedback_items: ['id', 'native_pad_id', 'kind', 'feedback_key', 'title', 'explanation', 'try_now_prompt', 'source', 'sort_order', 'created_by_teacher_id', 'created_at', 'updated_at', 'student_checked', 'student_checked_at'],
   score_snapshots: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'scores_json', 'total', 'pad_state', 'recorded_at'],
   ai_literacy_suggestions: ['id', 'native_pad_id', 'document_version', 'start_offset', 'end_offset', 'quote', 'code', 'category', 'label', 'model', 'checker_json', 'status', 'annotation_id', 'created_at', 'resolved_at'],
+  ai_check_runs: ['id', 'assignment_id', 'started_by', 'status', 'total', 'completed', 'current_student', 'total_marks', 'error', 'result_json', 'started_at', 'updated_at', 'finished_at'],
   implementation_scores: ['id', 'rewrite_pad_id', 'original_pad_id', 'student_id', 'addressed_json', 'cosmetic_ratio', 'meaningful', 'summary', 'model', 'created_at'],
   ai_grade_estimates: ['id', 'native_pad_id', 'student_id', 'assignment_id', 'rubric_kind', 'criterion_id', 'ai_score', 'teacher_score', 'delta', 'model', 'rationale', 'created_at', 'scored_at'],
   ai_feedback_item_suggestions: ['id', 'native_pad_id', 'kind', 'title', 'explanation', 'try_now_prompt', 'model', 'checker_json', 'status', 'feedback_item_id', 'created_at', 'resolved_at'],
@@ -89,6 +90,8 @@ const migrationFiles = [
   '032_question_bank_topics.sql',
   '033_test_exam_activity.sql',
   '034_test_question_import_metadata.sql',
+  '035_library_download_tracking.sql',
+  '036_ai_check_runs.sql',
 ];
 
 test('migration creates canonical schema and is idempotent', () => {

@@ -266,11 +266,22 @@
           <button class="btn sm" id="downloadEssaysBtn" type="button">Download essays</button>
           <button class="btn sm" id="exportBtn" type="button">Export CSV</button>
           <button class="btn sm" id="exportAdminBtn" type="button">Export to gradebook</button>
+          <button class="btn sm" id="runCheckBtn" type="button" title="Run the AI marking over every submitted essay on this assignment">Run check</button>
           <button class="btn sm" id="releaseBtn" type="button" style="display:none">Release to class</button>
           <span class="detail-action-spacer"></span>
           <button class="btn sm" id="archiveBtn" type="button">Archive</button>
           <button class="btn sm" id="deleteBtn" type="button" style="color:#8C2F3B;border-color:#8C2F3B;">Delete</button>
         </div>
+      </div>
+      <div id="checkProgress" style="display:none;margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper-2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px">
+          <strong id="checkProgressLabel">Checking</strong>
+          <span id="checkProgressCount" style="font-family:var(--mono);color:var(--text-2)"></span>
+        </div>
+        <div style="height:6px;border-radius:999px;background:var(--line);margin-top:8px;overflow:hidden">
+          <div id="checkProgressBar" style="height:100%;width:0;background:var(--green-700);transition:width .3s"></div>
+        </div>
+        <div id="checkProgressNote" style="font-size:12px;color:var(--text-3);margin-top:7px"></div>
       </div>
       <div class="controls">
         <div>
@@ -750,6 +761,10 @@
       show('detailView');
       refreshExportAdminBtn();
       refreshReleaseControl();
+      // Pick up any check already running or finished on this assignment, so a
+      // teacher who closed the page and came back sees where it got to.
+      renderCheckRun(null);
+      pollCheck();
       openDetail('all');
     }
 
@@ -774,6 +789,7 @@
       document.getElementById('exportBtn').addEventListener('click',exportCsv);
       document.getElementById('exportAdminBtn').addEventListener('click',exportToAdmin);
       document.getElementById('releaseBtn').addEventListener('click',releaseFeedback);
+      document.getElementById('runCheckBtn').addEventListener('click',startCheck);
       document.getElementById('archiveBtn').addEventListener('click',archiveAssignment);
       document.getElementById('deleteBtn').addEventListener('click',deleteAssignment);
       document.getElementById('toggleArchiveBtn').addEventListener('click',async()=>{
@@ -1003,6 +1019,81 @@
       }
       toast(ok?('Feedback released'+(rewrites?', '+rewrites+' rewrite assignment'+(rewrites===1?'':'s')+' created':'')):'Release failed');
       refreshReleaseControl();
+    }
+
+    // Batch AI check. The run lives on the server, so this page only starts it
+    // and reports progress: closing the tab does not stop it, and coming back
+    // later picks the run up again from the same endpoint.
+    let checkPollTimer = null;
+
+    function checkAssignmentId(){
+      if(currentId && currentId!=='all') return currentId;
+      return detailGroup.length ? detailGroup[0].id : null;
+    }
+
+    function renderCheckRun(run){
+      const box=document.getElementById('checkProgress');
+      const btn=document.getElementById('runCheckBtn');
+      if(!run){ box.style.display='none'; btn.disabled=false; btn.textContent='Run check'; return; }
+      box.style.display='';
+      const label=document.getElementById('checkProgressLabel');
+      const count=document.getElementById('checkProgressCount');
+      const bar=document.getElementById('checkProgressBar');
+      const note=document.getElementById('checkProgressNote');
+      const pct=run.total?Math.round((run.completed/run.total)*100):0;
+      bar.style.width=pct+'%';
+      count.textContent=run.completed+' of '+run.total;
+      if(run.status==='running'){
+        btn.disabled=true; btn.textContent='Checking…';
+        label.textContent='Checking';
+        bar.style.background='var(--green-700)';
+        note.textContent=(run.current_student?('Now on '+run.current_student+'. '):'')
+          +'This keeps running on the server, so you can close this page and come back.';
+      } else {
+        btn.disabled=false; btn.textContent='Run check';
+        if(run.status==='done'){
+          label.textContent='Check finished';
+          bar.style.background='var(--green-700)';
+          const failed=(run.per_pad||[]).filter(p=>p.error||p.literacy_status==='error');
+          note.textContent=run.total_marks+' mark'+(run.total_marks===1?'':'s')+' across '+run.completed+' essay'
+            +(run.completed===1?'':'s')+'.'+(failed.length?(' '+failed.length+' could not be checked: '+failed.map(p=>p.student_name).join(', ')+'.'):'');
+        } else {
+          label.textContent=run.status==='interrupted'?'Check interrupted':'Check failed';
+          bar.style.background='var(--maroon-500,#8C2F3B)';
+          note.textContent=run.error||'Something went wrong. Run it again.';
+        }
+      }
+    }
+
+    async function pollCheck(){
+      const id=checkAssignmentId();
+      if(!id) return;
+      try{
+        const r=await fetch('/api/native/assignments/'+id+'/check');
+        if(!r.ok) return;
+        const run=(await r.json()).run;
+        renderCheckRun(run);
+        clearTimeout(checkPollTimer);
+        if(run && run.status==='running') checkPollTimer=setTimeout(pollCheck,3000);
+      }catch(_){ }
+    }
+
+    async function startCheck(){
+      const id=checkAssignmentId();
+      if(!id) return;
+      if(!confirm('Run the AI check over every submitted essay on this assignment? This can take a while. It keeps going if you close this page.')) return;
+      const btn=document.getElementById('runCheckBtn');
+      btn.disabled=true; btn.textContent='Starting…';
+      try{
+        const r=await fetch('/api/native/assignments/'+id+'/check',{method:'POST',headers:{'X-CSRF-Token':csrfToken}});
+        const data=await r.json().catch(()=>({}));
+        if(r.status===202 || r.status===409){ renderCheckRun(data.run); pollCheck(); return; }
+        toast(data.message||'Could not start the check');
+        btn.disabled=false; btn.textContent='Run check';
+      }catch(_){
+        toast('Could not start the check');
+        btn.disabled=false; btn.textContent='Run check';
+      }
     }
 
     async function exportToAdmin(){

@@ -8,7 +8,7 @@ import { openDatabase } from './db/database.js';
 import { registerIdentityRoutes } from './routes/identity.js';
 import { registerAuth } from './routes/auth.js';
 import { registerNativePadRoutes } from './routes/nativePads.js';
-import { registerNativeReanalyzeRoutes } from './routes/nativeReanalyze.js';
+import { registerNativeReanalyzeRoutes, failInterruptedCheckRuns } from './routes/nativeReanalyze.js';
 import { registerClassInsightsRoutes } from './routes/classInsights.js';
 import { registerAssignmentRoutes } from './routes/assignments.js';
 import { registerTestRoutes } from './routes/tests.js';
@@ -135,6 +135,10 @@ export async function buildApp(options = {}) {
   await registerNativePadRoutes(app, { db });
   await registerEssayExportRoutes(app, { db });
   await registerNativeReanalyzeRoutes(app, { db });
+  // A batch check runs in this process, so a restart kills it. Mark any run
+  // left mid-flight as interrupted rather than leaving a progress bar that
+  // will never move again.
+  failInterruptedCheckRuns(db);
   await registerClassInsightsRoutes(app, { db });
   await registerToeflRoutes(app, { db });
   await registerSummaryRoutes(app, { db });
