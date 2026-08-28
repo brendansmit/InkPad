@@ -1,106 +1,5 @@
 # Session Notes
 
-## 2026-08-26 (later) - Cadence: a section holds its own colour
-
-**You asked** to change the Shade slider to a hex code input, and when I asked
-whether to keep the tint mechanism as a fallback you said migrate it out,
-otherwise it gets cluttered. Commit eaeb63d, deployed, bundle index-ZYu7xIIR.js.
-
-A section used to carry a `tint`, a number from 0 to 1, and its real colour was
-computed from the course colour on every render. The slider set that number. A
-hex is not a distance from anything, so the section needed a colour of its own.
-
-**What the field is now.** A hex text box, a native colour well beside it so you
-can point instead of type, and the same sixteen swatches the Course editor
-offers. A bare "ffd400" works, so does the three digit shorthand. Half typed
-text is left exactly as typed rather than rewritten under the cursor, and
-applies nothing until it is a whole colour.
-
-**Decision: unset is still a real state.** It means "wear the course colour",
-and it is not the same as a hex that happens to match, because unset follows if
-you ever recolour the course and a pinned hex does not. So a tint of zero
-migrates to unset rather than to a copy of the course colour, and both the
-migration and the editor fold a colour identical to its course's back to unset.
-"Match the course" is the way back by hand. I caught this on the first run of
-the migration, where Lang and EAP 1 had been given pinned copies of their course
-colours, which would have quietly broken recolouring later.
-
-**The migration lives in `migrate` in storage.ts**, so it covers a sync pull and
-an imported backup as well as a local load, not just this machine.
-
-**A new section still starts a step round the wheel** from its course, so the
-second and third class of a course can be told apart at a glance. That is now
-baked in once at creation rather than derived forever, which leaves it free to
-be overwritten. `sectionColour` survives only for that and for the migration.
-
-**Verified on your real data.** Lang and EAP 1 are unset and follow their
-courses, EAP 2 kept #4c7085 and EAP 3 kept #5c669b, which are the exact hexes
-their old tints of 0.5 and 1 were already drawing. No `tint` survives anywhere.
-Set EAP 2 to bright yellow by typing the hex, confirmed it flowed through to the
-week grid and stayed legible, then undid it.
-
-## 2026-08-26 (later) - Cadence: terms gate the schedule, and classes that stop
-
-**You asked** to clear the logged sessions between now and 2 September, or
-better, to make the term dates actually mean something, because you had set the
-term to start on the 2nd and it was still putting classes on today. Then, mid
-turn, for a way to log a class you pick up for a while that does not sit in the
-timetable forever: a number of weeks it repeats, defaulting to in perpetuity
-with the end being the end of the term. You approved both with "go", and told
-me plainly: no dates, no from and to, just a number of weeks. Cleaner. You were
-right, and I had proposed the worse version.
-
-**Nothing was ever logged.** I said so before building anything. Occurrences are
-generated fresh from the weekly pattern on every render, so there was nothing to
-clear. The bug was that `effectiveWeekday` looked at exceptions, closures and
-weekends and never once looked at `state.terms`.
-
-**Terms now gate the day** (`1897d3f`). A date outside every term closes the way
-a holiday does. Three judgement calls in it:
-
-- An app with no terms yet runs everything. A term list nobody has filled in
-  cannot mean school never happens, and a blank grid reads as a broken app.
-- A hand written `follows-day` exception still outranks the term dates, so a
-  make up day scheduled into the holidays runs. One date written by hand is the
-  more deliberate statement than a range.
-- An out of term day says why: "Before Autumn", "Between terms", "After Autumn".
-  A closure already names itself and this deserves the same. Weekends stay
-  unlabelled because they explain themselves.
-
-**A slot can run a set number of weeks** (`7d60eea`). Absent means every week for
-as long as the term runs, which is what a timetable is. A count means it runs
-that many times and stops. In the cell editor it is a **Repeats** control:
-*Every week* or *For a few weeks* with a number, and a line underneath saying
-what that comes to, "4 times, last on Thu 24 Sep". The weekly grid shows a small
-"4 left" on the cell, greyed once spent, because a weekly pattern has no other
-way of saying a thing is temporary.
-
-**One thing you should know, since you asked for a number and not a date.** A
-count needs something to count from, so the slot quietly stores the week it was
-added. You are never asked for it and never shown it. It is worked out as the
-next occurrence of that weekday, so a slot added on a Thursday for four Tuesdays
-means the next four Tuesdays, not four weeks from Thursday. It is preserved when
-you edit, so changing the room of a class in its third week does not hand it
-three weeks back. The visible consequence: a count starts from the week you add
-it, not from the start of term.
-
-**Class names are bigger and bolder** (`bf18d08`), 14px at weight 700, up from
-12.5px at 650. Held at the old size under 900px where five columns leave no room
-to grow. The name is what the grid is scanned for; the lesson and the room are
-detail you read after you have found the class.
-
-**Verified.** 13 assertions on the term gate and 15 on the week count, run
-against the real domain code, all passing. Then in the browser on a seeded state
-with a term of 2 Sep to 18 Dec: 24 to 28 August and 31 Aug to 1 Sep read closed,
-2 September onward runs classes, Today says "Before Autumn", the Thursday pickup
-carries "4 left", editing it to 2 weeks saved and redrew as "2 left", and the
-hint tracked the number and the singular. Deployed, bundle `index-HU37D4vI.js`.
-
-**Still open for you.** If you have real `deliveries` records between now and 2
-September, the term gate hides the occurrences but does not delete those
-records. I cannot see your production data from here. Say the word and I will
-purge them.
-
 ## 2026-08-28 - Cadence: reminders, and InkHeron wired in properly
 
 **You asked for** reminders with Server Chan attached, InkPad called on for
@@ -361,3 +260,70 @@ the fix.
 bundle. A tab still running the old JS keeps looping until it is reloaded.
 
 Commit `c702bb9` on Cadence `main`, deployed.
+
+---
+
+## 2026-08-28 — Abandoned creates no longer leave a placeholder behind
+
+**Asked:** "When I click to create something but don't follow through or save, I
+don't want the untitled event or assignment or whatever to still exist, it's a
+stupid way of doing it."
+
+**What was wrong.** Every create button did the same two things in the same
+order: write the record to state, then open the dialog.
+
+```
+upsertX(record);
+setEditing(record);
+```
+
+The dialog's Save already calls `upsertX`, and `upsert` inserts when the id is
+new, so the first call bought nothing. What it cost was a stray record every
+time you changed your mind. Close, cancel or press Escape and the placeholder
+stayed: a "New event" on the calendar, a "New assignment" in the list, a "New
+course" with no classes in it. Since the sync fix went in these strays also
+travel: they write to the droplet, land in exports and reach the published
+calendar.
+
+**Fixed in seven places**, one line removed each, plus a comment saying why the
+record is held back:
+
+| File | Handler | Was leaving |
+|---|---|---|
+| `src/views/Month.tsx` | `addEvent` | New event |
+| `src/views/Assignments.tsx` | `create` | New assignment |
+| `src/views/Curriculum.tsx` | `addLesson` | New lesson |
+| `src/views/Curriculum.tsx` | `addUnit` | New unit |
+| `src/views/Classes.tsx` | `addCourse` | New course |
+| `src/views/Classes.tsx` | `addSection` | Class 2 |
+| `src/views/Timetable.tsx` | `add` (calendar day) | Holiday |
+
+**Deliberately left alone.** Bell schedule periods and terms add a row that is
+edited inline in a table. There is no dialog, so there is nothing to defer the
+write to. The row is the editor. Deferring those means inventing a modal that
+was not asked for.
+
+**Verified in the running app**, not by reading. Every one of the seven was
+opened and abandoned by all three exits (Cancel, the X, Escape), then opened and
+saved. Counts read out of localStorage after a settle delay, because the persist
+is debounced and reading it immediately gives a false negative. All seven hold
+nothing on abandon and all seven still save. Lesson kept `order: 1` and its unit
+link through the change. Delete inside the section editor on a never-saved
+record is a harmless no-op: it removes an id that is not in state and closes the
+dialog, and the existing section was untouched.
+
+**Checked before starting:** the droplet's state file had no strays sitting in
+it (2 events, 2 courses, 4 sections, 0 assignments, all real names), so this is
+a forward fix with no cleanup owed.
+
+`tsc --noEmit` clean, `npm run build` clean, no console errors. Commit
+`bc61e4a` on Cadence `main`. Not deployed yet.
+
+**Also asked:** why none of the existing InkPad assignments show up in Cadence.
+They never do, by design. Cadence does not import from InkPad. You make a
+Cadence assignment, expand its card, click InkPad and link each of its sections
+to work over there. The link is what carries counts back. The pipe itself is
+healthy: `/inkpad/assignments` returns 12 right now, including the MLK
+Rhetorical Analysis Essay and Argument Essay - Organ Donation for AP Lang and
+the four copies of Personal Statements Second Draft. There is nothing to link
+them to because the Cadence side has no assignments yet.
