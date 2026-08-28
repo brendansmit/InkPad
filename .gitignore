@@ -13,3 +13,25 @@ Grammar Arcade/Gramm-Builder.zip
 
 # Package-manager cache, never commit
 InkHeron-Platform/.pnpm-store/
+
+# Extracted to their own repos on 2026-08-28 (see archive/monorepo-final for old history)
+Class Pet/
+Pixel Cat/
+Writing analyzer/
+Grammar Arcade/
+Webstuff/
+launcher/
+grade-importer/
+prototype-coder/
+model-router-coder/
+ai-control/
+outputs/
+.pnpm-store/
+ap-lang-dashboard/
+bug-detector/
+class-grouper/
+speed-dating/
+Jeopardy/
+Cadence/
+SmitRecipes/
+Admin/
