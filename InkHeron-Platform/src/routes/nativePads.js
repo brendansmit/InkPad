@@ -8,6 +8,7 @@ import { runLiteracyAnalysis, MANUAL_REVIEW_CODES } from '../services/literacyCo
 import { estimateRubric, recordTeacherScores } from '../services/markerProfile.js';
 import { scoreRewrite } from '../services/implementationScorer.js';
 import { recordStyleMetrics, aggregateStyleProfile, detectStyleAnomaly } from '../services/styleMetrics.js';
+import { compareRewrite } from '../services/rewriteDiff.js';
 import { realStudentsWhere } from '../db/realStudents.js';
 import { generateProfileSummary } from '../services/profileSummarizer.js';
 import { suggestFeedbackItems } from '../services/feedbackSuggester.js';
@@ -192,6 +193,7 @@ function publicNativePad(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
     submitted_at: row.submitted_at ?? null,
+    rewrite_of_pad_id: row.rewrite_of_pad_id ?? null,
   };
 }
 
@@ -2174,6 +2176,27 @@ export async function registerNativePadRoutes(app, { db }) {
     }
   );
 
+/**
+ * The draft-1-versus-rewrite comparison for a rewrite pad, or null for a pad
+ * that is not a rewrite (or whose original has since gone). Reading two essays
+ * side by side to spot what moved is the slow part of reviewing a rewrite, so
+ * the diff ships with the review payload rather than being rebuilt in the page.
+ */
+function loadDraftComparison(db, pad) {
+  if (!pad?.rewrite_of_pad_id) return null;
+  const original = db.prepare(
+    'SELECT id, plain_text, submitted_at, word_count FROM native_pads WHERE id = ?'
+  ).get(pad.rewrite_of_pad_id);
+  if (!original) return null;
+  const { segments, stats } = compareRewrite(original.plain_text ?? '', pad.plain_text ?? '');
+  return {
+    original_pad_id: original.id,
+    original_submitted_at: original.submitted_at ?? null,
+    segments,
+    stats,
+  };
+}
+
 function loadImplementationScore(db, padId) {
   const row = db.prepare(`
     SELECT rewrite_pad_id, original_pad_id, addressed_json, cosmetic_ratio, meaningful, summary, model, created_at
@@ -2294,6 +2317,8 @@ function loadImplementationScore(db, padId) {
           comparison: comparisonForRevisions(revisions),
           student_profile: loadStudentWritingProfile(db, pad.student_id),
           feedback_options: feedbackOptionsForAssignment(db, pad.settings_json, appliedTable),
+          // Only ever set on a rewrite pad: what changed from the first draft.
+          draft_comparison: loadDraftComparison(db, pad),
         }),
         // Green-pen verdict: present when this pad IS a rewrite that has been
         // scored, so the teacher reviewing a resubmit sees what was acted on.
