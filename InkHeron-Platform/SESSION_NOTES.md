@@ -250,3 +250,14 @@ Entry format:
 ```
 
 ---
+
+## 2026-08-28 - Library analytics: per-student collapsible list, plus download tracking
+Brendan wanted the EAP library Analytics view (and the matching one in ap-lang-dashboard, tracked separately) to stop being a flat table and instead group by student, with a collapsible list of documents each student read and how long they spent. He also wanted download clicks tracked, since a student reading a document for 15 seconds might actually mean they downloaded it instead of reading it, and there was no way to tell those two apart.
+
+Added migration `035_library_download_tracking.sql`: a new `event_type` column (`view` or `download`, default `view`) on `eap_library_view_log`, plus a supporting index. `POST /api/library/docs/:id/view` now tags its insert `event_type='view'`; added a new `POST /api/library/docs/:id/download` route (same URL path as the existing GET file-download route, differentiated by method) that logs a `download` row whenever a student clicks Download. Rewrote `GET /api/library/admin/view-log` to aggregate views and downloads separately per (student, document): `duration_seconds`, `visit_count`, `download_count`, `last_downloaded`, `last_activity`.
+
+On the student page (`eap-library.html`), the Download link now fires a `logDownload()` beacon (same `sendBeacon`/`fetch(keepalive)` pattern as the existing `logView()`) alongside its normal navigation, so the browser download still happens as before. On the admin page (`eap-library-admin.html`), rewrote the Analytics view: rows now group into one collapsible `<details>` card per student (name, doc count, total time, total downloads in the summary), expanding to a row per document showing time spent, visit count, a download badge (yes/no with count), and last activity date.
+
+Verified end to end against an isolated copy of the dev database (never touched the shared one another session had running) on a throwaway port: seeded a student who read a document for 15 seconds then downloaded it, and another who downloaded a document twice without ever opening it, confirmed the admin Analytics view showed exactly that distinction. Search filter still works against the new grouped view.
+
+Committed. Not yet deployed to the droplet; not yet started on the ap-lang-dashboard side (same feature, separate Express/sqlite3 app).

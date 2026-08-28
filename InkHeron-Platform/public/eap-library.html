@@ -103,7 +103,7 @@
       <button type="button" id="viewer-back">← Back</button>
       <div class="viewer-title" id="viewer-title"></div>
       <a id="viewer-open" href="#" target="_blank" rel="noopener">Open in tab</a>
-      <a id="viewer-download" href="#">Download</a>
+      <a id="viewer-download" href="#" onclick="logDownload()">Download</a>
     </div>
     <iframe id="viewer-frame" title="Document viewer" src="about:blank"></iframe>
     <div class="pdf-mobile-view" id="pdf-mobile-view">
@@ -254,6 +254,16 @@
       if(!sent) fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true}).catch(()=>{});
       viewingDocId=null;
       viewOpenTime=null;
+    }
+
+    function logDownload(){
+      // Fired alongside the Download link's own navigation (not instead of
+      // it) so the click still triggers the browser's normal file download.
+      if(!viewingDocId)return;
+      const payload={student_name:student?.name||'',class_period:student?.period||''};
+      const url=`/api/library/docs/${viewingDocId}/download`;
+      const sent=navigator.sendBeacon&&navigator.sendBeacon(url,new Blob([JSON.stringify(payload)],{type:'application/json'}));
+      if(!sent) fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),keepalive:true}).catch(()=>{});
     }
 
     function closeViewer(){

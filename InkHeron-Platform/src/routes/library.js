@@ -152,9 +152,28 @@ export async function registerLibraryRoutes(app, { db, uploadsDir }) {
 
     if (name) {
       db.prepare(`
-        INSERT INTO eap_library_view_log (doc_id, student_name, class_period, duration_seconds)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO eap_library_view_log (doc_id, student_name, class_period, duration_seconds, event_type)
+        VALUES (?, ?, ?, ?, 'view')
       `).run(request.params.id, name, String(class_period || '').trim(), seconds);
+    }
+
+    return { ok: true };
+  });
+
+  // Logs that a student clicked Download, separately from a view. The GET
+  // route below is the actual file download (it has to stay a plain
+  // navigable link for the browser's save dialog); this is fired by the
+  // page's JS alongside that click so a "read for 15s" row and a "actually
+  // downloaded it" row are never conflated.
+  app.post('/api/library/docs/:id/download', async (request) => {
+    const { student_name, class_period } = request.body || {};
+    const name = String(student_name || '').trim();
+
+    if (name) {
+      db.prepare(`
+        INSERT INTO eap_library_view_log (doc_id, student_name, class_period, duration_seconds, event_type)
+        VALUES (?, ?, ?, 0, 'download')
+      `).run(request.params.id, name, String(class_period || '').trim());
     }
 
     return { ok: true };
@@ -285,18 +304,25 @@ export async function registerLibraryRoutes(app, { db, uploadsDir }) {
   app.get('/api/library/admin/view-log',
     { preValidation: [app.requireTeacherSession] },
     async () => {
+      // One row per (student, document). View and download stats are kept
+      // separate within the row: a student can read something for 15s AND
+      // download it, or download it without ever really reading it, and the
+      // admin analytics needs to show both, not blend them into one number.
       return db.prepare(`
         SELECT
           vl.student_name,
           d.title as doc_title,
-          SUM(vl.duration_seconds) as duration_seconds,
-          COUNT(*) as visit_count,
-          MAX(vl.viewed_at) as last_viewed
+          SUM(CASE WHEN vl.event_type = 'view' THEN vl.duration_seconds ELSE 0 END) as duration_seconds,
+          SUM(CASE WHEN vl.event_type = 'view' THEN 1 ELSE 0 END) as visit_count,
+          MAX(CASE WHEN vl.event_type = 'view' THEN vl.viewed_at END) as last_viewed,
+          SUM(CASE WHEN vl.event_type = 'download' THEN 1 ELSE 0 END) as download_count,
+          MAX(CASE WHEN vl.event_type = 'download' THEN vl.viewed_at END) as last_downloaded,
+          MAX(vl.viewed_at) as last_activity
         FROM eap_library_view_log vl
         LEFT JOIN eap_library_docs d ON d.id = vl.doc_id
         GROUP BY vl.doc_id, vl.student_name
         ORDER BY MAX(vl.viewed_at) DESC
-        LIMIT 500
+        LIMIT 1000
       `).all();
     }
   );
