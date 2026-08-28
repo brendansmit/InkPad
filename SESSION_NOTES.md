@@ -332,3 +332,13 @@ Done:
 - Phase 1: deleted 8 merged branches + backup branch; merged mobile-grading-fixes (3 conflicts resolved keeping newer rewrite-scoring code), verified tests, deleted branch. Only main + rewrite-scoring remain.
 - Tests need Node 22+ (node:sqlite); shell default is Node 20. 2 pre-existing failures flagged as separate task (EAP admin auth, migration list).
 Next: Phase 2 extraction blocked on GitHub repo creation (gh CLI not installed).
+
+## 2026-08-28 — Monorepo split, phases 2-3 (complete)
+- Deleted ai-control from droplet 2 on request: /opt/ai-control, env, credentials, systemd unit, builder.inkheron.app nginx site. Code kept in its new repo.
+- Installed gh CLI to ~/.local/bin (user's curl failed; my shell reaches GitHub fine), user did device login.
+- Secured unpushed work first: ap-lang-dashboard (commit+push), Gramm-Builder (commit+push), class-grouper (9 commits pushed), Admin (7 commits pushed), bug-detector (README committed).
+- Secret scan of all candidates: only placeholder .env files, nothing real.
+- Created 13 private repos and pushed: class-pet, pixel-cat, writing-analyzer, webstuff, launcher, grade-importer, prototype-coder, model-router-coder, ai-control, outputs, grammar-arcade, jeopardy, bug-detector. Verified content on GitHub per repo.
+- Untracked all 16 project dirs + broken gitlinks from InkPad; InkPad now tracks only InkHeron-Platform + root docs. Moved SmitRecipes and Admin out of InkHeron-Platform to top level.
+- Added README.md project map; added repo-hygiene guard to global CLAUDE.md.
+- Deployed to droplet 1: healthy at fd8b4a2. Tests: 258 pass, same 2 known pre-existing failures.
