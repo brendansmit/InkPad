@@ -1789,3 +1789,70 @@ Still not approved, do not build unasked: the brighter course colours plan
 (bright yellow, green, pink, orange). It needs SectionPill and CourseTag
 changed first, because they use the raw course colour as text on a wash of
 itself, which only reads because every current palette entry is dark.
+
+## 2026-08-26 (later) - Cadence: 24 hour clock, and the highlighter colour set
+
+**You asked** for two things. First, to change how a period's time reads, from
+"7:40 am to 8:20 am" to something more visible. Second, for brighter class
+colours: bright yellow, bright green, pink and orange, the ones you actually use
+to mark up a timetable.
+
+**Clock, commit 1318a10.** `fmtClock` now writes 24 hour by default and a new
+`fmtClockRange` is the single way a span is written, so every screen writes it
+alike. The timetable, the week grid, the class sheet and Today all went through
+it. In the timetable's period column the time was 11px in the faintest ink,
+sitting under the period name like a footnote. It is now 12.5px at weight 550 in
+`--ink-2`, with tabular numerals so the colons line up down the column. The am/pm
+form is still there behind a flag, unused, in case a printed cover sheet wants it.
+
+**Colours, commit ef11ea5.** You had hard refreshed and said the colours were
+not changed. They were not: that job had been planned earlier and never built. I
+said so rather than dressing it up.
+
+The reason the palette was ten muted colours is that the app could not safely
+draw anything else. `SectionPill`, `CourseTag`, the week grid label and the
+curriculum marks all painted the raw hex straight onto text over a 14% wash of
+the same colour. That only works while every colour is already dark. A bright
+yellow label would have been invisible on a light background.
+
+So the reading problem was fixed first. A new `inkVars` hands an element the raw
+colour plus both theme-corrected versions, and a `.c-ink` rule in views.css picks
+one. Doing it in CSS rather than JS means an inline style does not need to know
+the theme and nothing re-renders when the theme changes.
+
+`readable` had to be rewritten. It clamped HSL lightness, and lightness is not
+perceived luminance: a saturated yellow at l=0.40 is still far too bright to read
+on paper white, while a blue at the same lightness is comfortably dark. It now
+bisects lightness until relative luminance hits a target, leaving hue and
+saturation alone so the colour still says which class it is.
+
+Then the six brights went in: yellow, green, pink, orange, cyan, violet. Sixteen
+swatches now, wrapping onto two rows in the Course modal.
+
+**Decision: verified numerically, not by eye.** I wrote a throwaway script that
+composites the wash over each theme's real surface and checks the WCAG ratio for
+every palette colour at section tints 0, 1 and 2. First run reported 38 failing
+combinations, including the bright yellow at 4.72:1 and a scatter of muted tints
+between 4.1 and 4.49. I retuned the luminance targets and ran it again: 96
+combinations, zero failures. Then checked it visually in both themes with AP Lang
+temporarily set to bright yellow, and put it back to its original colour.
+
+**A real bug found on the way, in commit 91b40e0.** Testing that a version delete
+closes the date window behind it turned up an older fault in `newVersion`: it
+built the previous version's end date by reading a local midnight back out in
+UTC, which east of Greenwich returns yesterday. Live, a version starting 26 Aug
+had closed the one before it on 24 Aug, leaving 25 Aug claimed by no timetable at
+all. `activeTimetable` silently falls back to the first timetable across a hole
+like that, so it would have planned the wrong week without ever complaining. Now
+uses string arithmetic and writes 25 Aug.
+
+**Your existing courses were not repainted.** This adds options.
+
+Both commits are live at cadence.inkheron.app, bundle index-C1iEAl9F.js, and
+pushed to origin/main. Console errors seen during the session were Vite HMR
+double-mount noise from many hot edits; a clean production build is silent.
+
+**Still waiting on you:** the three InkPad assignments (MLK Rhetorical Analysis,
+Argument Essay - Organ Donation, Personal Statements Second Draft) cannot be
+added until your classes exist again, because an assignment needs a course and
+sections to attach to. Say the word once they are in and I will add them.

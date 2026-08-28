@@ -1,72 +1,5 @@
 # Session Notes
 
-## 2026-08-26 (later) - Cadence: 24 hour clock, and the highlighter colour set
-
-**You asked** for two things. First, to change how a period's time reads, from
-"7:40 am to 8:20 am" to something more visible. Second, for brighter class
-colours: bright yellow, bright green, pink and orange, the ones you actually use
-to mark up a timetable.
-
-**Clock, commit 1318a10.** `fmtClock` now writes 24 hour by default and a new
-`fmtClockRange` is the single way a span is written, so every screen writes it
-alike. The timetable, the week grid, the class sheet and Today all went through
-it. In the timetable's period column the time was 11px in the faintest ink,
-sitting under the period name like a footnote. It is now 12.5px at weight 550 in
-`--ink-2`, with tabular numerals so the colons line up down the column. The am/pm
-form is still there behind a flag, unused, in case a printed cover sheet wants it.
-
-**Colours, commit ef11ea5.** You had hard refreshed and said the colours were
-not changed. They were not: that job had been planned earlier and never built. I
-said so rather than dressing it up.
-
-The reason the palette was ten muted colours is that the app could not safely
-draw anything else. `SectionPill`, `CourseTag`, the week grid label and the
-curriculum marks all painted the raw hex straight onto text over a 14% wash of
-the same colour. That only works while every colour is already dark. A bright
-yellow label would have been invisible on a light background.
-
-So the reading problem was fixed first. A new `inkVars` hands an element the raw
-colour plus both theme-corrected versions, and a `.c-ink` rule in views.css picks
-one. Doing it in CSS rather than JS means an inline style does not need to know
-the theme and nothing re-renders when the theme changes.
-
-`readable` had to be rewritten. It clamped HSL lightness, and lightness is not
-perceived luminance: a saturated yellow at l=0.40 is still far too bright to read
-on paper white, while a blue at the same lightness is comfortably dark. It now
-bisects lightness until relative luminance hits a target, leaving hue and
-saturation alone so the colour still says which class it is.
-
-Then the six brights went in: yellow, green, pink, orange, cyan, violet. Sixteen
-swatches now, wrapping onto two rows in the Course modal.
-
-**Decision: verified numerically, not by eye.** I wrote a throwaway script that
-composites the wash over each theme's real surface and checks the WCAG ratio for
-every palette colour at section tints 0, 1 and 2. First run reported 38 failing
-combinations, including the bright yellow at 4.72:1 and a scatter of muted tints
-between 4.1 and 4.49. I retuned the luminance targets and ran it again: 96
-combinations, zero failures. Then checked it visually in both themes with AP Lang
-temporarily set to bright yellow, and put it back to its original colour.
-
-**A real bug found on the way, in commit 91b40e0.** Testing that a version delete
-closes the date window behind it turned up an older fault in `newVersion`: it
-built the previous version's end date by reading a local midnight back out in
-UTC, which east of Greenwich returns yesterday. Live, a version starting 26 Aug
-had closed the one before it on 24 Aug, leaving 25 Aug claimed by no timetable at
-all. `activeTimetable` silently falls back to the first timetable across a hole
-like that, so it would have planned the wrong week without ever complaining. Now
-uses string arithmetic and writes 25 Aug.
-
-**Your existing courses were not repainted.** This adds options.
-
-Both commits are live at cadence.inkheron.app, bundle index-C1iEAl9F.js, and
-pushed to origin/main. Console errors seen during the session were Vite HMR
-double-mount noise from many hot edits; a clean production build is silent.
-
-**Still waiting on you:** the three InkPad assignments (MLK Rhetorical Analysis,
-Argument Essay - Organ Donation, Personal Statements Second Draft) cannot be
-added until your classes exist again, because an assignment needs a course and
-sections to attach to. Say the word once they are in and I will add them.
-
 ## 2026-08-26 (later) - Cadence: a section holds its own colour
 
 **You asked** to change the Shade slider to a hex code input, and when I asked
@@ -383,3 +316,48 @@ which the term gate hides but does not delete.
 **One thing I noticed, not acted on:** the live Cadence log shows `saved 14 kB`
 every eleven seconds, so something is pushing state on a loop. Probably just a
 tab you have open. Worth a look if it is not.
+
+## 2026-08-28 (later still) - Cadence: the sync was feeding itself
+
+**You asked:** I flagged that the live log showed `saved 14 kB` every eleven
+seconds and guessed it was a tab you had left open. You said 7800 writes a day
+and 110 MB was probably a bit much. That was the go-ahead to fix it.
+
+**It was not a tab you left open. It was a loop with nothing to stop it.**
+
+`syncNow` handed the merged state back to its caller on every sync after the
+first, whether or not the merge had changed anything. `runAuto` swaps whatever it
+is given into the store. `applyMerge` is `setState(clone(next))`, a fresh object
+every time, so React always saw a new reference. And `useEffect(..., [state])`
+schedules a sync on every state change. Sync applies a state, the state change
+schedules a sync, `QUIET_MS` is 10 s plus about a second of round trip, and round
+it went. About 7800 writes a day, republishing the calendar feed on every lap and
+re-rendering the whole app in every open tab, multiplying per tab.
+
+**The intent was written down in three places and implemented in none of them.**
+The `SyncOutcome` type says `state` is "only set when the merge changed something
+worth swapping in". `runAuto`'s comment says "only swap the state in when the
+server actually had something we did not". And `describeMerge` already treats
+`gained + updated + removed` as the definition of a change, saying "Both copies
+already agreed" otherwise. `syncNow` simply never asked the question. The fix
+uses those same three numbers, so it restores the documented contract rather than
+inventing a new rule.
+
+**Verified against a local server, driving the real app in a browser.** Seventy
+seconds idle produced zero writes, where the old code would have produced six.
+One edit produced exactly one write, then silence. A record written by a
+simulated other device was still pulled in and applied, so the fix does not break
+real syncing. The save trace tells the story best: 23:07 then 23:18, eleven
+seconds apart, which is the old loop's exact period, but it now runs once after a
+real merge and stops instead of becoming the next lap.
+
+**What I cannot claim.** The live server went quiet at 19:18:42, about five hours
+before I deployed, when whatever tab was driving it was closed. So the deploy did
+not visibly silence anything and I have not pretended it did. The live evidence
+establishes the shape of the bug, not the fix. The local reproduction establishes
+the fix.
+
+**Worth knowing:** the fix only reaches a device once that device loads the new
+bundle. A tab still running the old JS keeps looping until it is reloaded.
+
+Commit `c702bb9` on Cadence `main`, deployed.
