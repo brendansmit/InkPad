@@ -237,7 +237,7 @@ it (2 events, 2 courses, 4 sections, 0 assignments, all real names), so this is
 a forward fix with no cleanup owed.
 
 `tsc --noEmit` clean, `npm run build` clean, no console errors. Commit
-`bc61e4a` on Cadence `main`. Not deployed yet.
+`bc61e4a` on Cadence `main`. Deployed later the same day with `e2ab05f`.
 
 **Also asked:** why none of the existing InkPad assignments show up in Cadence.
 They never do, by design. Cadence does not import from InkPad. You make a
@@ -313,8 +313,11 @@ archived one, took the live one. Clicking an MLK title from the AP Lang
 assignment, whose section is named APL 1, wrote nothing and said so. A second
 pull said "Already up to date." `tsc --noEmit` and `npm run build` clean.
 
-**Commit:** `e2ab05f` on Cadence `main`. Not deployed yet, and neither is
-`bc61e4a` before it.
+**Commit:** `e2ab05f` on Cadence `main`, pushed to GitHub and deployed to
+cadence.inkheron.app along with `bc61e4a` before it. `deploy/deploy.sh` ran
+clean: pm2 online, `/health` returned `{"ok":true,"hasState":true,"size":15759}`,
+so the state file came through untouched. The site itself answers 401 to curl
+because of the password door, which is correct.
 
 **Suggested, not built:** merging "Greenpen rewrite: X" with "X" into one
 picker row. They are two separate pieces on InkHeron, so this is a judgement
