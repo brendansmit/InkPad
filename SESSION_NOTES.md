@@ -322,3 +322,13 @@ because of the password door, which is correct.
 **Suggested, not built:** merging "Greenpen rewrite: X" with "X" into one
 picker row. They are two separate pieces on InkHeron, so this is a judgement
 call, not a bug.
+
+## 2026-08-28 — Monorepo split, phases 0-1
+Asked: split the InkPad monorepo into per-project repos; survey first.
+Done:
+- Survey: 11 branches (9 fully merged), 18 tracked projects, 5 broken gitlinks, 9 nested repos, 146 MB .git.
+- Decisions: InkPad stays InkHeron's repo (deploy untouched); SmitRecipes/Admin are separate projects; fresh private repos for cold projects; Cadence read-only, untouched.
+- Phase 0: committed all local work, tagged archive/monorepo-final, pushed. Set git identity (was hostname fallback).
+- Phase 1: deleted 8 merged branches + backup branch; merged mobile-grading-fixes (3 conflicts resolved keeping newer rewrite-scoring code), verified tests, deleted branch. Only main + rewrite-scoring remain.
+- Tests need Node 22+ (node:sqlite); shell default is Node 20. 2 pre-existing failures flagged as separate task (EAP admin auth, migration list).
+Next: Phase 2 extraction blocked on GitHub repo creation (gh CLI not installed).
