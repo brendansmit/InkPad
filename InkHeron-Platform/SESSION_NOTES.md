@@ -251,6 +251,12 @@ Entry format:
 
 ---
 
+## 2026-08-28 - Plan: greenpen rewrite UX
+Brendan asked for a detailed plan (for Opus/Sonnet to implement) covering: an intuitive draft-vs-rewrite comparison, hiding grammar marks on rewrite pads on both teacher and student sides while analysis keeps running, and a settings toggle letting students view/copy their submitted work. Wrote PLAN_GREENPEN_UX.md after exploring nativePads.js, nativeWrite.js, native-review.html, settingsStore.js and the student dashboard. Flagged one open decision: the request to keep tracking rewrites for voice/grammar profile reverses the 2026-07-29 decision that firewalled rewrites out of the literacy profile and style fingerprint; plan defaults to keeping the exclusion unless Brendan says otherwise. No code changed.
+
+## 2026-08-28 - Greenpen profile decision resolved
+Brendan asked what to do about the July rewrite exclusion. Decision: style fingerprint keeps the full exclusion; grammar profile counts rewrite marks only when they land on changed/added text (insertion regions of the Feature 1 diff), so carried-over errors and corrections never double-count but genuinely new mistakes made while rewriting do. PLAN_GREENPEN_UX.md updated; Feature 1's diff module must be built before Feature 2's profile change.
+
 ## 2026-08-28 - Library analytics: per-student collapsible list, plus download tracking
 Brendan wanted the EAP library Analytics view (and the matching one in ap-lang-dashboard, tracked separately) to stop being a flat table and instead group by student, with a collapsible list of documents each student read and how long they spent. He also wanted download clicks tracked, since a student reading a document for 15 seconds might actually mean they downloaded it instead of reading it, and there was no way to tell those two apart.
 
@@ -260,4 +266,6 @@ On the student page (`eap-library.html`), the Download link now fires a `logDown
 
 Verified end to end against an isolated copy of the dev database (never touched the shared one another session had running) on a throwaway port: seeded a student who read a document for 15 seconds then downloaded it, and another who downloaded a document twice without ever opening it, confirmed the admin Analytics view showed exactly that distinction. Search filter still works against the new grouped view.
 
-Committed. Not yet deployed to the droplet; not yet started on the ap-lang-dashboard side (same feature, separate Express/sqlite3 app).
+Committed (`5b6ac52`). Replicated the same feature in ap-lang-dashboard (separate Express/sqlite3 app): idempotent `event_type` column, matching `POST /api/docs/:id/download` route, matching admin-analytics aggregation and collapsible-card UI. Verified against an isolated scratch copy of that app too (never touched its real `ap-lang.db`), committed there as `eeb73cb`.
+
+Asked Brendan about deploying both. InkHeron: held off, flagged that `rewrite-scoring` also carries an unrelated commit from another session ("Add a compare-to-draft-1 view on rewrite reviews") I did not write, and that deploys are Fable-only per memory. He said wait. ap-lang-dashboard: no deploy tooling or hosting docs found in that repo; asked Brendan how it's hosted, he said circle back later. Both apps stay committed locally, not deployed, until he says go.
