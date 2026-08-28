@@ -1,5 +1,160 @@
 # SESSION_NOTES_ARCHIVE.md — InkHeron Platform
 
+## 2026-07-07 — Audited Codex MCQ/import run: pass, awaiting deploy word
+
+- Audited 25c918e..075b54f against CODEX_MCQ_HANDOFF.md: all new routes (topics, bulk-import, append-questions) teacher-session gated with CSRF on mutations; answer_index/model_answer only in teacherQuestion payloads and the existing reveal_answers release gate; service edits are a uniform swap of the hardcoded checker intent to readCheckerIntent(db) for the model picker; migration 032 registered. Suite 181/181 on Node 24 at pinned 075b54f.
+- test-greenpen and analysis-ai pinned to 075b54f. Deploy archive built (/tmp/d4.tar.gz, src migrations public, 120 paths). NOT deployed: waiting for the teacher's explicit deploy word. Note 082ac44 touches grade-importer (separate app, not in the InkHeron archive).
+
+## 2026-07-07 - Bulk MCQ import, test setup, nav, settings and grade-importer sync key
+
+- Asked: implement CODEX_MCQ_HANDOFF.md in Part A to G order, commit after each part, pull/re-read active files first, keep teacher mutation routes teacher+CSRF, avoid hardcoded OpenRouter ids, keep assets self-hosted and add section 9 tests.
+- Did: added migration 032 for question topics/tags/origin, topic/search/quiz filters, bulk MCQ import from CSV/paste/docx with Doer parsing and answer-null warnings, selectable question-bank UI with shift-range and import, multi-section quiz builder with per-section shuffle, Tests dashboard entry, assignments ?type=test filter, curated Doer/Checker settings with stored ai_checker_intent and different-family guard, and grade-importer current sync-key Show/Copy controls.
+- Commits: 5221f54, 81bc1f1, 6b7c0d5, 9400f6a, 5ab65d1, 057d21c, 082ac44. Grade-importer deployed via ./grade-importer/deploy.sh using the current shared sync key; PM2 restarted and nginx reloaded.
+- Verified: PATH=/Users/brendansmit/.nvm/versions/node/v24.18.0/bin:$PATH npm test passed 181/181. Inline scripts checked for question-bank, new-test, settings, dashboard, assignments and grade-importer.
+- Notes: this checkout has no git remote, so git pull could not run after the initial sandbox retry. The current branch has no upstream. Existing unrelated dirty files remain untouched, including package.json/package-lock.json and grade-importer/grades.db.
+
+## 2026-07-07 — Codex handoff: bulk MCQ import + test portal / nav / settings brief
+
+- Asked: teacher out of usage; wants a complete paste-ready brief for Codex to build bulk MCQ import (paste + file) straight into a quiz, AI topic/tag on filing, question-bank filter by quiz/topic, per-question toggle + shift-range select + add-selected-to-quiz, a proper sections editor, a dedicated Tests dashboard button, merge duplicate Classes/Students nav, a curated Doer/Checker model picker in Settings (strong-cheap Chinese + cheaper Western), and reveal/copy for the grade-importer sync key.
+- Did: wrote InkHeron-Platform/CODEX_MCQ_HANDOFF.md — full self-contained build brief grounded in the real codebase (test_questions schema, tests.js endpoints/helpers, settings.js + settingsStore doer/checker intents, openRouter callChat/resolveModel, teacher/index nav, grade-importer sync_key). No app code changed this session.
+- Key facts surfaced: checker intent is hardcoded 'google gemini flash' in 3 files (checker.js, profileSummarizer.js, feedbackSuggester.js); doer intent is a stored setting; admin gradebook export key == grade-importer sync_key (current value in notes); next migration number is 032; DeepSeek has no V6 (latest V3.2, which 'deepseek chat v3' resolves to).
+- Flagged: tests.js/new-test.html/question-bank.html are under active concurrent development in this repo; Codex must pull latest and re-read before editing.
+
+## 2026-07-07 — Audited TOEFL build, fixed the card, verified end-to-end
+
+- Audited Sonnet's toefl-estimate branch: routes all teacher-session + CSRF, wall test present (padRelease asserts no "toefl" in student feedback payload), demo/ghost excluded from anchors, checker can only blank, range kept ordered, migration 031 registered. Suite 176/176.
+- Sonnet's worry about /api/students/:id/writing-profile was the known ugrep gotcha: the route exists (nativePads.js:2167) and the page boots fine.
+- Found and fixed one real bug (1681636): loadToefl() ran before the card was in the DOM, so getElementById returned null and the card hung on "Loading…" forever. Moved the call to after append.
+- Verified end-to-end on a local server (port 3474, fresh DB, seeded 2 submitted essays): card renders, Record real score works ("Real scores on record: 24"), Generate without an OpenRouter key fails gracefully (alert + button re-enabled). Live-model happy path untestable locally; teacher clicks Generate on production where the key exists.
+- test-greenpen and analysis-ai fast-forwarded to 1681636. NOT deployed: awaiting explicit go-ahead.
+
+## 2026-07-07 — Built teacher-only TOEFL writing estimate (branch toefl-estimate)
+
+- Asked: build the TOEFL estimate per SONNET_TOEFL_HANDOFF.md exactly, off test-greenpen, keep the suite green, no deploy.
+- Migration 031_toefl_estimates.sql: toefl_estimates (history kept, newest wins) and known_toefl_scores (teacher-entered real scores 0-30, class anchors). Registered in migration.test.js.
+- src/services/toeflEstimator.js: Doer/Checker modelled line for line on profileSummarizer. Evidence = literacy issue rates per 100 words, rubric trajectory, aggregateStyleProfile (overall + by_essay_type), word counts, real classmate scores as anchors (demo/ghost excluded via realStudentsWhere). Output is a range, checker can only blank fields, reversed ranges reordered, skips cleanly under 2 style essays.
+- src/routes/toefl.js (registered in app.js): GET latest+history+known scores, POST generate+store, POST record known score. All requireTeacherSession, POSTs requireCsrfToken, 404 on unknown student.
+- UI: teacher-only "TOEFL estimate" card on student-profile.html with range, bands, confidence, rationale, Generate/Refresh, real-score input, fixed disclaimer. Hidden in student mode.
+- The wall: added assertion to padRelease.test.js that a released student feedback payload contains no "toefl". New estimator/route tests cover shape, range ordering, checker blanking, skip, known-score insert + evidence inclusion, auth 401, 404, bad score.
+- Suite 176/176 green on Node 24 (was 168, +8). Not deployed. Committed in small steps.
+
+## 2026-07-07 — Softened AP register prompt; TOEFL handoff written
+
+- Teacher feedback: the register guidance must not prescribe how the essay types should sound unless grounded in AP theory; phrase as tendencies ("this essay type usually leans toward..."). Rewrote the profileSummarizer Doer prompt: tendencies not rules, describe never prescribe, deviations are observations to think about, not faults (20f4c19).
+- TOEFL predictor will be built by Sonnet or Opus, not Fable: wrote SONNET_TOEFL_HANDOFF.md (25a4520) — branch toefl-estimate, migration 031 toefl_estimates + known_toefl_scores, Doer/Checker estimator modelled on profileSummarizer, teacher-only routes, profile-page card with disclaimer, hard wall test that no student payload ever contains "toefl". Fable audits and deploys after.
+
+## 2026-07-07 — Genre-aware voice analysis for AP Lang
+
+- Asked: make the voice/writing analysis AP Lang aware — synthesis, rhetorical analysis and argument each demand a different voice; track more and convey more. Also plan (not build) a teacher-only TOEFL writing score predictor.
+- Found: the fingerprint was genre-blind. essay_type existed on assignments but style_metrics ignored it: aggregation blended all types, anomaly detection compared across genres, the AI voice summary described one blended voice.
+- Built (commit 1a44ac7): 7 new deterministic register features (attribution verbs, rhetoric terms, concession markers, quoted evidence, second person, contractions, nominalizations, all per 100 words); migration 030 adds essay_type to style_metrics with backfill from assignment settings; aggregateStyleProfile returns by_essay_type fingerprints; detectStyleAnomaly uses same-type history when >= 3 same-type essays exist (returns baseline: same_type|all_types) so a genre shift no longer reads as an anomaly; profileSummarizer evidence gains per-type fingerprints and per-type score trajectory, and the Doer prompt teaches the three AP registers and asks for voice-shift assessment and type-tagged targets.
+- Tests: 3 new in styleMetrics.test.js; suite 168/168 on Node 24. NOT deployed.
+- TOEFL predictor: plan delivered in chat, not built. Awaiting go-ahead.
+
+- Deployed in two steps to inkpad.inkheron.app (git archive of committed tree only, DB backed up before each: inkheron.db.pre-testgp-202607071620 and .pre-gpscore-202607071633, /login 200 both times, journal clean):
+  1. 9e21cc9: Codex part 1 (green pen for tests), part 2 (section passages + within-section LCG shuffle, f227add, spot-checked against spec: correct files, seed (studentId*104729)+sectionIndex, both shuffle tests, additive, no migration), mobile native review UI, AI review reset for strengths and targets.
+  2. ab1e4ef: green pen score hold + separate gradeable rewrite assignment on release (see entry below). ab1e4ef is the cleaned redo of f2db8bc, which had swept ~12k lines of unrelated files (data/passages PDFs, other projects) into the commit; ab1e4ef drops them.
+- Each deployed commit was independently verified in an isolated git worktree: npm test 165/165 on Node 24 at both 9e21cc9 and ab1e4ef.
+- analysis-ai fast-forwarded to ab1e4ef = test-greenpen. Everything through ab1e4ef is now DEPLOYED.
+- Gotcha for next time: two sessions were editing this working tree at once; refs moved mid-deploy twice. Staged my own hunk via git apply --cached and pinned every verify/deploy to a commit hash, never a branch.
+
+## 2026-07-07 — Green pen: hold scores at finish-marking, create a separate rewrite assignment on release
+
+- Asked (teacher, real marking): finish-marking was releasing the score immediately; scores must stay hidden until "Release to class". And on release OR per-student "Send feedback", auto-create a NEW assignment for the green-pen rewrite that is graded separately (own rubric, renamed later). Teacher chose: create on release OR send feedback (idempotent).
+- Model change (updates CLAUDE.md §6): finish-marking now always lands the pad on 'marked' and reveals nothing. The green-pen rewrite is a SEPARATE assignment, not an in-place reopen of the same pad.
+- Backend (nativePads.js): new exported ensureGreenpenRewriteForStudents(db, sourceAssignmentId, teacherId, studentIds) — idempotent, finds the existing rewrite assignment via rewrite_of_pad_id links (survives assignment edits, no settings field to strip), creates it on first release, adds only students not already present. Extracted copyEssayPadIntoRewrite (seeds a fresh 'writing' pad with the student's essay + copied teacher marks as reference). finish-marking → 'marked'; under immediate release it also creates the rewrite (no separate release click in immediate mode); batch defers to the release endpoints. Per-pad release-feedback and class-wide /api/assignments/:id/release-feedback both call ensure and return {rewrite_assignment}. toggle-check extended so target tick-off works on the separate rewrite pad (items resolve to the original).
+- UI: native-review finish toast now "Marked. Score held until you release to the class."; Send feedback and Release to class toasts report the rewrite assignment created.
+- Tests: migrated the in-place green-pen tests (feedbackTickOff, three nativePads flows) to the separate-assignment model; suite 165/165 on Node 24. Browser + API smoke on inkheron-verify confirmed: batch finish-marking holds and creates no rewrite, release creates "Greenpen rewrite: ..." with the essay seeded, appears on the student dashboard.
+- Not deployed: still local on analysis-ai. Needs droplet pull + pm2 restart. NOTE for teacher: existing assignments already sitting in green_pen_open from the old flow keep working; the new behaviour applies to newly finished marking.
+
+## 2026-07-07 — Run AI review now replaces AI strengths and targets too
+
+- Asked: re-running AI review must clear the previous AI marks (accepted or rejected AI marks count as AI, only hand-placed marks are the teacher's) and also reset strengths and targets. Finished students (Alex, Aurora) must be untouched.
+- Literacy codes already behaved this way (a102088, deployed). Added retractAiFeedbackForPad in nativePads.js: on re-run it deletes accepted AI suggestions and the source 'ai' feedback items they were promoted to, plus pendings; rejected suggestions stay on record; teacher-written items are never touched. Wired into reanalyzePad. New test in autoAccept.test.js.
+- Retract only fires on a pad the teacher re-runs, so finished students stay untouched unless the assignment-wide reanalyze endpoint is used, which re-runs everyone.
+- NOTE: another session is editing this working tree concurrently (assignments.html, assignments.js, nativePads.js, two test files). Staged only my hunk of nativePads.js via git apply --cached. Commit 2a6c36e. Suite 165/165 green in the shared working tree.
+- Not deployed yet; rides along with the pending test-greenpen merge decision.
+
+## 2026-07-07 — Pared-down mobile student roster
+
+- Asked: on mobile, the student assignment roster needs a pared-down default, an expand toggle, a floating search bar and a floating top button.
+- Did: mobile roster cards now show only student, Submitted, score and actions by default; `Review essay` is the large primary full-width button, with `Profile` and `Unassign` as smaller paired buttons.
+- Did: added a sticky mobile `Show details` toggle for paste/exam details, a bottom floating student search and a floating `Top` button.
+- Verified: assignments inline script syntax OK; `test/assignments.test.js` passed 20/20 on Node 24. Not deployed yet.
+
+## 2026-07-07 — Mobile assignment review flow
+
+- Asked: the assignment list and student essay list were still not mobile-friendly; the review page fix was too narrow.
+- Did: updated `public/teacher/assignments.html` so the assignment list header/actions stack on mobile, assignment cards expose usable full-width action buttons, the assignment detail controls stack and the student roster gets a dedicated mobile card view with prominent Review essay/Profile/Unassign actions.
+- Did: added a visible roster loading state so slow network/server restart does not look like a dead blank table.
+- Verified: assignments inline script syntax OK; `test/assignments.test.js` passed 20/20 on Node 24. Live `https://inkpad.inkheron.app/assets/teacher/assignments.html` is still the old file and does not contain this commit yet.
+
+## 2026-07-07 — Checked mobile review deployment
+
+- Asked: check whether the mobile native-review UI fix has been deployed.
+- Did: fetched `https://inkpad.inkheron.app/assets/teacher/native-review.html` and confirmed the live HTML contains the mobile markers from commit `56d2a10`: `@media (max-width:760px)`, two-column tablet rail, `placeFloating`, `ontouchend`, larger button targets and scrollable rubric scale.
+- Verified: live static asset returned 200, protected `/teacher/native-review` returned 401 unauthenticated as expected, live asset `last-modified` was Tue, 07 Jul 2026 08:15:34 GMT.
+
+## 2026-07-07 — Mobile native review UI
+
+- Asked: make `/teacher/native-review*` usable for grading and feedback on a phone or iPad.
+- Did: made the review page responsive: tablet becomes a single paper column with a two-column control rail, phone becomes one column, appbar controls wrap, essay text and touch targets are larger, rubric score buttons scroll horizontally and feedback/comment inputs avoid mobile zoom.
+- Did: clamped selection, comment and code-change popovers inside the viewport and added a touch-end selection hook for mobile text selection.
+- Decisions / gotchas: left unrelated existing edits in `public/teacher/native-review.html` intact; browser visual verification was blocked by the in-app browser safety preference for `127.0.0.1:3480`.
+- Verified: inline script syntax OK with Node 24; seeded a temp DB and served the page locally; `test/nativePads.test.js` was 16/19 with the three existing green-pen state failures unrelated to this UI change.
+
+## 2026-07-07 — Audit of Codex test-greenpen run: part 1 done, part 2 missing
+
+- Audited branch test-greenpen against CODEX_TESTGP_HANDOFF.md and the nine ground rules.
+- Part 1 (green pen for tests) is implemented in commit 7da2c0d: rewrite becomes type 'essay' with the test config stripped, pads seeded FRQ text first then SRQ Q+A blocks, FRQ annotations copied with valid offsets, rewrite_of_pad_id = FRQ pad or NULL, Green pen rewrite button on /teacher/test-review. Two new inject tests cover composite seeding, greenpen-context and the SRQ-only case. Suite 162/162 green on Node 24.
+- nativeEnabled() was broadened to treat any type 'test' assignment as native-enabled; redundant (test settings already set native_inkpad true) and gated routes are teacher-only, so accepted.
+- Part 2 (section passage_text plus within-section question shuffle, LCG seed (studentId*104729)+sectionIndex) was NOT built. No changes to src/routes/tests.js or the take-test page anywhere on the branch; the only passage_text hits are the old essay-level passage feature. Codex only added the part 2 spec text to the handoff doc.
+- Not merged, not deployed. Waiting on the teacher: ship part 1 alone or send Codex back for part 2 first.
+
+## 2026-07-06 — Reject any mark + configurable Doer model (DeepSeek default)
+
+- Reject button in the click-a-mark popover: AI-suggestion marks route through the disagree endpoint (feeds calibration and blocks re-analysis resurrection); other marks use the existing DELETE annotations route, which now also records the rejection when a suggestion links to the annotation.
+- Doer model is now a setting: ai_doer_intent (settingsStore read/writeDoerIntent, exposed in GET/PATCH /api/settings). Default flipped from 'anthropic claude haiku' to 'deepseek chat v3' on the teacher's call, with my agreement: DeepSeek found more genuine errors in the live smoke (64 vs 46), is trained heavily on Chinese-English usage (better calque/MT instincts), and is cheaper. All six Doer services (literacyCoder, markerProfile, implementationScorer, feedbackSuggester, profileSummarizer, reportSnippet) read the setting per call. Checker stays gemini flash (different family, CLAUDE.md §8 intact). Change models any time by PATCHing ai_doer_intent, e.g. 'moonshot kimi k2' or back to 'anthropic claude haiku'.
+- Suite 162/162. Deployed (DB backup pre-doer), wrapper active.
+
+## 2026-07-06 — Learning loop: teacher corrections calibrate the marking prompts
+
+- New src/services/promptCalibration.js: buildCalibration(db) mines the three correction signals already recorded (rejected/disagreed suggestions = false positives; teacher-added literacy_code annotations = misses; annotation_updated events with code_from/code_to = confusion pairs, now logged with before/after codes and the quote) and renders a hard-capped CALIBRATION block ("the teacher rejected findings like these, do not flag similar", "the teacher had to add these by hand, watch for similar", "the teacher often changes Exp -> WW"). Appended to BOTH the Doer and Checker system prompts on every run, so accuracy improves for this teacher with every essay marked, no training step, ~zero cost.
+- Also fixed a shell-tooling scare: the session's grep wrapper (ugrep --ignore-files) silently skipped nativePads.js making it look gutted; /usr/bin/grep confirmed the file intact. Use /usr/bin/grep or git grep in this repo.
+- Suite 160/160. Committed 188cc70, deployed (DB backup pre-calib), wrapper active.
+
+## 2026-07-06 — Test Portal (Codex build) audited, merged, deployed
+
+- Audited Codex's test-portal branch against all nine CODEX_TESTPORTAL_HANDOFF ground rules. PASS:
+  auth on every endpoint (teacher+CSRF / student session with own-row checks via ensureStudentTestAssignment);
+  studentQuestion strips answer_index and model_answer with a key-walking leak test; results require
+  submitted_at AND feedback_released_at, correct answers only shown when reveal_answers is explicitly true;
+  server-side timer enforcement (due_at, seconds_allowed + 30 s grace) on answers and submit; deterministic
+  per-student MCQ shuffle; focus events recorded; roster uses realStudentsWhere; migrations additive (029 in
+  canon); no edits to services, the editor or the AI pipeline. Standout: submitFrqPad re-injects through the
+  REAL /api/native/pads/:id/submit with the student's session, so FRQ essays get revisions, state machine and
+  the full AI marking chain untouched.
+- Fast-forward merged test-portal into analysis-ai, suite 156/156, deployed to /opt/inkheron-platform
+  (DB backup pre-testportal), migration 029 applied, wrapper active, live 200.
+- Teacher flow: /teacher/question-bank to build the bank, /teacher/new-test to assemble and assign,
+  /teacher/test-review to mark SRQs and see totals (FRQ links into native-review). Students: dashboard shows
+  a Test pill linking to /native/test/:assignmentId.
+
+## 2026-07-06 — Deploy sweep + Codex Test Portal handoff
+
+- Deployed everything committed since the round-3 deploy (10 commits from parallel sessions: re-run replaces prior AI marks via retractAiMarksForPad, anchored sidebar comments, neon chartreuse needs-you colour, reanalyze-all script, launcher/deploy-dashboard updates). Suite 152/152 before deploy, DB backed up (pre-deploy5), wrapper active, live 200.
+- Wrote CODEX_TESTPORTAL_HANDOFF.md: self-contained Test Portal MVP spec for Codex on a NEW branch test-portal off analysis-ai. Key decisions: a test IS an assignment (type 'test', structure in settings_json.test), bank in test_questions, attempts/responses/focus-events tables in migration 029, ONE FRQ max delivered through the existing native pad so the whole marking+AI pipeline applies untouched, MCQ auto-scored server-side, SRQ teacher-scored, results gated on the existing release-feedback mechanism, deterministic per-student MCQ shuffle, server-side timer enforcement, §5 pooling stays off. Hard guardrails: additive only, no edits to services/editor/pipeline, explicit staging, answer keys never reach students pre-release (test required), Fable reviews before merge/deploy.
+
+## 2026-07-06 — New session: queued marking-room issues
+
+- Asked: fresh chat (old context 600k+); log three issues from the latest deployment.
+- Did: added to POLISH_QUEUE.md Open: (1) needs-you colour still not standing out (verify 5c3bbcf is deployed, else stronger colour), (2) list teacher comments in the sidebar for edit/delete, (3) BUG: inline comments not anchoring to the highlighted text. No code changes yet, awaiting go-ahead.
+- Also this session: fixed AI re-run stacking (Gra.Gra / Sp.Sp). New `retractAiMarksForPad` in nativePads.js deletes prior AI-auto annotations with profile-stat recompute and clears spent suggestion rows before every analysis run (reanalyze route and submit path); rejected suggestions are kept and identical re-found findings stay vetoed. Regression test added; suite 152/152 on Node 24. Commit 4e79e26. Server-side clear of Alex's pad + deploy blocked by SSH permission, handed commands to teacher.
+- Needs-you colour: teacher said #fde047 still blends in; changed to neon chartreuse #ccff00 in native-review.html. Verified on a seeded local server (inkheron-verify, port 3473), screenshot checked. POLISH_QUEUE item moved to Done.
+- Comment anchoring bug: offsetsWithin counted hidden .tip tooltip text inside marks, so every prior mark shifted saved offsets right. Now measured via cloned ranges with tips stripped. Verified in browser: comment on "study" saved at exactly 90-95 with three marks earlier in the text.
+- Your comments sidebar card: lists inline comments with find/Edit/Delete; new DELETE /api/native/annotations/:id (recomputes literacy stats when deleting a code mark) with tests. Edit and delete exercised live through the UI. Suite 152/152.
+
+
 ## 2026-07-07 — Test Portal part 2: section passages and section shuffle
 
 - Asked: "go check and do part 2" after the audit found `CODEX_TESTGP_HANDOFF.md` Part 2 missing.
