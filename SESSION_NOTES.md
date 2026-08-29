@@ -238,3 +238,27 @@ move is to A/B them on one real class later rather than guess.
 **Flagged:** InkHeron-Platform is not its own git repo. It sits inside the
 `Claude` monorepo, so every commit here needs an explicit path. The monorepo
 split missed it.
+
+## 2026-08-29 (later) InkHeron-Platform extracted into its own repo
+
+**You asked** me to fix the repo situation I flagged: InkHeron-Platform was
+still tracked inside the InkPad monorepo.
+
+**Done:**
+- Subtree-split the folder's full history (599 commits on rewrite-scoring,
+  286 on main) and pushed both branches to a new private repo,
+  github.com/brendansmit/InkHeron-Platform, default branch rewrite-scoring.
+- Untracked the folder from InkPad and gitignored it. InkPad now holds only
+  the root docs (session notes, handoff guides, README).
+- The local folder is now its own repo tracking the new remote, working tree
+  identical, status clean.
+- Deploy updated: deploy.sh app subdir is now the repo root, DEPLOY.md clone
+  URL updated. The droplet's key turned out to be an account-level GitHub key
+  so it could already reach the new repo. Re-cloned /opt/inkheron-repo from
+  the new repo, fixed the /opt/inkheron-platform/deploy symlink which pointed
+  at the old subdir path, deployed. Healthy at c3cb808.
+- Old droplet clone kept at /opt/inkheron-repo.inkpad-old as a fallback.
+  Delete it once a normal deploy has gone through from the new repo.
+
+**Note:** future InkHeron commits go to the InkHeron-Platform repo. Session
+notes stay here in InkPad.
