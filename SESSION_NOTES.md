@@ -352,3 +352,37 @@ pointing it at the original would make the delete and add buttons write to the
 wrong pad. The new card is read-only and separate.
 
 **Main win:** the targets become visible before Run check, not only after.
+
+---
+
+## 2026-08-28 (later again) - Cadence: a standing note on a timetable slot
+
+**Asked:** "When I add a class to the schedule, I want to be able to add an
+additional note too. Set that up."
+
+**Found:** `Slot.note` had been in the type since the beginning and was
+carefully carried through every save in the slot editor, but no input ever set
+it and no view ever read it. A dead field waiting for this.
+
+**Decision:** the note belongs to the slot, so it stands every week the class
+runs. The day note on Today already covers the one-off case and was left alone.
+Told you the assumption rather than asking.
+
+**Did:** a Note field in the slot editor, for a class or a duty. `dayPlan`
+copies `slot.note` onto the occurrence and the duty occurrence, one place, so
+every reader sees the same field. Shown in five places: a glyph on the
+timetable cell with the text on hover, a line under the lesson on Today, the
+same for duty rows, the hover title on a Week cell, in full above the lesson on
+the class sheet, and in the calendar description for that class.
+
+**Verified** in the preview on the sample data. Saved a duty note and a class
+note through the real dialog; both landed on the right slots and both glyphs
+appeared with the right hover text. Week's hover carried lesson and note on two
+lines. The class sheet read "Every Monday / Half the group is at band". The
+.ics carried the note on all 19 occurrences of that slot. Today was checked by
+faking the clock to Monday 24 Aug in the page, which rendered both the duty note
+and the class note, then the clock was put back and the sample reloaded.
+`tsc --noEmit` and `npm run build` clean.
+
+**Commit:** `05d2757` on Cadence `main`, pushed and deployed. `/health` came
+back `{"ok":true,"hasState":true,"size":16675}`.
