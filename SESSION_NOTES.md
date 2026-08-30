@@ -262,3 +262,42 @@ still tracked inside the InkPad monorepo.
 
 **Note:** future InkHeron commits go to the InkHeron-Platform repo. Session
 notes stay here in InkPad.
+
+## 2026-08-30 InkHeron: green pen pad health check after Alex's blank screen
+
+**You asked** me to check all the pads are healthy, especially green pen, after
+Alex got a blank white screen, and to fix whatever I found.
+
+**Every server side check came back clean:**
+- All 49 green pen rewrite pads render through the real view function with
+  valid inline JavaScript. Nothing throws, nothing produces a broken page.
+- All 109 pads have valid document JSON, no stray script close tags, no raw
+  U+2028/U+2029 characters.
+- All 49 rewrites still resolve to their original pad and its marks, so
+  yesterday's mark cleanup did not cost anyone their feedback.
+- Zero 500s in four days. Every static asset and the offline page return 200.
+- Alex's own page serves 200 with his full essay and feedback payload.
+
+**The bug I found and fixed (commit 9ba253e, deployed):** the service worker.
+A failed navigation responded with `caches.match('/offline')`, which resolves
+to undefined when that page is not in the cache. `respondWith(undefined)`
+makes the browser paint nothing, which is the blank white screen. Browsers
+evict caches under storage pressure, and install used `addAll`, which throws
+away the whole batch if one asset fails, so an empty cache was easy to reach.
+Now it falls back to a built in offline page, caches assets individually, and
+the cache name is bumped to v2 so broken caches get dropped. Four regression
+tests, verified failing before the fix.
+
+**Honest caveat:** I could not reproduce Alex's screen directly. His IP is a
+Chinese mobile carrier, and a dropped request on that connection hitting the
+undefined fallback fits the symptom exactly, but this is the best fitting
+cause rather than a confirmed one. If it happens again, ask him to note
+whether he had signal, and whether "Try again" now appears.
+
+**One thing for you, not a bug:** Chris's green pen rewrite (pad 76, from
+pad 44 on assignment 11) opens with an empty feedback panel. His original is
+marked but has no marks, comments or feedback items on it at all, and the
+essay is only 568 characters. Nothing to rewrite against. Worth a look.
+
+**Tests:** 273 total, 272 pass. The one failure is still the pre-existing EAP
+library admin test.
