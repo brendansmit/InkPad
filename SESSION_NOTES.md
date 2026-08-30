@@ -301,3 +301,54 @@ essay is only 568 characters. Nothing to rewrite against. Worth a look.
 
 **Tests:** 273 total, 272 pass. The one failure is still the pre-existing EAP
 library admin test.
+
+## 2026-08-30 (later) Investigation only: targets and strengths missing when grading a rewrite
+
+**You asked** why you cannot see the strengths and, more importantly, the
+targets when you review and grade a green pen rewrite. You asked me to look
+but not change anything, since you are implementing tonight.
+
+**Cause.** The review endpoint builds the feedback rail from
+`loadFeedbackItems(db, padId)`, where padId is the REWRITE pad. Feedback items
+are never copied onto a rewrite. Comments are copied, feedback items are not.
+Live data confirms it: 242 feedback items sit on the original drafts (145
+targets, 97 strengths) and exactly 0 on the 49 rewrite pads. So "Strengths and
+targets" renders empty with just the add row.
+
+The only place a target appears on a rewrite today is inside the "Green pen
+result" card, and only after Run check has scored it. Before you run the
+check you are grading with no sight of the targets at all.
+
+**Plan, four small steps, a commit each:**
+
+1. Server, `src/routes/nativePads.js`: add `loadRewriteSourceFeedback(db, pad)`
+   next to `loadRewriteErrorTally`. Returns null unless `pad.rewrite_of_pad_id`.
+   Otherwise reads `native_feedback_items` for the ORIGINAL pad, splits into
+   targets and strengths, and merges the AI verdict per target. The scorer
+   already stores `targets: [{id, title, addressed, score, note}]` in
+   `implementation_scores.addressed_json`, and that `id` is the original's
+   feedback item id, so the merge is a clean join on id, no title matching.
+   Carry `student_checked` through as well, since that is the student claiming
+   they did it and you want to check that claim. Expose as `draft_feedback` in
+   the review payload beside `rewrite_error_tally`.
+
+2. Client, `public/teacher/native-review.html`: a new read-only rail card,
+   "From draft 1". Targets first, then strengths. Each target shows title,
+   explanation, the try-now prompt, whether the student ticked it, and once
+   scored a /10 pill plus the AI note. Put it directly under the grammar tally
+   and above "Green pen result", and give it a link to open the original.
+
+3. Same file: drop the per-target list from "Green pen result" so targets are
+   not listed twice on one screen. That card keeps the verdict, the ratios and
+   the summary.
+
+4. Tests, `test/greenpenReviewUx.test.js`: a rewrite carries the original's
+   targets and strengths; an ordinary essay has no `draft_feedback`; verdicts
+   merge onto the right target by id; the student tick state comes through.
+
+**Leave alone:** the existing editable "Strengths and targets" card. That is
+for feedback on the rewrite itself and it is bound to the rewrite pad id, so
+pointing it at the original would make the delete and add buttons write to the
+wrong pad. The new card is read-only and separate.
+
+**Main win:** the targets become visible before Run check, not only after.
