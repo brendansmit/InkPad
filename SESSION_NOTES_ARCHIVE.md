@@ -2223,3 +2223,67 @@ Commit `c702bb9` on Cadence `main`, deployed.
 
 ---
 
+## 2026-08-28 - Abandoned creates no longer leave a placeholder behind
+
+**Asked:** "When I click to create something but don't follow through or save, I
+don't want the untitled event or assignment or whatever to still exist, it's a
+stupid way of doing it."
+
+**What was wrong.** Every create button did the same two things in the same
+order: write the record to state, then open the dialog.
+
+```
+upsertX(record);
+setEditing(record);
+```
+
+The dialog's Save already calls `upsertX`, and `upsert` inserts when the id is
+new, so the first call bought nothing. What it cost was a stray record every
+time you changed your mind. Close, cancel or press Escape and the placeholder
+stayed: a "New event" on the calendar, a "New assignment" in the list, a "New
+course" with no classes in it. Since the sync fix went in these strays also
+travel: they write to the droplet, land in exports and reach the published
+calendar.
+
+**Fixed in seven places**, one line removed each, plus a comment saying why the
+record is held back:
+
+| File | Handler | Was leaving |
+|---|---|---|
+| `src/views/Month.tsx` | `addEvent` | New event |
+| `src/views/Assignments.tsx` | `create` | New assignment |
+| `src/views/Curriculum.tsx` | `addLesson` | New lesson |
+| `src/views/Curriculum.tsx` | `addUnit` | New unit |
+| `src/views/Classes.tsx` | `addCourse` | New course |
+| `src/views/Classes.tsx` | `addSection` | Class 2 |
+| `src/views/Timetable.tsx` | `add` (calendar day) | Holiday |
+
+**Deliberately left alone.** Bell schedule periods and terms add a row that is
+edited inline in a table. There is no dialog, so there is nothing to defer the
+write to. The row is the editor. Deferring those means inventing a modal that
+was not asked for.
+
+**Verified in the running app**, not by reading. Every one of the seven was
+opened and abandoned by all three exits (Cancel, the X, Escape), then opened and
+saved. Counts read out of localStorage after a settle delay, because the persist
+is debounced and reading it immediately gives a false negative. All seven hold
+nothing on abandon and all seven still save. Lesson kept `order: 1` and its unit
+link through the change. Delete inside the section editor on a never-saved
+record is a harmless no-op: it removes an id that is not in state and closes the
+dialog, and the existing section was untouched.
+
+**Checked before starting:** the droplet's state file had no strays sitting in
+it (2 events, 2 courses, 4 sections, 0 assignments, all real names), so this is
+a forward fix with no cleanup owed.
+
+`tsc --noEmit` clean, `npm run build` clean, no console errors. Commit
+`bc61e4a` on Cadence `main`. Deployed later the same day with `e2ab05f`.
+
+**Also asked:** why none of the existing InkPad assignments show up in Cadence.
+They never do, by design. Cadence does not import from InkPad. You make a
+Cadence assignment, expand its card, click InkPad and link each of its sections
+to work over there. The link is what carries counts back. The pipe itself is
+healthy: `/inkpad/assignments` returns 12 right now, including the MLK
+Rhetorical Analysis Essay and Argument Essay - Organ Donation for AP Lang and
+the four copies of Personal Statements Second Draft. There is nothing to link
+them to because the Cadence side has no assignments yet.

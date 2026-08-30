@@ -1,70 +1,5 @@
 # Session Notes
 
-## 2026-08-28 - Abandoned creates no longer leave a placeholder behind
-
-**Asked:** "When I click to create something but don't follow through or save, I
-don't want the untitled event or assignment or whatever to still exist, it's a
-stupid way of doing it."
-
-**What was wrong.** Every create button did the same two things in the same
-order: write the record to state, then open the dialog.
-
-```
-upsertX(record);
-setEditing(record);
-```
-
-The dialog's Save already calls `upsertX`, and `upsert` inserts when the id is
-new, so the first call bought nothing. What it cost was a stray record every
-time you changed your mind. Close, cancel or press Escape and the placeholder
-stayed: a "New event" on the calendar, a "New assignment" in the list, a "New
-course" with no classes in it. Since the sync fix went in these strays also
-travel: they write to the droplet, land in exports and reach the published
-calendar.
-
-**Fixed in seven places**, one line removed each, plus a comment saying why the
-record is held back:
-
-| File | Handler | Was leaving |
-|---|---|---|
-| `src/views/Month.tsx` | `addEvent` | New event |
-| `src/views/Assignments.tsx` | `create` | New assignment |
-| `src/views/Curriculum.tsx` | `addLesson` | New lesson |
-| `src/views/Curriculum.tsx` | `addUnit` | New unit |
-| `src/views/Classes.tsx` | `addCourse` | New course |
-| `src/views/Classes.tsx` | `addSection` | Class 2 |
-| `src/views/Timetable.tsx` | `add` (calendar day) | Holiday |
-
-**Deliberately left alone.** Bell schedule periods and terms add a row that is
-edited inline in a table. There is no dialog, so there is nothing to defer the
-write to. The row is the editor. Deferring those means inventing a modal that
-was not asked for.
-
-**Verified in the running app**, not by reading. Every one of the seven was
-opened and abandoned by all three exits (Cancel, the X, Escape), then opened and
-saved. Counts read out of localStorage after a settle delay, because the persist
-is debounced and reading it immediately gives a false negative. All seven hold
-nothing on abandon and all seven still save. Lesson kept `order: 1` and its unit
-link through the change. Delete inside the section editor on a never-saved
-record is a harmless no-op: it removes an id that is not in state and closes the
-dialog, and the existing section was untouched.
-
-**Checked before starting:** the droplet's state file had no strays sitting in
-it (2 events, 2 courses, 4 sections, 0 assignments, all real names), so this is
-a forward fix with no cleanup owed.
-
-`tsc --noEmit` clean, `npm run build` clean, no console errors. Commit
-`bc61e4a` on Cadence `main`. Deployed later the same day with `e2ab05f`.
-
-**Also asked:** why none of the existing InkPad assignments show up in Cadence.
-They never do, by design. Cadence does not import from InkPad. You make a
-Cadence assignment, expand its card, click InkPad and link each of its sections
-to work over there. The link is what carries counts back. The pipe itself is
-healthy: `/inkpad/assignments` returns 12 right now, including the MLK
-Rhetorical Analysis Essay and Argument Essay - Organ Donation for AP Lang and
-the four copies of Personal Statements Second Draft. There is nothing to link
-them to because the Cadence side has no assignments yet.
-
 ## 2026-08-28 - Live two-server app inventory
 
 **Asked:** List every app deployed across both servers.
@@ -386,3 +321,53 @@ and the class note, then the clock was put back and the sample reloaded.
 
 **Commit:** `05d2757` on Cadence `main`, pushed and deployed. `/health` came
 back `{"ok":true,"hasState":true,"size":16675}`.
+
+## 2026-08-31 Cadence: extra periods, a class slot the sequence never lands in
+
+**Asked:** the note should be visible in the timetable, and the real use is an
+additional period with one class for a few weeks or the whole semester. Added as
+a normal lesson there is no way to tell it apart. Then: put the extra periods in
+brackets next to the number of periods left, because that helps pacing, but it
+must not be an official pacing thing.
+
+**Built:** a third slot kind on the timetable, `Extra period`. It picks a
+section, keeps the class colour, carries its own short name (Support, Writing
+clinic) and is drawn with a dashed border. The note added last session now
+reads as text in the cell rather than hiding behind a glyph.
+
+The whole point is that it is not one of that class's lessons, so it is kept out
+of every figure that decides something:
+
+- the lesson projector in `planSection` skips it, so nothing lands there on its own
+- `remainingClasses` and `slack` exclude it, in `planSection` and again in
+  `openClassesUntil`, which `outlookFor` uses to overwrite both
+- `weeklyLoad` does not count it, so a week does not look a period longer
+- `classTally` counts it in its own field, out of held, lost and left, so a
+  section cannot look ahead of its parallel section
+- assignment runway (`nthClassAfter`, `classesBetween`) does not count it as
+  teaching time, so a due date is not set a class early
+- an event that lands on one is not reported as a lost lesson
+
+What it does instead is show as a dimmed number in brackets beside the real one:
+Pacing table `62 (+16)`, Today's tally `62 left (+16)`, with the breakdown on
+hover. Today, Week, the class sheet and the .ics all wear its name instead of
+saying no lesson is set. Record a lesson in one by hand and it counts like any
+other class.
+
+**Caught in verification:** the first run showed classes left jumping 62 to 78
+and slack 58 to 74 after one extra slot was added. `outlookFor` recomputes both
+from `openClassesUntil`, which had no idea about extras and was overwriting the
+filtered figure. Fixed there, and `extraClasses` is now counted over the same
+window so the bracket and the number beside it talk about the same stretch of
+the year. `nextClass` also had to skip extras, or Pacing reported the next
+lesson as unplanned.
+
+**Verified** in the preview against the sample data: added a Writing clinic on
+Monday period 3 through the real dialog. Classes left and slack came back
+identical to the baseline before the slot existed, the bracket read `(+16)`, no
+projected lesson landed in it, Week and the class sheet showed its name, and the
+.ics summary read `Lang · Writing clinic`. `tsc --noEmit` and `npm run build`
+clean, console clean on a fresh load.
+
+**Commit:** `b18d1a2` on Cadence `main`, pushed and deployed. `/health` came
+back `{"ok":true,"hasState":true,"size":17060}`.
