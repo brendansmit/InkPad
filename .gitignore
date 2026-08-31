@@ -7,3 +7,8 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+# InkHeron-Platform is its own git repo (split 2026-08-29). The parent must not
+# track its files: a checkout here would overwrite the real repo working tree
+# with the frozen copy from the split, which is what happened on 2026-08-31.
+InkHeron-Platform/
