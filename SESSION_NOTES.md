@@ -371,3 +371,114 @@ clean, console clean on a fresh load.
 
 **Commit:** `b18d1a2` on Cadence `main`, pushed and deployed. `/health` came
 back `{"ok":true,"hasState":true,"size":17060}`.
+
+## 2026-08-31 (later) Cadence: drag lessons into order, split multi period lessons
+
+**Asked:** drag to change the order of lessons, so lesson 1 can be shifted to
+lesson 3. And if a lesson takes 2 or more periods, split it into that many
+lessons, because they sometimes need to be moved apart or land on different days.
+
+**Drag:** a grip on each lesson row, reusing the pointer drag the Desk to do
+list already had rather than writing a second one. Works under a finger, and the
+arrow keys on the grip still move a row without a mouse. Dragging spans the
+whole course, not just one unit card: the landing gap is measured across every
+row, while the unit is taken from the card the pointer is inside, because at a
+card boundary the row above and the card disagree and the card is the one with a
+name on it. Dropping into another unit re files the lesson as well as moving it,
+in a single mutation so one undo puts both back. The position is read off the
+row below the gap, so the rest of the sequence is not renumbered. The grip is
+withheld while the search box has text, since the gaps in a filtered list are
+not the gaps in the sequence.
+
+**Split:** setting the lesson field (relabelled "Classes it takes") to 2 or more
+and saving turns the lesson into that many lessons, "(1 of 2)" and "(2 of 2)",
+consecutive in the sequence, one class each. The first part keeps the original
+id so any recorded delivery stays attached to it. Objective, unit and tags copy
+to every part; activities, homework and resources stay on part 1, because the
+second period usually needs its own and copying just makes rows to clean up.
+Paste import expands "(2 periods)" the same way and the toast counts what was
+actually created. `periods` stays in the model for anything already stored.
+
+**Known edge:** splitting a part of an earlier split leaves the old sibling
+behind with a stale name, for example "(1 of 3)(2 of 3)(3 of 3)" followed by an
+orphan "(2 of 2)". The parts are ordinary independent lessons once split and
+nothing links them, so renaming siblings would need a group id in the model that
+was not asked for. Left as is, and undo reverses the whole split in one press.
+
+**Verified** in the preview against sample data by dispatching real pointer
+events: lesson 1 dragged to position 3 landed exactly there, a cross card drag
+moved a lesson from unit 1 to unit 2 and changed its unitId, one undo reverted
+both the move and the re file, the keyboard nudge swapped two rows, a filtered
+list showed 4 rows and 0 grips. Splitting produced positions 6 and 7 with one
+period each, the toast read "Split into 2 lessons", re splitting a part renamed
+rather than stacking, and Pacing moved from 4 lessons left and +58 slack to 5
+and +57, which is the one extra class the split asks for. `tsc --noEmit` and
+`npm run build` clean, console clean.
+
+**Note for next time:** `preview_start {name:"cadence"}` now resolves the parent
+repo's `.claude/launch.json` and cannot see the Cadence one, so the dev server
+had to be started with `npm run dev` from the Cadence folder and the tab opened
+with `preview_start {url:"http://localhost:5183"}`.
+
+**Commit:** `f4848c0` on Cadence `main`, pushed and deployed. `/health` came
+back `{"ok":true,"hasState":true,"size":18260}`.
+
+## 2026-08-31 (later) Cadence: the server becomes the home, and cancelling one class
+
+**Asked:** the installed web app on the phone showed nothing at all: no
+timetable, no classes. Then, on being told the app is local first with a
+background sync, that this is the wrong way round and the server should be
+where the work lives. Then separately: an extra AP Lang period tomorrow is not
+happening, and there was no way to say so, because "Skipped" is disabled unless
+a lesson is attached to that period.
+
+**Why the phone was empty:** an installed home screen app is its own storage
+container, so it started empty and had nothing to fill it. The sync address and
+key had never been entered on that device, and the key sits behind a password
+field on the laptop and could not be read off the screen. Stopgap used on the
+night: Settings, "Export a backup" on the laptop, AirDrop, "Import a backup" on
+the phone.
+
+**Built, four commits:**
+
+1. `c610329` The server takes the sign in session as an alternative to
+   `X-Cadence-Key` on `/state` and on the calendar publish. Not a hole: the
+   cookie is SameSite=Lax so a cross site write cannot carry it, CORS answers
+   with a wildcard origin so a browser refuses to send credentials to it, and
+   `Sec-Fetch-Site` is checked where the browser sends it. A password still
+   owed blocks it, same as the app itself.
+2. `80e7a72` The app defaults its sync address to `location.origin`, so a fresh
+   install has nothing to type. Requests now carry `credentials: 'same-origin'`.
+   The key box stays, for a server you are not signed in to.
+3. `f970926` It asks the server the moment it opens rather than waiting for a
+   pause in typing, and shows "Fetching your work from the server" while a bare
+   device waits. Auto sync quiet window cut from 10 s to 3 s.
+4. `073f9d9` A quiet light in the sidebar foot: "Saved on the server", or red
+   with the reason when it is not reaching it.
+5. `8d59859` "This class did not happen", in the class sheet and in the day
+   list menu, working with or without a lesson. Underneath it is an ordinary
+   cancelling event scoped to one section, one period, one date, marked
+   `singleClass` so "Put it back" can only ever remove one of these and never
+   an exam built by hand with the same shape. Same commit: the class sheet now
+   reads cancellation, thinning and delivery off live state instead of the
+   snapshot it was opened with, which is why the sheet used to sit there
+   unchanged after you changed something in it.
+
+**Verified** against a throwaway copy of the real server on port 8795 with its
+own data directory: no credential 401, session but password still owed 401,
+cross site 401, session GET and PUT 200, key without cookie 200. Then in the
+browser: sample data pushed to the server with no key set anywhere, localStorage
+wiped, reload, and the whole thing came back and was cached locally again. Then
+cancelled a normal class and an extra period, both from the sheet and from the
+day list, watched the sequence roll forward, and put both back.
+
+**Deployed.** `/health` `{"ok":true,"hasState":true,"size":18330}`.
+
+**Still open:** the parent repo was switched from `rewrite-scoring` to `main`
+partway through the earlier session, so the extra periods notes are committed on
+`rewrite-scoring` and everything since is on `main`, against a different copy of
+this file. Waiting on a decision before moving anything.
+
+**Noticed, not chased:** service worker registration fails in the in-app browser
+pane on localhost. It is a pane limitation, not the app, and the installed app
+on the phone already has a worker.
