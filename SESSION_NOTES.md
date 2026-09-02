@@ -461,3 +461,69 @@ uncredentialed shapes after deploy.
 back `{"ok":true,"hasState":true,"size":19341}`.
 
 **Still open:** the live site password is still `ChangeMe1`.
+
+## 2026-09-02 Cadence: a menu bar widget, and the InkPad link that I broke
+
+**Asked, first:** the InkPad assignments could not be linked to anything. The
+modal said "Set up sync first: InkPad is read through your own server."
+
+**Cause, mine:** when the sync key became optional the night before, because the
+login session now stands in for it, I updated the sync path and forgot the
+InkPad path. `src/lib/inkpad.ts` still refused unless both `syncUrl` and
+`syncKey` were filled in, and `syncUrl` is now deliberately blank because blank
+means "the server that served this page". The same guard in Assignments.tsx hid
+the InkPad button on the cards outright. The live server was configured fine the
+whole time.
+
+**Fixed:** both fetches take the resolved base rather than raw `syncUrl`, refuse
+only when there is no server at all, send the key header only when there is a
+key, and carry `credentials: 'same-origin'`. The server's `inkpadRefused` now
+accepts the app's own session, matching what `/state` already did. Commit
+`f320b5f`, deployed.
+
+**Asked, second:** a little desktop widget.
+
+**Told him plainly:** a real macOS Notification Centre widget needs an Xcode
+project signed with a developer account, and on a free account it stops working
+every seven days. He has no account. So a menu bar item instead. He chose that,
+and chose next class with time and room, the rest of today, and punch in and out.
+
+**Two server additions first**, both opt in, neither changing what any existing
+caller gets:
+- `/punch?do=state` says whether you are clocked in and writes nothing. Until
+  now `/punch` could only toggle, so the only way to find out was to clock in
+  and read the reply, which is not a question, it is a shift.
+- `/timetable/occurrences?include_extra=1` stops dropping extra periods. They
+  are dropped by default because InkHeron reads that feed to decide where a test
+  can go and an extra period is not the next lesson. A widget telling you where
+  to be at 11:05 wants the opposite. Every occurrence now carries an `extra`
+  flag either way. Commit `246d84a`, deployed.
+
+**The widget:** `Cadence/widget/`, one Swift file built by `swiftc` into an app
+bundle. No Xcode project, no signing, no dependencies. `setup.sh` works both
+tokens out on the droplet (they are sha256 of `CADENCE_KEY` plus a purpose) and
+writes them into `~/.config/cadence-widget/config.json` at mode 600, so nothing
+is typed, nothing is printed and nothing secret is in the repo. A LaunchAgent
+starts it at login, with KeepAlive off so Quit means Quit. Commit `b96de62`.
+
+**Deploy order mattered:** the widget asks `do=state`, which the live server did
+not understand yet and would have treated as a toggle, clocking him in for real.
+Deployed the server change before ever running the app.
+
+**Verifying a menu bar:** `screencapture` has no Screen Recording permission
+here, so I could not look at it. Added `--once`, which prints the bar title and
+the menu lines and exits, sharing the code that draws them rather than copying
+it. Against his live data it printed `BAR: EAP 2 · 13:30` with both remaining
+classes and room 105, and `do=state` read twice in a row without toggling.
+
+**Two real bugs found by that:** the dump deadlocked because it blocked the main
+thread waiting for replies that come back on the main thread, and it reported
+"Cadence: set up" because it loaded the config into a local and never assigned
+it. Both would have been invisible in the GUI.
+
+**Display only:** his short names carry stray double spaces, so `EAP  3` reads
+as a bug in the widget. Whitespace is collapsed for display and never written
+back.
+
+**Dismissed, not built:** he dismissed the first pass of these questions, so
+nothing was started until he answered them.
