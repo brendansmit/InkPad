@@ -361,3 +361,28 @@ next eviction. His own test answered it, so the instrumentation was not built.
 
 **Still long, not changed:** the post-timetable title `No more classes` is
 fifteen characters, now the widest state. Raised, not acted on.
+
+## 2026-09-03 (last) Cadence widget: minutes left, not the end time
+
+**Asked:** he had freed space in the menu bar by removing icons that did not
+need to be there, so he did not want the title compressed further. What he
+wanted instead was a countdown during a lesson, and the next class as soon as
+the current one ends.
+
+**Built:** inside a lesson the bar now reads `EAP 3 · 39 min left` and ticks
+down, with `1 minute left` spelled out at the end because "1 min left" reads
+like a typo. The second half of the request needed no work, since the widget
+already rolls to the next class the moment the current one ends.
+
+**No new timer:** redraw already runs every twenty seconds, which is plenty for
+a per minute countdown.
+
+**Checked across a day:** 07:39 amber `EAP 1 in 1 min`, 07:41 green `39 min
+left`, 08:19 `1 minute left`, 08:21 amber `EAP 3 in 9 min`, 12:30 `No more
+classes`.
+
+**Worth remembering:** `--at` on its own runs the real GUI. Dumping the title
+for a given time needs `--once --at 07:41`. Two test sweeps hung before I
+noticed I was launching menu bar apps rather than printing.
+
+**Commit:** `6d1ecd9`, pushed.
