@@ -365,3 +365,44 @@ binary, which printed play, finish, play, finish, done.
 its own. Both tones sit under the existing `warn_sound`.
 
 **Commit:** `a029435`, pushed.
+
+## 2026-09-03 (last) Cadence: cover notes become a real PDF
+
+**Asked:** the Cover sheet should download as a PDF with the resources attached,
+and where a resource is a link, which is most of them because he builds slides
+in Canva, the cover teacher should be able to click it. Digital first, paper
+second.
+
+**The reported problem was smaller than the real one.** The resources were not
+links anywhere. `Cover.tsx` drew the label as plain text and the URL beside it
+in a span, so even the printed sheet was a URL you had to retype. Fixed on
+screen first, then in the PDF.
+
+**Attach can only mean link.** Cadence stores no files, only labels and URLs, so
+there is nothing to embed. Said so before building rather than after.
+
+**Built** `src/lib/coverPdf.ts` on jsPDF, A4, taking a plain `CoverDoc` so all
+the derivation stays in the view. Each resource label is drawn with
+`textWithLink`, which writes a real `/Link` annotation, and the URL still prints
+underneath in grey for anyone holding paper.
+
+**Two bugs found by rendering, not by reading.** A class block that spilled onto
+a new page then reached back to the previous page's rail position, leaving one
+page nearly blank and pushing the last class off the end. And the "continued"
+header left its own font behind mid paragraph, so carried lines came out bold
+grey. Both invisible in the code and obvious in the picture.
+
+**No PDF tooling on this Mac,** no pdftoppm, mutool, gs or PyMuPDF. Wrote a
+short Swift PDFKit renderer to look at arbitrary pages. Worth keeping in mind
+next time a PDF needs checking.
+
+**Verified:** link annotations confirmed structurally in the raw file, two links
+for two resources with URLs and none for the one without. An eight class day
+with long text renders three pages with all eight links intact. Seven edge cases
+render without throwing: closed day, no classes, cancelled, thinned, no lesson
+planned, resource without a URL, everything empty.
+
+**Cannot verify:** how the annotations behave in whatever reader the cover
+teacher opens the file in.
+
+**Commit:** `6a54161` in Cadence, pushed. Not deployed.
