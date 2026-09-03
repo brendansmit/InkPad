@@ -2714,3 +2714,63 @@ with `preview_start {url:"http://localhost:5183"}`.
 **Commit:** `f4848c0` on Cadence `main`, pushed and deployed. `/health` came
 back `{"ok":true,"hasState":true,"size":18260}`.
 
+## 2026-08-31 (later) Cadence: the server becomes the home, and cancelling one class
+
+**Asked:** the installed web app on the phone showed nothing at all: no
+timetable, no classes. Then, on being told the app is local first with a
+background sync, that this is the wrong way round and the server should be
+where the work lives. Then separately: an extra AP Lang period tomorrow is not
+happening, and there was no way to say so, because "Skipped" is disabled unless
+a lesson is attached to that period.
+
+**Why the phone was empty:** an installed home screen app is its own storage
+container, so it started empty and had nothing to fill it. The sync address and
+key had never been entered on that device, and the key sits behind a password
+field on the laptop and could not be read off the screen. Stopgap used on the
+night: Settings, "Export a backup" on the laptop, AirDrop, "Import a backup" on
+the phone.
+
+**Built, four commits:**
+
+1. `c610329` The server takes the sign in session as an alternative to
+   `X-Cadence-Key` on `/state` and on the calendar publish. Not a hole: the
+   cookie is SameSite=Lax so a cross site write cannot carry it, CORS answers
+   with a wildcard origin so a browser refuses to send credentials to it, and
+   `Sec-Fetch-Site` is checked where the browser sends it. A password still
+   owed blocks it, same as the app itself.
+2. `80e7a72` The app defaults its sync address to `location.origin`, so a fresh
+   install has nothing to type. Requests now carry `credentials: 'same-origin'`.
+   The key box stays, for a server you are not signed in to.
+3. `f970926` It asks the server the moment it opens rather than waiting for a
+   pause in typing, and shows "Fetching your work from the server" while a bare
+   device waits. Auto sync quiet window cut from 10 s to 3 s.
+4. `073f9d9` A quiet light in the sidebar foot: "Saved on the server", or red
+   with the reason when it is not reaching it.
+5. `8d59859` "This class did not happen", in the class sheet and in the day
+   list menu, working with or without a lesson. Underneath it is an ordinary
+   cancelling event scoped to one section, one period, one date, marked
+   `singleClass` so "Put it back" can only ever remove one of these and never
+   an exam built by hand with the same shape. Same commit: the class sheet now
+   reads cancellation, thinning and delivery off live state instead of the
+   snapshot it was opened with, which is why the sheet used to sit there
+   unchanged after you changed something in it.
+
+**Verified** against a throwaway copy of the real server on port 8795 with its
+own data directory: no credential 401, session but password still owed 401,
+cross site 401, session GET and PUT 200, key without cookie 200. Then in the
+browser: sample data pushed to the server with no key set anywhere, localStorage
+wiped, reload, and the whole thing came back and was cached locally again. Then
+cancelled a normal class and an extra period, both from the sheet and from the
+day list, watched the sequence roll forward, and put both back.
+
+**Deployed.** `/health` `{"ok":true,"hasState":true,"size":18330}`.
+
+**Still open:** the parent repo was switched from `rewrite-scoring` to `main`
+partway through the earlier session, so the extra periods notes are committed on
+`rewrite-scoring` and everything since is on `main`, against a different copy of
+this file. Waiting on a decision before moving anything.
+
+**Noticed, not chased:** service worker registration fails in the in-app browser
+pane on localhost. It is a pane limitation, not the app, and the installed app
+on the phone already has a worker.
+
