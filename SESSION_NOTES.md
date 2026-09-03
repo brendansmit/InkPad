@@ -355,3 +355,38 @@ planned, resource without a URL, everything empty.
 teacher opens the file in.
 
 **Commit:** `6a54161` in Cadence, pushed. Not deployed.
+
+## 2026-09-03 (later) Cadence: make the whole site work on a phone
+
+**Asked:** "cadence is fully mobile friendly ... the timetable is impossible to
+use on my phone ... shows two days and that's it and then even if I change it to
+landscape mode it's fucked ... everything adjusted according to the screen size."
+
+**Found:** not a bug. Both grids carried `min-width: 640px` with `overflow-x:
+auto`, so a phone got two columns and a sideways scrollbar. Scrolling sideways
+is not the layout adjusting to the screen. Landscape was worse: at 812x375 all
+five days showed but only two periods, because the header and tab bar ate about
+160px of a 375px tall viewport.
+
+**Done**, five commits on Cadence `main`:
+1. `src/lib/media.ts`, a `useMedia`/`usePhone` hook. A grid cannot become a list
+   in CSS alone, so the breakpoint has to be readable from render. Timetable
+   below 640px is now a weekday bar plus one day of period rows.
+2. Same list for Week, with `collapseFree`: runs of two or more empty teaching
+   periods fold into one line, because seven "Free" rows pushed the first class
+   of the day off the screen.
+3. Curriculum lesson rows: actions wrap to their own line and stay solid, since
+   a phone has no hover to reveal them.
+4. Landscape. On viewports under 500px tall the topbar, padding and tab bar
+   shrink and the tab labels go, giving the grid its height back.
+5. Sweep of the rest. Cover toolbar hint hidden, Month event chip clipped with
+   a title, Today's objective allowed two lines instead of 150px and an
+   ellipsis, tally cards two per row.
+
+**Verified:** screenshots at 375x812 for every view, plus a scripted pass over
+all eleven routes checking for elements past the viewport edge. Clean. The
+Settings terms table still scrolls inside its card, which is the existing and
+deliberate behaviour for a six column editable table.
+
+**Not deployed.** The cover PDF work from earlier today is also pushed and not
+deployed; one `./deploy/deploy.sh` covers both.
