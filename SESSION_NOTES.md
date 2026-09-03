@@ -341,3 +341,31 @@ All periods showing. `useMedia` now also syncs on resize and orientationchange.
 
 **Not deployed.** The cover PDF work from earlier today is also pushed and not
 deployed; one `./deploy/deploy.sh` covers all of it.
+
+## 2026-09-04 Cadence: record the slide a class ended on
+
+**Asked:** "I'd like you to add a little feature that allows me to note which
+slide I ended on at the end of the class (only when it's the final period for
+that class for the day)."
+
+**Done:** `Delivery.endedOnSlide?: number`, whitelisted in `upsertDelivery` or
+it would have been dropped silently on write. `lastPeriodKeys` and
+`firstPeriodKeys` in `domain/schedule.ts` share one `edgeKeys(classes, dir)`
+helper; a cancelled class is never an ending. The Today row offers the field
+only on the last period the section has that day, only once it is taught or
+part taught, and it sits closed until tapped. The class sheet has the same
+field under the same rule. Carry forward shows "last time: slide N" on the
+section's first period next lesson, in the class sheet, and on the cover sheet
+beside "got to".
+
+**Kept separate from `gotTo` deliberately:** one is a sentence about the room,
+the other is a place in a deck the next lesson wants to print as a number.
+
+**Caught in verification, not reported:** the carry-forward line was showing on
+both Monday Lang periods, which is why `firstPeriodKeys` exists. Making the row
+wrap so the note could take its own line pushed the lesson onto a second line
+on a phone, fixed by putting `.tl-main` on a zero flex basis. The modal footer
+was also pushing its confirm button 6px off the right edge at 375px.
+
+**Commit `29c470c`, pushed. Not deployed.** The cover PDF, the mobile sweep and
+the week Glance are all still waiting on one `./deploy/deploy.sh`.
