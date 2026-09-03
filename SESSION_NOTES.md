@@ -386,3 +386,32 @@ for a given time needs `--once --at 07:41`. Two test sweeps hung before I
 noticed I was launching menu bar apps rather than printing.
 
 **Commit:** `6d1ecd9`, pushed.
+
+## 2026-09-03 Cadence widget: two tones
+
+**Asked:** a longer warning tone for a class starting, and a different tone at
+five minutes left of a lesson. He asked for two repeats, not the three I had
+proposed.
+
+**Length comes from repetition.** Every sound macOS ships is under 2.5 seconds,
+Funk longest at 2.16 and Submarine at 1.49, so there is no longer file to pick.
+Submarine now plays twice, chained off the `NSSound` delegate rather than a
+timer, so the repeat starts when the first actually finishes.
+
+**The end of a lesson is different news.** A start warning is about walking
+somewhere, the five minute one is about winding up. So it gets no panel, only
+Glass twice, bright against Submarine's low ping. It deliberately does not skip
+chained lessons the way the start warning does, because the end of the lesson
+you are in arrives whatever comes next. That means it fires for every lesson,
+four or five times a day. Flagged to him as more frequent than the start
+warning; he wanted it anyway.
+
+**Verified:** silent at ten minutes left, fires at five, exactly one line
+across fifty seconds and three redraws, and the start warning still fires
+fifteen minutes out. The delegate chain was proven in a separate throwaway
+binary, which printed play, finish, play, finish, done.
+
+**Not built:** no config key for the five minute mark or for turning it off on
+its own. Both tones sit under the existing `warn_sound`.
+
+**Commit:** `a029435`, pushed.
