@@ -388,5 +388,16 @@ all eleven routes checking for elements past the viewport edge. Clean. The
 Settings terms table still scrolls inside its card, which is the existing and
 deliberate behaviour for a six column editable table.
 
+**Then:** "I still need a view of the week at a glance." Fair. The day list
+answered "what am I doing now" and threw away the question a week view exists
+for. Week on a phone now has a Glance/Day toggle, defaulting to Glance and
+remembered in localStorage. Glance is five days in 341px: a 42px rail with the
+period code and start time (asked for explicitly, "I'll need time even if its
+just the start time"), and cells carrying only a colour and a class code.
+Dropping the lesson title, room and run count is what makes five columns honest
+rather than a shrunk desktop grid. Tap a cell to open the lesson, tap a day
+header to carry that date into Day. Whole week in 357px of height, 461px with
+All periods showing. `useMedia` now also syncs on resize and orientationchange.
+
 **Not deployed.** The cover PDF work from earlier today is also pushed and not
-deployed; one `./deploy/deploy.sh` covers both.
+deployed; one `./deploy/deploy.sh` covers all of it.
