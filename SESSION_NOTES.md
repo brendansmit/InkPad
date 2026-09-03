@@ -1,57 +1,6 @@
 # Session Notes
 
 
-## 2026-08-31 (later) Cadence: drag lessons into order, split multi period lessons
-
-**Asked:** drag to change the order of lessons, so lesson 1 can be shifted to
-lesson 3. And if a lesson takes 2 or more periods, split it into that many
-lessons, because they sometimes need to be moved apart or land on different days.
-
-**Drag:** a grip on each lesson row, reusing the pointer drag the Desk to do
-list already had rather than writing a second one. Works under a finger, and the
-arrow keys on the grip still move a row without a mouse. Dragging spans the
-whole course, not just one unit card: the landing gap is measured across every
-row, while the unit is taken from the card the pointer is inside, because at a
-card boundary the row above and the card disagree and the card is the one with a
-name on it. Dropping into another unit re files the lesson as well as moving it,
-in a single mutation so one undo puts both back. The position is read off the
-row below the gap, so the rest of the sequence is not renumbered. The grip is
-withheld while the search box has text, since the gaps in a filtered list are
-not the gaps in the sequence.
-
-**Split:** setting the lesson field (relabelled "Classes it takes") to 2 or more
-and saving turns the lesson into that many lessons, "(1 of 2)" and "(2 of 2)",
-consecutive in the sequence, one class each. The first part keeps the original
-id so any recorded delivery stays attached to it. Objective, unit and tags copy
-to every part; activities, homework and resources stay on part 1, because the
-second period usually needs its own and copying just makes rows to clean up.
-Paste import expands "(2 periods)" the same way and the toast counts what was
-actually created. `periods` stays in the model for anything already stored.
-
-**Known edge:** splitting a part of an earlier split leaves the old sibling
-behind with a stale name, for example "(1 of 3)(2 of 3)(3 of 3)" followed by an
-orphan "(2 of 2)". The parts are ordinary independent lessons once split and
-nothing links them, so renaming siblings would need a group id in the model that
-was not asked for. Left as is, and undo reverses the whole split in one press.
-
-**Verified** in the preview against sample data by dispatching real pointer
-events: lesson 1 dragged to position 3 landed exactly there, a cross card drag
-moved a lesson from unit 1 to unit 2 and changed its unitId, one undo reverted
-both the move and the re file, the keyboard nudge swapped two rows, a filtered
-list showed 4 rows and 0 grips. Splitting produced positions 6 and 7 with one
-period each, the toast read "Split into 2 lessons", re splitting a part renamed
-rather than stacking, and Pacing moved from 4 lessons left and +58 slack to 5
-and +57, which is the one extra class the split asks for. `tsc --noEmit` and
-`npm run build` clean, console clean.
-
-**Note for next time:** `preview_start {name:"cadence"}` now resolves the parent
-repo's `.claude/launch.json` and cannot see the Cadence one, so the dev server
-had to be started with `npm run dev` from the Cadence folder and the tab opened
-with `preview_start {url:"http://localhost:5183"}`.
-
-**Commit:** `f4848c0` on Cadence `main`, pushed and deployed. `/health` came
-back `{"ok":true,"hasState":true,"size":18260}`.
-
 ## 2026-08-31 (later) Cadence: the server becomes the home, and cancelling one class
 
 **Asked:** the installed web app on the phone showed nothing at all: no
