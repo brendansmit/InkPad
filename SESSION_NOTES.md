@@ -336,3 +336,28 @@ throttle. stderr now goes to `~/Library/Logs/cadence-widget.log`.
 
 **State:** one instance running, live data correct, commit `2282861` pushed to
 the Cadence repo.
+
+## 2026-09-03 (later) Cadence widget: the second disappearance was width
+
+**Asked:** "It keeps randomly disappearing."
+
+**Not the crash.** The process had been up 2 hours 19 minutes, had sat through
+the 09:20 warning that killed it the day before, and had written no new crash
+report. So the app was running and only the icon was missing, which is a
+different fault from the one fixed that morning.
+
+**Cause, proven by him not me:** the menu bar was full. He removed another icon
+and it came back. His Mac has a notch, the item asked for a wide variable title
+like `EAP 3 · until 10:15`, and macOS evicts what does not fit. His earlier
+"it stays vanished" referred to the crash episode, where the process was dead,
+not to this.
+
+**Fixed:** dropped "until" from the title, nineteen characters to thirteen. The
+word was redundant anyway, since the green dot already distinguishes being in
+the class from waiting for it. Commit `ed5a2f0`.
+
+**Offered, declined:** logging the item's frame on each refresh to catch the
+next eviction. His own test answered it, so the instrumentation was not built.
+
+**Still long, not changed:** the post-timetable title `No more classes` is
+fifteen characters, now the widest state. Raised, not acted on.
