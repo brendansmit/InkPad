@@ -1,56 +1,6 @@
 # Session Notes
 
 
-## 2026-08-31 Cadence: extra periods, a class slot the sequence never lands in
-
-**Asked:** the note should be visible in the timetable, and the real use is an
-additional period with one class for a few weeks or the whole semester. Added as
-a normal lesson there is no way to tell it apart. Then: put the extra periods in
-brackets next to the number of periods left, because that helps pacing, but it
-must not be an official pacing thing.
-
-**Built:** a third slot kind on the timetable, `Extra period`. It picks a
-section, keeps the class colour, carries its own short name (Support, Writing
-clinic) and is drawn with a dashed border. The note added last session now
-reads as text in the cell rather than hiding behind a glyph.
-
-The whole point is that it is not one of that class's lessons, so it is kept out
-of every figure that decides something:
-
-- the lesson projector in `planSection` skips it, so nothing lands there on its own
-- `remainingClasses` and `slack` exclude it, in `planSection` and again in
-  `openClassesUntil`, which `outlookFor` uses to overwrite both
-- `weeklyLoad` does not count it, so a week does not look a period longer
-- `classTally` counts it in its own field, out of held, lost and left, so a
-  section cannot look ahead of its parallel section
-- assignment runway (`nthClassAfter`, `classesBetween`) does not count it as
-  teaching time, so a due date is not set a class early
-- an event that lands on one is not reported as a lost lesson
-
-What it does instead is show as a dimmed number in brackets beside the real one:
-Pacing table `62 (+16)`, Today's tally `62 left (+16)`, with the breakdown on
-hover. Today, Week, the class sheet and the .ics all wear its name instead of
-saying no lesson is set. Record a lesson in one by hand and it counts like any
-other class.
-
-**Caught in verification:** the first run showed classes left jumping 62 to 78
-and slack 58 to 74 after one extra slot was added. `outlookFor` recomputes both
-from `openClassesUntil`, which had no idea about extras and was overwriting the
-filtered figure. Fixed there, and `extraClasses` is now counted over the same
-window so the bracket and the number beside it talk about the same stretch of
-the year. `nextClass` also had to skip extras, or Pacing reported the next
-lesson as unplanned.
-
-**Verified** in the preview against the sample data: added a Writing clinic on
-Monday period 3 through the real dialog. Classes left and slack came back
-identical to the baseline before the slot existed, the bracket read `(+16)`, no
-projected lesson landed in it, Week and the class sheet showed its name, and the
-.ics summary read `Lang · Writing clinic`. `tsc --noEmit` and `npm run build`
-clean, console clean on a fresh load.
-
-**Commit:** `b18d1a2` on Cadence `main`, pushed and deployed. `/health` came
-back `{"ok":true,"hasState":true,"size":17060}`.
-
 ## 2026-08-31 (later) Cadence: drag lessons into order, split multi period lessons
 
 **Asked:** drag to change the order of lessons, so lesson 1 can be shifted to
