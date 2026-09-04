@@ -358,4 +358,14 @@ late, because it inherited whatever fraction of a second the app started on.
 0.37. Trigger probe re-run after both changes: one bell at end+1, silence at
 +30, silence at -1.
 
-**Commit `7b9e4b9`, pushed.**
+**Then the chime again, twice more.** Turning it down had not fixed the
+sharpness because the level was never the cause. First pass: the octave and the
+twelfth were being held as long as the fundamental, where a real struck bar is
+bright for an instant and then is just the note, so both partials were made
+quieter and given much faster decays (`f56949a`). Asked to go further and make
+it warmer, so the twelfth went entirely and the whole phrase dropped an octave
+to C5, which is the part that mattered: register is what "sharp" means before
+the harmonics get a look in. Strike edge 4ms to 25ms across the two passes.
+Approved, "yeah that's better" (`1e1017d`).
+
+**Commits `7b9e4b9`, `f56949a`, `1e1017d`, pushed.**
