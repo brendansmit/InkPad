@@ -2805,3 +2805,47 @@ now match origin.
 on `rewrite-scoring`. Anything committed here lands on the wrong branch again
 unless the checkout is switched deliberately, with the InkPad files in mind.
 
+## 2026-09-01 Cadence: InkPad linking works again without a sync key
+
+**Asked:** "I can seem to find the way to link the assignments to what is
+available on InkPad." The InkPad button had gone from every assignment card,
+and reaching the panel the other way answered "Set up sync first: InkPad is
+read through your own server."
+
+**Cause, and it was mine.** Last night's change made the sign in stand in for
+the sync key, and a blank server address now means "the server that served this
+page". The InkPad code was not updated with it: `src/lib/inkpad.ts` refused
+unless both `syncUrl` and `syncKey` were filled in, and `Assignments.tsx:448`
+hid the button on the same test. Both are now empty in normal use, so the whole
+feature disappeared. Nothing was wrong on the InkHeron side: the droplet has
+`INKPAD_URL=https://inkpad.inkheron.app` and a token.
+
+**Done:** both fetches take the resolved base from `syncBase()` rather than the
+raw setting, refuse only when there is no server at all, and carry
+`credentials: 'same-origin'`. The three components in Assignments.tsx (the
+button, the link panel, the roster panel) read `syncBase(settings)`.
+`inkpadRefused()` on the server now accepts `appSession(req)` as well as the
+key, which is the pair `/state` already takes.
+
+**One trap worth remembering:** an empty `X-Cadence-Key` header is not the same
+as no header. The server reads a blank key as a wrong key and refuses before it
+ever looks at the session, so `keyHeader()` leaves the header off entirely when
+there is no key rather than sending an empty one.
+
+**Verified:** a throwaway server on 8796 against a stub InkPad on 8797, with a
+fresh data dir so both settings were blank, which is exactly the broken case.
+No credential 401. Key only 200. Session only, no key, 200 on both the list and
+the roster, which is the case that was failing. Session cookie plus
+`Sec-Fetch-Site: cross-site` still 401. Blank key header plus a good session
+200. In the browser the InkPad button reappeared, the panel listed the three
+stub assignments, linking a section and pulling wrote In 6 and Marked 2, the
+card went to "4 to mark", and the moved dates were reported in the toast rather
+than swapped in silently. Console clean apart from the known service worker
+failure in the preview pane. Live server still answers 401 to both
+uncredentialed shapes after deploy.
+
+**Commit:** `f320b5f` on Cadence `main`, pushed and deployed. `/health` came
+back `{"ok":true,"hasState":true,"size":19341}`.
+
+**Still open:** the live site password is still `ChangeMe1`.
+
