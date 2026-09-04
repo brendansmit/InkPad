@@ -367,5 +367,10 @@ A `--bell` flag plays it without waiting for 08:20. A trigger probe against real
 server data confirmed one bell at end+1 minute, silence 30 minutes later, and
 silence one minute early. `build.sh` now links AVFoundation.
 
-**Commit `dc5c9d0`, pushed.** The user rebuilds and restarts the widget
-themselves: `Cadence/widget/build.sh`.
+Then shortened on request: five seconds was long enough to stop being a bell
+and start being a ringtone you learn to resent. The turn back down went, leaving
+four rising notes and the chord, 2.6s in total. Played through the speakers with
+`afplay` and approved, "yeah that's fine".
+
+**Commits `dc5c9d0` and `723ec40`, pushed.** The user rebuilds and restarts the
+widget themselves: `Cadence/widget/build.sh`.
