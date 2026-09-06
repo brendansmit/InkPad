@@ -1,72 +1,6 @@
 # Session Notes
 
 
-## 2026-09-02 Cadence: a menu bar widget, and the InkPad link that I broke
-
-**Asked, first:** the InkPad assignments could not be linked to anything. The
-modal said "Set up sync first: InkPad is read through your own server."
-
-**Cause, mine:** when the sync key became optional the night before, because the
-login session now stands in for it, I updated the sync path and forgot the
-InkPad path. `src/lib/inkpad.ts` still refused unless both `syncUrl` and
-`syncKey` were filled in, and `syncUrl` is now deliberately blank because blank
-means "the server that served this page". The same guard in Assignments.tsx hid
-the InkPad button on the cards outright. The live server was configured fine the
-whole time.
-
-**Fixed:** both fetches take the resolved base rather than raw `syncUrl`, refuse
-only when there is no server at all, send the key header only when there is a
-key, and carry `credentials: 'same-origin'`. The server's `inkpadRefused` now
-accepts the app's own session, matching what `/state` already did. Commit
-`f320b5f`, deployed.
-
-**Asked, second:** a little desktop widget.
-
-**Told him plainly:** a real macOS Notification Centre widget needs an Xcode
-project signed with a developer account, and on a free account it stops working
-every seven days. He has no account. So a menu bar item instead. He chose that,
-and chose next class with time and room, the rest of today, and punch in and out.
-
-**Two server additions first**, both opt in, neither changing what any existing
-caller gets:
-- `/punch?do=state` says whether you are clocked in and writes nothing. Until
-  now `/punch` could only toggle, so the only way to find out was to clock in
-  and read the reply, which is not a question, it is a shift.
-- `/timetable/occurrences?include_extra=1` stops dropping extra periods. They
-  are dropped by default because InkHeron reads that feed to decide where a test
-  can go and an extra period is not the next lesson. A widget telling you where
-  to be at 11:05 wants the opposite. Every occurrence now carries an `extra`
-  flag either way. Commit `246d84a`, deployed.
-
-**The widget:** `Cadence/widget/`, one Swift file built by `swiftc` into an app
-bundle. No Xcode project, no signing, no dependencies. `setup.sh` works both
-tokens out on the droplet (they are sha256 of `CADENCE_KEY` plus a purpose) and
-writes them into `~/.config/cadence-widget/config.json` at mode 600, so nothing
-is typed, nothing is printed and nothing secret is in the repo. A LaunchAgent
-starts it at login, with KeepAlive off so Quit means Quit. Commit `b96de62`.
-
-**Deploy order mattered:** the widget asks `do=state`, which the live server did
-not understand yet and would have treated as a toggle, clocking him in for real.
-Deployed the server change before ever running the app.
-
-**Verifying a menu bar:** `screencapture` has no Screen Recording permission
-here, so I could not look at it. Added `--once`, which prints the bar title and
-the menu lines and exits, sharing the code that draws them rather than copying
-it. Against his live data it printed `BAR: EAP 2 · 13:30` with both remaining
-classes and room 105, and `do=state` read twice in a row without toggling.
-
-**Two real bugs found by that:** the dump deadlocked because it blocked the main
-thread waiting for replies that come back on the main thread, and it reported
-"Cadence: set up" because it loaded the config into a local and never assigned
-it. Both would have been invisible in the GUI.
-
-**Display only:** his short names carry stray double spaces, so `EAP  3` reads
-as a bug in the widget. Whitespace is collapsed for display and never written
-back.
-
-**Dismissed, not built:** he dismissed the first pass of these questions, so
-nothing was started until he answered them.
-
 ## 2026-09-03 — Cadence widget: it disappeared, and why
 
 **Asked:** "The widget was there for a day, now it's gone. I need it to be
@@ -369,3 +303,42 @@ the harmonics get a look in. Strike edge 4ms to 25ms across the two passes.
 Approved, "yeah that's better" (`1e1017d`).
 
 **Commits `7b9e4b9`, `f56949a`, `1e1017d`, pushed.**
+
+## 2026-09-06 Cadence: an NFC tag on the work clock
+
+**Asked:** what to program onto an NFC tag so one tap checks in and out of work
+through Cadence, with a single tag doing both directions.
+
+**Found it already built.** `/punch` has been in `server/server.mjs` all along
+and was live on the droplet: GET or POST, its own token derived from the sync
+key, and a toggle that looks for an open shift on today's date and closes it or
+opens one, exactly the rule `runningShift` uses in the app. I proposed building
+it before I read the file. It needed nothing.
+
+**The tag goes under the fingerprint machine at work**, which rules out writing
+the URL to it: an NDEF record is readable by any phone that touches it, and the
+token is a bearer credential. So the tag stays blank, erased and locked, and the
+phone triggers on its factory UID through a Shortcuts NFC automation. Nobody
+else's phone does anything with it, and the token never leaves the phone.
+
+**A real bug fell out of it.** Every POST from Shortcuts failed with "the
+network connection was lost" while the same URL in Safari worked. Nothing in
+`/punch` reads the request body, so the reply went out and the socket closed
+under Caddy while it was still feeding the request upstream. `req.resume()`.
+curl never saw it because a two byte body is buffered before the reset.
+
+**And the accident case.** Watched four taps land on the live server ten seconds
+apart: in, out, in, out, two complete shifts. A reader that takes the same tag
+twice in one pass would do that at 07:48 and the day would count as nothing. A
+toggle inside two minutes now changes nothing and says "Ignored, you punched
+10 s ago." Only the toggle: an explicit `do=in` or `do=out` still works, and
+that is the way back out of a punch you did not mean.
+
+**Commit `b36e73d`, pushed, server deployed on its own** (rsync of server.mjs
+and a pm2 restart, not `deploy.sh`, so the four undeployed web changes stay
+where they are). Verified live: toggle, repeat ignored, POST with a body 200,
+forced out works. Every test shift removed with a tombstone in `state.deleted`
+so the phone's merge cannot resurrect it.
+
+**Still theirs to do:** the two on-click tags for the desk and the office door,
+and `./deploy/deploy.sh` when they want the web changes out.
