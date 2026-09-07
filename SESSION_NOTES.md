@@ -1,40 +1,6 @@
 # Session Notes
 
 
-## 2026-09-03 — Cadence widget: it disappeared, and why
-
-**Asked:** "The widget was there for a day, now it's gone. I need it to be
-persistent like an app until I choose to close it."
-
-**Cause, confirmed not guessed:** `launchctl list` showed exit -11, and two
-crash reports carried the same trace, an over-release during an autorelease
-pool drain inside `NSApplication.run()`. The second was stamped 07:25:44, about
-thirty seconds after the period 1 warning appeared, which is when the panel
-dismisses itself. It died on close, not on open. `NSWindow` made in code sets
-`isReleasedWhenClosed` to true by default; the panel was also held in a
-property, so closing it handed back an object ARC still owned.
-
-**Fixed:** `isReleasedWhenClosed = false` on the panel, and the warning sound
-held in a property rather than fired and forgotten, since a local `NSSound` can
-be deallocated before it finishes playing.
-
-**A false pass worth remembering:** the first test built for this, 40 rapid
-open and close cycles, passed on the broken build too. It pumped its own run
-loop, and the crash lives in `NSApplication.run()`'s pool drain, so it never
-went near the fault. Said so rather than claiming a fix. The test that works
-runs the real GUI with `--at 07:25` and waits past the auto-dismiss: old binary
-exits 139, new one is still up at fifty seconds with no crash report written.
-That scaffolding was removed before committing, since `--at` already does it.
-
-**Persistence:** LaunchAgent `KeepAlive` is now `SuccessfulExit=false`, so
-launchd revives it after a crash and respects Quit, which exits 0. Verified in
-both directions, SIGKILL brought it back with a new pid, and a throwaway job
-exiting 0 started exactly once in twenty seconds against a five second
-throttle. stderr now goes to `~/Library/Logs/cadence-widget.log`.
-
-**State:** one instance running, live data correct, commit `2282861` pushed to
-the Cadence repo.
-
 ## 2026-09-03 (later) Cadence widget: the second disappearance was width
 
 **Asked:** "It keeps randomly disappearing."
