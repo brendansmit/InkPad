@@ -342,3 +342,42 @@ so the phone's merge cannot resurrect it.
 
 **Still theirs to do:** the two on-click tags for the desk and the office door,
 and `./deploy/deploy.sh` when they want the web changes out.
+
+## 2026-09-07 Cadence: multi period lessons you can change afterwards
+
+Asked for the curriculum to hold lessons that take more than one class, and to
+be able to adjust them later without deleting and replacing, because deleting a
+lesson takes its deliveries with it and that is the record of what was taught.
+
+The old editor split blindly: asking for 2 classes made a second lesson and put
+"(k of n)" in the titles, and nothing but that title related the parts. Growing
+a group left the old last part stranded in the sequence, and shrinking was not
+possible at all. Worse, reopening a two class lesson read 1 in the field, so
+saving it unchanged silently collapsed the group.
+
+**Four steps, commits `2a2cffe` and `29aacfc`, both pushed.**
+
+1. `partOf?: ID` on `Lesson`: every part after the first points at the first
+   one's id. `backfillLessonParts` in `storage.ts` adopts the existing
+   "(k of n)" titles on load, so nothing already in the data is orphaned.
+2. `saveLesson` reconciles the group instead of splitting: the number goes up,
+   comes down, or returns to one, and the parts are renumbered to match.
+3. A part with anything real written against it is never deleted. Only a
+   `planned` delivery with no pin, no gotTo, no notes and no slide is the
+   projector's guess and costs nothing; anything else is a class that happened.
+   Kept parts leave the group, keep their name, and the toast says so.
+4. The editor counts the parts, so reopening a two class lesson reads 2.
+
+**Verified in a browser against a copy of the live state** (pulled read only,
+sync key and URL blanked so the dev copy could never push back): grow 1 to 2,
+the head keeps its id and its `taught` delivery; reopen reads 2; grow to 3, no
+stranded sibling; plant a record on part 2 and shrink to 1, part 3 goes, part 2
+is kept with its delivery intact; a legacy "(1 of 2)"/"(2 of 2)" pair is adopted
+on load and saving it unchanged is a no-op. Two defects found and fixed this
+way: dropped parts left holes in the ordering, and the toast said "they" of one
+part.
+
+**Theirs to do:** the three edits in the UI. I deliberately did not write to
+their live state: the phone and the laptop hold copies, and a server side edit
+behind their backs is how you get a merge fight. `./deploy/deploy.sh` when they
+want it live.
