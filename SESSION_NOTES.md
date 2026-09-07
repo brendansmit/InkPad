@@ -381,3 +381,47 @@ part.
 their live state: the phone and the laptop hold copies, and a server side edit
 behind their backs is how you get a merge fight. `./deploy/deploy.sh` when they
 want it live.
+
+## 2026-09-08 Cadence: real week labels, and the morning three tags undid
+
+Two things: the W/L labels in Curriculum were wrong, and this morning's clock
+in had come undone by itself.
+
+**The clock in.** The server log told the whole story: 06:54:41 arrived,
+06:56:41 left, then two taps ignored inside the window. Three tags on the way
+in, and walking past all three at a normal pace put two minutes and no seconds
+between the first and the second, one second outside the 120 s double scan
+window, so the morning clocked in and straight back out. Restored the shift on
+the server so the arrival still reads 06:54 (backup `state.json.preclockfix`),
+rather than punching in fresh at 07:15.
+
+A clock was never the right guard. Time at work is: until you have been in for
+thirty minutes a toggle is another tag on the way in and changes nothing. Lunch
+is hours later and still works, and `do=out` still leaves whenever you mean it.
+Proved against a local server across every branch, including the override.
+**Commit `0ac365b`.**
+
+Their own ask alongside it: a way to correct a punch by hand. The only time the
+app could fix was a shift you forgot to close. Both times now sit under the
+punch on the Hours card, click one and pick the time you mean. A shift is never
+allowed to end before it starts, and a refusal says why instead of looking like
+a missed click. **Commit `2cefb23`.**
+
+**The week labels.** `lessonRef` divided a lesson's position by the classes a
+week, which is right only while every week is full. Term 1 starts on a Tuesday,
+the Tuesday class was cancelled, so week 1 held three classes and not five, and
+every label after it was two out: position 4 read W1 L4 when the lesson was
+taught on the Monday of week 2, exactly as they said.
+
+New `lessonWeekRefs` walks the section's real occurrences, cancelled classes
+left out because a cancelled class is not a lesson slot, and numbers them by the
+week they fall in. A lesson that already has a delivery keeps its date, so
+anything pinned or moved by hand is labelled where it really went. The
+arithmetic stays as the fallback for a course with no timetabled section, and a
+course with two sections is labelled against the one with the most classes a
+week. **Commit `6429a6a`.** Verified in a browser against a copy of their live
+state: positions 1 to 3 read W1, position 4 reads W2 L1, and the editor
+subtitle agrees.
+
+**Deployed**, site and server, `dist/index.html` checksum matched against the
+droplet.
