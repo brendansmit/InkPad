@@ -1,31 +1,6 @@
 # Session Notes
 
 
-## 2026-09-03 (later) Cadence widget: the second disappearance was width
-
-**Asked:** "It keeps randomly disappearing."
-
-**Not the crash.** The process had been up 2 hours 19 minutes, had sat through
-the 09:20 warning that killed it the day before, and had written no new crash
-report. So the app was running and only the icon was missing, which is a
-different fault from the one fixed that morning.
-
-**Cause, proven by him not me:** the menu bar was full. He removed another icon
-and it came back. His Mac has a notch, the item asked for a wide variable title
-like `EAP 3 · until 10:15`, and macOS evicts what does not fit. His earlier
-"it stays vanished" referred to the crash episode, where the process was dead,
-not to this.
-
-**Fixed:** dropped "until" from the title, nineteen characters to thirteen. The
-word was redundant anyway, since the green dot already distinguishes being in
-the class from waiting for it. Commit `ed5a2f0`.
-
-**Offered, declined:** logging the item's frame on each refresh to catch the
-next eviction. His own test answered it, so the instrumentation was not built.
-
-**Still long, not changed:** the post-timetable title `No more classes` is
-fifteen characters, now the widest state. Raised, not acted on.
-
 ## 2026-09-03 (last) Cadence widget: minutes left, not the end time
 
 **Asked:** he had freed space in the menu bar by removing icons that did not
@@ -391,3 +366,31 @@ subtitle agrees.
 
 **Deployed**, site and server, `dist/index.html` checksum matched against the
 droplet.
+
+## 2026-09-09 Cadence: birthdays
+
+**Asked:** an area to load student and staff birthdays into the calendar, with
+the existing ones on admin.inkheron.app pulled across to save time.
+
+**Decided (theirs):** no link between the two, ever. The admin platform is
+being merged away and everything on it removed, so this is a one time copy of
+the dates and nothing more. They also overrode the usual "no student names in
+Cadence AppState" rule **for birthdays only**, on the grounds that a name plus
+a cohort plus a year less date is not identifying. That override does not
+extend to roster data.
+
+**Built**, four commits:
+- `c45e4f7` a `Birthday` record in state, merged like any other collection
+- a Birthdays page: search, Everyone/Students/Staff, sorted by how soon it is,
+  add and edit and remove. Not in the sidebar; Settings has the door
+- import from a JSON or CSV file, duplicates by name plus day skipped, the
+  whole file in as one undoable change
+- birthdays under the events in a month cell and a card on Today
+
+**Not done and deliberately:** nothing was written into their live state on the
+server. Their phone and laptop hold copies and a server side edit is how a
+merge fight starts. The 145 exported rows went to
+`~/Downloads/cadence-birthdays.json` for them to import once from a device
+running the new build.
+
+**Deployed.** Health check green.
