@@ -1,31 +1,6 @@
 # Session Notes
 
 
-## 2026-09-03 (last) Cadence widget: minutes left, not the end time
-
-**Asked:** he had freed space in the menu bar by removing icons that did not
-need to be there, so he did not want the title compressed further. What he
-wanted instead was a countdown during a lesson, and the next class as soon as
-the current one ends.
-
-**Built:** inside a lesson the bar now reads `EAP 3 · 39 min left` and ticks
-down, with `1 minute left` spelled out at the end because "1 min left" reads
-like a typo. The second half of the request needed no work, since the widget
-already rolls to the next class the moment the current one ends.
-
-**No new timer:** redraw already runs every twenty seconds, which is plenty for
-a per minute countdown.
-
-**Checked across a day:** 07:39 amber `EAP 1 in 1 min`, 07:41 green `39 min
-left`, 08:19 `1 minute left`, 08:21 amber `EAP 3 in 9 min`, 12:30 `No more
-classes`.
-
-**Worth remembering:** `--at` on its own runs the real GUI. Dumping the title
-for a given time needs `--once --at 07:41`. Two test sweeps hung before I
-noticed I was launching menu bar apps rather than printing.
-
-**Commit:** `6d1ecd9`, pushed.
-
 ## 2026-09-03 Cadence widget: two tones
 
 **Asked:** a longer warning tone for a class starting, and a different tone at
@@ -394,3 +369,25 @@ merge fight starts. The 145 exported rows went to
 running the new build.
 
 **Deployed.** Health check green.
+
+## 2026-09-09 (later) Cadence: birthdays that actually show up
+
+**Asked:** the 145 imported and then did nothing. Nothing on the calendar,
+nothing in "this month". Then: give them their own tab, and take them out of
+Settings, because going via Settings is rubbish.
+
+**Fixed, `9ea2e1b`:**
+- **the calendar feed** carries them now, which was the original ask and the
+  part that was missing. One yearly all day event each, transparent, no alarm.
+  A 29 February goes in dated from a leap year, the only kind of year that can
+  hold the date, and the yearly rule does the sane thing from there. On by
+  default, and a fourth tick box next to the other three. Every sync
+  republishes the feed, so it lands as soon as they open the new build
+- **their own sidebar tab**, in the top group under Desk. The Settings card
+  that used to be the only door is gone
+- **a Birthdays card on Month**, that month in day order
+- **a Birthdays card on Week**, the five days on screen
+
+**Verified:** ICS output checked for DTSTART, RRULE and TRANSP including the
+leap day, and Month, Week and the sidebar checked in a browser against the
+real 145. **Deployed.**
