@@ -1,35 +1,6 @@
 # Session Notes
 
 
-## 2026-09-03 Cadence widget: two tones
-
-**Asked:** a longer warning tone for a class starting, and a different tone at
-five minutes left of a lesson. He asked for two repeats, not the three I had
-proposed.
-
-**Length comes from repetition.** Every sound macOS ships is under 2.5 seconds,
-Funk longest at 2.16 and Submarine at 1.49, so there is no longer file to pick.
-Submarine now plays twice, chained off the `NSSound` delegate rather than a
-timer, so the repeat starts when the first actually finishes.
-
-**The end of a lesson is different news.** A start warning is about walking
-somewhere, the five minute one is about winding up. So it gets no panel, only
-Glass twice, bright against Submarine's low ping. It deliberately does not skip
-chained lessons the way the start warning does, because the end of the lesson
-you are in arrives whatever comes next. That means it fires for every lesson,
-four or five times a day. Flagged to him as more frequent than the start
-warning; he wanted it anyway.
-
-**Verified:** silent at ten minutes left, fires at five, exactly one line
-across fifty seconds and three redraws, and the start warning still fires
-fifteen minutes out. The delegate chain was proven in a separate throwaway
-binary, which printed play, finish, play, finish, done.
-
-**Not built:** no config key for the five minute mark or for turning it off on
-its own. Both tones sit under the existing `warn_sound`.
-
-**Commit:** `a029435`, pushed.
-
 ## 2026-09-03 (last) Cadence: cover notes become a real PDF
 
 **Asked:** the Cover sheet should download as a PDF with the resources attached,
@@ -391,3 +362,16 @@ Settings, because going via Settings is rubbish.
 **Verified:** ICS output checked for DTSTART, RRULE and TRANSP including the
 leap day, and Month, Week and the sidebar checked in a browser against the
 real 145. **Deployed.**
+
+## 2026-09-09 (last) Cadence: a cake, and past birthdays sink
+
+**Asked:** the sparkle icon should be a cake, put it on the calendar next to
+the names too, and a birthday that has already been should drop to the bottom
+greyed out, because the top of a list means upcoming.
+
+**Done, `70dfbdc`:** drew a `cake` icon (candle, flame, frosting wave) and used
+it everywhere the sparkle was, including beside the names in each month cell.
+On Month and on Week the ones still to come sort first and anything already
+past goes underneath at 45 per cent, titled "Already been". The Birthdays page
+itself already sorted by how soon it is, so a past one is a year away and lands
+at the bottom on its own. **Deployed.**
