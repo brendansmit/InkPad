@@ -375,3 +375,15 @@ On Month and on Week the ones still to come sort first and anything already
 past goes underneath at 45 per cent, titled "Already been". The Birthdays page
 itself already sorted by how soon it is, so a past one is a year away and lands
 at the bottom on its own. **Deployed.**
+
+## 2026-09-10 Cadence: the Today button stops moving
+
+**Asked:** the `< Today >` row on Today should stay in that shape and not
+collapse to two arrows.
+
+**Cause:** `Today.tsx` only rendered the middle button when `!isToday`, so
+landing back on today took it out of the row and slid both arrows sideways.
+
+**Fixed, `8cd7f0f`:** always rendered, `disabled` when you are already on
+today, titled "This is today". Checked in a browser that every button in the
+topbar keeps the same left edge across the change. **Deployed.**
