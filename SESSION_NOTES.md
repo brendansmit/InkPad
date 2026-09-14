@@ -387,3 +387,39 @@ landing back on today took it out of the row and slid both arrows sideways.
 **Fixed, `8cd7f0f`:** always rendered, `disabled` when you are already on
 today, titled "This is today". Checked in a browser that every button in the
 topbar keeps the same left edge across the change. **Deployed.**
+
+## 2026-09-14 Cadence: make-up lessons on a Saturday or Sunday
+
+**Asked:** be able to add make-up lessons and say which day's schedule they
+run, for Saturdays and Sundays.
+
+**Found:** the engine already did it. `effectiveWeekday()` checks a
+`follows-day` exception before it checks for a weekend, so a Saturday marked
+"runs Tuesday" already generated the whole Tuesday timetable, deliveries,
+pacing and the ICS feed. What was missing was any way to see it or find it.
+
+**Done, `22b080c`:** Week worked out five days and stopped at Friday. It now
+builds seven and keeps a weekend day only when school actually runs on it, so
+a normal week still draws five columns. `.wk` takes its column count from
+`--cols` like the phone glance already did.
+
+**Done, `91a33cb`:** Month hid the weekend unless you flipped the toggle. The
+toggle now starts on Full week for any month holding a weekend make-up day,
+and obeys you again the moment you touch it.
+
+**Done, `78f6fbb`:** the exception editor moved out of Timetable settings into
+`components/DayEditor.tsx`, its middle option reworded to "Make-up day, runs
+another day's timetable", and Month grew a Make-up day button that opens it
+pointed at the coming weekend. Choosing what the day is now names it for you.
+Only Monday to Friday can be followed.
+
+**Done, `f39be0f`:** the Today banner named the followed day out of a five item
+array and never said "make-up day" on a weekend. Fixed both.
+
+**Checked in a browser** on sample data: Sat 19 Sep following Tuesday and Sun
+27 Sep following Wednesday both appear as extra columns in Week, as cells with
+class dots in Month, and run real classes on Today with the right banner. A
+week with no make-up day still draws five columns and October still opens on
+weekdays only. **Deployed.**
+
+No new record type, so nothing to migrate and nothing new in the merge.
