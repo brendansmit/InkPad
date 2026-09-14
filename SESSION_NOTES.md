@@ -336,3 +336,46 @@ week with no make-up day still draws five columns and October still opens on
 weekdays only. **Deployed.**
 
 No new record type, so nothing to migrate and nothing new in the merge.
+
+
+## 2026-09-14 Cadence: the app goes and looks instead of waiting to be reloaded
+
+**Asked:** "You've got to fix how slow the time takes us for the working hours
+to reflect... I need to reload the entire fucking page sometimes twice just for
+a fucking show... they need to be some sort of auto refresh or something with a
+mobile version cause it's fucking useless to get anything new or recent. I have
+to close the app reopen the app and hope that it's fixed."
+
+**The actual fault:** the app synced three seconds after *you* changed
+something, and at no other time. A punch on the work clock comes from the NFC
+sticker straight to the server, so this device never went and looked. Opening
+the app only synced when the device had nothing on it at all. WorkClock was
+never the problem: it already re-renders every 30 seconds.
+
+**Done, `0fd0895`:** `GET /state?meta=1` answers `{mtime, size}` off one stat,
+behind the same auth as `/state`. Every writer, the app and `/punch` alike,
+goes through `putState`, so the file's modified time is a complete answer. The
+PUT reply carries the same mtime.
+
+**Done, `48f5803`:** `syncIfMoved` in storage.ts asks that endpoint and stops
+there when the number is the one this device last wrote. The mtime is recorded
+from our own PUT, never from the poll, so a poll that then failed to sync
+cannot leave the device believing it took in news it never read.
+
+**Done, `cb2e30f`:** every open syncs, bare device or not, without blocking the
+app behind the boot spinner. Coming back to the front syncs at once and starts
+a 60 second cheap poll, which stops while hidden. The corner dot pulses while
+asking and is now a button that syncs on tap and asks the service worker for a
+newer build.
+
+**Done, `e10bc61`:** sw.js version to cadence-v3, or `registration.update()`
+finds nothing new to install and the old cached shell stays.
+
+**Checked against a real server** (built app, local droplet stand-in, external
+`/punch`): the punch showed up in the app about two seconds after the tab came
+back to the front, no reload; a poll with nothing changed makes one small
+request and writes nothing; the tap pulses, disables itself and syncs. Polling
+correctly pauses while the tab is hidden. **Deployed.**
+
+One pull still costs two writes: the merged state is applied, which counts as a
+change, which schedules a sync three seconds later. Not a loop, and left alone.
