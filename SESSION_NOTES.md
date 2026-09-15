@@ -379,3 +379,24 @@ correctly pauses while the tab is hidden. **Deployed.**
 
 One pull still costs two writes: the merged state is applied, which counts as a
 change, which schedules a sync three seconds later. Not a loop, and left alone.
+
+
+## 2026-09-15 Cadence: the pacing tiles stop writing over their own borders
+
+**Asked:** "fix the overlap on those blocks", with a screenshot of Classes so
+far, where "2 classes back" ran through the side of its tile.
+
+**Done, `29609ea`:** the count and the note share a grid row whose second
+column was `1fr` (minimum: content) holding text set to `nowrap`, so a tile
+with anything to say drew its text straight over its own border. The note wraps
+now, its column is `minmax(0, 1fr)`, and the tiles start at 116px rather than
+92px, which is what the widest note needs to stay on one line beside the count.
+Three sections in a narrow column now wrap two and one, which is the trade for
+never overlapping. **Checked at desktop and at 375px, deployed.**
+
+**Also confirmed, no change needed:** make-up days do not have to follow any
+pattern and are not tied to the day they make up. `planSection` walks
+`eachDay(start, end)` in date order and flows the unused lessons into whatever
+classes it finds, so a make-up day weeks before or after the lost one simply
+takes its place in the sequence by date. A make-up day in the past with nothing
+recorded stays blank on purpose.
