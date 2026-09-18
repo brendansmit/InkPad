@@ -3143,3 +3143,40 @@ was also pushing its confirm button 6px off the right edge at 375px.
 
 **Commit `29c470c`, pushed. Not deployed.** The cover PDF, the mobile sweep and
 the week Glance are all still waiting on one `./deploy/deploy.sh`.
+
+## 2026-09-04 Widget: a bell at the end of each period
+
+**Asked:** "beep at break time too", then "break time as in the end of a
+period", then "make it a 5 second tone", then "that's a horrible sound that
+you've chosen sounds like a bomb warning, make it light and friendly and
+jingly."
+
+**Done:** `endedIfDue()` in the menu bar widget's `main.swift`, beside the
+existing start warning and five minute chime. It cannot use `currentOrNext()`,
+which at the moment a period ends already points at the next one, so it scans
+`today` for the slot whose end time is behind it by no more than two minutes.
+A laptop opened at lunch therefore does not ring out a period that finished at
+09:15. Stamped in a set like the other two warnings so the twenty second redraw
+rings once.
+
+**The sound is synthesised**, `bellBuffer` into AVAudioEngine. Every sound macOS
+ships is a ping under 2.5s and five in a row is a stutter. The first attempt was
+a held two partial tone with a tremolo, which was correctly called an air raid
+siren. Replaced with a glockenspiel: struck notes, each a fundamental plus
+octave plus twelfth on a fast exponential decay, C E G C rising, a turn back
+down, then a chord at 3.1s left to ring out so the five seconds end by fading.
+Normalised to 0.92 with a 40ms tail fade; measured peak 0.52.
+
+**Verified:** `--wav` probe rendered the buffer to a file for the user to hear.
+A `--bell` flag plays it without waiting for 08:20. A trigger probe against real
+server data confirmed one bell at end+1 minute, silence 30 minutes later, and
+silence one minute early. `build.sh` now links AVFoundation.
+
+Then shortened on request: five seconds was long enough to stop being a bell
+and start being a ringtone you learn to resent. The turn back down went, leaving
+four rising notes and the chord, 2.6s in total. Played through the speakers with
+`afplay` and approved, "yeah that's fine".
+
+**Commits `dc5c9d0` and `723ec40`, pushed.** The user rebuilds and restarts the
+widget themselves: `Cadence/widget/build.sh`.
+

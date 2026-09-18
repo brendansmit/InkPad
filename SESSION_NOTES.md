@@ -1,42 +1,6 @@
 # Session Notes
 
 
-## 2026-09-04 Widget: a bell at the end of each period
-
-**Asked:** "beep at break time too", then "break time as in the end of a
-period", then "make it a 5 second tone", then "that's a horrible sound that
-you've chosen sounds like a bomb warning, make it light and friendly and
-jingly."
-
-**Done:** `endedIfDue()` in the menu bar widget's `main.swift`, beside the
-existing start warning and five minute chime. It cannot use `currentOrNext()`,
-which at the moment a period ends already points at the next one, so it scans
-`today` for the slot whose end time is behind it by no more than two minutes.
-A laptop opened at lunch therefore does not ring out a period that finished at
-09:15. Stamped in a set like the other two warnings so the twenty second redraw
-rings once.
-
-**The sound is synthesised**, `bellBuffer` into AVAudioEngine. Every sound macOS
-ships is a ping under 2.5s and five in a row is a stutter. The first attempt was
-a held two partial tone with a tremolo, which was correctly called an air raid
-siren. Replaced with a glockenspiel: struck notes, each a fundamental plus
-octave plus twelfth on a fast exponential decay, C E G C rising, a turn back
-down, then a chord at 3.1s left to ring out so the five seconds end by fading.
-Normalised to 0.92 with a 40ms tail fade; measured peak 0.52.
-
-**Verified:** `--wav` probe rendered the buffer to a file for the user to hear.
-A `--bell` flag plays it without waiting for 08:20. A trigger probe against real
-server data confirmed one bell at end+1 minute, silence 30 minutes later, and
-silence one minute early. `build.sh` now links AVFoundation.
-
-Then shortened on request: five seconds was long enough to stop being a bell
-and start being a ringtone you learn to resent. The turn back down went, leaving
-four rising notes and the chord, 2.6s in total. Played through the speakers with
-`afplay` and approved, "yeah that's fine".
-
-**Commits `dc5c9d0` and `723ec40`, pushed.** The user rebuilds and restarts the
-widget themselves: `Cadence/widget/build.sh`.
-
 ## 2026-09-04 (later) Widget: clock drift, and a quieter chime
 
 **Asked:** "the timer on the widget is off by a couple of seconds, lock it to
@@ -372,3 +336,34 @@ pattern and are not tied to the day they make up. `planSection` walks
 classes it finds, so a make-up day weeks before or after the lost one simply
 takes its place in the sequence by date. A make-up day in the past with nothing
 recorded stays blank on purpose.
+
+## 2026-09-18 Widget: it had fallen behind in time again
+
+Asked: "The widget has falen behind in time, not happy with that. fix it and
+prevent it from doing that again."
+
+The 2026-09-04 drift fix removed phase error inside the tick, which was a
+different failure. Nothing handled the two things that actually stop the tick
+happening at all: App Nap, which is free to throttle and park a windowless
+LSUIElement accessory no matter what tolerance a Timer carries, and system
+sleep, after which a dispatch or run loop deadline measured in uptime is hours
+behind the wall clock with nothing forcing a redraw or a refetch.
+
+Four commits in Cadence, all on main and pushed:
+
+- `0df1685` a lifetime `ProcessInfo.beginActivity` with
+  `.userInitiatedAllowingIdleSystemSleep`, so App Nap leaves it alone without
+  the Mac being kept awake.
+- `060250a` the one second tick moved from `Timer` to a `DispatchSourceTimer`
+  flagged `.strict`, the documented way to refuse coalescing. Still phased onto
+  a whole second. Verified in a scratch program: fires land on .000.
+- `451cd9d` `NSWorkspace` didWake, screensDidWake and sessionDidBecomeActive
+  re-phase the tick, redraw at once and refetch.
+- `a8eb982` a watchdog: any tick that finds more than 90 s of wall clock since
+  the previous one re-phases, redraws and refetches, whatever the cause. Opening
+  the menu now redraws before it fetches. Verified with a copy that starts out
+  pretending it slept ten minutes: watchdog fires once, then 1.00 s ticks.
+
+Rebuilt and relaunched here. Note for next time: a login item relaunches the
+widget within seconds of `killall`, so `killall` then `open` leaves two copies
+and two menu bar icons. `killall` alone is enough.
