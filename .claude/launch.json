@@ -4,59 +4,120 @@
     {
       "name": "class-grouper",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["class-grouper/server.js"],
+      "runtimeArgs": [
+        "class-grouper/server.js"
+      ],
       "port": 3458,
       "autoPort": true
     },
     {
       "name": "sound-effects",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-p", "3457", "."],
+      "runtimeArgs": [
+        "serve",
+        "-p",
+        "3457",
+        "."
+      ],
       "port": 3457
     },
     {
       "name": "wa-mockups",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "3461", "--directory", "Writing analyzer/mockups"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3461",
+        "--directory",
+        "Writing analyzer/mockups"
+      ],
       "port": 3461
     },
     {
       "name": "wa-layouts",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "3462", "--directory", "Writing analyzer/mockups"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3462",
+        "--directory",
+        "Writing analyzer/mockups"
+      ],
       "port": 3462
     },
     {
       "name": "bug-detector",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "3463", "--directory", "bug-detector"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "3463",
+        "--directory",
+        "bug-detector"
+      ],
       "port": 3463
     },
     {
       "name": "speed-dating",
       "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node",
-      "runtimeArgs": ["speed-dating/server.js"],
+      "runtimeArgs": [
+        "speed-dating/server.js"
+      ],
       "port": 3464
     },
     {
       "name": "prototype-coder",
       "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v20.20.2/bin/node",
-      "runtimeArgs": ["prototype-coder/src/index.js"],
+      "runtimeArgs": [
+        "prototype-coder/src/index.js"
+      ],
       "port": 3471,
-      "env": { "PORT": "3471" }
+      "env": {
+        "PORT": "3471"
+      }
     },
     {
       "name": "launcher",
       "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3",
-      "runtimeArgs": ["launcher/launcher_server.py"],
+      "runtimeArgs": [
+        "launcher/launcher_server.py"
+      ],
       "port": 5099
     },
     {
       "name": "cadence",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "5183", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5183",
+        "--strictPort"
+      ],
       "cwd": "/Users/brendansmit/Documents/Claude/Cadence",
       "port": 5183
+    },
+    {
+      "name": "cadence-doing",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/brendansmit/Documents/Claude/Cadence",
+      "port": 5193,
+      "autoPort": true
+    },
+    {
+      "name": "inkheron-scratch",
+      "runtimeExecutable": "/Users/brendansmit/.nvm/versions/node/v24.18.0/bin/node",
+      "runtimeArgs": [
+        "src/server.js"
+      ],
+      "cwd": "/Users/brendansmit/Documents/Claude/InkHeron-Platform",
+      "port": 3477,
+      "env": {
+        "PORT": "3477",
+        "INKHERON_DB_PATH": "/private/tmp/claude-501/-Users-brendansmit-Documents-Claude/9bd15106-641c-4b85-9dfa-f6f2548cfe39/scratchpad/scratch.db"
+      }
     }
   ]
 }
